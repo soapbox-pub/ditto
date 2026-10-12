@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, Heart } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -20,6 +21,7 @@ import { TEAM_SOAPBOX_PACK } from '@/lib/helpContent';
  * a "Follow All" action. Designed for the Help page but reusable anywhere.
  */
 export function TeamSoapboxCard({ className }: { className?: string }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { data: followList } = useFollowList();
 
@@ -87,9 +89,14 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
               <Heart className="size-5 text-primary" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-base font-bold leading-snug">Need help? Meet Team Soapbox</h3>
+              <h3 className="text-base font-bold leading-snug">
+                <FormattedMessage id="teamSoapbox.title" defaultMessage="Need help? Meet Team Soapbox" />
+              </h3>
               <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                These are real people who built this platform and are happy to help. Follow them and don't be shy. Ask anything!
+                <FormattedMessage
+                  id="teamSoapbox.description"
+                  defaultMessage="These are real people who built this platform and are happy to help. Follow them and don't be shy. Ask anything!"
+                />
               </p>
             </div>
           </div>
@@ -100,7 +107,7 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
               <div className="flex -space-x-2">
                 {previewPubkeys.map((pk) => {
                   const member = membersMap?.get(pk);
-                  const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
+                  const name = member?.metadata?.name || member?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
                   const shape = getAvatarShape(member?.metadata);
                   return (
                     <Avatar key={pk} shape={shape} className="size-8 ring-2 ring-background">
@@ -114,7 +121,11 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
               </div>
               <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                 <Users className="size-3.5" />
-                {pubkeys.length} member{pubkeys.length !== 1 ? 's' : ''}
+                <FormattedMessage
+                  id="teamSoapbox.memberCount"
+                  defaultMessage="{count, plural, one {# member} other {# members}}"
+                  values={{ count: pubkeys.length }}
+                />
               </span>
             </div>
           )}
@@ -125,13 +136,13 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
               pubkeys={pubkeys}
               followedPubkeys={followedPubkeys}
               listNoun="Team Soapbox"
-              followSuccessTitle="Following Team Soapbox!"
+              followSuccessTitle={intl.formatMessage({ id: 'teamSoapbox.followSuccess', defaultMessage: 'Following Team Soapbox!' })}
               className="flex-1"
             />
 
             {naddrLink && (
               <Button variant="outline" asChild>
-                <Link to={naddrLink}>View Pack</Link>
+                <Link to={naddrLink}><FormattedMessage id="teamSoapbox.viewPack" defaultMessage="View Pack" /></Link>
               </Button>
             )}
           </div>

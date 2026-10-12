@@ -21,6 +21,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Lock, Mail } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -141,6 +142,7 @@ interface EncryptedLetterContentProps {
 }
 
 export function EncryptedLetterContent({ event, compact, className }: EncryptedLetterContentProps) {
+  const intl = useIntl();
   const [state, setState] = useState<EnvelopeState>('back');
 
   const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
@@ -169,7 +171,9 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
   if (!recipientPubkey) {
     return (
       <div className={cn('mt-2 px-4 py-3', className)}>
-        <p className="text-sm text-muted-foreground italic">Encrypted letter (no recipient found)</p>
+        <p className="text-sm text-muted-foreground italic">
+          <FormattedMessage id="encryptedLetter.noRecipient" defaultMessage="Encrypted letter (no recipient found)" />
+        </p>
       </div>
     );
   }
@@ -212,10 +216,10 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
             }}
             aria-label={
               state === 'back'
-                ? 'Envelope back. Click to flip to the front'
+                ? intl.formatMessage({ id: 'encryptedLetter.ariaBack', defaultMessage: 'Envelope back. Click to flip to the front' })
                 : state === 'front'
-                  ? 'Sealed envelope. Click to open the flap'
-                  : 'Encrypted letter. Click to close'
+                  ? intl.formatMessage({ id: 'encryptedLetter.ariaFront', defaultMessage: 'Sealed envelope. Click to open the flap' })
+                  : intl.formatMessage({ id: 'encryptedLetter.ariaOpen', defaultMessage: 'Encrypted letter. Click to close' })
             }
           >
             <div
@@ -388,7 +392,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                           lineHeight: 2.2,
                           letterSpacing: '0.25em',
                         }}
-                        aria-label="Encrypted content rendered as Nushu script"
+                        aria-label={intl.formatMessage({ id: 'encryptedLetter.nushuAria', defaultMessage: 'Encrypted content rendered as Nushu script' })}
                       >
                         {nushuText}
                       </p>
@@ -417,7 +421,7 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                       style={{ color: '#8B7355' }}
                     >
                       <Lock className="size-3" />
-                      This message is encrypted
+                      <FormattedMessage id="encryptedLetter.encryptedNotice" defaultMessage="This message is encrypted" />
                     </p>
                   </div>
                 </div>
@@ -452,11 +456,12 @@ interface EncryptedLetterCompactProps {
  * Shows sender avatar + "Sent a letter to [recipient]".
  */
 export function EncryptedLetterCompact({ event, className }: EncryptedLetterCompactProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
   const recipientAuthor = useAuthor(recipientPubkey ?? '');
   const recipientName = recipientPubkey
@@ -532,7 +537,15 @@ export function EncryptedLetterCompact({ event, className }: EncryptedLetterComp
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Mail className="size-3.5 shrink-0" />
           <span>
-            Sent a letter{recipientName ? <> to <span className="font-medium text-foreground">{recipientName}</span></> : ''}
+            {recipientName ? (
+              <FormattedMessage
+                id="encryptedLetter.sentTo"
+                defaultMessage="Sent a letter to <b>{name}</b>"
+                values={{ name: recipientName, b: (chunks) => <span className="font-medium text-foreground">{chunks}</span> }}
+              />
+            ) : (
+              <FormattedMessage id="encryptedLetter.sent" defaultMessage="Sent a letter" />
+            )}
           </span>
         </p>
       </div>

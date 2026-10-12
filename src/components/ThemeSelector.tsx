@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
 import { Check, Palette, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw } from 'lucide-react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -31,11 +32,18 @@ function hsl(value: string): string {
 const CORE_KEYS: (keyof CoreThemeColors)[] = ['primary', 'text', 'background'];
 
 /** Human-readable labels for core color keys */
-const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
-  primary: 'Primary',
-  text: 'Text',
-  background: 'Background',
-};
+const COLOR_LABELS = defineMessages({
+  primary: { id: 'themeSelector.color.primary', defaultMessage: 'Primary' },
+  text: { id: 'themeSelector.color.text', defaultMessage: 'Text' },
+  background: { id: 'themeSelector.color.background', defaultMessage: 'Background' },
+});
+
+/** Labels for the built-in theme options */
+const builtinThemeLabels = defineMessages({
+  system: { id: 'themeSelector.builtin.system', defaultMessage: 'System' },
+  light: { id: 'themeSelector.builtin.light', defaultMessage: 'Light' },
+  dark: { id: 'themeSelector.builtin.dark', defaultMessage: 'Dark' },
+});
 
 /** Get the effective CoreThemeColors for the current theme */
 function getEffectiveColors(theme: Theme, customTheme?: ThemeConfig, themes?: ThemesConfig): CoreThemeColors {
@@ -179,14 +187,15 @@ export function ThemeGrid({
   /** Maximum number of themes to display. When set, the list is truncated after this many items. */
   limit?: number;
 }) {
+  const intl = useIntl();
   const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
   const userThemes = useUserThemes(user?.pubkey);
 
   const builtinOptions: { id: Theme; label: string }[] = [
-    { id: 'system', label: 'System' },
-    { id: 'light', label: 'Light' },
-    { id: 'dark', label: 'Dark' },
+    { id: 'system', label: intl.formatMessage(builtinThemeLabels.system) },
+    { id: 'light', label: intl.formatMessage(builtinThemeLabels.light) },
+    { id: 'dark', label: intl.formatMessage(builtinThemeLabels.dark) },
   ];
 
   const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
@@ -456,6 +465,7 @@ interface ThemeSelectorProps {
 }
 
 export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }: ThemeSelectorProps = {}) {
+  const intl = useIntl();
   const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
   const { user } = useCurrentUser();
   const { publishTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
@@ -572,17 +582,28 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         titleFont: customTheme?.titleFont,
         background: customTheme?.background,
       });
-      toast({ title: `"${editingTheme.title}" updated`, description: 'Your theme has been saved and republished.' });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.updated', defaultMessage: '"{title}" updated' }, { title: editingTheme.title }),
+        description: intl.formatMessage({ id: 'themeSelector.updatedDescription', defaultMessage: 'Your theme has been saved and republished.' }),
+      });
     } catch (error) {
       console.error('Failed to update theme:', error);
-      toast({ title: 'Update failed', description: 'Could not update your theme.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.updateFailed', defaultMessage: 'Update failed' }),
+        description: intl.formatMessage({ id: 'themeSelector.updateFailedDescription', defaultMessage: 'Could not update your theme.' }),
+        variant: 'destructive',
+      });
     }
-  }, [editingTheme, customTheme, effectiveColors, publishTheme, toast]);
+  }, [editingTheme, customTheme, effectiveColors, publishTheme, toast, intl]);
 
   /** Submit the publish dialog */
   const handlePublishSubmit = useCallback(async () => {
     if (!publishTitle.trim()) {
-      toast({ title: 'Title required', description: 'Give your theme a name.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.titleRequired', defaultMessage: 'Title required' }),
+        description: intl.formatMessage({ id: 'themeSelector.titleRequiredDescription', defaultMessage: 'Give your theme a name.' }),
+        variant: 'destructive',
+      });
       return;
     }
     try {
@@ -603,35 +624,49 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         background: customTheme?.background,
         event: {} as ThemeDefinition['event'],
       });
-      toast({ title: 'Theme published!', description: `"${publishTitle.trim()}" is now available on Nostr.` });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.published', defaultMessage: 'Theme published!' }),
+        description: intl.formatMessage({ id: 'themeSelector.publishedDescription', defaultMessage: '"{title}" is now available on Nostr.' }, { title: publishTitle.trim() }),
+      });
     } catch (error) {
       console.error('Failed to publish theme:', error);
-      toast({ title: 'Publish failed', description: 'Could not publish your theme.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.publishFailed', defaultMessage: 'Publish failed' }),
+        description: intl.formatMessage({ id: 'themeSelector.publishFailedDescription', defaultMessage: 'Could not publish your theme.' }),
+        variant: 'destructive',
+      });
     }
-  }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast]);
+  }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast, intl]);
 
   /** Delete the currently-editing theme */
   const handleDeleteTheme = useCallback(async () => {
     if (!editingTheme) return;
     try {
       await deleteTheme(editingTheme);
-      toast({ title: 'Theme deleted', description: `"${editingTheme.title}" has been removed.` });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.deleted', defaultMessage: 'Theme deleted' }),
+        description: intl.formatMessage({ id: 'themeSelector.deletedDescription', defaultMessage: '"{title}" has been removed.' }, { title: editingTheme.title }),
+      });
       setEditingTheme(null);
       setTheme('system');
       onBuilderOpenChange?.(false);
     } catch (error) {
       console.error('Failed to delete theme:', error);
-      toast({ title: 'Delete failed', description: 'Could not delete your theme.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'themeSelector.deleteFailed', defaultMessage: 'Delete failed' }),
+        description: intl.formatMessage({ id: 'themeSelector.deleteFailedDescription', defaultMessage: 'Could not delete your theme.' }),
+        variant: 'destructive',
+      });
     }
-  }, [editingTheme, deleteTheme, toast, setTheme, onBuilderOpenChange]);
+  }, [editingTheme, deleteTheme, toast, setTheme, onBuilderOpenChange, intl]);
 
   // ── Build sectioned item lists ──
   const userThemes = useUserThemes(user?.pubkey);
 
   const builtinOptions: { id: Theme; label: string }[] = [
-    { id: 'system', label: 'System' },
-    { id: 'light', label: 'Light' },
-    { id: 'dark', label: 'Dark' },
+    { id: 'system', label: intl.formatMessage(builtinThemeLabels.system) },
+    { id: 'light', label: intl.formatMessage(builtinThemeLabels.light) },
+    { id: 'dark', label: intl.formatMessage(builtinThemeLabels.dark) },
   ];
 
   const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
@@ -757,7 +792,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
       {/* ── My Themes ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          My Themes
+          <FormattedMessage id="themeSelector.myThemes" defaultMessage="My Themes" />
         </h3>
         {userThemeItems.length > 0 ? (
           <div className={gridClass}>
@@ -782,7 +817,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
             </div>
             <p className="text-sm text-muted-foreground">
-              Create and share your first custom theme
+              <FormattedMessage id="themeSelector.createFirst" defaultMessage="Create and share your first custom theme" />
             </p>
           </button>
         )}
@@ -791,7 +826,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
       {/* ── Presets ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Presets
+          <FormattedMessage id="themeSelector.presets" defaultMessage="Presets" />
         </h3>
         <div className={gridClass}>
           {[...builtinItems, ...presetItems].map((item) => (
@@ -818,7 +853,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               className="absolute left-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
               <RotateCcw className="size-4" />
-              <span className="sr-only">Reset</span>
+              <span className="sr-only"><FormattedMessage id="imageCrop.reset" defaultMessage="Reset" /></span>
             </button>
           )}
           <div className="relative max-h-[85vh] flex flex-col">
@@ -846,11 +881,13 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             onScroll={updateBuilderScroll}
           >
           <DialogHeader className="text-center">
-            <DialogTitle className="text-center" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{editingTheme ? 'Edit Theme' : 'New Theme'}</DialogTitle>
+            <DialogTitle className="text-center" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{editingTheme
+              ? <FormattedMessage id="themeSelector.editTheme" defaultMessage="Edit Theme" />
+              : <FormattedMessage id="themeSelector.newTheme" defaultMessage="New Theme" />}</DialogTitle>
             <DialogDescription className="text-center">
               {editingTheme
-                ? `Editing "${editingTheme.title}"`
-                : 'Customize color, font and background'}
+                ? <FormattedMessage id="themeSelector.editing" defaultMessage='Editing "{title}"' values={{ title: editingTheme.title }} />
+                : <FormattedMessage id="themeSelector.customize" defaultMessage="Customize color, font and background" />}
             </DialogDescription>
           </DialogHeader>
 
@@ -860,7 +897,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               {CORE_KEYS.map((key) => (
                 <ColorPicker
                   key={key}
-                  label={COLOR_LABELS[key]}
+                  label={intl.formatMessage(COLOR_LABELS[key])}
                   value={hslStringToHex(effectiveColors[key])}
                   onChange={(hex) => handleColorChange(key, hex)}
                 />
@@ -897,9 +934,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               <div className="rounded-xl border border-border bg-card p-4">
                 <div className="flex items-center justify-between gap-4">
                   <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
-                    <span className="text-sm font-medium">Sync with Profile</span>
+                    <span className="text-sm font-medium"><FormattedMessage id="themeSelector.syncWithProfile" defaultMessage="Sync with Profile" /></span>
                     <span className="text-xs text-muted-foreground font-normal">
-                      Turn off to display different theme on profile than everywhere else
+                      <FormattedMessage id="themeSelector.syncWithProfileHint" defaultMessage="Turn off to display different theme on profile than everywhere else" />
                     </span>
                   </Label>
                   <Switch
@@ -925,7 +962,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                     disabled={isPublishing}
                   >
                     <Palette className="size-3.5 mr-1.5" />
-                    {isPublishing ? 'Updating...' : `Update "${editingTheme.title}"`}
+                    {isPublishing
+                      ? <FormattedMessage id="themeSelector.updating" defaultMessage="Updating..." />
+                      : <FormattedMessage id="themeSelector.updateTheme" defaultMessage='Update "{title}"' values={{ title: editingTheme.title }} />}
                   </Button>
                 )}
                 <Button
@@ -935,7 +974,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                   onClick={handlePublishNew}
                 >
                   <Palette className="size-3.5 mr-1.5" />
-                  Publish New Theme
+                  <FormattedMessage id="themeSelector.publishNew" defaultMessage="Publish New Theme" />
                 </Button>
               </div>
 
@@ -944,7 +983,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                 <Collapsible>
                   <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group">
                     <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
-                    Advanced
+                    <FormattedMessage id="settings.profile.advanced" defaultMessage="Advanced" />
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="pt-3">
@@ -956,7 +995,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="size-3.5 mr-1.5" />
-                        Delete Theme
+                        <FormattedMessage id="themeSelector.deleteTheme" defaultMessage="Delete Theme" />
                       </Button>
                     </div>
                   </CollapsibleContent>
@@ -974,9 +1013,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Publish Theme</DialogTitle>
+            <DialogTitle><FormattedMessage id="themeSelector.publishTheme" defaultMessage="Publish Theme" /></DialogTitle>
             <DialogDescription>
-              Share your theme on Nostr. Others can browse, preview, and use it.
+              <FormattedMessage id="themeSelector.publishDescription" defaultMessage="Share your theme on Nostr. Others can browse, preview, and use it." />
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -990,22 +1029,22 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
               ))}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="theme-title">Title</Label>
+              <Label htmlFor="theme-title"><FormattedMessage id="themeSelector.titleLabel" defaultMessage="Title" /></Label>
               <Input
                 id="theme-title"
                 value={publishTitle}
                 onChange={(e) => setPublishTitle(e.target.value)}
-                placeholder="e.g. My Dark Theme"
+                placeholder={intl.formatMessage({ id: 'themeSelector.titlePlaceholder', defaultMessage: 'e.g. My Dark Theme' })}
                 maxLength={80}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="theme-description">Description (optional)</Label>
+              <Label htmlFor="theme-description"><FormattedMessage id="themeSelector.descriptionLabel" defaultMessage="Description (optional)" /></Label>
               <Textarea
                 id="theme-description"
                 value={publishDescription}
                 onChange={(e) => setPublishDescription(e.target.value)}
-                placeholder="A sleek dark theme with purple accents..."
+                placeholder={intl.formatMessage({ id: 'themeSelector.descriptionPlaceholder', defaultMessage: 'A sleek dark theme with purple accents...' })}
                 maxLength={200}
                 rows={2}
               />
@@ -1014,7 +1053,9 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
           <DialogFooter>
             <Button onClick={handlePublishSubmit} disabled={isPublishing || !publishTitle.trim()}>
               <Palette className="size-4 mr-1.5" />
-              {isPublishing ? 'Publishing...' : 'Publish'}
+              {isPublishing
+                ? <FormattedMessage id="themeSelector.publishing" defaultMessage="Publishing..." />
+                : <FormattedMessage id="themeSelector.publish" defaultMessage="Publish" />}
             </Button>
           </DialogFooter>
         </DialogContent>

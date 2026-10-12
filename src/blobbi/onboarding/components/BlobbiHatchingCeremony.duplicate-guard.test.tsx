@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, render } from '@testing-library/react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { IntlProvider } from 'react-intl';
 
 import {
   KIND_BLOBBI_STATE,
@@ -45,6 +46,10 @@ vi.mock('@/blobbi/ui/BlobbiStageVisual', () => ({
 }));
 
 import { BlobbiHatchingCeremony } from './BlobbiHatchingCeremony';
+
+function EnglishIntl({ children }: { children: React.ReactNode }) {
+  return <IntlProvider locale="en">{children}</IntlProvider>;
+}
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -100,6 +105,7 @@ function renderCeremony(
       onComplete={onComplete}
       {...props}
     />,
+    { wrapper: EnglishIntl },
   );
   return { ...result, onComplete };
 }

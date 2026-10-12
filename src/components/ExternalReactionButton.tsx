@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
@@ -52,6 +53,7 @@ interface ExternalReactionButtonProps {
  * and displays the user's existing reaction & total count.
  */
 export function ExternalReactionButton({ content, iconSize = 'size-5', count, className }: ExternalReactionButtonProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -118,13 +120,13 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
           }, 3000);
         },
         onError: () => {
-          toast({ title: 'Failed to react', variant: 'destructive' });
+          toast({ title: intl.formatMessage({ id: 'externalReaction.failed', defaultMessage: 'Failed to react' }), variant: 'destructive' });
           queryClient.setQueryData(['external-user-reaction', identifier], null);
           queryClient.setQueryData(['external-reaction-count', identifier], (prev: number | undefined) => Math.max(0, (prev ?? 1) - 1));
         },
       },
     );
-  }, [user, content, identifier, publishEvent, queryClient, toast]);
+  }, [user, content, identifier, publishEvent, queryClient, toast, intl]);
 
   return (
     <Popover open={reactOpen} onOpenChange={(open) => {
@@ -141,7 +143,7 @@ export function ExternalReactionButton({ content, iconSize = 'size-5', count, cl
               : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
             className,
           )}
-          title="React"
+          title={intl.formatMessage({ id: 'externalReaction.react', defaultMessage: 'React' })}
           onClick={(e) => {
             e.stopPropagation();
             if (!user) return;

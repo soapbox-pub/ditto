@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import {
   Dialog,
   DialogContent,
@@ -33,17 +34,35 @@ interface ReportProfileProps {
 
 type ReportDialogProps = ReportEventProps | ReportProfileProps;
 
-const REPORT_TYPES: { value: ReportType; label: string; description: string }[] = [
-  { value: 'spam', label: 'Spam', description: 'Unsolicited or repetitive content' },
-  { value: 'nudity', label: 'Nudity or sexual content', description: 'Depictions of nudity or pornography' },
-  { value: 'impersonation', label: 'Impersonation', description: 'Pretending to be someone else' },
-  { value: 'profanity', label: 'Hateful speech', description: 'Profanity, hateful or abusive speech' },
-  { value: 'illegal', label: 'Illegal content', description: 'Content that may be illegal in some jurisdictions' },
-  { value: 'malware', label: 'Malware', description: 'Virus, trojan horse, spyware, or ransomware' },
-  { value: 'other', label: 'Other', description: 'Something else not listed above' },
+const messages = defineMessages({
+  spamLabel: { id: 'reportDialog.type.spam.label', defaultMessage: 'Spam' },
+  spamDescription: { id: 'reportDialog.type.spam.description', defaultMessage: 'Unsolicited or repetitive content' },
+  nudityLabel: { id: 'reportDialog.type.nudity.label', defaultMessage: 'Nudity or sexual content' },
+  nudityDescription: { id: 'reportDialog.type.nudity.description', defaultMessage: 'Depictions of nudity or pornography' },
+  impersonationLabel: { id: 'reportDialog.type.impersonation.label', defaultMessage: 'Impersonation' },
+  impersonationDescription: { id: 'reportDialog.type.impersonation.description', defaultMessage: 'Pretending to be someone else' },
+  profanityLabel: { id: 'reportDialog.type.profanity.label', defaultMessage: 'Hateful speech' },
+  profanityDescription: { id: 'reportDialog.type.profanity.description', defaultMessage: 'Profanity, hateful or abusive speech' },
+  illegalLabel: { id: 'reportDialog.type.illegal.label', defaultMessage: 'Illegal content' },
+  illegalDescription: { id: 'reportDialog.type.illegal.description', defaultMessage: 'Content that may be illegal in some jurisdictions' },
+  malwareLabel: { id: 'reportDialog.type.malware.label', defaultMessage: 'Malware' },
+  malwareDescription: { id: 'reportDialog.type.malware.description', defaultMessage: 'Virus, trojan horse, spyware, or ransomware' },
+  otherLabel: { id: 'reportDialog.type.other.label', defaultMessage: 'Other' },
+  otherDescription: { id: 'reportDialog.type.other.description', defaultMessage: 'Something else not listed above' },
+});
+
+const REPORT_TYPES: { value: ReportType; label: MessageDescriptor; description: MessageDescriptor }[] = [
+  { value: 'spam', label: messages.spamLabel, description: messages.spamDescription },
+  { value: 'nudity', label: messages.nudityLabel, description: messages.nudityDescription },
+  { value: 'impersonation', label: messages.impersonationLabel, description: messages.impersonationDescription },
+  { value: 'profanity', label: messages.profanityLabel, description: messages.profanityDescription },
+  { value: 'illegal', label: messages.illegalLabel, description: messages.illegalDescription },
+  { value: 'malware', label: messages.malwareLabel, description: messages.malwareDescription },
+  { value: 'other', label: messages.otherLabel, description: messages.otherDescription },
 ];
 
 export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const [reportType, setReportType] = useState<ReportType | ''>('');
@@ -67,21 +86,34 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
         content: details.trim(),
         tags,
       });
-      toast({ title: 'Report submitted' });
+      toast({ title: intl.formatMessage({ id: 'reportDialog.submitted', defaultMessage: 'Report submitted' }) });
       setReportType('');
       setDetails('');
       onOpenChange(false);
     } catch {
-      toast({ title: 'Failed to submit report', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'reportDialog.submitFailed', defaultMessage: 'Failed to submit report' }),
+        variant: 'destructive',
+      });
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[85dvh] rounded-2xl flex flex-col overflow-hidden">
-        <DialogTitle>{isProfileReport ? 'Report user' : 'Report post'}</DialogTitle>
+        <DialogTitle>
+          {isProfileReport ? (
+            <FormattedMessage id="reportDialog.titleUser" defaultMessage="Report user" />
+          ) : (
+            <FormattedMessage id="reportDialog.titlePost" defaultMessage="Report post" />
+          )}
+        </DialogTitle>
         <DialogDescription className="text-sm text-muted-foreground">
-          Select a reason for reporting this {isProfileReport ? 'user' : 'post'}.
+          {isProfileReport ? (
+            <FormattedMessage id="reportDialog.descriptionUser" defaultMessage="Select a reason for reporting this user." />
+          ) : (
+            <FormattedMessage id="reportDialog.descriptionPost" defaultMessage="Select a reason for reporting this post." />
+          )}
         </DialogDescription>
 
         <div className="flex-1 overflow-y-auto min-h-0 -mx-6 px-6">
@@ -97,8 +129,8 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
               >
                 <RadioGroupItem value={type.value} className="mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <span className="text-sm font-medium">{type.label}</span>
-                  <p className="text-xs text-muted-foreground mt-0.5">{type.description}</p>
+                  <span className="text-sm font-medium"><FormattedMessage {...type.label} /></span>
+                  <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage {...type.description} /></p>
                 </div>
               </label>
             ))}
@@ -106,13 +138,18 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
 
           <div className="mt-3 space-y-2 pb-1">
             <Label htmlFor="report-details" className="text-sm font-medium">
-              Additional details {reportType !== 'other' && <span className="text-muted-foreground font-normal">(optional)</span>}
+              <FormattedMessage id="reportDialog.details" defaultMessage="Additional details" />{' '}
+              {reportType !== 'other' && (
+                <span className="text-muted-foreground font-normal">
+                  <FormattedMessage id="reportDialog.optional" defaultMessage="(optional)" />
+                </span>
+              )}
             </Label>
             <Textarea
               id="report-details"
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              placeholder="Provide additional context..."
+              placeholder={intl.formatMessage({ id: 'reportDialog.detailsPlaceholder', defaultMessage: 'Provide additional context...' })}
               className="resize-none"
               rows={2}
             />
@@ -125,14 +162,18 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isPending ? 'Submitting...' : 'Submit Report'}
+            {isPending ? (
+              <FormattedMessage id="reportDialog.submitting" defaultMessage="Submitting..." />
+            ) : (
+              <FormattedMessage id="reportDialog.submit" defaultMessage="Submit Report" />
+            )}
           </Button>
         </div>
       </DialogContent>

@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Users, Share2, Globe } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -25,7 +26,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 function parseCommunityEvent(event: NostrEvent) {
-  const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unnamed Community';
+  const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || undefined;
   const description = getTag(event.tags, 'description') || '';
   const image = getTag(event.tags, 'image');
 
@@ -47,10 +48,11 @@ function parseCommunityEvent(event: NostrEvent) {
 // --- Sub-components ---
 
 function ModeratorRow({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name || metadata?.display_name || 'Anonymous';
+  const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
@@ -67,7 +69,7 @@ function ModeratorRow({ pubkey }: { pubkey: string }) {
           <p className="text-xs text-muted-foreground truncate">{metadata.nip05}</p>
         )}
       </div>
-      <Badge variant="secondary" className="text-xs shrink-0">Moderator</Badge>
+      <Badge variant="secondary" className="text-xs shrink-0"><FormattedMessage id="community.moderator" defaultMessage="Moderator" /></Badge>
     </Link>
   );
 }
@@ -75,12 +77,14 @@ function ModeratorRow({ pubkey }: { pubkey: string }) {
 // --- Main Component ---
 
 export function CommunityContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
-  const { name, description, image, moderators, relays } = useMemo(
+  const { name: parsedName, description, image, moderators, relays } = useMemo(
     () => parseCommunityEvent(event),
     [event],
   );
+  const name = parsedName ?? intl.formatMessage({ id: 'community.unnamed', defaultMessage: 'Unnamed Community' });
 
   // Batch-fetch moderator profiles
   useAuthors(moderators);
@@ -89,7 +93,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
   const ownerAuthor = useAuthor(event.pubkey);
   const ownerMetadata = ownerAuthor.data?.metadata;
   const ownerAvatarShape = getAvatarShape(ownerMetadata);
-  const ownerName = ownerMetadata?.name || ownerMetadata?.display_name || 'Anonymous';
+  const ownerName = ownerMetadata?.name || ownerMetadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const ownerProfileUrl = useProfileUrl(event.pubkey, ownerMetadata);
 
   // Extract website URL from description if present
@@ -114,11 +118,11 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
     const url = `${shareOrigin}/${naddr}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast({ title: 'Link copied to clipboard' });
+      toast({ title: intl.formatMessage({ id: 'community.linkCopied', defaultMessage: 'Link copied to clipboard' }) });
     } catch {
-      toast({ title: 'Failed to copy link', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'community.linkCopyFailed', defaultMessage: 'Failed to copy link' }), variant: 'destructive' });
     }
-  }, [event, toast, shareOrigin]);
+  }, [event, toast, shareOrigin, intl]);
 
   return (
     <div className="mt-3 space-y-5">
@@ -151,15 +155,15 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
       <div className="flex items-center gap-3">
         <Badge variant="outline" className="gap-1.5">
           <Users className="size-3.5" />
-          {moderators.length} moderator{moderators.length !== 1 ? 's' : ''}
+          <FormattedMessage id="community.moderatorCount" defaultMessage="{count, plural, one {# moderator} other {# moderators}}" values={{ count: moderators.length }} />
         </Badge>
         {relays.length > 0 && (
           <Badge variant="outline" className="gap-1.5">
             <Globe className="size-3.5" />
-            {relays.length} relay{relays.length !== 1 ? 's' : ''}
+            <FormattedMessage id="community.relayCount" defaultMessage="{count, plural, one {# relay} other {# relays}}" values={{ count: relays.length }} />
           </Badge>
         )}
-        <Button variant="outline" size="icon" className="ml-auto size-8 shrink-0" onClick={handleShare}>
+        <Button variant="outline" size="icon" className="ml-auto size-8 shrink-0" onClick={handleShare} aria-label={intl.formatMessage({ id: 'community.share', defaultMessage: 'Share' })}>
           <Share2 className="size-3.5" />
         </Button>
       </div>
@@ -184,7 +188,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
 
       {/* Owner */}
       <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Created by</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2"><FormattedMessage id="community.createdBy" defaultMessage="Created by" /></p>
         <Link to={ownerProfileUrl} className="flex items-center gap-3 group">
           <Avatar shape={ownerAvatarShape} className={cn('size-10 ring-2 ring-background')}>
             <AvatarImage src={ownerMetadata?.picture} imeta={ownerAuthor.data?.imeta?.picture} />
@@ -208,7 +212,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
         <section>
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
             <Users className="size-3.5" />
-            Moderators
+            <FormattedMessage id="community.moderators" defaultMessage="Moderators" />
           </h2>
           <div className="space-y-1">
             {moderators.map((pk) => (

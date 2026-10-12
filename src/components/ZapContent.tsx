@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Zap } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -87,9 +88,13 @@ export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
             {formatMoney(sats)}
           </span>
           {failedVerification ? (
-            <span className="text-xs text-muted-foreground">unverified</span>
+            <span className="text-xs text-muted-foreground">
+              <FormattedMessage id="zapContent.unverified" defaultMessage="unverified" />
+            </span>
           ) : isVerifying ? (
-            <span className="text-xs text-muted-foreground">verifying…</span>
+            <span className="text-xs text-muted-foreground">
+              <FormattedMessage id="zapContent.verifying" defaultMessage="verifying…" />
+            </span>
           ) : null}
         </div>
       )}
@@ -105,28 +110,37 @@ export function ZapContent({ event, recipientPubkey }: ZapContentProps) {
 
 /** Muted "⚡ Zapped @recipient" context line, modeled on ProfileCommentContext. */
 function ZapRecipientLine({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
     <div className="flex items-center gap-x-1 text-sm text-muted-foreground min-w-0 overflow-hidden">
       <Zap className="size-3.5 text-amber-500 shrink-0" />
-      <span className="shrink-0">Zapped</span>
-      <ProfileHoverCard pubkey={pubkey} asChild>
-        <Link
-          to={`/${npubEncoded}`}
-          className="text-primary hover:underline truncate"
-          onClick={(e) => e.stopPropagation()}
-        >
-          @{author.data?.event ? (
-            <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-          ) : (
-            displayName
-          )}
-        </Link>
-      </ProfileHoverCard>
+      <FormattedMessage
+        id="zapContent.zappedUser"
+        defaultMessage="<label>Zapped</label> {user}"
+        values={{
+          label: (chunks) => <span className="shrink-0">{chunks}</span>,
+          user: (
+            <ProfileHoverCard pubkey={pubkey} asChild>
+              <Link
+                to={`/${npubEncoded}`}
+                className="text-primary hover:underline truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                @{author.data?.event ? (
+                  <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                ) : (
+                  displayName
+                )}
+              </Link>
+            </ProfileHoverCard>
+          ),
+        }}
+      />
     </div>
   );
 }
@@ -140,7 +154,11 @@ function ZapMultiRecipientLine({ pubkeys }: { pubkeys: string[] }) {
     <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
       <Zap className="size-3.5 text-amber-500 shrink-0" />
       <span className="shrink-0">
-        Zapped {pubkeys.length} {pubkeys.length === 1 ? 'person' : 'people'}
+        <FormattedMessage
+          id="zapContent.zappedPeople"
+          defaultMessage="Zapped {count, plural, one {# person} other {# people}}"
+          values={{ count: pubkeys.length }}
+        />
       </span>
       <PeopleAvatarStack pubkeys={pubkeys} size="sm" maxVisible={5} />
     </div>

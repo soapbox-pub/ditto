@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { ReleaseNotesPreview } from '@/components/ReleaseNotesPreview';
 import { Badge } from '@/components/ui/badge';
@@ -73,9 +74,9 @@ function knownMimeLabel(mime: string): string | undefined {
  * builds (e.g. ngit releases of Linux binaries) are all
  * `application/octet-stream` and only their filename tells them apart.
  */
-function assetLabel(tags: string[][]): string {
+function assetLabel(tags: string[][], unknownLabel: string): string {
   const mime = getTag(tags, 'm') ?? '';
-  return getTag(tags, 'filename') || knownMimeLabel(mime) || mime || 'Unknown asset';
+  return getTag(tags, 'filename') || knownMimeLabel(mime) || mime || unknownLabel;
 }
 
 /** Return a platform icon component for a MIME type. */
@@ -228,11 +229,12 @@ function useReleaseApp(appIdentifier: string | undefined, releasePubkey: string)
 
 /** One artifact of a release, listed like a GitHub release asset: its name links to the file. */
 function ArtifactRow({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const url = sanitizeUrl(getTag(event.tags, 'url'));
   const size = formatSize(getTag(event.tags, 'size'));
   const platforms = platformsLabel(getAllTags(event.tags, 'f'));
   const variant = getTag(event.tags, 'variant');
-  const label = assetLabel(event.tags);
+  const label = assetLabel(event.tags, intl.formatMessage({ id: 'softwareRelease.unknownAsset', defaultMessage: 'Unknown asset' }));
 
   return (
     <li className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 py-2 text-sm">
@@ -311,7 +313,9 @@ function ReleaseNotes({ notes }: { notes: string }) {
           onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
           className="mt-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
-          {expanded ? 'Show less' : 'Show more'}
+          {expanded
+            ? <FormattedMessage id="softwareRelease.showLess" defaultMessage="Show less" />
+            : <FormattedMessage id="softwareRelease.showMore" defaultMessage="Show more" />}
         </button>
       )}
     </div>
@@ -415,7 +419,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
             {/* Asset count summary */}
             {assetIds.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                {assetIds.length} {assetIds.length === 1 ? 'artifact' : 'artifacts'}
+                <FormattedMessage id="softwareRelease.artifactCount" defaultMessage="{count, plural, one {# artifact} other {# artifacts}}" values={{ count: assetIds.length }} />
               </p>
             )}
           </div>
@@ -478,7 +482,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
             }}
           >
             <ExternalLink className="size-3.5" />
-            View on Zapstore
+            <FormattedMessage id="softwareRelease.viewOnZapstore" defaultMessage="View on Zapstore" />
           </Button>
         )}
       </div>
@@ -489,7 +493,11 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
       {assetIds.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Artifacts <span className="tabular-nums">({assetIds.length})</span>
+            <FormattedMessage
+              id="softwareRelease.artifactsHeading"
+              defaultMessage="Artifacts <num>({count})</num>"
+              values={{ count: assetIds.length, num: (chunks) => <span className="tabular-nums">{chunks}</span> }}
+            />
           </p>
           <ul className="divide-y divide-border">
             {assetsLoading
@@ -554,6 +562,7 @@ interface SoftwareAssetContentProps {
 
 /** Renders a kind 3063 software asset event. */
 export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentProps) {
+  const intl = useIntl();
   const mime = getTag(event.tags, 'm') ?? '';
   const url = sanitizeUrl(getTag(event.tags, 'url'));
   const version = getTag(event.tags, 'version');
@@ -566,7 +575,7 @@ export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentPro
   const supportedNips = getAllTags(event.tags, 'supported_nip');
   const minPlatformVersion = getTag(event.tags, 'min_platform_version');
 
-  const label = assetLabel(event.tags);
+  const label = assetLabel(event.tags, intl.formatMessage({ id: 'softwareRelease.unknownAsset', defaultMessage: 'Unknown asset' }));
   const platformLabels = platforms.map(platformLabel);
 
   const handleDownload = async () => {
@@ -641,24 +650,24 @@ export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentPro
           onClick={(e) => { e.stopPropagation(); handleDownload(); }}
         >
           <Download className="size-3.5" />
-          Download
+          <FormattedMessage id="fileMetadata.download" defaultMessage="Download" />
         </Button>
       )}
 
       {/* Metadata grid */}
       <div className="rounded-xl border border-border divide-y divide-border">
         {size && (
-          <MetaRow label="File Size" value={size} />
+          <MetaRow label={intl.formatMessage({ id: 'softwareRelease.fileSize', defaultMessage: 'File Size' })} value={size} />
         )}
         {mime && (
-          <MetaRow label="MIME Type" value={<code className="text-xs font-mono">{mime}</code>} />
+          <MetaRow label={intl.formatMessage({ id: 'softwareRelease.mimeType', defaultMessage: 'MIME Type' })} value={<code className="text-xs font-mono">{mime}</code>} />
         )}
         {hash && (
           <MetaRow label="SHA-256" value={<code className="text-xs font-mono break-all">{hash}</code>} />
         )}
         {commit && (
           <MetaRow
-            label="Commit"
+            label={intl.formatMessage({ id: 'softwareRelease.commit', defaultMessage: 'Commit' })}
             value={
               <span className="flex items-center gap-1">
                 <GitCommit className="size-3 shrink-0" />
@@ -668,11 +677,11 @@ export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentPro
           />
         )}
         {minPlatformVersion && (
-          <MetaRow label="Min Platform Version" value={minPlatformVersion} />
+          <MetaRow label={intl.formatMessage({ id: 'softwareRelease.minPlatformVersion', defaultMessage: 'Min Platform Version' })} value={minPlatformVersion} />
         )}
         {supportedNips.length > 0 && (
           <MetaRow
-            label="Supported NIPs"
+            label={intl.formatMessage({ id: 'softwareRelease.supportedNips', defaultMessage: 'Supported NIPs' })}
             value={
               <div className="flex flex-wrap gap-1">
                 {supportedNips.map((nip) => (
@@ -690,7 +699,7 @@ export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentPro
       {getAllTags(event.tags, 'apk_certificate_hash').length > 0 && (
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            APK Certificate
+            <FormattedMessage id="softwareRelease.apkCertificate" defaultMessage="APK Certificate" />
           </p>
           {getAllTags(event.tags, 'apk_certificate_hash').map((hash) => (
             <div key={hash} className="flex items-center gap-2">

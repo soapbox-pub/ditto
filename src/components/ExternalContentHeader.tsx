@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Bird, Droplets, ExternalLink, FileText, Globe, MapPin, MessageCircle, Package, Play, Repeat2, Share2, Stars, User, Users, Wind } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FallbackImage } from '@/components/FallbackImage';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -116,22 +117,23 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function blueskyTimeAgo(dateStr: string): string {
+function blueskyTimeAgo(dateStr: string, intl: IntlShape): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diff = now - then;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return intl.formatMessage({ id: 'externalContent.timeAgo.justNow', defaultMessage: 'just now' });
+  if (minutes < 60) return intl.formatMessage({ id: 'externalContent.timeAgo.minutes', defaultMessage: '{count}m' }, { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return intl.formatMessage({ id: 'externalContent.timeAgo.hours', defaultMessage: '{count}h' }, { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
+  if (days < 30) return intl.formatMessage({ id: 'externalContent.timeAgo.days', defaultMessage: '{count}d' }, { count: days });
   const months = Math.floor(days / 30);
-  return `${months}mo`;
+  return intl.formatMessage({ id: 'externalContent.timeAgo.months', defaultMessage: '{count}mo' }, { count: months });
 }
 
 function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string; url: string }) {
+  const intl = useIntl();
   const { data: post, isLoading, isError } = useBlueskyPost(author, rkey);
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
@@ -157,9 +159,9 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
     const fullUrl = `${shareOrigin}/i/${encodeURIComponent(url)}`;
     const result = await shareOrCopy(fullUrl);
     if (result === 'copied') {
-      toast({ title: 'Link copied' });
+      toast({ title: intl.formatMessage({ id: 'externalContent.linkCopied', defaultMessage: 'Link copied' }) });
     }
-  }, [url, toast, shareOrigin]);
+  }, [url, toast, shareOrigin, intl]);
 
   if (isLoading) {
     return (
@@ -222,7 +224,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
               </Link>
               <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
               <span className="text-muted-foreground text-sm shrink-0">
-                {blueskyTimeAgo(post.createdAt)}
+                {blueskyTimeAgo(post.createdAt, intl)}
               </span>
             </div>
 
@@ -293,7 +295,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                 type="button"
                 onClick={handleComment}
                 className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10 transition-colors"
-                title="Comment"
+                title={intl.formatMessage({ id: 'externalContent.comment', defaultMessage: 'Comment' })}
               >
                 <MessageCircle className="size-[18px]" />
                 {post.replyCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.replyCount)}</span>}
@@ -302,7 +304,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                 type="button"
                 onClick={handleRepost}
                 className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-                title="Share to feed"
+                title={intl.formatMessage({ id: 'externalContent.shareToFeed', defaultMessage: 'Share to feed' })}
               >
                 <Repeat2 className="size-[18px]" />
                 {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
@@ -312,7 +314,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
                 type="button"
                 onClick={handleShare}
                 className="inline-flex items-center p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Share link"
+                title={intl.formatMessage({ id: 'externalContent.shareLink', defaultMessage: 'Share link' })}
               >
                 <Share2 className="size-[18px]" />
               </button>
@@ -329,7 +331,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
             rel="noopener noreferrer"
             className="hover:text-foreground transition-colors hover:underline"
           >
-            View on Bluesky
+            <FormattedMessage id="externalContent.viewOnBluesky" defaultMessage="View on Bluesky" />
           </a>
           <ExternalLink className="size-3" />
         </div>
@@ -350,7 +352,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
           open={shareOpen}
           onOpenChange={setShareOpen}
           initialContent={url}
-          title="Share to feed"
+          title={intl.formatMessage({ id: 'externalContent.shareToFeed', defaultMessage: 'Share to feed' })}
         />
       )}
     </>
@@ -364,6 +366,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
 const WIKI_ARTICLE_MAX_HEIGHT = 160; // px — extract taller than this gets truncated
 
 function WikipediaArticleHeader({ title, url }: { title: string; url: string }) {
+  const intl = useIntl();
   const { data: wiki, isLoading } = useWikipediaSummary(title);
   // Resolve a reference recording from the article (if any). Shares a
   // queryKey with BirdSongPlayer's internal lookup so this second
@@ -456,7 +459,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
           <BirdSongPlayer
             title={title}
             className="mt-1"
-            ariaLabel={`recording for ${wiki.title}`}
+            ariaLabel={intl.formatMessage({ id: 'externalContent.recordingFor', defaultMessage: 'recording for {title}' }, { title: wiki.title })}
           />
         </div>
 
@@ -487,7 +490,11 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
                 className="text-sm text-primary hover:underline"
                 onClick={() => setExpanded((v) => !v)}
               >
-                {expanded ? 'Show less' : 'Read more'}
+                {expanded ? (
+                  <FormattedMessage id="externalContent.showLess" defaultMessage="Show less" />
+                ) : (
+                  <FormattedMessage id="externalContent.readMore" defaultMessage="Read more" />
+                )}
               </button>
             )}
           </div>
@@ -510,7 +517,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <WikipediaIcon className="size-3.5" />
-          <span>Read on Wikipedia</span>
+          <span><FormattedMessage id="externalContent.readOnWikipedia" defaultMessage="Read on Wikipedia" /></span>
           <ExternalLink className="size-3" />
         </a>
         {song && (
@@ -522,7 +529,9 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
             className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <Play className="size-3 fill-current" aria-hidden />
-            <span className="truncate">Recording: {song.attribution}</span>
+            <span className="truncate">
+              <FormattedMessage id="externalContent.recording" defaultMessage="Recording: {attribution}" values={{ attribution: song.attribution }} />
+            </span>
             <ExternalLink className="size-3 shrink-0" />
           </a>
         )}
@@ -532,6 +541,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
 }
 
 export function BookContentHeader({ isbn }: { isbn: string }) {
+  const intl = useIntl();
   const rawIsbn = isbn.replace('isbn:', '');
   const { data: book, isLoading } = useBookInfo(rawIsbn);
   const displayIsbn = formatIsbn(rawIsbn);
@@ -568,7 +578,7 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
             <div className="shrink-0">
               <img
                 src={coverUrl}
-                alt={book?.title || 'Book cover'}
+                alt={book?.title || intl.formatMessage({ id: 'externalContent.bookCover', defaultMessage: 'Book cover' })}
                 className="w-[120px] sm:w-[140px] rounded-lg shadow-md object-cover"
                 loading="lazy"
                 onError={(e) => {
@@ -586,16 +596,16 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <BookOpen className="size-3.5 shrink-0" />
-              <span>ISBN {displayIsbn}</span>
+              <span><FormattedMessage id="externalContent.isbn" defaultMessage="ISBN {isbn}" values={{ isbn: displayIsbn }} /></span>
             </div>
 
             <h2 className="text-xl font-bold leading-snug line-clamp-3">
-              {book?.title || 'Unknown Book'}
+              {book?.title || intl.formatMessage({ id: 'externalContent.unknownBook', defaultMessage: 'Unknown Book' })}
             </h2>
 
             {authors && (
               <p className="text-sm text-muted-foreground">
-                by {authors}
+                <FormattedMessage id="externalContent.byAuthors" defaultMessage="by {authors}" values={{ authors }} />
               </p>
             )}
 
@@ -607,7 +617,13 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
                 <span>{publishers}</span>
               )}
               {book?.number_of_pages && (
-                <span>{book.number_of_pages} pages</span>
+                <span>
+                  <FormattedMessage
+                    id="externalContent.pages"
+                    defaultMessage="{count, plural, one {# page} other {# pages}}"
+                    values={{ count: book.number_of_pages }}
+                  />
+                </span>
               )}
             </div>
 
@@ -635,7 +651,7 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <Globe className="size-3.5" />
-          <span>View on OpenLibrary</span>
+          <span><FormattedMessage id="externalContent.viewOnOpenLibrary" defaultMessage="View on OpenLibrary" /></span>
           <ExternalLink className="size-3" />
         </a>
       </div>
@@ -681,7 +697,11 @@ function WikipediaExtract({ extract, articleUrl }: { extract: string; articleUrl
             className="text-sm text-primary hover:underline"
             onClick={() => setExpanded((v) => !v)}
           >
-            {expanded ? 'Show less' : 'Read more'}
+            {expanded ? (
+                  <FormattedMessage id="externalContent.showLess" defaultMessage="Show less" />
+                ) : (
+                  <FormattedMessage id="externalContent.readMore" defaultMessage="Read more" />
+                )}
           </button>
         )}
         <a
@@ -746,7 +766,7 @@ function WeatherWidget({ code }: { code: string }) {
         {/* Details */}
         <div className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <span className="text-foreground/60">Feels like</span>
+            <span className="text-foreground/60"><FormattedMessage id="externalContent.weather.feelsLike" defaultMessage="Feels like" /></span>
             <span className="font-medium text-foreground tabular-nums">{weather.apparentTemperature}°</span>
           </span>
           <span className="flex items-center gap-1.5">
@@ -755,7 +775,7 @@ function WeatherWidget({ code }: { code: string }) {
           </span>
           <span className="flex items-center gap-1.5">
             <Wind className="size-3 shrink-0" />
-            <span className="font-medium text-foreground tabular-nums">{weather.windSpeed} km/h</span>
+            <span className="font-medium text-foreground tabular-nums"><FormattedMessage id="externalContent.weather.windSpeed" defaultMessage="{speed} km/h" values={{ speed: weather.windSpeed }} /></span>
           </span>
           {weather.city && (
             <span className="flex items-center gap-1.5">
@@ -770,6 +790,7 @@ function WeatherWidget({ code }: { code: string }) {
 }
 
 export function CountryContentHeader({ code }: { code: string }) {
+  const intl = useIntl();
   const info = getCountryInfo(code);
   const wikiTitle = getWikipediaTitle(code);
   const { data: wiki, isLoading: wikiLoading } = useWikipediaSummary(wikiTitle);
@@ -778,7 +799,9 @@ export function CountryContentHeader({ code }: { code: string }) {
     return (
       <div className="rounded-2xl border border-border p-5 text-center">
         <MapPin className="size-8 mx-auto mb-2 text-muted-foreground/40" />
-        <p className="text-muted-foreground">Unknown country code: {code}</p>
+        <p className="text-muted-foreground">
+          <FormattedMessage id="externalContent.unknownCountry" defaultMessage="Unknown country code: {code}" values={{ code }} />
+        </p>
       </div>
     );
   }
@@ -796,7 +819,7 @@ export function CountryContentHeader({ code }: { code: string }) {
               decoding="async"
             />
           ) : (
-            <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={`Flag of ${info.name}`}>
+            <span className="text-6xl sm:text-7xl leading-none" role="img" aria-label={intl.formatMessage({ id: 'externalContent.flagOf', defaultMessage: 'Flag of {name}' }, { name: info.name })}>
               {info.flag}
             </span>
           )}
@@ -950,6 +973,7 @@ function UrlPreview({ url, link }: { url: string; link: string }) {
 }
 
 function BookPreview({ isbn, link }: { isbn: string; link: string }) {
+  const intl = useIntl();
   const rawIsbn = isbn.replace('isbn:', '');
   const { data: book, isLoading } = useBookInfo(rawIsbn);
 
@@ -978,7 +1002,7 @@ function BookPreview({ isbn, link }: { isbn: string; link: string }) {
       {coverUrl ? (
         <img
           src={coverUrl}
-          alt={book?.title || 'Book cover'}
+          alt={book?.title || intl.formatMessage({ id: 'externalContent.bookCover', defaultMessage: 'Book cover' })}
           className="w-9 h-12 rounded object-cover shrink-0"
           loading="lazy"
           decoding="async"
@@ -992,14 +1016,14 @@ function BookPreview({ isbn, link }: { isbn: string; link: string }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <BookOpen className="size-3 shrink-0" />
-          <span>Book</span>
+          <span><FormattedMessage id="externalContent.book" defaultMessage="Book" /></span>
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
-          {book?.title || `ISBN ${rawIsbn}`}
+          {book?.title || intl.formatMessage({ id: 'externalContent.isbn', defaultMessage: 'ISBN {isbn}' }, { isbn: rawIsbn })}
         </p>
         {authors && (
           <p className="text-xs text-muted-foreground truncate">
-            by {authors}
+            <FormattedMessage id="externalContent.byAuthors" defaultMessage="by {authors}" values={{ authors }} />
           </p>
         )}
       </div>
@@ -1015,6 +1039,7 @@ function BookPreview({ isbn, link }: { isbn: string; link: string }) {
  * the same px-4 py-3 row shape used by BookPreview and the other compact variants.
  */
 function GathererCardPreview({ card, url, link }: { card: GathererCard; url: string; link: string }) {
+  const intl = useIntl();
   const lookup = useMemo(() => (
     card.kind === 'multiverse'
       ? { kind: 'multiverse' as const, multiverseId: card.multiverseId }
@@ -1053,7 +1078,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
       {coverUrl ? (
         <img
           src={coverUrl}
-          alt={scryCard?.name ?? 'Magic card'}
+          alt={scryCard?.name ?? intl.formatMessage({ id: 'externalContent.magicCardAlt', defaultMessage: 'Magic card' })}
           className="w-9 h-12 rounded-md object-cover shrink-0 shadow-sm"
           loading="lazy"
           decoding="async"
@@ -1067,7 +1092,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CardsIcon className="size-3 shrink-0" />
-          <span>Magic Card</span>
+          <span><FormattedMessage id="externalContent.magicCard" defaultMessage="Magic Card" /></span>
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
           {scryCard?.name ?? fallbackHost}
@@ -1085,6 +1110,7 @@ function GathererCardPreview({ card, url, link }: { card: GathererCard; url: str
 }
 
 function CountryPreview({ code, link }: { code: string; link: string }) {
+  const intl = useIntl();
   const info = getCountryInfo(code);
 
   return (
@@ -1092,14 +1118,14 @@ function CountryPreview({ code, link }: { code: string; link: string }) {
       to={link}
       className="flex items-center gap-3 px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors"
     >
-      <span className="text-2xl leading-none shrink-0" role="img" aria-label={info ? `Flag of ${info.name}` : code}>
+      <span className="text-2xl leading-none shrink-0" role="img" aria-label={info ? intl.formatMessage({ id: 'externalContent.flagOf', defaultMessage: 'Flag of {name}' }, { name: info.name }) : code}>
         {info?.flag ?? '🌍'}
       </span>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <MapPin className="size-3 shrink-0" />
-          <span>Country</span>
+          <span><FormattedMessage id="externalContent.country" defaultMessage="Country" /></span>
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
           {info?.name ?? code}
@@ -1122,11 +1148,12 @@ function CountryPreview({ code, link }: { code: string; link: string }) {
  * Links to the community detail page.
  */
 export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
+  const intl = useIntl();
   const { data: event, isLoading } = useAddrEvent(addr);
 
   const communityName = event?.tags.find(([n]) => n === 'name')?.[1]
     || event?.tags.find(([n]) => n === 'd')?.[1]
-    || 'Community';
+    || intl.formatMessage({ id: 'externalContent.community', defaultMessage: 'Community' });
   const communityImage = event?.tags.find(([n]) => n === 'image')?.[1];
   const communityDescription = event?.tags.find(([n]) => n === 'description')?.[1];
   const moderatorCount = event?.tags.filter(([n, , , role]) => n === 'p' && role === 'moderator').length ?? 0;
@@ -1170,9 +1197,16 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Users className="size-3 shrink-0" />
-          <span>Community</span>
+          <span><FormattedMessage id="externalContent.community" defaultMessage="Community" /></span>
           {moderatorCount > 0 && (
-            <span className="text-muted-foreground/60">&middot; {moderatorCount} mod{moderatorCount !== 1 ? 's' : ''}</span>
+            <span className="text-muted-foreground/60">
+              &middot;{' '}
+              <FormattedMessage
+                id="externalContent.moderatorCount"
+                defaultMessage="{count, plural, one {# mod} other {# mods}}"
+                values={{ count: moderatorCount }}
+              />
+            </span>
           )}
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
@@ -1189,10 +1223,11 @@ export function CommunityPreview({ addr }: { addr: { kind: number; pubkey: strin
 }
 
 export function ProfilePreview({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {
@@ -1224,7 +1259,7 @@ export function ProfilePreview({ pubkey }: { pubkey: string }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <User className="size-3 shrink-0" />
-          <span>Profile</span>
+          <span><FormattedMessage id="externalContent.profile" defaultMessage="Profile" /></span>
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
           {displayName}
@@ -1278,10 +1313,11 @@ function hasVideo(tags: string[][]): boolean {
 /** Fallback labels for well-known kinds not in EXTRA_KINDS. */
 
 export function AddressableEventPreview({ addr }: { addr: { kind: number; pubkey: string; identifier: string } }) {
+  const intl = useIntl();
   const { data: event, isLoading } = useAddrEvent(addr);
   const author = useAuthor(addr.pubkey);
   const authorMeta = author.data?.metadata;
-  const authorName = authorMeta?.name ?? authorMeta?.display_name ?? 'Anonymous';
+  const authorName = authorMeta?.name ?? authorMeta?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   const kindDef = useMemo(
     () => EXTRA_KINDS.find((d) => d.kind === addr.kind || d.subKinds?.some((s) => s.kind === addr.kind)),

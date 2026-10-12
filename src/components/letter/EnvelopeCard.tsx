@@ -22,6 +22,7 @@
 
 import { useMemo, useState } from 'react';
 import { Clock, MoreHorizontal } from 'lucide-react';
+import { useIntl, type IntlShape } from 'react-intl';
 import { useAuthor } from '@/hooks/useAuthor';
 import { FallbackImage } from '@/components/FallbackImage';
 import { useDecryptLetter } from '@/hooks/useLetters';
@@ -62,20 +63,20 @@ function deriveColors(bgHex: string, primaryHex: string) {
 // Shorthand relative time — "3m", "2h", "5d", "3w", etc.
 // ---------------------------------------------------------------------------
 
-function shortTimeAgo(ts: number): string {
+function shortTimeAgo(ts: number, intl: IntlShape): string {
   const secs = Math.max(0, Math.floor(Date.now() / 1000 - ts));
-  if (secs < 60) return 'now';
+  if (secs < 60) return intl.formatMessage({ id: 'envelopeCard.timeAgo.now', defaultMessage: 'now' });
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m`;
+  if (mins < 60) return intl.formatMessage({ id: 'envelopeCard.timeAgo.minutes', defaultMessage: '{count}m' }, { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
+  if (hrs < 24) return intl.formatMessage({ id: 'envelopeCard.timeAgo.hours', defaultMessage: '{count}h' }, { count: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d`;
+  if (days < 7) return intl.formatMessage({ id: 'envelopeCard.timeAgo.days', defaultMessage: '{count}d' }, { count: days });
   const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks}w`;
+  if (weeks < 5) return intl.formatMessage({ id: 'envelopeCard.timeAgo.weeks', defaultMessage: '{count}w' }, { count: weeks });
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo`;
-  return `${Math.floor(days / 365)}y`;
+  if (months < 12) return intl.formatMessage({ id: 'envelopeCard.timeAgo.months', defaultMessage: '{count}mo' }, { count: months });
+  return intl.formatMessage({ id: 'envelopeCard.timeAgo.years', defaultMessage: '{count}y' }, { count: Math.floor(days / 365) });
 }
 
 // ---------------------------------------------------------------------------
@@ -86,14 +87,15 @@ const V_PCT = 65;
 const FLAP_Y_PCT = 15;
 
 export function EnvelopeCard({ letter, mode, index, onClick, minimal }: EnvelopeCardProps) {
+  const intl = useIntl();
   const otherPubkey = mode === 'inbox' ? letter.sender : letter.recipient;
   const author = useAuthor(otherPubkey);
   const { data: decrypted } = useDecryptLetter(letter);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const avatar = author.data?.metadata?.picture;
-  const timeStr = shortTimeAgo(letter.timestamp);
+  const timeStr = shortTimeAgo(letter.timestamp, intl);
 
   const stationery = decrypted?.stationery;
   const resolved = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
@@ -109,7 +111,9 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
       onClick={onClick}
       className="envelope-card group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl w-full"
       style={{ '--entrance-delay': `${Math.min(index * 60, 300)}ms` } as React.CSSProperties}
-      title={`${mode === 'inbox' ? 'From' : 'To'} ${displayName}`}
+      title={mode === 'inbox'
+        ? intl.formatMessage({ id: 'envelopeCard.fromName', defaultMessage: 'From {name}' }, { name: displayName })
+        : intl.formatMessage({ id: 'envelopeCard.toName', defaultMessage: 'To {name}' }, { name: displayName })}
     >
       {/* Envelope — single rounded rect, ~1.59:1 like SendAnimation body */}
       <div
@@ -246,7 +250,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
               background: `${C.body}cc`,
               color: C.textMuted,
             }}
-            title="More options"
+            title={intl.formatMessage({ id: 'envelopeCard.moreOptions', defaultMessage: 'More options' })}
           >
             <MoreHorizontal className="w-3.5 h-3.5" strokeWidth={2.5} />
           </button>

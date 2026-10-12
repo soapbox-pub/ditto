@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { GripVertical, X, FileText, Scroll } from 'lucide-react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useReorderItem } from '@/hooks/useReorderItem';
 import { nip19 } from 'nostr-tools';
 import type { NostrMetadata } from '@nostrify/nostrify';
@@ -63,7 +63,7 @@ function ProfileSidebarLabel({ pubkey }: { pubkey: string }) {
 
   return (
     <span className="truncate">
-      {metadata?.name || metadata?.display_name || 'Anonymous'}
+      {metadata?.name || metadata?.display_name || <FormattedMessage id="common.anonymous" defaultMessage="Anonymous" />}
     </span>
   );
 }
@@ -92,7 +92,7 @@ function EventSidebarLabel({ decoded }: EventSidebarLabelProps) {
 
   return (
     <span className="truncate">
-      {data?.label ?? 'Event'}
+      {data?.label ?? <FormattedMessage id="nostrEventSidebar.event" defaultMessage="Event" />}
     </span>
   );
 }
@@ -161,7 +161,8 @@ export function NostrEventSidebarItem({
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(id); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title="Remove"
+          title={intl.formatMessage({ id: 'nostrEventSidebar.remove', defaultMessage: 'Remove' })}
+          aria-label={intl.formatMessage({ id: 'nostrEventSidebar.remove', defaultMessage: 'Remove' })}
         >
           <X className="size-4" />
         </button>

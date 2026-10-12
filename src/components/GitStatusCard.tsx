@@ -8,6 +8,7 @@ import {
 	GitMerge,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import { FormattedMessage } from "react-intl";
 import { Link } from "react-router-dom";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
@@ -70,7 +71,16 @@ function statusMeta(
 function TicketAuthorByline({ pubkey }: { pubkey: string }) {
 	const author = useAuthor(pubkey);
 	const name = getDisplayName(author.data?.metadata, pubkey);
-	return <span className="text-muted-foreground"> by {name}</span>;
+	return (
+		<span className="text-muted-foreground">
+			{" "}
+			<FormattedMessage
+				id="gitStatusCard.byline"
+				defaultMessage="by {name}"
+				values={{ name }}
+			/>
+		</span>
+	);
 }
 
 /**
@@ -191,7 +201,10 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 						<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
 							<GitMerge className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-[11px] text-muted-foreground">
-								Merge commit
+								<FormattedMessage
+									id="gitStatusCard.mergeCommit"
+									defaultMessage="Merge commit"
+								/>
 							</span>
 							<code className="ml-auto text-[11px] font-mono text-muted-foreground">
 								{mergeCommit.slice(0, 12)}
@@ -207,7 +220,10 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 								>
 									<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 									<span className="text-[11px] text-muted-foreground">
-										Applied as
+										<FormattedMessage
+											id="gitStatusCard.appliedAs"
+											defaultMessage="Applied as"
+										/>
 									</span>
 									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
 										{commit.slice(0, 12)}

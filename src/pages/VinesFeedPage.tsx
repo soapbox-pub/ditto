@@ -16,6 +16,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { Link, useNavigate } from "react-router-dom";
 import { BarsStaggeredIcon } from "@/components/icons/BarsStaggeredIcon";
 import { CommentsSheet } from "@/components/CommentsSheet";
@@ -293,6 +294,7 @@ export function VineCard({
 	onCommentClick,
 	onPlayingChange,
 }: VineCardProps) {
+	const intl = useIntl();
 	const { config } = useAppContext();
 	const { user } = useCurrentUser();
 	const author = useAuthor(event.pubkey);
@@ -399,14 +401,16 @@ export function VineCard({
 					<ShieldAlert className="size-7 text-white/70" />
 				</div>
 				<div className="space-y-1.5 max-w-xs">
-					<p className="text-base font-semibold text-white">Content Warning</p>
+					<p className="text-base font-semibold text-white">
+						<FormattedMessage id="vines.contentWarning" defaultMessage="Content Warning" />
+					</p>
 					{contentWarning ? (
 						<p className="text-sm text-white/60 leading-relaxed">
-							&ldquo;{contentWarning}&rdquo;
+							<FormattedMessage id="vines.contentWarningReason" defaultMessage="“{reason}”" values={{ reason: contentWarning }} />
 						</p>
 					) : (
 						<p className="text-sm text-white/60 leading-relaxed">
-							The author flagged this video as sensitive.
+							<FormattedMessage id="vines.contentWarningDefault" defaultMessage="The author flagged this video as sensitive." />
 						</p>
 					)}
 				</div>
@@ -420,7 +424,7 @@ export function VineCard({
 					}}
 				>
 					<Eye className="size-3.5" />
-					Show Video
+					<FormattedMessage id="vines.showVideo" defaultMessage="Show Video" />
 				</Button>
 			</div>
 		);
@@ -536,7 +540,9 @@ export function VineCard({
 				</>
 			) : (
 				<div className="absolute inset-0 bg-neutral-900 flex items-center justify-center">
-					<span className="text-white/40 text-sm">No video</span>
+					<span className="text-white/40 text-sm">
+						<FormattedMessage id="vines.noVideo" defaultMessage="No video" />
+					</span>
 				</div>
 			)}
 
@@ -553,7 +559,9 @@ export function VineCard({
 				<button
 					className="absolute bottom-[calc(1rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] right-4 z-10 size-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
 					onClick={toggleMute}
-					aria-label={isMuted ? "Unmute" : "Mute"}
+					aria-label={isMuted
+						? intl.formatMessage({ id: "vines.unmute", defaultMessage: "Unmute" })
+						: intl.formatMessage({ id: "vines.mute", defaultMessage: "Mute" })}
 				>
 					{isMuted ? (
 						<VolumeX className="size-4" />
@@ -738,6 +746,7 @@ export function VineActionButton({
 const vineKindDef = EXTRA_KINDS.find((d) => d.kind === VINE_KIND);
 
 export function VinesFeedPage() {
+	const intl = useIntl();
 	const { config } = useAppContext();
 	const { user } = useCurrentUser();
 
@@ -764,8 +773,8 @@ export function VinesFeedPage() {
 	}, []);
 
 	useSeoMeta({
-		title: `Shorts | ${config.appName}`,
-		description: "Short-form videos on Nostr",
+		title: intl.formatMessage({ id: "vines.seoTitle", defaultMessage: "Shorts | {appName}" }, { appName: config.appName }),
+		description: intl.formatMessage({ id: "vines.seoDescription", defaultMessage: "Short-form videos on Nostr" }),
 	});
 
 	// Filter to events that have a video URL, and exclude CW events when policy is "hide"
@@ -927,8 +936,8 @@ export function VinesFeedPage() {
 							<FeedEmptyState
 								message={
 									tab === "follows"
-									? "None of the people you follow have posted shorts yet."
-									: "No shorts found. Check your relay connections or come back soon."
+									? intl.formatMessage({ id: "vines.emptyFollows", defaultMessage: "None of the people you follow have posted shorts yet." })
+									: intl.formatMessage({ id: "vines.emptyGlobal", defaultMessage: "No shorts found. Check your relay connections or come back soon." })
 								}
 								onSwitchToGlobal={
 									tab === "follows" ? () => setTab("global") : undefined
@@ -1015,6 +1024,7 @@ function VinesFloatingTabBar({
 	infoOpen,
 	onInfoOpenChange,
 }: VinesFloatingTabBarProps) {
+	const intl = useIntl();
 	const openDrawer = useOpenDrawer();
 	const navigate = useNavigate();
 
@@ -1025,14 +1035,14 @@ function VinesFloatingTabBar({
 				<button
 					className="size-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:text-white drop-shadow-md transition-colors sidebar:hidden"
 					onClick={openDrawer}
-					aria-label="Open menu"
+					aria-label={intl.formatMessage({ id: "vines.openMenu", defaultMessage: "Open menu" })}
 				>
 					<BarsStaggeredIcon className="size-5" />
 				</button>
 				<button
 					className="size-9 shrink-0 rounded-full flex items-center justify-center text-white/80 hover:text-white drop-shadow-md transition-colors hidden sidebar:flex"
 					onClick={() => navigate("/")}
-					aria-label="Go back"
+					aria-label={intl.formatMessage({ id: "vines.goBack", defaultMessage: "Go back" })}
 				>
 					<ArrowLeft className="size-5" />
 				</button>
@@ -1048,7 +1058,7 @@ function VinesFloatingTabBar({
 							)}
 							onClick={() => onTabChange("follows")}
 						>
-							Follows
+							<FormattedMessage id="vines.tab.follows" defaultMessage="Follows" />
 							{tab === "follows" && (
 								<div className="h-0.5 bg-white rounded-full mt-0.5 mx-auto w-full" />
 							)}
@@ -1063,7 +1073,7 @@ function VinesFloatingTabBar({
 						)}
 						onClick={() => onTabChange("global")}
 					>
-						Global
+						<FormattedMessage id="vines.tab.global" defaultMessage="Global" />
 						{tab === "global" && (
 							<div className="h-0.5 bg-white rounded-full mt-0.5 mx-auto w-full" />
 						)}

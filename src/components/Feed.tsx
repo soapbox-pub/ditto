@@ -2,6 +2,7 @@ import { memo, useState, useEffect, useMemo, type ComponentProps } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -89,6 +90,7 @@ export interface FeedLeadingTab {
 }
 
 export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, feedId = 'home', globalFirst, hotGlobal, leadingTab }: FeedProps = {}) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const { isMuted } = useMuteFilter();
@@ -122,12 +124,12 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       const stored = localStorage.getItem(getStorageKey(config.appId, 'community'));
       if (stored) {
         const community = JSON.parse(stored);
-        return community.label || 'Community';
+        return community.label || intl.formatMessage({ id: 'feed.community', defaultMessage: 'Community' });
       }
     } catch {
       // Fall through
     }
-    return 'Community';
+    return intl.formatMessage({ id: 'feed.community', defaultMessage: 'Community' });
   })();
 
   const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId, undefined, globalFirst ? 'global' : undefined);
@@ -359,7 +361,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
     if (followsEmpty) {
       return {
-        message: 'Your feed is empty. Follow some people to see their posts here.',
+        message: intl.formatMessage({ id: 'feed.empty.noFollows', defaultMessage: 'Your feed is empty. Follow some people to see their posts here.' }),
         showDiscover: true,
         onSwitchToGlobal: showGlobalFeed ? () => handleSetActiveTab('global') : undefined,
       };
@@ -369,21 +371,21 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     const isLoved = activeTab === 'loved';
     const baseMessage = !isOnline
       ? isFollows
-        ? "We couldn't load posts from people you follow."
+        ? intl.formatMessage({ id: 'feed.offline.follows', defaultMessage: "We couldn't load posts from people you follow." })
         : isLoved
-          ? "We couldn't load posts from the people you love."
-          : "We couldn't load the feed."
+          ? intl.formatMessage({ id: 'feed.offline.loved', defaultMessage: "We couldn't load posts from the people you love." })
+          : intl.formatMessage({ id: 'feed.offline.global', defaultMessage: "We couldn't load the feed." })
       : isError
         ? isFollows
-          ? "Something went wrong loading posts from people you follow."
+          ? intl.formatMessage({ id: 'feed.error.follows', defaultMessage: 'Something went wrong loading posts from people you follow.' })
           : isLoved
-            ? 'Something went wrong loading posts from the people you love.'
-            : 'Something went wrong loading the feed.'
+            ? intl.formatMessage({ id: 'feed.error.loved', defaultMessage: 'Something went wrong loading posts from the people you love.' })
+            : intl.formatMessage({ id: 'feed.error.global', defaultMessage: 'Something went wrong loading the feed.' })
         : isFollows
-          ? "We couldn't find any recent posts from people you follow."
+          ? intl.formatMessage({ id: 'feed.empty.follows', defaultMessage: "We couldn't find any recent posts from people you follow." })
           : isLoved
-            ? "No recent posts from the people you love. Add more people from their profile's ⋯ menu."
-            : 'No posts found. Check your relay connections or come back soon.';
+            ? intl.formatMessage({ id: 'feed.empty.loved', defaultMessage: "No recent posts from the people you love. Add more people from their profile's ⋯ menu." })
+            : intl.formatMessage({ id: 'feed.empty.global', defaultMessage: 'No posts found. Check your relay connections or come back soon.' });
 
     return {
       message: baseMessage,
@@ -415,17 +417,17 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             <TabButton label={leadingTab.label} active={activeTab === leadingTab.id} onClick={() => handleSetActiveTab(leadingTab.id)} />
           )}
           {globalFirst && (
-            <TabButton label="All" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+            <TabButton label={intl.formatMessage({ id: 'feed.tabs.all', defaultMessage: 'All' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {!isKindSpecificPage && hasLovedPeople && (
-            <TabButton label="Loved" active={activeTab === 'loved'} onClick={() => handleSetActiveTab('loved')}>
+            <TabButton label={intl.formatMessage({ id: 'feed.tabs.loved', defaultMessage: 'Loved' })} active={activeTab === 'loved'} onClick={() => handleSetActiveTab('loved')}>
               <span className="flex items-center justify-center gap-1">
                 <Heart className={cn('size-3.5', activeTab === 'loved' && 'fill-red-500 text-red-500')} />
-                Loved
+                <FormattedMessage id="feed.tabs.loved" defaultMessage="Loved" />
               </span>
             </TabButton>
           )}
-          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+          <TabButton label={intl.formatMessage({ id: 'feed.tabs.follows', defaultMessage: 'Follows' })} active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
             <TabButton label={config.appName} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
@@ -433,7 +435,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
           {!globalFirst && (isKindSpecificPage || showGlobalFeed) && (
-            <TabButton label="Global" active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+            <TabButton label={intl.formatMessage({ id: 'feed.tabs.global', defaultMessage: 'Global' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
             <TabButton
@@ -534,6 +536,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
 /** Renders a saved search feed using useTabFeed (TanStack Query cached, infinite scroll). */
 function SavedFeedContent({ feed }: { feed: SavedFeed }) {
+  const intl = useIntl();
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
@@ -626,7 +629,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   if (feedItems.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found for "${feed.label}". Try adjusting your relay connections or check back later.`} />
+        <FeedEmptyState message={intl.formatMessage({ id: 'feed.saved.empty', defaultMessage: 'No posts found for "{label}". Try adjusting your relay connections or check back later.' }, { label: feed.label })} />
       </PullToRefresh>
     );
   }
@@ -664,6 +667,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
 
 /** Renders a feed of posts tagged with a specific hashtag. */
 function HashtagFeedContent({ tag }: { tag: string }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
@@ -711,7 +715,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   if (filteredEvents.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found with #${tag}.`} />
+        <FeedEmptyState message={intl.formatMessage({ id: 'feed.hashtag.empty', defaultMessage: 'No posts found with #{tag}.' }, { tag })} />
       </PullToRefresh>
     );
   }
@@ -729,6 +733,7 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 
 /** Renders a feed of posts tagged with a specific geohash. */
 function GeotagFeedContent({ tag }: { tag: string }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
@@ -775,7 +780,7 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   if (filteredEvents.length === 0) {
     return (
       <PullToRefresh onRefresh={handleRefresh}>
-        <FeedEmptyState message={`No posts found near ${tag}.`} />
+        <FeedEmptyState message={intl.formatMessage({ id: 'feed.geotag.empty', defaultMessage: 'No posts found near {tag}.' }, { tag })} />
       </PullToRefresh>
     );
   }

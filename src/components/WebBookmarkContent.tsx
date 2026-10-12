@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Bookmark, ExternalLink } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -33,6 +34,7 @@ function getTag(tags: string[][], name: string): string | undefined {
  * - `t` tags render as topic chips below the card.
  */
 export function WebBookmarkContent({ event, expanded = false, className }: WebBookmarkContentProps) {
+  const intl = useIntl();
   const { url, title, description, image, hashtags, comment } = useMemo(() => {
     // Prefer the `r` tag's full URL; fall back to reconstructing from the
     // scheme-less `d` tag. Both are sanitized to well-formed https before use.
@@ -113,7 +115,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
               {url && (
                 <span className="ml-auto flex items-center gap-1 text-muted-foreground group-hover:text-primary">
                   <ExternalLink className="size-3" />
-                  <span>Open</span>
+                  <span><FormattedMessage id="webBookmark.open" defaultMessage="Open" /></span>
                 </span>
               )}
             </div>
@@ -141,7 +143,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
           {!title && !description && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Bookmark className="size-3.5 shrink-0" />
-              <span className="truncate">{url ?? 'Web bookmark'}</span>
+              <span className="truncate">{url ?? intl.formatMessage({ id: 'webBookmark.fallbackLabel', defaultMessage: 'Web bookmark' })}</span>
             </div>
           )}
         </div>

@@ -18,7 +18,7 @@ import {
   X, Check, User,
 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
@@ -142,6 +142,7 @@ export function KindPicker({ value, options, onChange }: {
   options: KindOption[];
   onChange: (v: string) => void;
 }) {
+  const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { refCallback, canScrollUp, canScrollDown, onScroll, startScroll, stopScroll } = useScrollCarets();
@@ -184,7 +185,13 @@ export function KindPicker({ value, options, onChange }: {
             ? <SelectedIcon className="size-3.5 shrink-0 text-muted-foreground" />
             : <Hash className="size-3.5 shrink-0 text-muted-foreground" />}
           <span className="flex-1 truncate">
-            {value === 'all' ? 'All' : value === 'custom' ? 'Custom...' : (selected?.label ?? (isCustomValue ? `Kind ${value}` : value))}
+            {value === 'all'
+              ? <FormattedMessage id="feedFilters.kindPicker.all" defaultMessage="All" />
+              : value === 'custom'
+                ? <FormattedMessage id="feedFilters.kindPicker.custom" defaultMessage="Custom..." />
+                : (selected?.label ?? (isCustomValue
+                  ? <FormattedMessage id="feedFilters.kindLabel" defaultMessage="Kind {kind}" values={{ kind: value }} />
+                  : value))}
           </span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
@@ -200,7 +207,7 @@ export function KindPicker({ value, options, onChange }: {
             <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <input
               className="flex-1 min-w-0 text-base md:text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-              placeholder="Search kinds..."
+              placeholder={intl.formatMessage({ id: 'feedFilters.kindPicker.searchPlaceholder', defaultMessage: 'Search kinds...' })}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
@@ -214,15 +221,17 @@ export function KindPicker({ value, options, onChange }: {
         </div>
         {canScrollUp && <KindScrollCaret direction="up" onMouseEnter={() => startScroll('up')} onMouseLeave={stopScroll} />}
         <div ref={refCallback} className="overflow-y-auto flex-1 min-h-0" onScroll={onScroll}>
-          {!search && <KindPickerItem icon={null} label="All kinds" active={value === 'all'} onClick={() => handleSelect('all')} />}
+          {!search && <KindPickerItem icon={null} label={intl.formatMessage({ id: 'feedFilters.kindPicker.allKinds', defaultMessage: 'All kinds' })} active={value === 'all'} onClick={() => handleSelect('all')} />}
           {filtered.map((opt) => (
             <KindPickerItem key={opt.value} icon={opt.icon ?? null} label={opt.label} active={value === opt.value} onClick={() => handleSelect(opt.value)} />
           ))}
           {(!search || 'custom'.includes(search.toLowerCase())) && (
-            <KindPickerItem icon={Hash} label="Custom kind..." active={value === 'custom'} onClick={() => handleSelect('custom')} />
+            <KindPickerItem icon={Hash} label={intl.formatMessage({ id: 'feedFilters.kindPicker.customKind', defaultMessage: 'Custom kind...' })} active={value === 'custom'} onClick={() => handleSelect('custom')} />
           )}
           {filtered.length === 0 && search && !customKind && (
-            <p className="text-xs text-muted-foreground text-center py-4">No kinds match</p>
+            <p className="text-xs text-muted-foreground text-center py-4">
+              <FormattedMessage id="feedFilters.kindPicker.noMatch" defaultMessage="No kinds match" />
+            </p>
           )}
         </div>
         {canScrollDown && <KindScrollCaret direction="down" onMouseEnter={() => startScroll('down')} onMouseLeave={stopScroll} />}
@@ -255,6 +264,7 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
   options: KindOption[];
   onChange: (kinds: string[]) => void;
 }) {
+  const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { refCallback, canScrollUp, canScrollDown, onScroll, startScroll, stopScroll } = useScrollCarets();
@@ -295,13 +305,16 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
   };
 
   const triggerLabel = useMemo(() => {
-    if (isAllKinds) return 'All kinds';
+    if (isAllKinds) return intl.formatMessage({ id: 'feedFilters.kindPicker.allKinds', defaultMessage: 'All kinds' });
     if (selectedKinds.length === 1) {
       const opt = options.find((o) => o.value === selectedKinds[0]);
-      return opt?.label ?? `Kind ${selectedKinds[0]}`;
+      return opt?.label ?? intl.formatMessage({ id: 'feedFilters.kindLabel', defaultMessage: 'Kind {kind}' }, { kind: selectedKinds[0] });
     }
-    return `${selectedKinds.length} kinds selected`;
-  }, [isAllKinds, selectedKinds, options]);
+    return intl.formatMessage(
+      { id: 'feedFilters.kindPicker.kindsSelected', defaultMessage: '{count} kinds selected' },
+      { count: selectedKinds.length },
+    );
+  }, [isAllKinds, selectedKinds, options, intl]);
 
   return (
     <div className="space-y-2">
@@ -332,7 +345,7 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
               <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
               <input
                 className="flex-1 min-w-0 text-base md:text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-                placeholder="Search kinds..."
+                placeholder={intl.formatMessage({ id: 'feedFilters.kindPicker.searchPlaceholder', defaultMessage: 'Search kinds...' })}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
@@ -359,7 +372,9 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
                 )}
               >
                 <span className="size-4 shrink-0" />
-                <span className="flex-1 truncate">All kinds</span>
+                <span className="flex-1 truncate">
+                  <FormattedMessage id="feedFilters.kindPicker.allKinds" defaultMessage="All kinds" />
+                </span>
                 {isAllKinds && <Check className="size-3.5 shrink-0 ml-auto text-primary" />}
               </button>
             )}
@@ -391,7 +406,9 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
             })}
 
             {filtered.length === 0 && search && !customKind && (
-              <p className="text-sm text-muted-foreground text-center py-6">No kinds match</p>
+              <p className="text-sm text-muted-foreground text-center py-6">
+                <FormattedMessage id="feedFilters.kindPicker.noMatch" defaultMessage="No kinds match" />
+              </p>
             )}
           </div>
 
@@ -424,12 +441,18 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
 
           {selectedKinds.length > 0 && (
             <div className="flex items-center justify-between px-3 py-2 border-t border-border shrink-0">
-              <span className="text-xs text-muted-foreground">{selectedKinds.length} selected</span>
+              <span className="text-xs text-muted-foreground">
+                <FormattedMessage
+                  id="feedFilters.kindPicker.selectedCount"
+                  defaultMessage="{count} selected"
+                  values={{ count: selectedKinds.length }}
+                />
+              </span>
               <button
                 onClick={() => { setOpen(false); setSearch(''); }}
                 className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
-                Done
+                <FormattedMessage id="feedFilters.kindPicker.done" defaultMessage="Done" />
               </button>
             </div>
           )}
@@ -441,7 +464,9 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
           {selectedKinds.map((kindValue) => {
             const opt = options.find((o) => o.value === kindValue);
             const Icon = opt?.icon;
-            const label = opt ? opt.label : `Kind ${kindValue}`;
+            const label = opt
+              ? opt.label
+              : intl.formatMessage({ id: 'feedFilters.kindLabel', defaultMessage: 'Kind {kind}' }, { kind: kindValue });
             return (
               <span
                 key={kindValue}
@@ -452,7 +477,7 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
                 <button
                   onClick={() => toggleKind(kindValue)}
                   className="shrink-0 size-4 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary-foreground/10 transition-colors"
-                  aria-label={`Remove ${label}`}
+                  aria-label={intl.formatMessage({ id: 'feedFilters.removeItem', defaultMessage: 'Remove {label}' }, { label })}
                 >
                   <X className="size-3" />
                 </button>
@@ -528,6 +553,7 @@ interface ListPackPickerProps {
  * author pubkeys. Used in FeedEditModal, SavedFeedFiltersEditor, and SearchPage.
  */
 export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, className }: ListPackPickerProps) {
+  const intl = useIntl();
   const hasAny = lists.length > 0 || followPacks.length > 0;
   if (!hasAny) return null;
 
@@ -545,12 +571,12 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
       }}
     >
       <SelectTrigger className={cn('w-full bg-secondary/50 h-8 text-base md:text-xs', className)}>
-        <SelectValue placeholder="Or choose a list..." />
+        <SelectValue placeholder={intl.formatMessage({ id: 'feedFilters.listPicker.placeholder', defaultMessage: 'Or choose a list...' })} />
       </SelectTrigger>
       <SelectContent>
         {lists.length > 0 && (
           <SelectGroup>
-            {followPacks.length > 0 && <SelectLabel>Lists</SelectLabel>}
+            {followPacks.length > 0 && <SelectLabel><FormattedMessage id="feedFilters.listPicker.lists" defaultMessage="Lists" /></SelectLabel>}
             {lists.map((l) => (
               <SelectItem key={`set:${l.id}`} value={`set:${l.id}`}>
                 {l.title} ({l.pubkeys.length})
@@ -560,7 +586,7 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
         )}
         {followPacks.length > 0 && (
           <SelectGroup>
-            {lists.length > 0 && <SelectLabel>Follow Packs</SelectLabel>}
+            {lists.length > 0 && <SelectLabel><FormattedMessage id="feedFilters.listPicker.followPacks" defaultMessage="Follow Packs" /></SelectLabel>}
             {followPacks.map((p) => (
               <SelectItem key={`pack:${p.id}`} value={`pack:${p.id}`}>
                 {p.title} ({p.pubkeys.length})
@@ -580,6 +606,7 @@ export function ListPackPicker({ lists, followPacks, value, onSelectPubkeys, cla
 // ─── AuthorChip ───────────────────────────────────────────────────────────────
 
 export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () => void }) {
+  const intl = useIntl();
   const hexPubkey = useMemo(() => {
     if (/^[0-9a-f]{64}$/i.test(pubkey)) return pubkey;
     try { const d = nip19.decode(pubkey); return d.type === 'npub' ? d.data : pubkey; } catch { return pubkey; }
@@ -597,7 +624,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
         fallback={<User className="size-3 shrink-0 text-muted-foreground" />}
       />
       <span className="truncate">{name}</span>
-      <button onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors" aria-label="Remove">
+      <button onClick={onRemove} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors" aria-label={intl.formatMessage({ id: 'feedFilters.remove', defaultMessage: 'Remove' })}>
         <X className="size-3" />
       </button>
     </span>
@@ -607,6 +634,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
 // ─── AuthorFilterDropdown ─────────────────────────────────────────────────────
 
 export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, _label: string) => void }) {
+  const intl = useIntl();
   const handleSelect = useCallback((profile: SearchProfile) => {
     const label = profile.metadata.name || profile.metadata.display_name || profile.pubkey.slice(0, 16) + '...';
     onCommit(profile.pubkey, label);
@@ -614,7 +642,7 @@ export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, 
 
   return (
     <ProfileSearchDropdown
-      placeholder="Search by name or npub..."
+      placeholder={intl.formatMessage({ id: 'feedFilters.authorSearchPlaceholder', defaultMessage: 'Search by name or npub...' })}
       onSelect={handleSelect}
       hideCountry
       inputClassName="rounded-full bg-secondary/50 border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 text-base md:text-sm h-9"
@@ -661,6 +689,7 @@ export function SavedFeedFiltersEditor({
   hideFrom = false,
   kindOptions: kindOptionsProp,
 }: SavedFeedFiltersEditorProps) {
+  const intl = useIntl();
   const kindOptions = useMemo(() => kindOptionsProp ?? buildKindOptions(), [kindOptionsProp]);
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
@@ -743,11 +772,13 @@ export function SavedFeedFiltersEditor({
       {showQuery && (
         <>
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search query</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <FormattedMessage id="feedFilters.searchQuery" defaultMessage="Search query" />
+            </span>
             <Input
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="e.g. bitcoin"
+              placeholder={intl.formatMessage({ id: 'feedFilters.searchPlaceholder', defaultMessage: 'e.g. bitcoin' })}
               className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-base md:text-sm"
             />
           </div>
@@ -759,11 +790,13 @@ export function SavedFeedFiltersEditor({
       {!hideFrom && (
         <>
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <FormattedMessage id="feedFilters.from" defaultMessage="From" />
+            </span>
             <div className="flex rounded-lg border border-border overflow-hidden">
               {([
-                ['anyone', 'Anyone', Globe],
-                ['people', 'People', UserSearch],
+                ['anyone', intl.formatMessage({ id: 'feedFilters.scope.anyone', defaultMessage: 'Anyone' }), Globe],
+                ['people', intl.formatMessage({ id: 'feedFilters.scope.people', defaultMessage: 'People' }), UserSearch],
               ] as const).map(([scope, label, Icon]) => (
                 <button
                   key={scope}
@@ -813,7 +846,9 @@ export function SavedFeedFiltersEditor({
 
       {/* Kind */}
       <div className="space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kind</span>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <FormattedMessage id="feedFilters.kind" defaultMessage="Kind" />
+        </span>
         <KindPicker value={kindFilter} options={kindOptions} onChange={handleKindChange} />
       </div>
 
@@ -821,7 +856,7 @@ export function SavedFeedFiltersEditor({
         <Input
           type="text"
           inputMode="numeric"
-          placeholder="e.g. 1, 30023"
+          placeholder={intl.formatMessage({ id: 'feedFilters.customKindPlaceholder', defaultMessage: 'e.g. 1, 30023' })}
           value={customKindText}
           onChange={(e) => handleCustomKindChange(e.target.value)}
           className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Music, Play, Pause, Check, Loader2, Volume2, AlertCircle } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import {
   Dialog,
@@ -44,6 +45,7 @@ export function PlayMusicModal({
   onConfirm,
   isLoading,
 }: PlayMusicModalProps) {
+  const intl = useIntl();
   const [selectedTrack, setSelectedTrack] = useState<SelectedTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export function PlayMusicModal({
       
       audioRef.current.onended = () => setIsPlaying(false);
       audioRef.current.onerror = () => {
-        setError('Failed to load this track. Please try another one.');
+        setError(intl.formatMessage({ id: 'playMusic.loadFailed', defaultMessage: 'Failed to load this track. Please try another one.' }));
         setIsPlaying(false);
       };
     }
@@ -121,12 +123,12 @@ export function PlayMusicModal({
     } else {
       // Start playback (either new source or resuming)
       audioRef.current?.play().catch(() => {
-        setError('Failed to play this track. Please try another one.');
+        setError(intl.formatMessage({ id: 'playMusic.playFailed', defaultMessage: 'Failed to play this track. Please try another one.' }));
         setIsPlaying(false);
       });
       setIsPlaying(true);
     }
-  }, [selectedTrack, isPlaying]);
+  }, [selectedTrack, isPlaying, intl]);
   
   // Handle confirm
   const handleConfirm = useCallback(() => {
@@ -159,9 +161,9 @@ export function PlayMusicModal({
               <Music className="size-5 text-pink-500" />
             </div>
             <div>
-              <DialogTitle className="text-xl">Play Music</DialogTitle>
+              <DialogTitle className="text-xl"><FormattedMessage id="playMusic.title" defaultMessage="Play Music" /></DialogTitle>
               <p className="text-sm text-muted-foreground">
-                Choose a track to play for your Blobbi
+                <FormattedMessage id="playMusic.description" defaultMessage="Choose a track to play for your Blobbi" />
               </p>
             </div>
           </div>
@@ -210,7 +212,11 @@ export function PlayMusicModal({
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate text-sm">{selectedTrack.track.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isPlaying ? 'Now playing...' : 'Click to preview'}
+                    {isPlaying ? (
+                      <FormattedMessage id="playMusic.nowPlaying" defaultMessage="Now playing..." />
+                    ) : (
+                      <FormattedMessage id="playMusic.clickToPreview" defaultMessage="Click to preview" />
+                    )}
                   </p>
                 </div>
                 {isPlaying && (
@@ -228,7 +234,7 @@ export function PlayMusicModal({
               className="flex-1"
               disabled={isLoading}
             >
-              Cancel
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
             </Button>
             <Button
               onClick={handleConfirm}
@@ -238,12 +244,12 @@ export function PlayMusicModal({
               {isLoading ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
-                  Playing...
+                  <FormattedMessage id="playMusic.playing" defaultMessage="Playing..." />
                 </>
               ) : (
                 <>
                   <Music className="size-4 mr-2" />
-                  Play for Blobbi
+                  <FormattedMessage id="playMusic.confirm" defaultMessage="Play for Blobbi" />
                 </>
               )}
             </Button>

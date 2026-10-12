@@ -320,7 +320,7 @@ export function AdvancedSettings() {
                     <div className="flex-1">
                       <span className="text-sm font-medium"><FormattedMessage id="settings.advanced.currencySats" defaultMessage={"Satoshis"} /></span>
                       <p className="text-xs text-muted-foreground">
-                        <FormattedMessage id="settings.advanced.currencyExample" defaultMessage={"e.g."} /> <span className="font-semibold">6,300 sats</span>
+                        <FormattedMessage id="settings.advanced.currencyExample" defaultMessage={"e.g."} /> <span className="font-semibold"><FormattedMessage id="settings.advanced.currencySatsExample" defaultMessage="6,300 sats" /></span>
                       </p>
                     </div>
                   </label>

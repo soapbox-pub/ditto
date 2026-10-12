@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Send, MessageCircle } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
@@ -26,15 +27,16 @@ interface LiveStreamChatProps {
 }
 
 /** Format seconds-ago into a short time string. */
-function shortTimeAgo(timestamp: number): string {
+function shortTimeAgo(intl: IntlShape, timestamp: number): string {
   const diff = Math.floor(Date.now() / 1000) - timestamp;
-  if (diff < 60) return 'now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  if (diff < 60) return intl.formatMessage({ id: 'liveChat.time.now', defaultMessage: 'now' });
+  if (diff < 3600) return intl.formatMessage({ id: 'liveChat.time.minutes', defaultMessage: '{count}m' }, { count: Math.floor(diff / 60) });
+  if (diff < 86400) return intl.formatMessage({ id: 'liveChat.time.hours', defaultMessage: '{count}h' }, { count: Math.floor(diff / 3600) });
+  return intl.formatMessage({ id: 'liveChat.time.days', defaultMessage: '{count}d' }, { count: Math.floor(diff / 86400) });
 }
 
 export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
@@ -130,9 +132,15 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
       {/* Chat header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <MessageCircle className="size-4 text-muted-foreground" />
-        <span className="text-sm font-semibold">Live Chat</span>
+        <span className="text-sm font-semibold">
+          <FormattedMessage id="liveChat.title" defaultMessage="Live Chat" />
+        </span>
         <span className="text-xs text-muted-foreground ml-auto tabular-nums">
-          {messages.length} message{messages.length !== 1 ? 's' : ''}
+          <FormattedMessage
+            id="liveChat.messageCount"
+            defaultMessage="{count, plural, one {# message} other {# messages}}"
+            values={{ count: messages.length }}
+          />
         </span>
       </div>
 
@@ -157,8 +165,12 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <MessageCircle className="size-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No messages yet</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">Be the first to say something!</p>
+            <p className="text-sm text-muted-foreground">
+              <FormattedMessage id="liveChat.empty" defaultMessage="No messages yet" />
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-1">
+              <FormattedMessage id="liveChat.emptyHint" defaultMessage="Be the first to say something!" />
+            </p>
           </div>
         ) : (
           messages.map((msg) => (
@@ -175,7 +187,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Say something..."
+              placeholder={intl.formatMessage({ id: 'liveChat.placeholder', defaultMessage: 'Say something...' })}
               className="flex-1 h-9 text-base md:text-sm"
               disabled={isSending}
               maxLength={500}
@@ -191,7 +203,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
           </div>
         ) : (
           <p className="text-xs text-muted-foreground text-center py-1">
-            Log in to participate in the chat
+            <FormattedMessage id="liveChat.loggedOut" defaultMessage="Log in to participate in the chat" />
           </p>
         )}
       </div>
@@ -200,6 +212,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
 }
 
 function ChatMessage({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -228,7 +241,7 @@ function ChatMessage({ event }: { event: NostrEvent }) {
           <span className="text-sm text-foreground break-words">{event.content}</span>
         </span>
         <span className="text-[10px] text-muted-foreground/60 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          {shortTimeAgo(event.created_at)}
+          {shortTimeAgo(intl, event.created_at)}
         </span>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify';
 
@@ -91,8 +92,9 @@ function ProfileSnapshotCard({
   onRestore: () => void;
   isRestoring: boolean;
 }) {
+  const intl = useIntl();
   const metadata = useMemo(() => parseMetadata(event.content), [event.content]);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const avatarShape = getAvatarShape(metadata);
 
   return (
@@ -109,7 +111,7 @@ function ProfileSnapshotCard({
         {isCurrent ? (
           <div className="flex items-center gap-1 text-xs font-medium text-primary">
             <Check className="size-3.5" />
-            Current
+            <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
           </div>
         ) : (
           <Button
@@ -124,7 +126,7 @@ function ProfileSnapshotCard({
             ) : (
               <RotateCcw className="size-3.5" />
             )}
-            Restore
+            <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
           </Button>
         )}
       </div>
@@ -171,8 +173,10 @@ function ThemeSnapshotCard({
   onRestore: () => void;
   isRestoring: boolean;
 }) {
+  const intl = useIntl();
   const parsed = useMemo(() => parseActiveProfileTheme(event), [event]);
-  const title = event.tags.find(([n]) => n === 'title')?.[1] ?? 'Profile Theme';
+  const title = event.tags.find(([n]) => n === 'title')?.[1]
+    ?? intl.formatMessage({ id: 'profileRecovery.themeFallbackTitle', defaultMessage: 'Profile Theme' });
   const tokens = useMemo(() => (parsed ? coreToTokens(parsed.colors) : null), [parsed]);
 
   if (!parsed || !tokens) {
@@ -194,7 +198,7 @@ function ThemeSnapshotCard({
         {isCurrent ? (
           <div className="flex items-center gap-1 text-xs font-medium text-primary bg-background/80 backdrop-blur-sm rounded-full px-2 py-0.5">
             <Check className="size-3.5" />
-            Current
+            <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
           </div>
         ) : (
           <Button
@@ -209,7 +213,7 @@ function ThemeSnapshotCard({
             ) : (
               <RotateCcw className="size-3.5" />
             )}
-            Restore
+            <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
           </Button>
         )}
       </div>
@@ -292,7 +296,7 @@ function FollowsSnapshotCard({
         {isCurrent ? (
           <div className="flex items-center gap-1 text-xs font-medium text-primary">
             <Check className="size-3.5" />
-            Current
+            <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
           </div>
         ) : (
           <Button
@@ -307,7 +311,7 @@ function FollowsSnapshotCard({
             ) : (
               <RotateCcw className="size-3.5" />
             )}
-            Restore
+            <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
           </Button>
         )}
       </div>
@@ -317,7 +321,9 @@ function FollowsSnapshotCard({
           <PeopleAvatarStack pubkeys={followedPubkeys} maxVisible={8} size="md" />
         </div>
       ) : (
-        <div className="text-sm text-muted-foreground pr-24">No follows</div>
+        <div className="text-sm text-muted-foreground pr-24">
+          <FormattedMessage id="profileRecovery.noFollows" defaultMessage="No follows" />
+        </div>
       )}
 
       <div className="text-[11px] text-muted-foreground/70 mt-2">
@@ -365,6 +371,7 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -399,8 +406,11 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
       });
 
       toast({
-        title: 'Profile restored',
-        description: `Successfully restored from ${formatDate(event.created_at)}.`,
+        title: intl.formatMessage({ id: 'profileRecovery.profileRestored', defaultMessage: 'Profile restored' }),
+        description: intl.formatMessage(
+          { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
+          { date: formatDate(event.created_at) },
+        ),
       });
 
       queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind0', pubkey] });
@@ -410,8 +420,11 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Failed to restore event:', error);
       toast({
-        title: 'Restore failed',
-        description: 'Could not republish the event. Please try again.',
+        title: intl.formatMessage({ id: 'profileRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
+        description: intl.formatMessage({
+          id: 'profileRecovery.restoreFailedDescription',
+          defaultMessage: 'Could not republish the event. Please try again.',
+        }),
         variant: 'destructive',
       });
     } finally {
@@ -424,7 +437,14 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
   }
 
   if (profileEvents.length === 0) {
-    return <EmptyState label="No profile history found. Your relay may not store historical events." />;
+    return (
+      <EmptyState
+        label={intl.formatMessage({
+          id: 'profileRecovery.emptyProfile',
+          defaultMessage: 'No profile history found. Your relay may not store historical events.',
+        })}
+      />
+    );
   }
 
   return (
@@ -449,6 +469,7 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -485,8 +506,11 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
       });
 
       toast({
-        title: 'Theme restored',
-        description: `Successfully restored from ${formatDate(event.created_at)}.`,
+        title: intl.formatMessage({ id: 'profileRecovery.themeRestored', defaultMessage: 'Theme restored' }),
+        description: intl.formatMessage(
+          { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
+          { date: formatDate(event.created_at) },
+        ),
       });
 
       queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind16767', pubkey] });
@@ -496,8 +520,11 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Failed to restore event:', error);
       toast({
-        title: 'Restore failed',
-        description: 'Could not republish the event. Please try again.',
+        title: intl.formatMessage({ id: 'profileRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
+        description: intl.formatMessage({
+          id: 'profileRecovery.restoreFailedDescription',
+          defaultMessage: 'Could not republish the event. Please try again.',
+        }),
         variant: 'destructive',
       });
     } finally {
@@ -510,7 +537,14 @@ function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
   }
 
   if (themeEvents.length === 0) {
-    return <EmptyState label="No theme history found. Your relay may not store historical events." />;
+    return (
+      <EmptyState
+        label={intl.formatMessage({
+          id: 'profileRecovery.emptyTheme',
+          defaultMessage: 'No theme history found. Your relay may not store historical events.',
+        })}
+      />
+    );
   }
 
   return (
@@ -535,6 +569,7 @@ function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -569,8 +604,11 @@ function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
       });
 
       toast({
-        title: 'Follow list restored',
-        description: `Successfully restored from ${formatDate(event.created_at)}.`,
+        title: intl.formatMessage({ id: 'profileRecovery.followsRestored', defaultMessage: 'Follow list restored' }),
+        description: intl.formatMessage(
+          { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
+          { date: formatDate(event.created_at) },
+        ),
       });
 
       queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind3', pubkey] });
@@ -580,8 +618,11 @@ function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Failed to restore event:', error);
       toast({
-        title: 'Restore failed',
-        description: 'Could not republish the event. Please try again.',
+        title: intl.formatMessage({ id: 'profileRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
+        description: intl.formatMessage({
+          id: 'profileRecovery.restoreFailedDescription',
+          defaultMessage: 'Could not republish the event. Please try again.',
+        }),
         variant: 'destructive',
       });
     } finally {
@@ -594,7 +635,14 @@ function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
   }
 
   if (followsEvents.length === 0) {
-    return <EmptyState label="No follow list history found. Your relay may not store historical events." />;
+    return (
+      <EmptyState
+        label={intl.formatMessage({
+          id: 'profileRecovery.emptyFollows',
+          defaultMessage: 'No follow list history found. Your relay may not store historical events.',
+        })}
+      />
+    );
   }
 
   return (
@@ -621,7 +669,9 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle className="text-lg font-bold">Profile Recovery</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            <FormattedMessage id="profileRecovery.title" defaultMessage="Profile Recovery" />
+          </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="profile" className="w-full">
@@ -629,15 +679,15 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
             <TabsList className="w-full">
               <TabsTrigger value="profile" className="flex-1 gap-1.5">
                 <User className="size-3.5" />
-                Profile
+                <FormattedMessage id="profileRecovery.tabProfile" defaultMessage="Profile" />
               </TabsTrigger>
               <TabsTrigger value="follows" className="flex-1 gap-1.5">
                 <Users className="size-3.5" />
-                Follows
+                <FormattedMessage id="profileRecovery.tabFollows" defaultMessage="Follows" />
               </TabsTrigger>
               <TabsTrigger value="theme" className="flex-1 gap-1.5">
                 <Palette className="size-3.5" />
-                Theme
+                <FormattedMessage id="profileRecovery.tabTheme" defaultMessage="Theme" />
               </TabsTrigger>
             </TabsList>
           </div>

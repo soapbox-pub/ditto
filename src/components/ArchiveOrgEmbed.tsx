@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -72,6 +73,7 @@ function useArchiveOrgMeta(identifier: string) {
  * so we use a standard responsive iframe approach.
  */
 export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps) {
+  const intl = useIntl();
   const [activated, setActivated] = useState(false);
   const { data: meta } = useArchiveOrgMeta(identifier);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -146,7 +148,7 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
             type="button"
             className="absolute inset-0 w-full h-full cursor-pointer bg-black group"
             onClick={() => setActivated(true)}
-            aria-label="Load content"
+            aria-label={intl.formatMessage({ id: 'archiveOrgEmbed.loadContent', defaultMessage: 'Load content' })}
           >
             <img
               src={thumbnailSrc}

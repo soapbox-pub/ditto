@@ -155,7 +155,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const threadId = rootTag?.[1] ?? event.id;
   const conversationMuted = isMuted('thread', threadId);
   const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   const nip19Id = encodeEventNip19(event);
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;
@@ -164,10 +164,10 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
     impactLight();
     toggleBookmark.mutate(event.id, {
       onSuccess: () => {
-        toast({ title: bookmarked ? 'Removed from bookmarks' : 'Added to bookmarks' });
+        toast({ title: bookmarked ? intl.formatMessage({ id: 'note.moreMenu.bookmarkRemoved', defaultMessage: 'Removed from bookmarks' }) : intl.formatMessage({ id: 'note.moreMenu.bookmarkAdded', defaultMessage: 'Added to bookmarks' }) });
       },
       onError: () => {
-        toast({ title: 'Failed to update bookmarks', variant: 'destructive' });
+        toast({ title: intl.formatMessage({ id: 'note.moreMenu.bookmarkFailed', defaultMessage: 'Failed to update bookmarks' }), variant: 'destructive' });
       },
     });
     onOpenChange(false);
@@ -177,10 +177,10 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
     impactLight();
     togglePin.mutate(event.id, {
       onSuccess: () => {
-        toast({ title: pinned ? 'Unpinned from profile' : 'Pinned to profile' });
+        toast({ title: pinned ? intl.formatMessage({ id: 'note.moreMenu.unpinned', defaultMessage: 'Unpinned from profile' }) : intl.formatMessage({ id: 'note.moreMenu.pinned', defaultMessage: 'Pinned to profile' }) });
       },
       onError: () => {
-        toast({ title: 'Failed to update pinned posts', variant: 'destructive' });
+        toast({ title: intl.formatMessage({ id: 'note.moreMenu.pinFailed', defaultMessage: 'Failed to update pinned posts' }), variant: 'destructive' });
       },
     });
     onOpenChange(false);
@@ -193,11 +193,11 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
       { type: 'thread', value: threadId },
       {
         onSuccess: () => {
-          toast({ title: conversationMuted ? 'Conversation unmuted' : 'Conversation muted' });
+          toast({ title: conversationMuted ? intl.formatMessage({ id: 'note.moreMenu.conversationUnmuted', defaultMessage: 'Conversation unmuted' }) : intl.formatMessage({ id: 'note.moreMenu.conversationMuted', defaultMessage: 'Conversation muted' }) });
         },
         onError: () => {
           toast({
-            title: conversationMuted ? 'Failed to unmute conversation' : 'Failed to mute conversation',
+            title: conversationMuted ? intl.formatMessage({ id: 'note.moreMenu.unmuteConversationFailed', defaultMessage: 'Failed to unmute conversation' }) : intl.formatMessage({ id: 'note.moreMenu.muteConversationFailed', defaultMessage: 'Failed to mute conversation' }),
             variant: 'destructive',
           });
         },
@@ -211,10 +211,10 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
     const mutation = userMuted ? removeMute : addMute;
     mutation.mutate(muteItem, {
       onSuccess: () => {
-        toast({ title: userMuted ? `Unmuted @${displayName}` : `Muted @${displayName}` });
+        toast({ title: userMuted ? intl.formatMessage({ id: 'note.moreMenu.userUnmuted', defaultMessage: 'Unmuted @{name}' }, { name: displayName }) : intl.formatMessage({ id: 'note.moreMenu.userMuted', defaultMessage: 'Muted @{name}' }, { name: displayName }) });
       },
       onError: () => {
-        toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
+        toast({ title: userMuted ? intl.formatMessage({ id: 'note.moreMenu.unmuteUserFailed', defaultMessage: 'Failed to unmute user' }) : intl.formatMessage({ id: 'note.moreMenu.muteUserFailed', defaultMessage: 'Failed to mute user' }), variant: 'destructive' });
       },
     });
     onOpenChange(false);
@@ -227,10 +227,10 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
       {
         onSuccess: () => {
           setDeleteConfirmOpen(false);
-          toast({ title: 'Post deleted' });
+          toast({ title: intl.formatMessage({ id: 'note.moreMenu.postDeleted', defaultMessage: 'Post deleted' }) });
         },
         onError: () => {
-          toast({ title: 'Failed to delete post', variant: 'destructive' });
+          toast({ title: intl.formatMessage({ id: 'note.moreMenu.deleteFailed', defaultMessage: 'Failed to delete post' }), variant: 'destructive' });
         },
       },
     );
@@ -308,7 +308,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
         open={mentionComposeOpen}
         onOpenChange={setMentionComposeOpen}
         initialContent={mentionContent}
-        title="New post"
+        title={intl.formatMessage({ id: 'note.moreMenu.mentionComposeTitle', defaultMessage: 'New post' })}
       />
 
       <AddToListDialog
@@ -369,13 +369,16 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete post?</AlertDialogTitle>
+            <AlertDialogTitle><FormattedMessage id="note.moreMenu.deleteConfirm.title" defaultMessage="Delete post?" /></AlertDialogTitle>
             <AlertDialogDescription>
-              This will request deletion from relays. Some relays may still keep a copy of the original event. This action cannot be undone.
+              <FormattedMessage
+                id="note.moreMenu.deleteConfirm.description"
+                defaultMessage="This will request deletion from relays. Some relays may still keep a copy of the original event. This action cannot be undone."
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}><FormattedMessage id="common.cancel" defaultMessage="Cancel" /></AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -384,7 +387,9 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
               disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {isDeleting
+                ? <FormattedMessage id="articles.mine.deleting" defaultMessage="Deleting..." />
+                : <FormattedMessage id="note.moreMenu.deleteConfirm.confirm" defaultMessage="Delete" />}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -444,17 +449,17 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
   const handleCopyLink = () => {
     const url = `${shareOrigin}/${nip19Id}`;
     navigator.clipboard.writeText(url);
-    toast({ title: 'Link copied to clipboard' });
+    toast({ title: intl.formatMessage({ id: 'note.moreMenu.linkCopied', defaultMessage: 'Link copied to clipboard' }) });
     close();
   };
 
   const handleToggleSidebar = () => {
     if (isInSidebar) {
       removeFromSidebar(sidebarUri);
-      toast({ title: 'Removed from sidebar' });
+      toast({ title: intl.formatMessage({ id: 'note.moreMenu.sidebarRemoved', defaultMessage: 'Removed from sidebar' }) });
     } else {
       addToSidebar(sidebarUri);
-      toast({ title: 'Added to sidebar' });
+      toast({ title: intl.formatMessage({ id: 'note.moreMenu.sidebarAdded', defaultMessage: 'Added to sidebar' }) });
     }
     close();
   };
@@ -462,7 +467,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[85dvh] p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-y-auto [&>button]:hidden">
-        <DialogTitle className="sr-only">Post options</DialogTitle>
+        <DialogTitle className="sr-only"><FormattedMessage id="note.moreMenu.title" defaultMessage="Post options" /></DialogTitle>
 
         {/* Post preview — delegates to the shared EmbeddedPost used by quote
             posts and reply indicators so every surface renders events the same way. */}
@@ -475,34 +480,34 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
         <div className="py-1">
           <MenuItem
             icon={<StickyNote className="size-5" />}
-            label="View post details"
+            label={intl.formatMessage({ id: 'note.moreMenu.viewDetails', defaultMessage: 'View post details' })}
             onClick={handleViewPostDetails}
           />
           <MenuItem
             icon={<ClipboardCopy className="size-5" />}
-            label="Copy Link to Post"
+            label={intl.formatMessage({ id: 'note.moreMenu.copyLink', defaultMessage: 'Copy Link to Post' })}
             onClick={handleCopyLink}
           />
           <MenuItem
             icon={<FileJson className="size-5" />}
-            label="View Event JSON"
+            label={intl.formatMessage({ id: 'note.moreMenu.viewJson', defaultMessage: 'View Event JSON' })}
             onClick={onViewEventJson}
           />
           <MenuItem
             icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
-            label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
+            label={bookmarked ? intl.formatMessage({ id: 'note.moreMenu.removeBookmark', defaultMessage: 'Remove Bookmark' }) : intl.formatMessage({ id: 'note.moreMenu.bookmark', defaultMessage: 'Bookmark' })}
             onClick={onBookmark}
           />
           {user && (
             <MenuItem
               icon={<ListPlus className="size-5" />}
-              label="Add to list"
+              label={intl.formatMessage({ id: 'note.moreMenu.addToList', defaultMessage: 'Add to list' })}
               onClick={() => { onAddToList(); }}
             />
           )}
           <MenuItem
             icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
-            label={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+            label={isInSidebar ? intl.formatMessage({ id: 'note.moreMenu.removeFromSidebar', defaultMessage: 'Remove from sidebar' }) : intl.formatMessage({ id: 'note.moreMenu.addToSidebar', defaultMessage: 'Add to sidebar' })}
             onClick={handleToggleSidebar}
           />
         </div>
@@ -523,28 +528,28 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
           {!isOwnPost && (
             <MenuItem
               icon={conversationMuted ? <Bell className="size-5" /> : <BellOff className="size-5" />}
-              label={conversationMuted ? 'Unmute Conversation' : 'Mute Conversation'}
+              label={conversationMuted ? intl.formatMessage({ id: 'note.moreMenu.unmuteConversation', defaultMessage: 'Unmute Conversation' }) : intl.formatMessage({ id: 'note.moreMenu.muteConversation', defaultMessage: 'Mute Conversation' })}
               onClick={onMuteConversation}
             />
           )}
           {isOwnPost && (
             <MenuItem
               icon={<Pin className={cn("size-5", pinned && "fill-current")} />}
-              label={pinned ? 'Unpin from profile' : 'Pin on profile'}
+              label={pinned ? intl.formatMessage({ id: 'note.moreMenu.unpin', defaultMessage: 'Unpin from profile' }) : intl.formatMessage({ id: 'note.moreMenu.pin', defaultMessage: 'Pin on profile' })}
               onClick={onTogglePin}
             />
           )}
           {isRestorable && (
             <MenuItem
               icon={<RotateCcw className="size-5" />}
-              label="Restore previous version"
+              label={intl.formatMessage({ id: 'note.moreMenu.restore', defaultMessage: 'Restore previous version' })}
               onClick={onRestore}
             />
           )}
           {isOwnPost && (
             <MenuItem
               icon={<Trash2 className="size-5" />}
-              label="Delete post"
+              label={intl.formatMessage({ id: 'note.moreMenu.delete', defaultMessage: 'Delete post' })}
               onClick={onDelete}
               destructive
             />
@@ -552,7 +557,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
           {!isOwnPost && (
             <MenuItem
               icon={<AtSign className="size-5" />}
-              label={`Mention @${displayName}`}
+              label={intl.formatMessage({ id: 'note.moreMenu.mention', defaultMessage: 'Mention @{name}' }, { name: displayName })}
               onClick={onMention}
             />
           )}
@@ -565,12 +570,12 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
             <div className="py-1">
               <MenuItem
                 icon={<VolumeX className="size-5" />}
-                label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
+                label={userMuted ? intl.formatMessage({ id: 'note.moreMenu.unmuteUser', defaultMessage: 'Unmute @{name}' }, { name: displayName }) : intl.formatMessage({ id: 'note.moreMenu.muteUser', defaultMessage: 'Mute @{name}' }, { name: displayName })}
                 onClick={onMuteUser}
               />
               <MenuItem
                 icon={<Flag className="size-5" />}
-                label={`Report @${displayName}`}
+                label={intl.formatMessage({ id: 'note.moreMenu.report', defaultMessage: 'Report @{name}' }, { name: displayName })}
                 onClick={onReport}
                 destructive
               />
@@ -586,7 +591,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
             className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
             onClick={close}
           >
-            Close
+            <FormattedMessage id="note.moreMenu.close" defaultMessage="Close" />
           </Button>
         </div>
       </DialogContent>

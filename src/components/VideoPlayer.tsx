@@ -207,7 +207,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
       ? [{ src: (generatedPoster || poster)!, sizes: '512x512', type: 'image/jpeg' }]
       : [];
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: title || 'Video',
+      title: title || intl.formatMessage({ id: 'video.fallbackTitle', defaultMessage: 'Video' }),
       artist: artist || '',
       artwork,
     });
@@ -227,7 +227,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
       navigator.mediaSession.setActionHandler('pause', null);
       navigator.mediaSession.setActionHandler('seekto', null);
     };
-  }, [hasStarted, title, artist, poster, generatedPoster]);
+  }, [hasStarted, title, artist, poster, generatedPoster, intl]);
 
   // Keep OS playback state in sync
   useEffect(() => {
@@ -461,7 +461,9 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
             <button
               onClick={togglePlay}
               className="text-white hover:text-white/80 transition-colors"
-              aria-label={isPlaying ? 'Pause' : 'Play'}
+              aria-label={isPlaying
+                ? intl.formatMessage({ id: 'video.pause', defaultMessage: 'Pause' })
+                : intl.formatMessage({ id: 'video.play', defaultMessage: 'Play' })}
             >
               {isPlaying ? <Pause className="size-5" fill="white" /> : <Play className="size-5 ml-0.5" fill="white" />}
             </button>
@@ -471,7 +473,9 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
               <button
                 onClick={toggleMute}
                 className="text-white hover:text-white/80 transition-colors shrink-0"
-                aria-label={isMuted ? 'Unmute' : 'Mute'}
+                aria-label={isMuted
+                  ? intl.formatMessage({ id: 'video.unmute', defaultMessage: 'Unmute' })
+                  : intl.formatMessage({ id: 'video.mute', defaultMessage: 'Mute' })}
               >
                 {isMuted || volume === 0
                   ? <VolumeX className="size-5" />
@@ -487,7 +491,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
                 value={isMuted ? 0 : volume}
                 onChange={handleVolumeChange}
                 onClick={(e) => e.stopPropagation()}
-                aria-label="Volume"
+                aria-label={intl.formatMessage({ id: 'video.volume', defaultMessage: 'Volume' })}
                 className={cn(
                   'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100 group-focus-within/vol:w-16 group-focus-within/vol:opacity-100',
                   'transition-all duration-200 cursor-pointer accent-white h-1',

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { Blocks, Upload, Loader2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ interface WebxdcUploadDialogProps {
 }
 
 export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { mutateAsync: createEvent } = useNostrPublish();
@@ -130,14 +132,23 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
         created_at: Math.floor(Date.now() / 1000),
       });
 
-      toast({ title: 'Published', description: `${appName ?? 'Webxdc app'} shared successfully.` });
+      toast({
+        title: intl.formatMessage({ id: 'webxdcUpload.published', defaultMessage: 'Published' }),
+        description: appName
+          ? intl.formatMessage({ id: 'webxdcUpload.sharedNamed', defaultMessage: '{appName} shared successfully.' }, { appName })
+          : intl.formatMessage({ id: 'webxdcUpload.shared', defaultMessage: 'Webxdc app shared successfully.' }),
+      });
       handleOpenChange(false);
     } catch {
-      toast({ title: 'Publish failed', description: 'Could not publish the webxdc app.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'webxdcUpload.publishFailed', defaultMessage: 'Publish failed' }),
+        description: intl.formatMessage({ id: 'webxdcUpload.publishFailedDescription', defaultMessage: 'Could not publish the webxdc app.' }),
+        variant: 'destructive',
+      });
     } finally {
       setIsUploading(false);
     }
-  }, [file, user, appName, iconUrl, description, uploadFile, createEvent, handleOpenChange]);
+  }, [file, user, appName, iconUrl, description, uploadFile, createEvent, handleOpenChange, intl]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -145,20 +156,22 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Blocks className="size-5" />
-            Share Webxdc App
+            <FormattedMessage id="webxdcUpload.title" defaultMessage="Share Webxdc App" />
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
           {/* File picker */}
           <div className="space-y-2">
-            <Label>App file</Label>
+            <Label>
+              <FormattedMessage id="webxdcUpload.appFile" defaultMessage="App file" />
+            </Label>
             {file ? (
               <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
                 {iconUrl ? (
                   <img
                     src={iconUrl}
-                    alt={appName ?? 'App icon'}
+                    alt={appName ?? intl.formatMessage({ id: 'webxdcUpload.appIcon', defaultMessage: 'App icon' })}
                     className="size-10 rounded-xl object-cover"
                     decoding="async"
                   />
@@ -170,7 +183,9 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{appName ?? file.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isExtracting ? 'Reading metadata...' : file.name}
+                    {isExtracting
+                      ? intl.formatMessage({ id: 'webxdcUpload.readingMetadata', defaultMessage: 'Reading metadata...' })
+                      : file.name}
                   </p>
                 </div>
                 <Button
@@ -182,7 +197,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
                     fileInputRef.current?.click();
                   }}
                 >
-                  Change
+                  <FormattedMessage id="webxdcUpload.change" defaultMessage="Change" />
                 </Button>
               </div>
             ) : (
@@ -195,8 +210,12 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
                   <Upload className="size-5 text-muted-foreground" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium">Choose a .xdc file</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Webxdc apps are sandboxed HTML5 archives</p>
+                  <p className="text-sm font-medium">
+                    <FormattedMessage id="webxdcUpload.chooseFile" defaultMessage="Choose a .xdc file" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <FormattedMessage id="webxdcUpload.chooseFileHint" defaultMessage="Webxdc apps are sandboxed HTML5 archives" />
+                  </p>
                 </div>
               </button>
             )}
@@ -211,10 +230,12 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="webxdc-description">Description</Label>
+            <Label htmlFor="webxdc-description">
+              <FormattedMessage id="webxdcUpload.description" defaultMessage="Description" />
+            </Label>
             <Textarea
               id="webxdc-description"
-              placeholder="What does this app do?"
+              placeholder={intl.formatMessage({ id: 'webxdcUpload.descriptionPlaceholder', defaultMessage: 'What does this app do?' })}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -231,10 +252,10 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
             {isUploading ? (
               <>
                 <Loader2 className="size-4 animate-spin mr-2" />
-                Publishing...
+                <FormattedMessage id="webxdcUpload.publishing" defaultMessage="Publishing..." />
               </>
             ) : (
-              'Publish'
+              <FormattedMessage id="webxdcUpload.publish" defaultMessage="Publish" />
             )}
           </Button>
         </div>

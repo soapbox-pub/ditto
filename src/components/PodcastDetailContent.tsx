@@ -5,6 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useGoBack } from '@/hooks/useGoBack';
 import { ArrowLeft, Play, Pause, Podcast, Zap, Clock, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -52,6 +53,7 @@ export function PodcastDetailContent({ event }: { event: NostrEvent }) {
 // ── Episode detail ────────────────────────────────────────────────────────────
 
 function EpisodeDetail({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parsePodcastEpisode(event), [event]);
@@ -107,7 +109,9 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
         <button onClick={goBack} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">Episode Details</h1>
+        <h1 className="text-xl font-bold truncate">
+          <FormattedMessage id="podcastDetail.episodeDetails" defaultMessage="Episode Details" />
+        </h1>
       </div>
 
       {/* Hero: artwork + info side by side */}
@@ -132,7 +136,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
 
         {/* Info */}
         <div className="flex-1 min-w-0 space-y-2 pt-1">
-          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? intl.formatMessage({ id: 'podcastDetail.untitled', defaultMessage: 'Untitled' })}</h2>
 
           <Link to={profileUrl} className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
             <Avatar shape={avatarShape} className="size-6">
@@ -168,7 +172,9 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-primary/15 text-primary hover:bg-primary/25',
               )}
-              aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
+              aria-label={isNowPlaying && player.isPlaying
+                ? intl.formatMessage({ id: 'podcastDetail.pause', defaultMessage: 'Pause' })
+                : intl.formatMessage({ id: 'podcastDetail.play', defaultMessage: 'Play' })}
             >
               {loadState.status === 'decrypting'
                 ? <Loader2 className="size-5 animate-spin" />
@@ -192,7 +198,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
                     'size-11 rounded-full flex items-center justify-center transition-colors',
                     isReposted ? 'text-accent hover:bg-accent/10' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary',
                   )}
-                  title="Repost"
+                  title={intl.formatMessage({ id: 'podcastDetail.repost', defaultMessage: 'Repost' })}
                 >
                   <RepostIcon className="size-5" />
                 </button>
@@ -203,7 +209,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
               <ZapDialog target={event}>
                 <button
                   className="size-11 rounded-full bg-secondary/50 text-muted-foreground hover:bg-secondary flex items-center justify-center transition-colors"
-                  title="Zap"
+                  title={intl.formatMessage({ id: 'podcastDetail.zap', defaultMessage: 'Zap' })}
                 >
                   <Zap className="size-5" />
                 </button>
@@ -214,7 +220,13 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
             {zapAmount > 0 && (
               <button onClick={() => setInteractionsTab('zaps')} className="ml-1 text-right hover:opacity-80">
                 <p className="text-lg font-bold leading-tight">{formatMoney(zapAmount)}</p>
-                <p className="text-xs text-muted-foreground">{formatNumber(stats.data?.zapCount ?? 0)} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-muted-foreground">
+                  <FormattedMessage
+                    id="podcastDetail.zapCount"
+                    defaultMessage="{count, plural, one {{formatted} zap} other {{formatted} zaps}}"
+                    values={{ count: stats.data?.zapCount ?? 0, formatted: formatNumber(stats.data?.zapCount ?? 0) }}
+                  />
+                </p>
               </button>
             )}
           </div>
@@ -247,19 +259,33 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
           onClick={() => setInteractionsTab('zaps')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Top Zappers
+          <FormattedMessage id="podcastDetail.topZappers" defaultMessage="Top Zappers" />
         </button>
         <button
           onClick={() => setReplyOpen(true)}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Comments <span className="text-xs ml-1 opacity-70">{formatNumber(comments.length || 0)}</span>
+          <FormattedMessage
+            id="podcastDetail.comments"
+            defaultMessage="Comments <muted>{count}</muted>"
+            values={{
+              count: formatNumber(comments.length || 0),
+              muted: (chunks) => <span className="text-xs ml-1 opacity-70">{chunks}</span>,
+            }}
+          />
         </button>
         <button
           onClick={() => setInteractionsTab('reactions')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Reactions <span className="text-xs ml-1 opacity-70">{formatNumber(stats.data?.reactions || 0)}</span>
+          <FormattedMessage
+            id="podcastDetail.reactions"
+            defaultMessage="Reactions <muted>{count}</muted>"
+            values={{
+              count: formatNumber(stats.data?.reactions || 0),
+              muted: (chunks) => <span className="text-xs ml-1 opacity-70">{chunks}</span>,
+            }}
+          />
         </button>
       </div>
 
@@ -274,7 +300,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
 
       {comments.length === 0 && !commentsLoading && (
         <div className="py-10 text-center text-sm text-muted-foreground">
-          No comments yet
+          <FormattedMessage id="podcastDetail.noComments" defaultMessage="No comments yet" />
         </div>
       )}
 
@@ -296,6 +322,7 @@ function EpisodeDetail({ event }: { event: NostrEvent }) {
 // ── Trailer detail ────────────────────────────────────────────────────────────
 
 function TrailerDetail({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parsePodcastTrailer(event), [event]);
@@ -330,7 +357,9 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
         <button onClick={goBack} className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">Trailer Details</h1>
+        <h1 className="text-xl font-bold truncate">
+          <FormattedMessage id="podcastDetail.trailerDetails" defaultMessage="Trailer Details" />
+        </h1>
       </div>
 
       {/* Hero */}
@@ -342,7 +371,7 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
         </div>
 
         <div className="flex-1 min-w-0 space-y-2 pt-1">
-          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? intl.formatMessage({ id: 'podcastDetail.untitled', defaultMessage: 'Untitled' })}</h2>
 
           <Link to={profileUrl} className="flex items-center gap-2 group">
             <Avatar shape={avatarShape} className="size-6">
@@ -363,7 +392,9 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-primary/15 text-primary hover:bg-primary/25',
               )}
-              aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
+              aria-label={isNowPlaying && player.isPlaying
+                ? intl.formatMessage({ id: 'podcastDetail.pause', defaultMessage: 'Pause' })
+                : intl.formatMessage({ id: 'podcastDetail.play', defaultMessage: 'Play' })}
             >
               {loadState.status === 'decrypting'
                 ? <Loader2 className="size-5 animate-spin" />
@@ -376,7 +407,9 @@ function TrailerDetail({ event }: { event: NostrEvent }) {
           <TrackLoadNotice trackId={event.id} className="pt-1" />
 
           {parsed?.season && (
-            <p className="text-xs text-muted-foreground pt-1">Season {parsed.season}</p>
+            <p className="text-xs text-muted-foreground pt-1">
+              <FormattedMessage id="podcastDetail.season" defaultMessage="Season {season}" values={{ season: parsed.season }} />
+            </p>
           )}
         </div>
       </div>

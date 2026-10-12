@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import { FormattedMessage, useIntl } from "react-intl";
 import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
@@ -205,13 +206,13 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
           <div className="space-y-1.5">
             <p className="text-sm font-medium text-foreground">
               {phase === "found"
-                ? "Settings restored"
-                : "Syncing your settings..."}
+                ? <FormattedMessage id="onboarding.sync.restored" defaultMessage="Settings restored" />
+                : <FormattedMessage id="onboarding.sync.syncing" defaultMessage="Syncing your settings..." />}
             </p>
             <p className="text-xs text-muted-foreground">
               {phase === "found"
-                ? "Welcome back! Loading your experience..."
-                : "Checking for your preferences across devices"}
+                ? <FormattedMessage id="onboarding.sync.welcomeBack" defaultMessage="Welcome back! Loading your experience..." />
+                : <FormattedMessage id="onboarding.sync.checking" defaultMessage="Checking for your preferences across devices" />}
             </p>
           </div>
         </div>
@@ -231,7 +232,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
         {phase === "found" && (
           <div className="flex items-center gap-2 text-primary">
             <Check className="w-4 h-4" />
-            <span className="text-sm font-medium">All set</span>
+            <span className="text-sm font-medium"><FormattedMessage id="onboarding.sync.allSet" defaultMessage="All set" /></span>
           </div>
         )}
       </div>
@@ -281,6 +282,7 @@ function SetupQuestionnaire({
   onPreload: () => void;
   isSignup?: boolean;
 }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -412,13 +414,12 @@ function SetupQuestionnaire({
       next();
     } catch {
       toast({
-        title: "Save failed",
-        description:
-          "Could not save the key. Please copy it manually.",
+        title: intl.formatMessage({ id: 'onboarding.download.saveFailed', defaultMessage: 'Save failed' }),
+        description: intl.formatMessage({ id: 'onboarding.download.saveFailedDescription', defaultMessage: 'Could not save the key. Please copy it manually.' }),
         variant: "destructive",
       });
     }
-  }, [nsec, login, next, config.appName]);
+  }, [nsec, login, next, config.appName, intl]);
 
   // Check for existing follows and transition to the follows step (or outro if they have follows).
   //
@@ -531,11 +532,13 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
-          Create your account
+          <FormattedMessage id="onboarding.keygen.title" defaultMessage="Create your account" />
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Your identity on Nostr is a cryptographic key. We'll generate one
-          for you now.
+          <FormattedMessage
+            id="onboarding.keygen.description"
+            defaultMessage="Your identity on Nostr is a cryptographic key. We'll generate one for you now."
+          />
         </p>
       </div>
 
@@ -544,7 +547,7 @@ function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
         className="w-full max-w-xs gap-2 rounded-full h-12"
         onClick={onGenerate}
       >
-        Generate my key
+        <FormattedMessage id="onboarding.keygen.generate" defaultMessage="Generate my key" />
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -558,6 +561,7 @@ function DownloadStep({
   nsec: string;
   onContinue: () => Promise<void> | void;
 }) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -580,10 +584,14 @@ function DownloadStep({
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Your secret key
+          <FormattedMessage id="onboarding.download.title" defaultMessage="Your secret key" />
         </h2>
         <p className="text-sm text-muted-foreground">
-          This secret key controls your account on {config.appName}. You'll need it to log in later. Without it, you'll lose your account.
+          <FormattedMessage
+            id="onboarding.download.description"
+            defaultMessage="This secret key controls your account on {appName}. You'll need it to log in later. Without it, you'll lose your account."
+            values={{ appName: config.appName }}
+          />
         </p>
       </div>
 
@@ -602,6 +610,9 @@ function DownloadStep({
           size="icon"
           className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
           onClick={() => setShowKey(!showKey)}
+          aria-label={showKey
+            ? intl.formatMessage({ id: 'onboarding.download.hideKey', defaultMessage: 'Hide key' })
+            : intl.formatMessage({ id: 'onboarding.download.showKey', defaultMessage: 'Show key' })}
         >
           {showKey ? (
             <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -614,7 +625,10 @@ function DownloadStep({
       {showKey && (
         <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-xs text-amber-900 dark:text-amber-300">
-            NEVER share your secret key with anyone. Avoid screenshotting your key or pasting it anywhere except a password manager. If shared, others will be able to access your account.{" "}
+            <FormattedMessage
+              id="onboarding.download.warning"
+              defaultMessage="NEVER share your secret key with anyone. Avoid screenshotting your key or pasting it anywhere except a password manager. If shared, others will be able to access your account."
+            />{" "}
             <a
               href="https://soapbox.pub/blog/managing-nostr-keys/"
               onClick={(e) => {
@@ -623,7 +637,7 @@ function DownloadStep({
               }}
               className="underline underline-offset-2 hover:no-underline"
             >
-              Learn more
+              <FormattedMessage id="onboarding.download.learnMore" defaultMessage="Learn more" />
             </a>
           </p>
         </div>
@@ -637,11 +651,11 @@ function DownloadStep({
       >
         {isSaving ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+            <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.saving" defaultMessage="Saving…" />
           </>
         ) : (
           <>
-            <Download className="w-4 h-4" /> Save Key
+            <Download className="w-4 h-4" /> <FormattedMessage id="onboarding.download.save" defaultMessage="Save Key" />
           </>
         )}
       </Button>
@@ -664,6 +678,7 @@ function ProfileStep({
    */
   expectedPubkey?: string;
 }) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending: isPublishing } =
@@ -701,13 +716,13 @@ function ProfileStep({
         setProfileData((prev) => ({ ...prev, [field]: url }));
       } catch {
         toast({
-          title: "Upload failed",
-          description: "Please try again.",
+          title: intl.formatMessage({ id: 'settings.profile.uploadFailed', defaultMessage: 'Upload failed' }),
+          description: intl.formatMessage({ id: 'settings.profile.uploadFailedDescription', defaultMessage: 'Please try again.' }),
           variant: "destructive",
         });
       }
     },
-    [uploadProfileImage],
+    [uploadProfileImage, intl],
   );
 
   const handleFileChosen = useCallback(
@@ -762,9 +777,8 @@ function ProfileStep({
     // overwrite their kind 0 metadata. Refuse rather than risk it.
     if (expectedPubkey && user.pubkey !== expectedPubkey) {
       toast({
-        title: "Profile not saved",
-        description:
-          "The new account is not active yet, so your profile was not published (this prevents overwriting another account). You can update it later from settings.",
+        title: intl.formatMessage({ id: 'onboarding.profile.notSaved', defaultMessage: 'Profile not saved' }),
+        description: intl.formatMessage({ id: 'onboarding.profile.notSavedDescription', defaultMessage: 'The new account is not active yet, so your profile was not published (this prevents overwriting another account). You can update it later from settings.' }),
         variant: "destructive",
       });
       return;
@@ -787,15 +801,14 @@ function ProfileStep({
         queryClient.invalidateQueries({ queryKey: ["author", user.pubkey] });
       } catch {
         toast({
-          title: "Profile failed",
-          description:
-            "Your account was created but profile setup failed. You can update it later.",
+          title: intl.formatMessage({ id: 'onboarding.profile.failed', defaultMessage: 'Profile failed' }),
+          description: intl.formatMessage({ id: 'onboarding.profile.failedDescription', defaultMessage: 'Your account was created but profile setup failed. You can update it later.' }),
           variant: "destructive",
         });
       }
     }
     onNext();
-  }, [user, profileData, publishEvent, queryClient, onNext, expectedPubkey]);
+  }, [user, profileData, publishEvent, queryClient, onNext, expectedPubkey, intl]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
@@ -803,10 +816,10 @@ function ProfileStep({
         <IntroImage src="/profile-intro.png" />
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">
-            Set up your profile
+            <FormattedMessage id="onboarding.profile.title" defaultMessage="Set up your profile" />
           </h2>
           <p className="text-sm text-muted-foreground">
-            Tell people a bit about yourself. You can always change this later.
+            <FormattedMessage id="onboarding.profile.description" defaultMessage="Tell people a bit about yourself. You can always change this later." />
           </p>
         </div>
       </div>
@@ -826,8 +839,8 @@ function ProfileStep({
             aspect={cropState.aspect}
             title={
               cropState.field === "picture"
-                ? "Crop Profile Picture"
-                : "Crop Banner"
+                ? intl.formatMessage({ id: 'settings.profile.cropPictureTitle', defaultMessage: 'Crop Profile Picture' })
+                : intl.formatMessage({ id: 'settings.profile.cropBannerTitle', defaultMessage: 'Crop Banner' })
             }
             onCancel={handleCropCancel}
             onCrop={handleCropConfirm}
@@ -851,7 +864,7 @@ function ProfileStep({
 
       {isUploading && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" /> Uploading image…
+          <Loader2 className="size-3.5 animate-spin" /> <FormattedMessage id="onboarding.profile.uploading" defaultMessage="Uploading image…" />
         </div>
       )}
 
@@ -862,11 +875,11 @@ function ProfileStep({
       >
         {isPublishing || isSaving ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" /> Saving…
+            <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.saving" defaultMessage="Saving…" />
           </>
         ) : (
           <>
-            Continue <ChevronRight className="w-4 h-4" />
+            <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
           </>
         )}
       </Button>
@@ -916,10 +929,10 @@ function ThemeStep({
       >
         <div className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">
-            Choose your look
+            <FormattedMessage id="onboarding.theme.title" defaultMessage="Choose your look" />
           </h2>
           <p className="text-sm text-muted-foreground">
-            Pick a theme that feels right.
+            <FormattedMessage id="onboarding.theme.description" defaultMessage="Pick a theme that feels right." />
           </p>
         </div>
 
@@ -935,11 +948,11 @@ function ThemeStep({
           >
             {isSaving ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.savingDots" defaultMessage="Saving..." />
               </>
             ) : (
               <>
-                Continue <ChevronRight className="w-4 h-4" />
+                <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
               </>
             )}
           </Button>
@@ -951,7 +964,7 @@ function ThemeStep({
               className="flex-1 rounded-full h-11"
               disabled={isSaving}
             >
-              Back
+              <FormattedMessage id="onboarding.back" defaultMessage="Back" />
             </Button>
             <Button
               onClick={onNext}
@@ -960,11 +973,11 @@ function ThemeStep({
             >
               {isSaving ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.savingDots" defaultMessage="Saving..." />
                 </>
               ) : (
                 <>
-                  Continue <ChevronRight className="w-4 h-4" />
+                  <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
                 </>
               )}
             </Button>
@@ -982,7 +995,7 @@ function ThemeStep({
 /** Parse a follow pack event into structured data. */
 function parsePackEvent(event: NostrEvent) {
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const title = getTag("title") || getTag("name") || "Untitled Pack";
+  const title = getTag("title") || getTag("name");
   const description = getTag("description") || getTag("summary") || "";
   const image = getTag("image") || getTag("thumb") || getTag("banner");
   const pubkeys = event.tags.filter(([n]) => n === "p").map(([, pk]) => pk);
@@ -1005,6 +1018,7 @@ function FollowsStep({
    */
   expectedPubkey?: string;
 }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -1098,9 +1112,8 @@ function FollowsStep({
     // adding follows to the wrong account.
     if (expectedPubkey && user.pubkey !== expectedPubkey) {
       toast({
-        title: "Follows not saved",
-        description:
-          "The new account is not active yet, so your follows were not saved (this prevents modifying another account). You can follow people later from the app.",
+        title: intl.formatMessage({ id: 'onboarding.follows.notSaved', defaultMessage: 'Follows not saved' }),
+        description: intl.formatMessage({ id: 'onboarding.follows.notSavedDescription', defaultMessage: 'The new account is not active yet, so your follows were not saved (this prevents modifying another account). You can follow people later from the app.' }),
         variant: "destructive",
       });
       onNext(false);
@@ -1147,25 +1160,27 @@ function FollowsStep({
     } catch (error) {
       console.error("Failed to follow packs:", error);
       toast({
-        title: "Couldn't save your follows",
-        description: "Something went wrong. You can follow people later from the app.",
+        title: intl.formatMessage({ id: 'onboarding.follows.failed', defaultMessage: "Couldn't save your follows" }),
+        description: intl.formatMessage({ id: 'onboarding.follows.failedDescription', defaultMessage: 'Something went wrong. You can follow people later from the app.' }),
         variant: "destructive",
       });
       onNext(false);
     } finally {
       setSubmitting(false);
     }
-  }, [user, nostr, publishEvent, expectedPubkey, packs, selectedPacks, onNext]);
+  }, [user, nostr, publishEvent, expectedPubkey, packs, selectedPacks, onNext, intl]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">
-          Find your people
+          <FormattedMessage id="onboarding.follows.title" defaultMessage="Find your people" />
         </h2>
         <p className="text-sm text-muted-foreground">
-          Your feed is empty! Pick a few packs that look interesting. Tap to
-          select, then continue to follow everyone in them at once.
+          <FormattedMessage
+            id="onboarding.follows.description"
+            defaultMessage="Your feed is empty! Pick a few packs that look interesting. Tap to select, then continue to follow everyone in them at once."
+          />
         </p>
       </div>
 
@@ -1177,8 +1192,10 @@ function FollowsStep({
         </div>
       ) : packs.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6">
-          Couldn't load suggestions right now. You can find follow packs later
-          in the app.
+          <FormattedMessage
+            id="onboarding.follows.loadFailed"
+            defaultMessage="Couldn't load suggestions right now. You can find follow packs later in the app."
+          />
         </p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -1200,7 +1217,7 @@ function FollowsStep({
           disabled={submitting}
           className="flex-1 rounded-full h-11"
         >
-          Back
+          <FormattedMessage id="onboarding.back" defaultMessage="Back" />
         </Button>
         <Button
           onClick={handleContinue}
@@ -1210,13 +1227,19 @@ function FollowsStep({
           {submitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Following...
+              <FormattedMessage id="onboarding.follows.following" defaultMessage="Following..." />
             </>
           ) : (
             <>
-              {selectedPacks.size > 0
-                ? `Follow ${selectedPacks.size} pack${selectedPacks.size === 1 ? "" : "s"}`
-                : "Skip for now"}
+              {selectedPacks.size > 0 ? (
+                <FormattedMessage
+                  id="onboarding.follows.followPacks"
+                  defaultMessage="Follow {count, plural, one {# pack} other {# packs}}"
+                  values={{ count: selectedPacks.size }}
+                />
+              ) : (
+                <FormattedMessage id="onboarding.follows.skip" defaultMessage="Skip for now" />
+              )}
               <ChevronRight className="w-4 h-4" />
             </>
           )}
@@ -1236,6 +1259,7 @@ function PackCard({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const intl = useIntl();
   const { title, pubkeys } = useMemo(() => parsePackEvent(event), [event]);
 
   // Show first 4 member avatars
@@ -1272,7 +1296,7 @@ function PackCard({
         {/* Title */}
         <div className="pr-6">
           <h3 className="font-semibold text-sm leading-snug line-clamp-2">
-            {title}
+            {title || <FormattedMessage id="onboarding.follows.untitledPack" defaultMessage="Untitled Pack" />}
           </h3>
         </div>
 
@@ -1284,7 +1308,7 @@ function PackCard({
               const name =
                 member?.metadata?.name ||
                 member?.metadata?.display_name ||
-                "Anonymous";
+                intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
               return (
                 <MiniAvatar
                   key={pk}
@@ -1351,10 +1375,14 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
       </div>
 
       <div className="space-y-3 max-w-xs">
-        <h2 className="text-2xl font-bold tracking-tight">You're all set</h2>
+        <h2 className="text-2xl font-bold tracking-tight">
+          <FormattedMessage id="onboarding.outro.title" defaultMessage="You're all set" />
+        </h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          That's it! Go find something wonderful, share something fun, and make
-          yourself at home.
+          <FormattedMessage
+            id="onboarding.outro.description"
+            defaultMessage="That's it! Go find something wonderful, share something fun, and make yourself at home."
+          />
         </p>
       </div>
 
@@ -1363,7 +1391,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
         className="w-full max-w-xs gap-2 rounded-full h-12"
         onClick={onComplete}
       >
-        Let's go
+        <FormattedMessage id="onboarding.outro.go" defaultMessage="Let's go" />
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -1377,7 +1405,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
 function _StepNav({
   onBack,
   onNext,
-  nextLabel = "Continue",
+  nextLabel,
 }: {
   onBack: () => void;
   onNext: () => void;
@@ -1390,10 +1418,10 @@ function _StepNav({
         onClick={onBack}
         className="flex-1 rounded-full h-11"
       >
-        Back
+        <FormattedMessage id="onboarding.back" defaultMessage="Back" />
       </Button>
       <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5">
-        {nextLabel}
+        {nextLabel ?? <FormattedMessage id="onboarding.continue" defaultMessage="Continue" />}
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>

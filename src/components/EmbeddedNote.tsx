@@ -2,6 +2,7 @@ import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock, ClipboardCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -345,7 +346,7 @@ function EmbeddedLiveChatCard({
           {text}
         </p>
       ) : (
-        <p className="text-xs italic text-muted-foreground">Live chat message</p>
+        <p className="text-xs italic text-muted-foreground"><FormattedMessage id="embeddedNote.liveChatMessage" defaultMessage="Live chat message" /></p>
       )}
     </EmbeddedCardShell>
   );
@@ -379,7 +380,7 @@ function EmbeddedHighlightCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <Quote className="size-3" />
-        Highlight
+        <FormattedMessage id="embeddedNote.highlight" defaultMessage="Highlight" />
       </div>
       {hasText ? (
         <blockquote className="relative rounded-r-lg border-l-[3px] border-primary/70 bg-primary/5 pl-3 pr-2 py-2">
@@ -388,7 +389,7 @@ function EmbeddedHighlightCard({
           </p>
         </blockquote>
       ) : (
-        <p className="text-xs italic text-muted-foreground">Highlighted media</p>
+        <p className="text-xs italic text-muted-foreground"><FormattedMessage id="embeddedNote.highlightedMedia" defaultMessage="Highlighted media" /></p>
       )}
     </EmbeddedCardShell>
   );
@@ -433,7 +434,7 @@ function EmbeddedQuizResultCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <ClipboardCheck className="size-3" />
-        Quiz result
+        <FormattedMessage id="embeddedNote.quizResult" defaultMessage="Quiz result" />
       </div>
       {result?.comment && (
         <p className="text-sm whitespace-pre-wrap break-words line-clamp-2 text-foreground">
@@ -452,7 +453,7 @@ function EmbeddedQuizResultCard({
       {summary ? (
         <p className="text-base font-bold text-foreground line-clamp-2">{summary}</p>
       ) : (
-        <p className="text-xs italic text-muted-foreground">Took a quiz</p>
+        <p className="text-xs italic text-muted-foreground"><FormattedMessage id="embeddedNote.tookQuiz" defaultMessage="Took a quiz" /></p>
       )}
     </EmbeddedCardShell>
   );
@@ -519,12 +520,14 @@ function EmbeddedPollCard({
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
           <BarChart3 className="size-3" />
-          {pollType === 'multiplechoice' ? 'Multiple choice' : 'Poll'}
+          {pollType === 'multiplechoice'
+            ? <FormattedMessage id="embeddedNote.multipleChoice" defaultMessage="Multiple choice" />
+            : <FormattedMessage id="embeddedNote.poll" defaultMessage="Poll" />}
         </span>
         {isExpired && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
             <Clock className="size-3" />
-            Ended
+            <FormattedMessage id="embeddedNote.ended" defaultMessage="Ended" />
           </span>
         )}
       </div>
@@ -542,7 +545,11 @@ function EmbeddedPollCard({
           ))}
           {remainingOptions > 0 && (
             <p className="text-[11px] text-muted-foreground pl-1">
-              +{remainingOptions} more option{remainingOptions === 1 ? '' : 's'}
+              <FormattedMessage
+                id="embeddedNote.moreOptions"
+                defaultMessage="+{count, plural, one {# more option} other {# more options}}"
+                values={{ count: remainingOptions }}
+              />
             </p>
           )}
         </div>
@@ -584,14 +591,14 @@ function EmbeddedPollVoteCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <BarChart3 className="size-3" />
-        Poll vote
+        <FormattedMessage id="embeddedNote.pollVote" defaultMessage="Poll vote" />
       </div>
       {voteLabel ? (
         <p className="text-sm font-semibold leading-snug line-clamp-2 break-words">
           {voteLabel}
         </p>
       ) : (
-        <p className="text-xs italic text-muted-foreground">Voted</p>
+        <p className="text-xs italic text-muted-foreground"><FormattedMessage id="embeddedNote.voted" defaultMessage="Voted" /></p>
       )}
     </EmbeddedCardShell>
   );
@@ -600,6 +607,7 @@ function EmbeddedPollVoteCard({
 /** Compact inline card for kind 8 NIP-58 badge award events. */
 function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
   const navigate = useNavigate();
+  const intl = useIntl();
 
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
@@ -616,11 +624,11 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
     ? `${BADGE_DEFINITION_KIND}:${validParsed.pubkey}:${validParsed.identifier}`
     : undefined;
   const badge = aTag ? badgeMap.get(aTag) : undefined;
-  const badgeName = badge?.name || (validParsed ? unslugify(validParsed.identifier) : 'Badge');
+  const badgeName = badge?.name || (validParsed ? unslugify(validParsed.identifier) : intl.formatMessage({ id: 'embeddedNote.badge', defaultMessage: 'Badge' }));
 
   const issuer = useAuthor(event.pubkey);
   const issuerMeta = issuer.data?.metadata;
-  const issuerName = issuerMeta?.name || issuerMeta?.display_name || 'Anonymous';
+  const issuerName = issuerMeta?.name || issuerMeta?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const issuerProfileUrl = useProfileUrl(event.pubkey, issuerMeta);
 
   return (
@@ -657,18 +665,26 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
         {/* Text */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <MaybeHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
-              <Link
-                to={issuerProfileUrl}
-                className="text-sm font-semibold truncate hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {issuer.data?.event ? (
-                  <EmojifiedText tags={issuer.data.event.tags}>{issuerName}</EmojifiedText>
-                ) : issuerName}
-              </Link>
-            </MaybeHoverCard>
-            <span className="text-sm text-muted-foreground">awarded a badge</span>
+            <FormattedMessage
+              id="embeddedNote.awardedBadge"
+              defaultMessage="{name} <verb>awarded a badge</verb>"
+              values={{
+                name: (
+                  <MaybeHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
+                    <Link
+                      to={issuerProfileUrl}
+                      className="text-sm font-semibold truncate hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {issuer.data?.event ? (
+                        <EmojifiedText tags={issuer.data.event.tags}>{issuerName}</EmojifiedText>
+                      ) : issuerName}
+                    </Link>
+                  </MaybeHoverCard>
+                ),
+                verb: (chunks: ReactNode[]) => <span className="text-sm text-muted-foreground">{chunks}</span>,
+              }}
+            />
             <span className="text-xs text-muted-foreground shrink-0">
               · {timeAgo(event.created_at)}
             </span>
@@ -685,6 +701,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
 /** Compact inline card for kind 9735 zap receipts. */
 function EmbeddedZapCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
   const navigate = useNavigate();
+  const intl = useIntl();
 
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
@@ -697,7 +714,9 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
 
   const sender = useAuthor(senderPubkey || undefined);
   const senderMeta = sender.data?.metadata;
-  const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey ? 'Anonymous' : 'Someone');
+  const senderName = senderMeta?.name || senderMeta?.display_name || (senderPubkey
+    ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
+    : intl.formatMessage({ id: 'embeddedNote.someone', defaultMessage: 'Someone' }));
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
   const { format: formatMoney } = useFormatMoney();
@@ -746,27 +765,33 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
         {/* Text */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {senderPubkey ? (
-              <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
-                <Link
-                  to={senderProfileUrl}
-                  className="text-sm font-semibold truncate hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {sender.data?.event ? (
-                    <EmojifiedText tags={sender.data.event.tags}>{senderName}</EmojifiedText>
-                  ) : senderName}
-                </Link>
-              </MaybeHoverCard>
-            ) : (
-              <span className="text-sm font-semibold truncate">Someone</span>
-            )}
-            <span className="text-sm text-muted-foreground">zapped</span>
-            {amountSats > 0 && (
-              <span className="text-sm font-semibold text-amber-500 shrink-0">
-                {formatMoney(amountSats)}
-              </span>
-            )}
+            <FormattedMessage
+              id="embeddedNote.zapped"
+              defaultMessage="{name} <verb>zapped</verb> {amount}"
+              values={{
+                name: senderPubkey ? (
+                  <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
+                    <Link
+                      to={senderProfileUrl}
+                      className="text-sm font-semibold truncate hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {sender.data?.event ? (
+                        <EmojifiedText tags={sender.data.event.tags}>{senderName}</EmojifiedText>
+                      ) : senderName}
+                    </Link>
+                  </MaybeHoverCard>
+                ) : (
+                  <span className="text-sm font-semibold truncate">{senderName}</span>
+                ),
+                amount: amountSats > 0 ? (
+                  <span className="text-sm font-semibold text-amber-500 shrink-0">
+                    {formatMoney(amountSats)}
+                  </span>
+                ) : null,
+                verb: (chunks: ReactNode[]) => <span className="text-sm text-muted-foreground">{chunks}</span>,
+              }}
+            />
             <span className="text-xs text-muted-foreground shrink-0">
               · {timeAgo(event.created_at)}
             </span>
@@ -798,6 +823,7 @@ function EmbeddedZapCard({ event, className, disableHoverCards }: { event: Nostr
  */
 function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event: NostrEvent; className?: string; disableHoverCards?: boolean }) {
   const navigate = useNavigate();
+  const intl = useIntl();
 
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
@@ -818,10 +844,41 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
 
   const sender = useAuthor(senderPubkey);
   const senderMeta = sender.data?.metadata;
-  const senderName = senderMeta?.name || senderMeta?.display_name || 'Anonymous';
+  const senderName = senderMeta?.name || senderMeta?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const senderShape = getAvatarShape(senderMeta);
   const senderProfileUrl = useProfileUrl(senderPubkey, senderMeta);
   const { format: formatMoney } = useFormatMoney();
+
+  const zapValues = {
+    name: (
+      <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
+        <Link
+          to={senderProfileUrl}
+          className="text-sm font-semibold truncate hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {sender.data?.event ? (
+            <EmojifiedText tags={sender.data.event.tags}>{senderName}</EmojifiedText>
+          ) : senderName}
+        </Link>
+      </MaybeHoverCard>
+    ),
+    recipients: isMultiRecipient ? (
+      <PeopleAvatarStack
+        pubkeys={recipientPubkeys}
+        size="sm"
+        maxVisible={4}
+        className="shrink-0"
+      />
+    ) : null,
+    amount: amountSats > 0 ? (
+      <span className="text-sm font-semibold text-amber-500 shrink-0">
+        {formatMoney(amountSats)}
+      </span>
+    ) : null,
+    count: recipientPubkeys.length,
+    verb: (chunks: ReactNode[]) => <span className="text-sm text-muted-foreground">{chunks}</span>,
+  };
 
   return (
     <div
@@ -864,40 +921,25 @@ function EmbeddedOnchainZapCard({ event, className, disableHoverCards }: { event
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <MaybeHoverCard pubkey={senderPubkey} disabled={disableHoverCards}>
-              <Link
-                to={senderProfileUrl}
-                className="text-sm font-semibold truncate hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {sender.data?.event ? (
-                  <EmojifiedText tags={sender.data.event.tags}>{senderName}</EmojifiedText>
-                ) : senderName}
-              </Link>
-            </MaybeHoverCard>
-            <span className="text-sm text-muted-foreground">
-              zapped
-              {isMultiRecipient && ` ${recipientPubkeys.length} people`}
-            </span>
-            {isMultiRecipient && (
-              <PeopleAvatarStack
-                pubkeys={recipientPubkeys}
-                size="sm"
-                maxVisible={4}
-                className="shrink-0"
+            {isMultiRecipient ? (
+              <FormattedMessage
+                id="embeddedNote.zappedPeople"
+                defaultMessage="{name} <verb>zapped {count} people</verb> {recipients} {amount}"
+                values={zapValues}
               />
-            )}
-            {amountSats > 0 && (
-              <span className="text-sm font-semibold text-amber-500 shrink-0">
-                {formatMoney(amountSats)}
-              </span>
+            ) : (
+              <FormattedMessage
+                id="embeddedNote.zapped"
+                defaultMessage="{name} <verb>zapped</verb> {amount}"
+                values={zapValues}
+              />
             )}
             {/* Muted hint that this is an on-chain rather than Lightning zap,
                 and that the amount is either verifying or couldn't be verified. */}
             {failedVerification ? (
-              <span className="text-[11px] text-muted-foreground shrink-0">· unverified</span>
+              <span className="text-[11px] text-muted-foreground shrink-0">· <FormattedMessage id="embeddedNote.unverified" defaultMessage="unverified" /></span>
             ) : isVerifying ? (
-              <span className="text-[11px] text-muted-foreground shrink-0">· verifying…</span>
+              <span className="text-[11px] text-muted-foreground shrink-0">· <FormattedMessage id="embeddedNote.verifying" defaultMessage="verifying…" /></span>
             ) : null}
             <span className="text-xs text-muted-foreground shrink-0">
               · {timeAgo(event.created_at)}
@@ -1074,7 +1116,9 @@ function EmbeddedNoteCard({
       {/* Content — rendered identically to a normal NoteCard, just height-capped */}
       {hasCW && config.contentWarningPolicy === 'blur' ? (
         <p className="text-xs text-muted-foreground italic">
-          Content warning{cwReason ? <>{' '}&ldquo;{cwReason}&rdquo;</> : ''}
+          {cwReason
+            ? <FormattedMessage id="embeddedNote.contentWarningReason" defaultMessage="Content warning “{reason}”" values={{ reason: cwReason }} />
+            : <FormattedMessage id="embeddedNote.contentWarning" defaultMessage="Content warning" />}
         </p>
       ) : isBlobbiState ? (
         <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
@@ -1096,7 +1140,7 @@ function EmbeddedNoteCard({
         </div>
       ) : isUnknownKind ? (
         <p className="text-sm italic text-muted-foreground">
-          Kind {event.kind} &middot; not supported
+          <FormattedMessage id="embeddedNote.kindNotSupported" defaultMessage="Kind {kind} · not supported" values={{ kind: event.kind }} />
         </p>
       ) : (
         <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
@@ -1152,37 +1196,37 @@ function EmbeddedNoteCard({
           {attachments.photos > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Image className="size-3" />
-              {attachments.photos > 1 ? `${attachments.photos} photos` : 'Photo'}
+              <FormattedMessage id="embeddedNote.photos" defaultMessage="{count, plural, one {Photo} other {# photos}}" values={{ count: attachments.photos }} />
             </span>
           )}
           {attachments.imgs > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Image className="size-3" />
-              {attachments.imgs > 1 ? `${attachments.imgs} images` : 'Image'}
+              <FormattedMessage id="embeddedNote.images" defaultMessage="{count, plural, one {Image} other {# images}}" values={{ count: attachments.imgs }} />
             </span>
           )}
           {attachments.vids > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Film className="size-3" />
-              {attachments.vids > 1 ? `${attachments.vids} videos` : 'Video'}
+              <FormattedMessage id="embeddedNote.videos" defaultMessage="{count, plural, one {Video} other {# videos}}" values={{ count: attachments.vids }} />
             </span>
           )}
           {attachments.auds > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Music className="size-3" />
-              {attachments.auds > 1 ? `${attachments.auds} audio files` : 'Audio'}
+              <FormattedMessage id="embeddedNote.audios" defaultMessage="{count, plural, one {Audio} other {# audio files}}" values={{ count: attachments.auds }} />
             </span>
           )}
           {attachments.apps > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <Blocks className="size-3" />
-              App
+              <FormattedMessage id="embeddedNote.app" defaultMessage="App" />
             </span>
           )}
           {attachments.links > 0 && (
             <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
               <ExternalLink className="size-3" />
-              {attachments.links > 1 ? `${attachments.links} links` : 'Link'}
+              <FormattedMessage id="embeddedNote.links" defaultMessage="{count, plural, one {Link} other {# links}}" values={{ count: attachments.links }} />
             </span>
           )}
           {contentOverflows && (
@@ -1193,7 +1237,9 @@ function EmbeddedNoteCard({
                 setContentExpanded((v) => !v);
               }}
             >
-              {contentExpanded ? 'Show less' : 'Read more'}
+              {contentExpanded
+                ? <FormattedMessage id="embeddedNote.showLess" defaultMessage="Show less" />
+                : <FormattedMessage id="embeddedNote.readMore" defaultMessage="Read more" />}
             </button>
           )}
         </div>
@@ -1372,7 +1418,7 @@ function EmbeddedNoteTombstone({ eventId, relays, authorHint, className }: { eve
     >
       <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
         <MessageSquareOff className="size-4 shrink-0" />
-        <span className="text-sm">This post could not be loaded</span>
+        <span className="text-sm"><FormattedMessage id="embedded.couldNotLoad" defaultMessage="This post could not be loaded" /></span>
       </div>
     </div>
   );

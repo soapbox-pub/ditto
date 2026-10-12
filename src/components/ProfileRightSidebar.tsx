@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, Crown, QrCode, ExternalLink, Bitcoin, ShieldAlert, Mail } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { LinkFooter } from '@/components/LinkFooter';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { MountOnOpen } from '@/components/MountOnOpen';
@@ -289,6 +290,7 @@ function eventLink(item: MediaItem): string {
 function BitcoinQRModal({ address }: { address: string }) {
   const [qrUrl, setQrUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const intl = useIntl();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -302,7 +304,10 @@ function BitcoinQRModal({ address }: { address: string }) {
   const handleCopy = async () => {
     await navigator.clipboard.writeText(address);
     setCopied(true);
-    toast({ title: 'Copied', description: 'Bitcoin address copied to clipboard' });
+    toast({
+      title: intl.formatMessage({ id: 'profileSidebar.copied', defaultMessage: 'Copied' }),
+      description: intl.formatMessage({ id: 'profileSidebar.btcCopied', defaultMessage: 'Bitcoin address copied to clipboard' }),
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -322,7 +327,7 @@ function BitcoinQRModal({ address }: { address: string }) {
         <div className="flex justify-center my-5">
           <div className="bg-white p-3 rounded-xl">
             {qrUrl ? (
-              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" decoding="async" />
+              <img src={qrUrl} alt={intl.formatMessage({ id: 'profileSidebar.btcQrAlt', defaultMessage: 'Bitcoin QR' })} className="size-[220px]" decoding="async" />
             ) : (
               <div className="size-[220px] bg-muted animate-pulse rounded" />
             )}
@@ -348,13 +353,17 @@ function BitcoinQRModal({ address }: { address: string }) {
 function ProfileFieldRow({ field }: { field: ProfileField }) {
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const intl = useIntl();
   const { toast } = useToast();
   const isBtc = field.label === '$BTC';
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(field.value);
     setCopied(true);
-    toast({ title: 'Copied', description: 'Bitcoin address copied to clipboard' });
+    toast({
+      title: intl.formatMessage({ id: 'profileSidebar.copied', defaultMessage: 'Copied' }),
+      description: intl.formatMessage({ id: 'profileSidebar.btcCopied', defaultMessage: 'Bitcoin address copied to clipboard' }),
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -397,7 +406,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
             size="sm"
             className="shrink-0 rounded-lg font-semibold text-xs h-8"
           >
-            {copied ? <Check className="size-3.5" /> : 'Copy'}
+            {copied ? <Check className="size-3.5" /> : <FormattedMessage id="profileSidebar.copy" defaultMessage="Copy" />}
           </Button>
         </div>
       </div>
@@ -468,7 +477,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
         <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block">
           <img
             src={safeUrl}
-            alt={field.label || 'Profile image'}
+            alt={field.label || intl.formatMessage({ id: 'profileSidebar.profileImage', defaultMessage: 'Profile image' })}
             className="w-full rounded-lg object-cover"
             loading="lazy"
             decoding="async"
@@ -604,7 +613,7 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
               to={`/${nip19.naddrEncode({ kind: TOP8_KIND, pubkey, identifier: '' })}`}
               className="hover:underline"
             >
-              Top 8
+              <FormattedMessage id="profileSidebar.top8" defaultMessage="Top 8" />
             </Link>
           </h2>
           <Top8Grid pubkeys={top8} columns={4} size="sm" />
@@ -613,7 +622,9 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
 
       {/* Media Section — only shown when pubkey prop is provided */}
       {pubkey !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-        <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Media</h2>
+        <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+          <FormattedMessage id="profileSidebar.media" defaultMessage="Media" />
+        </h2>
         {mediaLoading ? (
           <div className="flex flex-col gap-0.5">
             {[
@@ -705,14 +716,18 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
             })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No media yet.</p>
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage id="profileSidebar.noMedia" defaultMessage="No media yet." />
+          </p>
         )}
       </section>}
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
         <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Profile fields</h2>
+          <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+            <FormattedMessage id="profileSidebar.profileFields" defaultMessage="Profile fields" />
+          </h2>
           <div className="space-y-4">
             {fields.map((field, i) => (
               <ProfileFieldRow key={i} field={field} />

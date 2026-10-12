@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ClipboardList } from 'lucide-react';
 
@@ -28,13 +29,14 @@ interface QuizContentProps {
  *   the list of published results with follows surfaced first.
  */
 export function QuizContent({ event, expanded = false, className }: QuizContentProps) {
+  const intl = useIntl();
   const quiz = useMemo(() => parseQuiz(event), [event]);
   const href = useMemo(() => `/${encodeEventAddress(event)}`, [event]);
 
   if (!quiz) {
     return (
       <p className={cn('mt-2 text-sm italic text-muted-foreground', className)}>
-        {getEventFallbackText(event) ?? 'This quiz could not be displayed.'}
+        {getEventFallbackText(event) ?? intl.formatMessage({ id: 'quiz.unavailable', defaultMessage: 'This quiz could not be displayed.' })}
       </p>
     );
   }
@@ -43,7 +45,13 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
   const meta = (
     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
       <ClipboardList className="size-3.5" />
-      <span>{questionCount} {questionCount === 1 ? 'question' : 'questions'}</span>
+      <span>
+        <FormattedMessage
+          id="quiz.questionCount"
+          defaultMessage="{count, plural, one {# question} other {# questions}}"
+          values={{ count: questionCount }}
+        />
+      </span>
     </div>
   );
 
@@ -70,7 +78,9 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
         <div className="flex items-center justify-between gap-3">
           {meta}
           <Button asChild size="sm" onClick={(e) => e.stopPropagation()}>
-            <Link to={href}>Take quiz</Link>
+            <Link to={href}>
+              <FormattedMessage id="quiz.take" defaultMessage="Take quiz" />
+            </Link>
           </Button>
         </div>
       </div>

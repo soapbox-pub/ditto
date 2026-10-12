@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Monitor } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
@@ -12,6 +13,7 @@ import { isReactionKind, isRepostKind } from '@/lib/feedUtils';
 
 /** Feed of posts published by a given client application (NIP-89 `client` tag). */
 export function ClientFeedPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { name } = useParams<{ name: string }>();
   const [searchParams] = useSearchParams();
@@ -42,8 +44,12 @@ export function ClientFeedPage() {
   const tagFilters = useMemo(() => ({ '#client': clientTags }), [clientTags]);
 
   useSeoMeta({
-    title: title ? `${title} | ${config.appName}` : `Client Feed | ${config.appName}`,
-    description: title ? `Posts published with ${title}` : 'Client feed',
+    title: title
+      ? `${title} | ${config.appName}`
+      : intl.formatMessage({ id: 'clientFeed.seoTitle', defaultMessage: 'Client Feed | {appName}' }, { appName: config.appName }),
+    description: title
+      ? intl.formatMessage({ id: 'clientFeed.seoDescription', defaultMessage: 'Posts published with {client}' }, { client: title })
+      : intl.formatMessage({ id: 'clientFeed.seoDescriptionFallback', defaultMessage: 'Client feed' }),
   });
 
   if (!clientTags.length) return null;
@@ -55,7 +61,7 @@ export function ClientFeedPage() {
       hideCompose
       globalFirst
       feedId={`client:${clientTags.join(',')}`}
-      emptyMessage={`No posts found published with ${title}.`}
+      emptyMessage={intl.formatMessage({ id: 'clientFeed.empty', defaultMessage: 'No posts found published with {client}.' }, { client: title })}
       header={
         <>
           <PageHeader

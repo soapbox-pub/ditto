@@ -4,6 +4,7 @@ import { BarChart3, CheckCircle2, Clock, X, ChevronRight } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -104,6 +105,7 @@ function VoterAvatarsButton({
   onClick: () => void;
   className?: string;
 }) {
+  const intl = useIntl();
   return (
     <button onClick={onClick} className={cn('flex items-center gap-1.5 group', className)}>
       <div className="flex -space-x-1.5">
@@ -111,7 +113,7 @@ function VoterAvatarsButton({
           const authorData = authorsMap?.get(vote.pubkey);
           const metadata = authorData?.metadata;
           const avatarShape = getAvatarShape(metadata);
-          const name = metadata?.name || metadata?.display_name || 'Anonymous';
+          const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
           return (
             <Avatar key={vote.pubkey} shape={avatarShape} className="size-5 ring-1 ring-background">
               <AvatarImage src={metadata?.picture} imeta={authorData?.imeta?.picture} alt={name} />
@@ -123,7 +125,7 @@ function VoterAvatarsButton({
         })}
       </div>
       <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-        {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
+        <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count: totalVotes }} />
       </span>
     </button>
   );
@@ -248,12 +250,14 @@ export function PollContent({ event }: { event: NostrEvent }) {
       <div className="flex items-center gap-2 mt-2">
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
           <BarChart3 className="size-3" />
-          {pollType === 'multiplechoice' ? 'Multiple choice' : 'Single choice'}
+          {pollType === 'multiplechoice'
+            ? <FormattedMessage id="poll.multipleChoice" defaultMessage="Multiple choice" />
+            : <FormattedMessage id="poll.singleChoice" defaultMessage="Single choice" />}
         </span>
         {isExpired && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-secondary/60 px-2 py-0.5 rounded-full">
             <Clock className="size-3" />
-            Ended
+            <FormattedMessage id="poll.ended" defaultMessage="Ended" />
           </span>
         )}
 
@@ -325,7 +329,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
               onClick={() => openVotersModal(null)}
             />
           ) : (
-            <span className="text-xs text-muted-foreground">0 votes</span>
+            <span className="text-xs text-muted-foreground"><FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count: 0 }} /></span>
           )}
           {user && (
             <button
@@ -338,7 +342,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
                   : 'bg-secondary text-muted-foreground cursor-not-allowed',
               )}
             >
-              Vote
+              <FormattedMessage id="poll.vote" defaultMessage="Vote" />
             </button>
           )}
         </div>
@@ -371,6 +375,7 @@ interface PollVotersModalProps {
 }
 
 function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, initialOptionId, authorsMap }: PollVotersModalProps) {
+  const intl = useIntl();
   const [activeFilter, setActiveFilter] = useState<string | null>(initialOptionId ?? null);
 
   // Sync filter when modal opens with a specific option
@@ -401,9 +406,10 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
       <DialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">Voters</DialogTitle>
+          <DialogTitle className="text-base font-semibold"><FormattedMessage id="poll.voters" defaultMessage="Voters" /></DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
+            aria-label={intl.formatMessage({ id: 'poll.closeVoters', defaultMessage: 'Close' })}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
           >
             <X className="size-5" />
@@ -429,7 +435,9 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
                 style={{ width: '100%' }}
               />
               <div className="relative flex items-center justify-between px-3 py-2">
-                <span className={cn('text-sm', activeFilter === null && 'font-semibold')}>All</span>
+                <span className={cn('text-sm', activeFilter === null && 'font-semibold')}>
+                  <FormattedMessage id="poll.allVotes" defaultMessage="All" />
+                </span>
                 <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
                   {allVotes.length}
                 </span>
@@ -476,7 +484,7 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
         <ScrollArea className="max-h-[60vh]">
           {filteredVoters.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              No votes yet
+              <FormattedMessage id="poll.noVotes" defaultMessage="No votes yet" />
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -507,12 +515,13 @@ interface VoterRowProps {
 }
 
 function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps) {
+  const intl = useIntl();
   // Use batch-fetched author data if available, fall back to individual fetch
   const individualAuthor = useAuthor(authorsMap?.has(vote.pubkey) ? undefined : vote.pubkey);
   const authorData = authorsMap?.get(vote.pubkey) ?? individualAuthor.data;
   const metadata = authorData?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   const nevent = useMemo(
     () => nip19.neventEncode({ id: vote.id, author: vote.pubkey }),

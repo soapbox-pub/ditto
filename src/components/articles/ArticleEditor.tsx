@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import slugify from 'slugify';
 import { useNostr } from '@nostrify/react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,21 @@ import { MilkdownEditor } from './MilkdownEditor';
 
 export type ArticleData = ArticleFields;
 
+const messages = defineMessages({
+  summary: { id: 'articleEditor.summary', defaultMessage: 'Summary' },
+  summaryPlaceholder: { id: 'articleEditor.summaryPlaceholder', defaultMessage: 'A brief description of your article...' },
+  slug: { id: 'articleEditor.slug', defaultMessage: 'URL Slug' },
+  slugPlaceholder: { id: 'articleEditor.slugPlaceholder', defaultMessage: 'article-url-slug' },
+  slugLocked: { id: 'articleEditor.slugLocked', defaultMessage: "The slug can't be changed after publishing." },
+  tags: { id: 'articleEditor.tags', defaultMessage: 'Tags' },
+  tagPlaceholder: { id: 'articleEditor.tagPlaceholder', defaultMessage: 'Add a tag...' },
+  addTag: { id: 'articleEditor.addTag', defaultMessage: 'Add tag' },
+  removeTag: { id: 'articleEditor.removeTag', defaultMessage: 'Remove #{tag}' },
+  editing: { id: 'articleEditor.editing', defaultMessage: 'Editing' },
+  draftSaved: { id: 'articleEditor.draftSaved', defaultMessage: 'Draft saved' },
+  saveDraft: { id: 'articleEditor.saveDraft', defaultMessage: 'Save Draft' },
+});
+
 interface ArticleEditorProps {
   /** Pre-filled data for editing an existing article or loading a draft. */
   initialData?: Partial<ArticleData> & { publishedAt?: number };
@@ -55,6 +71,7 @@ interface ArticleEditorProps {
 }
 
 export function ArticleEditor({ initialData, editMode = false }: ArticleEditorProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -111,19 +128,29 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         await saveRelayDraft(data);
         if (!mountedRef.current) return;
         if (!silent) {
-          toast({ title: 'Draft saved', description: 'Your article has been saved to Nostr relays.' });
+          toast({
+            title: intl.formatMessage(messages.draftSaved),
+            description: intl.formatMessage({ id: 'articleEditor.draftSavedRelays', defaultMessage: 'Your article has been saved to Nostr relays.' }),
+          });
         }
       } catch (error) {
         console.error('Failed to save draft to relay:', error);
         if (!mountedRef.current) return;
         if (!silent) {
-          toast({ title: 'Draft saved locally', description: 'Could not sync to relays. Saved to your browser.', variant: 'destructive' });
+          toast({
+            title: intl.formatMessage({ id: 'articleEditor.draftSavedLocally', defaultMessage: 'Draft saved locally' }),
+            description: intl.formatMessage({ id: 'articleEditor.draftSyncFailed', defaultMessage: 'Could not sync to relays. Saved to your browser.' }),
+            variant: 'destructive',
+          });
         }
       }
     } else if (!silent) {
-      toast({ title: 'Draft saved', description: 'Your article has been saved locally.' });
+      toast({
+        title: intl.formatMessage(messages.draftSaved),
+        description: intl.formatMessage({ id: 'articleEditor.draftSavedLocal', defaultMessage: 'Your article has been saved locally.' }),
+      });
     }
-  }, [user, saveRelayDraft]);
+  }, [user, saveRelayDraft, intl]);
 
   // Auto-save 30s after the first unsaved change. The timer starts once and
   // is only reset when `hasUnsavedChanges` transitions, not on every keystroke.
@@ -233,14 +260,14 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       } catch (error) {
         console.error('Upload failed:', error);
         toast({
-          title: 'Upload failed',
-          description: 'Could not upload the image. Please try again.',
+          title: intl.formatMessage({ id: 'articleEditor.uploadFailed', defaultMessage: 'Upload failed' }),
+          description: intl.formatMessage({ id: 'articleEditor.uploadFailedDescription', defaultMessage: 'Could not upload the image. Please try again.' }),
           variant: 'destructive',
         });
         return null;
       }
     },
-    [uploadFile],
+    [uploadFile, intl],
   );
 
   const handleHeaderImageUpload = useCallback(
@@ -252,12 +279,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       if (url) {
         updateArticle('image', url);
         toast({
-          title: 'Image uploaded',
-          description: 'Header image has been set successfully.',
+          title: intl.formatMessage({ id: 'articleEditor.imageUploaded', defaultMessage: 'Image uploaded' }),
+          description: intl.formatMessage({ id: 'articleEditor.imageUploadedDescription', defaultMessage: 'Header image has been set successfully.' }),
         });
       }
     },
-    [handleImageUpload, updateArticle],
+    [handleImageUpload, updateArticle, intl],
   );
 
   const handleSaveDraft = useCallback(async () => {
@@ -316,10 +343,12 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           }
 
           toast({
-            title: isEditMode ? 'Article updated' : 'Article published',
+            title: isEditMode
+              ? intl.formatMessage({ id: 'articleEditor.updated', defaultMessage: 'Article updated' })
+              : intl.formatMessage({ id: 'articleEditor.published', defaultMessage: 'Article published' }),
             description: isEditMode
-              ? 'Your article has been updated on Nostr.'
-              : 'Your article is now live on Nostr.',
+              ? intl.formatMessage({ id: 'articleEditor.updatedDescription', defaultMessage: 'Your article has been updated on Nostr.' })
+              : intl.formatMessage({ id: 'articleEditor.publishedDescription', defaultMessage: 'Your article is now live on Nostr.' }),
           });
 
           // Navigate back to articles feed
@@ -327,9 +356,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         },
         onError: (error) => {
           toast({
-            title: 'Publishing failed',
+            title: intl.formatMessage({ id: 'articleEditor.publishFailed', defaultMessage: 'Publishing failed' }),
             description:
-              error.message || 'Could not publish your article. Please try again.',
+              error.message || intl.formatMessage({ id: 'articleEditor.publishFailedDescription', defaultMessage: 'Could not publish your article. Please try again.' }),
             variant: 'destructive',
           });
         },
@@ -343,13 +372,14 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     isEditMode,
     originalPublishedAt,
     navigate,
+    intl,
   ]);
 
   const handlePublish = useCallback(async () => {
     if (!user) {
       toast({
-        title: 'Login required',
-        description: 'Please login to publish your article.',
+        title: intl.formatMessage({ id: 'articleEditor.loginRequired', defaultMessage: 'Login required' }),
+        description: intl.formatMessage({ id: 'articleEditor.loginRequiredDescription', defaultMessage: 'Please login to publish your article.' }),
         variant: 'destructive',
       });
       return;
@@ -357,8 +387,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
     if (!article.title.trim()) {
       toast({
-        title: 'Title required',
-        description: 'Please add a title to your article.',
+        title: intl.formatMessage({ id: 'articleEditor.titleRequired', defaultMessage: 'Title required' }),
+        description: intl.formatMessage({ id: 'articleEditor.titleRequiredDescription', defaultMessage: 'Please add a title to your article.' }),
         variant: 'destructive',
       });
       return;
@@ -366,8 +396,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
     if (!article.content.trim()) {
       toast({
-        title: 'Content required',
-        description: 'Please write some content for your article.',
+        title: intl.formatMessage({ id: 'articleEditor.contentRequired', defaultMessage: 'Content required' }),
+        description: intl.formatMessage({ id: 'articleEditor.contentRequiredDescription', defaultMessage: 'Please write some content for your article.' }),
         variant: 'destructive',
       });
       return;
@@ -385,8 +415,8 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
         if (existing.length > 0) {
           toast({
-            title: 'Slug already in use',
-            description: 'You already have a published article with this slug. Change the slug or edit the existing article from My Articles.',
+            title: intl.formatMessage({ id: 'articleEditor.slugInUse', defaultMessage: 'Slug already in use' }),
+            description: intl.formatMessage({ id: 'articleEditor.slugInUseDescription', defaultMessage: 'You already have a published article with this slug. Change the slug or edit the existing article from My Articles.' }),
             variant: 'destructive',
           });
           return;
@@ -397,7 +427,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     }
 
     doPublish();
-  }, [user, article, originalSlug, nostr, doPublish]);
+  }, [user, article, originalSlug, nostr, doPublish, intl]);
 
   // Set refs for keyboard shortcuts
   handlePublishRef.current = handlePublish;
@@ -442,29 +472,31 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
   const statusLabel = isPublished ? (
     <span className="text-green-600 dark:text-green-400 text-sm">
-      {isEditMode ? 'Updated' : 'Published'}
+      {isEditMode
+        ? <FormattedMessage id="articleEditor.statusUpdated" defaultMessage="Updated" />
+        : <FormattedMessage id="articleEditor.statusPublished" defaultMessage="Published" />}
     </span>
   ) : isEditMode ? (
     hasUnsavedChanges ? (
       <span className="flex items-center gap-1 text-sm text-muted-foreground">
         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-        Editing
+        <FormattedMessage {...messages.editing} />
       </span>
     ) : (
       <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-sm">
         <Cloud className={`size-3.5 ${isSyncingToRelay ? 'animate-pulse' : ''}`} />
-        Editing
+        <FormattedMessage {...messages.editing} />
       </span>
     )
   ) : hasUnsavedChanges ? (
     <span className="flex items-center gap-1 text-sm text-muted-foreground">
       <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-      Unsaved
+      <FormattedMessage id="articleEditor.statusUnsaved" defaultMessage="Unsaved" />
     </span>
   ) : lastSaved ? (
     <span className="flex items-center gap-1 text-sm text-muted-foreground">
       <Cloud className={`size-3.5 ${isSyncingToRelay ? 'animate-pulse' : ''}`} />
-      Saved
+      <FormattedMessage id="articleEditor.statusSaved" defaultMessage="Saved" />
     </span>
   ) : null;
 
@@ -476,12 +508,15 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           <button
             onClick={handleBack}
             className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label={intl.formatMessage({ id: 'articleEditor.back', defaultMessage: 'Back' })}
           >
             <ArrowLeft className="size-5" />
           </button>
 
           <TabButton
-            label={isEditMode ? 'Edit Article' : 'New Article'}
+            label={isEditMode
+              ? intl.formatMessage({ id: 'articleEditor.editArticle', defaultMessage: 'Edit Article' })
+              : intl.formatMessage({ id: 'articleEditor.newArticle', defaultMessage: 'New Article' })}
             active
             onClick={() => {}}
           />
@@ -505,7 +540,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
               <div className="relative rounded-xl overflow-hidden group">
                 <img
                   src={article.image}
-                  alt="Header"
+                  alt={intl.formatMessage({ id: 'articleEditor.headerAlt', defaultMessage: 'Header' })}
                   className="w-full h-48 sm:h-64 object-cover"
                   decoding="async"
                 />
@@ -522,7 +557,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     ) : (
                       <Image className="w-4 h-4 mr-2" />
                     )}
-                    Change Image
+                    <FormattedMessage id="articleEditor.changeImage" defaultMessage="Change Image" />
                   </Button>
                 </div>
                 {/* Mobile: persistent corner button */}
@@ -530,6 +565,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                   variant="secondary"
                   size="icon"
                   className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md sm:hidden"
+                  aria-label={intl.formatMessage({ id: 'articleEditor.changeImage', defaultMessage: 'Change Image' })}
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                 >
@@ -551,7 +587,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 ) : (
                   <Image className="w-8 h-8 mb-2" />
                 )}
-                <span className="text-sm">Add a header image</span>
+                <span className="text-sm"><FormattedMessage id="articleEditor.addHeaderImage" defaultMessage="Add a header image" /></span>
               </button>
             )}
           </>
@@ -564,7 +600,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           value={article.title}
           onChange={(e) => updateArticle('title', e.target.value)}
           onBlur={handleBlurSave}
-          placeholder="Your article title..."
+          placeholder={intl.formatMessage({ id: 'articleEditor.titlePlaceholder', defaultMessage: 'Your article title...' })}
           className={`w-full font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/40 ${
             isMobile && keyboardVisible ? 'text-xl' : 'text-3xl sm:text-4xl'
           }`}
@@ -579,30 +615,39 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
             >
               <ChevronDown className={`w-3.5 h-3.5 transition-transform ${metadataExpanded ? 'rotate-0' : '-rotate-90'}`} />
-              <span>Details</span>
+              <span><FormattedMessage id="articleEditor.details" defaultMessage="Details" /></span>
               {(article.summary || article.tags.length > 0) && (
                 <span className="text-muted-foreground/60">
-                  ({[article.summary && 'summary', article.tags.length > 0 && `${article.tags.length} tags`].filter(Boolean).join(', ')})
+                  <FormattedMessage
+                    id="articleEditor.detailsSummary"
+                    defaultMessage="({items})"
+                    values={{
+                      items: intl.formatList([
+                        article.summary && intl.formatMessage({ id: 'articleEditor.detailsHasSummary', defaultMessage: 'summary' }),
+                        article.tags.length > 0 && intl.formatMessage({ id: 'articleEditor.tagCount', defaultMessage: '{count, plural, one {# tag} other {# tags}}' }, { count: article.tags.length }),
+                      ].filter((item): item is string => !!item)),
+                    }}
+                  />
                 </span>
               )}
             </button>
             {metadataExpanded && (
               <div className="space-y-3 animate-in slide-in-from-top-1 duration-200">
                 <div className="space-y-1.5">
-                  <Label htmlFor="summary" className="text-muted-foreground text-xs">Summary</Label>
+                  <Label htmlFor="summary" className="text-muted-foreground text-xs"><FormattedMessage {...messages.summary} /></Label>
                   <Textarea
                     id="summary"
                     dir="auto"
                     value={article.summary}
                     onChange={(e) => updateArticle('summary', e.target.value)}
-                    placeholder="A brief description of your article..."
+                    placeholder={intl.formatMessage(messages.summaryPlaceholder)}
                     rows={2}
                     className="resize-none text-sm"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
+                  <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none"><FormattedMessage {...messages.slug} /></Label>
                   <Input
                     id="slug"
                     value={article.slug}
@@ -610,19 +655,19 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                       slugManuallyEdited.current = true;
                       updateArticle('slug', e.target.value);
                     }}
-                    placeholder="article-url-slug"
+                    placeholder={intl.formatMessage(messages.slugPlaceholder)}
                     disabled={isEditMode}
                     className="h-8 font-mono text-xs disabled:opacity-70"
                   />
                   {isEditMode && (
-                    <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                    <p className="text-[11px] text-muted-foreground"><FormattedMessage {...messages.slugLocked} /></p>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
                     <Hash className="w-3 h-3 shrink-0" />
-                    Tags
+                    <FormattedMessage {...messages.tags} />
                   </Label>
                   <div className="flex gap-1.5">
                     <Input
@@ -631,10 +676,10 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                       onKeyDown={(e) =>
                         e.key === 'Enter' && (e.preventDefault(), handleAddTag())
                       }
-                      placeholder="Add a tag..."
+                      placeholder={intl.formatMessage(messages.tagPlaceholder)}
                       className="h-8 text-xs flex-1"
                     />
-                    <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
+                    <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag} aria-label={intl.formatMessage(messages.addTag)}>
                       <span className="text-base leading-none">+</span>
                     </Button>
                   </div>
@@ -645,7 +690,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     {article.tags.map((tag) => (
                       <Badge key={tag} variant="secondary" className="gap-1 px-2 py-0.5 text-xs">
                         #{tag}
-                        <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                        <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive" aria-label={intl.formatMessage(messages.removeTag, { tag })}>
                           <X className="w-3 h-3" />
                         </button>
                       </Badge>
@@ -658,13 +703,13 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="summary" className="text-muted-foreground text-sm">Summary</Label>
+              <Label htmlFor="summary" className="text-muted-foreground text-sm"><FormattedMessage {...messages.summary} /></Label>
               <Textarea
                 id="summary"
                 dir="auto"
                 value={article.summary}
                 onChange={(e) => updateArticle('summary', e.target.value)}
-                placeholder="A brief description of your article..."
+                placeholder={intl.formatMessage(messages.summaryPlaceholder)}
                 rows={2}
                 className="resize-none"
               />
@@ -672,7 +717,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="space-y-1.5 flex-1">
-                <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none">URL Slug</Label>
+                <Label htmlFor="slug" className="text-muted-foreground text-xs leading-none"><FormattedMessage {...messages.slug} /></Label>
                 <Input
                   id="slug"
                   value={article.slug}
@@ -680,18 +725,18 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     slugManuallyEdited.current = true;
                     updateArticle('slug', e.target.value);
                   }}
-                  placeholder="article-url-slug"
+                  placeholder={intl.formatMessage(messages.slugPlaceholder)}
                   disabled={isEditMode}
                   className="h-8 font-mono text-xs disabled:opacity-70"
                 />
                 {isEditMode && (
-                  <p className="text-[11px] text-muted-foreground">The slug can't be changed after publishing.</p>
+                  <p className="text-[11px] text-muted-foreground"><FormattedMessage {...messages.slugLocked} /></p>
                 )}
               </div>
               <div className="space-y-1.5 flex-1">
                 <Label className="text-muted-foreground text-xs inline-flex items-center gap-1 leading-none">
                   <Hash className="w-3 h-3 shrink-0" />
-                  Tags
+                  <FormattedMessage {...messages.tags} />
                 </Label>
                 <div className="flex gap-1.5">
                   <Input
@@ -700,10 +745,10 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                     onKeyDown={(e) =>
                       e.key === 'Enter' && (e.preventDefault(), handleAddTag())
                     }
-                    placeholder="Add a tag..."
+                    placeholder={intl.formatMessage(messages.tagPlaceholder)}
                     className="h-8 text-xs flex-1"
                   />
-                  <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag}>
+                  <Button type="button" variant="secondary" size="icon" className="h-8 w-8 shrink-0" onClick={handleAddTag} aria-label={intl.formatMessage(messages.addTag)}>
                     <span className="text-base leading-none">+</span>
                   </Button>
                 </div>
@@ -715,7 +760,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 {article.tags.map((tag) => (
                   <Badge key={tag} variant="secondary" className="gap-1 px-2 py-1">
                     #{tag}
-                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive" aria-label={intl.formatMessage(messages.removeTag, { tag })}>
                       <X className="w-3 h-3" />
                     </button>
                   </Badge>
@@ -731,7 +776,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           onChange={(value) => updateArticle('content', value || '')}
           onBlur={handleBlurSave}
           onUploadImage={handleImageUpload}
-          placeholder="Start writing your article..."
+          placeholder={intl.formatMessage({ id: 'articleEditor.contentPlaceholder', defaultMessage: 'Start writing your article...' })}
           className={`rounded-xl border border-border bg-card ${
             isMobile && keyboardVisible ? 'min-h-[150px]' : 'min-h-[250px] sm:min-h-[400px]'
           }`}
@@ -741,9 +786,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         {!(isMobile && keyboardVisible) && (
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
-              <span className="shrink-0">{wordCount} words</span>
+              <span className="shrink-0"><FormattedMessage id="articleEditor.wordCount" defaultMessage="{count, plural, one {# word} other {# words}}" values={{ count: wordCount }} /></span>
               <span>·</span>
-              <span className="shrink-0">{readingTime} min read</span>
+              <span className="shrink-0"><FormattedMessage id="articleEditor.readingTime" defaultMessage="{count} min read" values={{ count: readingTime }} /></span>
               {statusLabel && (
                 <>
                   <span>·</span>
@@ -759,7 +804,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 className="rounded-full gap-1.5 shrink-0"
               >
                 <Save className="size-3.5" />
-                Save Draft
+                <FormattedMessage {...messages.saveDraft} />
               </Button>
               <Button
                 size="sm"
@@ -772,7 +817,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
                 ) : (
                   <Send className="size-3.5" />
                 )}
-                {isEditMode ? 'Update' : 'Publish'}
+                {isEditMode
+                  ? <FormattedMessage id="articleEditor.update" defaultMessage="Update" />
+                  : <FormattedMessage id="articleEditor.publish" defaultMessage="Publish" />}
               </Button>
             </div>
           </div>
@@ -783,21 +830,20 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogTitle><FormattedMessage id="articleEditor.unsavedTitle" defaultMessage="Unsaved changes" /></AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes. Would you like to save your draft before
-              leaving?
+              <FormattedMessage id="articleEditor.unsavedDescription" defaultMessage="You have unsaved changes. Would you like to save your draft before leaving?" />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel onClick={() => setShowLeaveDialog(false)}>
-              Cancel
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
             </AlertDialogCancel>
             <Button variant="outline" onClick={handleLeaveWithoutSaving}>
-              Discard
+              <FormattedMessage id="top8.edit.discard" defaultMessage="Discard" />
             </Button>
             <AlertDialogAction onClick={handleSaveAndLeave}>
-              Save Draft
+              <FormattedMessage {...messages.saveDraft} />
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

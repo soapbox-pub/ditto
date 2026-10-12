@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import { Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -47,30 +48,35 @@ function parseParticipants(tags: string[][]): Participant[] {
     .filter((p) => isNostrId(p.pubkey));
 }
 
+const STATUS_LABELS = defineMessages({
+  live: { id: 'liveStream.status.live', defaultMessage: 'LIVE' },
+  ended: { id: 'liveStream.status.ended', defaultMessage: 'ENDED' },
+  planned: { id: 'liveStream.status.planned', defaultMessage: 'PLANNED' },
+  unknown: { id: 'liveStream.status.unknown', defaultMessage: 'UNKNOWN' },
+});
+
 /** Status badge colors and labels. */
-function getStatusConfig(status: string | undefined) {
+function getStatusConfig(intl: IntlShape, status: string | undefined) {
   switch (status) {
     case 'live':
-      return { label: 'LIVE', className: 'bg-red-600 hover:bg-red-600 text-white border-red-600 animate-pulse' };
+      return { label: intl.formatMessage(STATUS_LABELS.live), className: 'bg-red-600 hover:bg-red-600 text-white border-red-600 animate-pulse' };
     case 'ended':
-      return { label: 'ENDED', className: 'bg-muted text-muted-foreground border-border' };
+      return { label: intl.formatMessage(STATUS_LABELS.ended), className: 'bg-muted text-muted-foreground border-border' };
     case 'planned':
-      return { label: 'PLANNED', className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600' };
+      return { label: intl.formatMessage(STATUS_LABELS.planned), className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600' };
     default:
-      return { label: status?.toUpperCase() || 'UNKNOWN', className: 'bg-muted text-muted-foreground border-border' };
+      return { label: status?.toUpperCase() || intl.formatMessage(STATUS_LABELS.unknown), className: 'bg-muted text-muted-foreground border-border' };
   }
 }
 
 /** Format a unix timestamp to a readable date/time. */
-function formatDateTime(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString('en-US', {
+function formatDateTime(intl: IntlShape, timestamp: number): string {
+  return intl.formatDate(timestamp * 1000, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true,
   });
 }
 
@@ -79,12 +85,13 @@ interface LiveStreamPageProps {
 }
 
 export function LiveStreamPage({ event }: LiveStreamPageProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const goBack = useGoBack();
   const { user } = useCurrentUser();
   const [descExpanded, setDescExpanded] = useState(false);
 
-  const title = getTag(event.tags, 'title') || 'Untitled Stream';
+  const title = getTag(event.tags, 'title') || intl.formatMessage({ id: 'liveStream.untitled', defaultMessage: 'Untitled Stream' });
   const summary = getTag(event.tags, 'summary');
   const streamUrl = getTag(event.tags, 'streaming');
   const recordingUrl = getTag(event.tags, 'recording');
@@ -96,7 +103,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
   const participants = useMemo(() => parseParticipants(event.tags), [event.tags]);
 
-  const statusConfig = getStatusConfig(status);
+  const statusConfig = getStatusConfig(intl, status);
   const hasDescription = !!(summary || hashtags.length > 0 || participants.length > 0);
 
   // Build the a-tag for live chat: 30311:<pubkey>:<d-tag>
@@ -169,7 +176,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
       {participants.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-border">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Participants
+            <FormattedMessage id="liveStream.participants" defaultMessage="Participants" />
           </h3>
           <div className="space-y-2">
             {participants.map((p) => (
@@ -186,7 +193,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
       <main className="max-lg:flex max-lg:flex-col max-lg:livestream-height max-lg:overflow-hidden">
         {/* Header */}
         <PageHeader
-          title="Live Stream"
+          title={intl.formatMessage({ id: 'liveStream.title', defaultMessage: 'Live Stream' })}
           onBack={goBack}
           alwaysShowBack
           className="shrink-0 sidebar:sticky sidebar:top-0 z-10 mt-2 mb-2 sidebar:mt-4 sidebar:mb-4"
@@ -211,7 +218,9 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
               <div className="text-center space-y-2">
                 <Radio className="size-8 text-muted-foreground/40 mx-auto" />
                 <p className="text-sm text-muted-foreground">
-                  {status === 'planned' ? 'Stream has not started yet' : 'No stream URL available'}
+                  {status === 'planned'
+                    ? <FormattedMessage id="liveStream.notStarted" defaultMessage="Stream has not started yet" />
+                    : <FormattedMessage id="liveStream.noUrl" defaultMessage="No stream URL available" />}
                 </p>
               </div>
             </div>
@@ -229,13 +238,13 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
                 {currentParticipants && (
                   <span className="flex items-center gap-1">
                     <Users className="size-3.5" />
-                    {currentParticipants} watching
+                    <FormattedMessage id="liveStream.watching" defaultMessage="{count} watching" values={{ count: currentParticipants }} />
                   </span>
                 )}
                 {starts && (
                   <span className="flex items-center gap-1">
                     <Clock className="size-3.5" />
-                    {formatDateTime(parseInt(starts))}
+                    {formatDateTime(intl, parseInt(starts))}
                   </span>
                 )}
               </div>
@@ -256,7 +265,9 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
               className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors lg:hidden"
             >
               {descExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-              {descExpanded ? 'Hide details' : 'Show details'}
+              {descExpanded
+                ? <FormattedMessage id="liveStream.hideDetails" defaultMessage="Hide details" />
+                : <FormattedMessage id="liveStream.showDetails" defaultMessage="Show details" />}
             </button>
           )}
 
@@ -345,7 +356,9 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
             <Nip05Badge nip05={showMetadata.nip05} pubkey={showPubkey} className="text-xs text-muted-foreground" iconSize={12} />
           )}
           {host && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Host</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              <FormattedMessage id="liveStream.host" defaultMessage="Host" />
+            </Badge>
           )}
         </div>
       </div>

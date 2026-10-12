@@ -8,6 +8,7 @@
  */
 import { useState, useMemo, useCallback } from 'react';
 import { Loader2, Check, Globe, Users, UserSearch } from 'lucide-react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   Dialog,
   DialogContent,
@@ -59,10 +60,16 @@ function filterToScope(filter: TabFilter): AuthorScope {
   return 'anyone';
 }
 
-const FEED_SCOPE_OPTIONS: ScopeOption<AuthorScope>[] = [
-  { value: 'anyone', label: 'Anyone', icon: Globe },
-  { value: 'follows', label: 'Follows', icon: Users },
-  { value: 'people', label: 'People', icon: UserSearch },
+const scopeMessages = defineMessages({
+  anyone: { id: 'feedEdit.scope.anyone', defaultMessage: 'Anyone' },
+  follows: { id: 'settings.feed.follows', defaultMessage: 'Follows' },
+  people: { id: 'feedEdit.scope.people', defaultMessage: 'People' },
+});
+
+const FEED_SCOPES: Omit<ScopeOption<AuthorScope>, 'label'>[] = [
+  { value: 'anyone', icon: Globe },
+  { value: 'follows', icon: Users },
+  { value: 'people', icon: UserSearch },
 ];
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
@@ -75,7 +82,12 @@ export function FeedEditModal({
   onSave,
   isPending = false,
 }: FeedEditModalProps) {
+  const intl = useIntl();
   const isEditing = !!initialLabel;
+  const scopeOptions = useMemo<ScopeOption<AuthorScope>[]>(
+    () => FEED_SCOPES.map((opt) => ({ ...opt, label: intl.formatMessage(scopeMessages[opt.value]) })),
+    [intl],
+  );
   const kindOptions = useMemo(() => buildKindOptions(), []);
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
@@ -160,20 +172,26 @@ export function FeedEditModal({
       <DialogContent ref={dialogContentRef} className="max-w-sm max-h-[90dvh] overflow-y-auto">
         <PortalContainerProvider value={portalContainer}>
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit feed' : 'Add home feed'}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? (
+              <FormattedMessage id="feedEdit.editTitle" defaultMessage="Edit feed" />
+            ) : (
+              <FormattedMessage id="feedEdit.addTitle" defaultMessage="Add home feed" />
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-1">
           {/* Feed name */}
           <div className="space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Feed name
+              <FormattedMessage id="feedEdit.name" defaultMessage="Feed name" />
             </span>
             <Input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
-              placeholder="e.g. Bitcoin, Photography..."
+              placeholder={intl.formatMessage({ id: 'feedEdit.namePlaceholder', defaultMessage: 'e.g. Bitcoin, Photography...' })}
               autoFocus
             />
           </div>
@@ -182,11 +200,13 @@ export function FeedEditModal({
 
           {/* Search query */}
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Search query</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <FormattedMessage id="feedEdit.search" defaultMessage="Search query" />
+            </span>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="e.g. bitcoin"
+              placeholder={intl.formatMessage({ id: 'feedEdit.searchPlaceholder', defaultMessage: 'e.g. bitcoin' })}
               className="bg-secondary/50 border-border focus-visible:ring-1 h-8 text-base md:text-sm"
             />
           </div>
@@ -195,10 +215,12 @@ export function FeedEditModal({
 
           {/* Author scope */}
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <FormattedMessage id="feedEdit.from" defaultMessage="From" />
+            </span>
             <ScopeToggle
               value={authorScope}
-              options={FEED_SCOPE_OPTIONS}
+              options={scopeOptions}
               onChange={(s) => {
                 setAuthorScope(s);
                 if (s !== 'people') setAuthorPubkeys([]);
@@ -229,7 +251,9 @@ export function FeedEditModal({
 
           {/* Kind multi-select */}
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Kinds</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <FormattedMessage id="feedEdit.kinds" defaultMessage="Kinds" />
+            </span>
             <MultiKindPicker
               selectedKinds={selectedKinds}
               options={kindOptions}
@@ -247,7 +271,11 @@ export function FeedEditModal({
             {isPending
               ? <Loader2 className="size-4 animate-spin" />
               : <Check className="size-4" />}
-            {isEditing ? 'Save changes' : 'Add feed'}
+            {isEditing ? (
+              <FormattedMessage id="feedEdit.saveChanges" defaultMessage="Save changes" />
+            ) : (
+              <FormattedMessage id="feedEdit.addFeed" defaultMessage="Add feed" />
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -255,7 +283,7 @@ export function FeedEditModal({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
         </DialogFooter>
         </PortalContainerProvider>

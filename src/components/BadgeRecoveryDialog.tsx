@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -109,7 +110,7 @@ function BadgeSnapshotCard({
       {isCurrent && (
         <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
           <Check className="size-3.5" />
-          Current
+          <FormattedMessage id="badgeRecovery.current" defaultMessage="Current" />
         </div>
       )}
 
@@ -120,7 +121,11 @@ function BadgeSnapshotCard({
 
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="font-semibold text-sm">
-            {summary.count.toLocaleString()} {summary.count === 1 ? 'badge' : 'badges'}
+            <FormattedMessage
+              id="badgeRecovery.badgeCount"
+              defaultMessage="{count, plural, one {# badge} other {# badges}}"
+              values={{ count: summary.count }}
+            />
           </div>
 
           {/* Badge thumbnail previews */}
@@ -167,7 +172,7 @@ function BadgeSnapshotCard({
             ) : (
               <RotateCcw className="size-3.5" />
             )}
-            Restore
+            <FormattedMessage id="badgeRecovery.restore" defaultMessage="Restore" />
           </Button>
         </div>
       )}
@@ -181,7 +186,10 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <p className="text-sm text-muted-foreground">
-        No badge list history found. Your relay may not store historical events.
+        <FormattedMessage
+          id="badgeRecovery.empty"
+          defaultMessage="No badge list history found. Your relay may not store historical events."
+        />
       </p>
     </div>
   );
@@ -215,6 +223,7 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -312,8 +321,11 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
       });
 
       toast({
-        title: 'Badge list restored',
-        description: `Successfully restored from ${formatDate(event.created_at)}.`,
+        title: intl.formatMessage({ id: 'badgeRecovery.restored', defaultMessage: 'Badge list restored' }),
+        description: intl.formatMessage(
+          { id: 'badgeRecovery.restoredDescription', defaultMessage: 'Successfully restored from {date}.' },
+          { date: formatDate(event.created_at) },
+        ),
       });
 
       queryClient.invalidateQueries({ queryKey: ['badge-recovery', 'history', pubkey] });
@@ -323,8 +335,11 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
     } catch (error) {
       console.error('Failed to restore badge list:', error);
       toast({
-        title: 'Restore failed',
-        description: 'Could not republish the badge list. Please try again.',
+        title: intl.formatMessage({ id: 'badgeRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
+        description: intl.formatMessage({
+          id: 'badgeRecovery.restoreFailedDescription',
+          defaultMessage: 'Could not republish the badge list. Please try again.',
+        }),
         variant: 'destructive',
       });
     } finally {
@@ -371,9 +386,14 @@ export function BadgeRecoveryDialog({ open, onOpenChange }: BadgeRecoveryDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-lg font-bold">Badge List Recovery</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            <FormattedMessage id="badgeRecovery.title" defaultMessage="Badge List Recovery" />
+          </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Browse and restore previous versions of your accepted badges.
+            <FormattedMessage
+              id="badgeRecovery.description"
+              defaultMessage="Browse and restore previous versions of your accepted badges."
+            />
           </p>
         </DialogHeader>
 

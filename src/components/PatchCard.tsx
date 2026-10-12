@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { FileText, GitCommit, User, Wand2 } from "lucide-react";
+import { FormattedMessage } from "react-intl";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { NGIT_RELAY } from "@/lib/appRelays";
 import { openUrl } from "@/lib/downloadFile";
@@ -96,14 +97,14 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center gap-2 flex-wrap">
 								<span className="font-semibold text-sm leading-snug line-clamp-2">
-									{subject || "Patch"}
+									{subject || <FormattedMessage id="patchCard.fallbackTitle" defaultMessage="Patch" />}
 								</span>
 								{isRoot && (
 									<Badge
 										variant="outline"
 										className="text-[10px] px-1.5 py-0 font-medium border-orange-500/30 text-orange-600 dark:text-orange-400"
 									>
-										root
+										<FormattedMessage id="patchCard.root" defaultMessage="root" />
 									</Badge>
 								)}
 								{isRevision && (
@@ -111,7 +112,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 										variant="outline"
 										className="text-[10px] px-1.5 py-0 font-medium border-orange-500/30 text-orange-600 dark:text-orange-400"
 									>
-										revision
+										<FormattedMessage id="patchCard.revision" defaultMessage="revision" />
 									</Badge>
 								)}
 							</div>
@@ -138,7 +139,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 								))}
 							{preview && hashtags.length > 6 && (
 								<span className="text-[11px] text-muted-foreground/50">
-									+{hashtags.length - 6} more
+									<FormattedMessage id="patchCard.moreTags" defaultMessage="+{count} more" values={{ count: hashtags.length - 6 }} />
 								</span>
 							)}
 						</div>
@@ -155,7 +156,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 							}}
 						>
 							<Wand2 className="size-3" />
-							Edit with Shakespeare
+							<FormattedMessage id="patchCard.editWithShakespeare" defaultMessage="Edit with Shakespeare" />
 						</button>
 					)}
 
@@ -173,7 +174,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-muted-foreground text-xs">
-								Commit
+								<FormattedMessage id="patchCard.commit" defaultMessage="Commit" />
 							</span>
 							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{commitId.slice(0, 12)}
@@ -184,7 +185,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-muted-foreground text-xs">
-								Parent
+								<FormattedMessage id="patchCard.parent" defaultMessage="Parent" />
 							</span>
 							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{parentCommit.slice(0, 12)}
@@ -195,7 +196,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<User className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-muted-foreground text-xs">
-								Committer
+								<FormattedMessage id="patchCard.committer" defaultMessage="Committer" />
 							</span>
 							<span className="ml-auto text-xs">
 								{committerTag[1]}

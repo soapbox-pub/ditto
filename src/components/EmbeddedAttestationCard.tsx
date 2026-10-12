@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { ShieldCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage } from 'react-intl';
 
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { AttestationStatePill } from '@/components/AttestationContent';
@@ -47,7 +48,7 @@ export function EmbeddedAttestationCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <ShieldCheck className="size-3" aria-hidden="true" />
-        Attestation
+        <FormattedMessage id="embeddedAttestation.label" defaultMessage="Attestation" />
       </div>
 
       {attestation ? (
@@ -63,7 +64,7 @@ export function EmbeddedAttestationCard({
           )}
         </>
       ) : (
-        <p className="text-xs italic text-muted-foreground">Malformed attestation</p>
+        <p className="text-xs italic text-muted-foreground"><FormattedMessage id="embeddedAttestation.malformed" defaultMessage="Malformed attestation" /></p>
       )}
     </EmbeddedCardShell>
   );

@@ -1,6 +1,7 @@
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { useInView } from "@/hooks/useInView";
 import { ClientUsersChart } from "@/components/ClientUsersChart";
 import { NoteCard } from "@/components/NoteCard";
@@ -14,11 +15,12 @@ import { type SortMode, useInfiniteSortedPosts } from "@/hooks/useTrending";
 import { cn } from "@/lib/utils";
 
 export function TrendsPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
 
   useSeoMeta({
-    title: `Trends | ${config.appName}`,
-    description: "Trending hashtags and posts on Nostr",
+    title: intl.formatMessage({ id: "trends.seoTitle", defaultMessage: "Trends | {appName}" }, { appName: config.appName }),
+    description: intl.formatMessage({ id: "trends.seoDescription", defaultMessage: "Trending hashtags and posts on Nostr" }),
   });
 
   const [trendSort, setTrendSort] = useState<SortMode>("hot");
@@ -67,7 +69,7 @@ export function TrendsPage() {
 
   return (
     <main className="">
-      <PageHeader title="Trends" icon={<TrendingUp className="size-5" />} />
+      <PageHeader title={intl.formatMessage({ id: "trends.title", defaultMessage: "Trends" })} icon={<TrendingUp className="size-5" />} />
 
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Unique Users by Client */}
@@ -79,19 +81,19 @@ export function TrendsPage() {
         <div className="flex border-b border-border">
           <SortTabButton
             icon={<Flame className="size-4" />}
-            label="Hot"
+            label={intl.formatMessage({ id: "trends.sort.hot", defaultMessage: "Hot" })}
             active={trendSort === "hot"}
             onClick={() => setTrendSort("hot")}
           />
           <SortTabButton
             icon={<TrendingUp className="size-4" />}
-            label="Rising"
+            label={intl.formatMessage({ id: "trends.sort.rising", defaultMessage: "Rising" })}
             active={trendSort === "rising"}
             onClick={() => setTrendSort("rising")}
           />
           <SortTabButton
             icon={<Swords className="size-4" />}
-            label="Controversial"
+            label={intl.formatMessage({ id: "trends.sort.controversial", defaultMessage: "Controversial" })}
             active={trendSort === "controversial"}
             onClick={() => setTrendSort("controversial")}
           />
@@ -120,7 +122,15 @@ export function TrendsPage() {
             )}
           </div>
         ) : (
-          <EmptyState message={`No ${trendSort} posts right now.`} />
+          <EmptyState
+            message={
+              <FormattedMessage
+                id="trends.empty"
+                defaultMessage="{sort, select, hot {No hot posts right now.} rising {No rising posts right now.} controversial {No controversial posts right now.} other {No posts right now.}}"
+                values={{ sort: trendSort }}
+              />
+            }
+          />
         )}
       </PullToRefresh>
     </main>
@@ -155,7 +165,7 @@ function SortTabButton({
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({ message }: { message: React.ReactNode }) {
   return (
     <div className="py-16 px-8 text-center">
       <p className="text-muted-foreground">{message}</p>

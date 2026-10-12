@@ -1,6 +1,8 @@
 import type { NostrEvent } from "@nostrify/nostrify";
+import type { ReactNode } from "react";
 import { GitCommitHorizontal, GitPullRequestArrow } from "lucide-react";
 import { Link } from "react-router-dom";
+import { FormattedMessage, useIntl } from "react-intl";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvent } from "@/hooks/useEvent";
@@ -24,6 +26,7 @@ interface PrUpdateCardProps {
  * subject.
  */
 export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
+	const intl = useIntl();
 	const prRef = getGitRootRef(event);
 	const repoRef = getGitRepoRef(event);
 	const repoName = repoRef?.identifier ?? "";
@@ -44,7 +47,12 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 
 	const subject = pr ? getGitTicketSubject(pr) : undefined;
 	const titleText =
-		subject ?? (prRef ? `#${prRef.id.slice(0, 8)}` : "a pull request");
+		subject ?? (prRef
+			? `#${prRef.id.slice(0, 8)}`
+			: intl.formatMessage({
+					id: "prUpdateCard.aPullRequest",
+					defaultMessage: "a pull request",
+				}));
 
 	const prNevent = prRef
 		? tryNeventEncode({
@@ -73,22 +81,28 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 							<Skeleton className="h-4 w-3/4" />
 						) : (
 							<span className="text-sm leading-snug">
-								<span className="text-muted-foreground">
-									Pushed an update to
-								</span>{" "}
-								{prNevent ? (
-									<Link
-										to={`/${prNevent}`}
-										className="font-semibold hover:underline break-words"
-										onClick={(e) => e.stopPropagation()}
-									>
-										{titleText}
-									</Link>
-								) : (
-									<span className="font-semibold break-words">
-										{titleText}
-									</span>
-								)}
+								<FormattedMessage
+									id="prUpdateCard.pushedUpdate"
+									defaultMessage="<muted>Pushed an update to</muted> {title}"
+									values={{
+										muted: (chunks: ReactNode[]) => (
+											<span className="text-muted-foreground">{chunks}</span>
+										),
+										title: prNevent ? (
+											<Link
+												to={`/${prNevent}`}
+												className="font-semibold hover:underline break-words"
+												onClick={(e) => e.stopPropagation()}
+											>
+												{titleText}
+											</Link>
+										) : (
+											<span className="font-semibold break-words">
+												{titleText}
+											</span>
+										),
+									}}
+								/>
 							</span>
 						)}
 						{repoName && (
@@ -104,7 +118,7 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 					<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
 						<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 						<span className="text-[11px] text-muted-foreground">
-							New tip
+							<FormattedMessage id="prUpdateCard.newTip" defaultMessage="New tip" />
 						</span>
 						<code className="ml-auto text-[11px] font-mono text-muted-foreground">
 							{commitTip.slice(0, 12)}
@@ -117,7 +131,7 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 					<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
 						<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 						<span className="text-[11px] text-muted-foreground">
-							Merge base
+							<FormattedMessage id="prUpdateCard.mergeBase" defaultMessage="Merge base" />
 						</span>
 						<code className="ml-auto text-[11px] font-mono text-muted-foreground">
 							{mergeBase.slice(0, 12)}

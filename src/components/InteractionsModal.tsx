@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { FormattedMessage, defineMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Quote, Heart, Zap, X, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -62,6 +63,7 @@ interface InteractionsModalProps {
 }
 
 export function InteractionsModal({ target, open, onOpenChange, initialTab = 'reposts' }: InteractionsModalProps) {
+  const intl = useIntl();
   const [activeTab, setActiveTab] = useState<InteractionTab>(initialTab);
   const { data, isLoading } = useEventInteractions(open ? target.id : undefined);
   const { zaps: onchainZaps, isLoading: isLoadingOnchain } = useOnchainZaps(
@@ -90,10 +92,10 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
   const zapCount = unifiedZaps.length;
 
   const tabConfig: { key: InteractionTab; label: string; count: number; icon: React.ReactNode }[] = [
-    { key: 'reposts', label: 'Reposts', count: repostCount, icon: <RepostIcon className="size-4" /> },
-    { key: 'quotes', label: 'Quotes', count: quoteCount, icon: <Quote className="size-4" /> },
-    { key: 'reactions', label: 'Reactions', count: reactionCount, icon: <Heart className="size-4" /> },
-    { key: 'zaps', label: 'Zaps', count: zapCount, icon: <Zap className="size-4" /> },
+    { key: 'reposts', label: intl.formatMessage({ id: 'interactionsModal.tab.reposts', defaultMessage: 'Reposts' }), count: repostCount, icon: <RepostIcon className="size-4" /> },
+    { key: 'quotes', label: intl.formatMessage({ id: 'interactionsModal.tab.quotes', defaultMessage: 'Quotes' }), count: quoteCount, icon: <Quote className="size-4" /> },
+    { key: 'reactions', label: intl.formatMessage({ id: 'interactionsModal.tab.reactions', defaultMessage: 'Reactions' }), count: reactionCount, icon: <Heart className="size-4" /> },
+    { key: 'zaps', label: intl.formatMessage({ id: 'interactionsModal.tab.zaps', defaultMessage: 'Zaps' }), count: zapCount, icon: <Zap className="size-4" /> },
   ];
 
   return (
@@ -101,9 +103,12 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
        <DialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">Post interactions</DialogTitle>
+          <DialogTitle className="text-base font-semibold">
+            <FormattedMessage id="interactionsModal.title" defaultMessage="Post interactions" />
+          </DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
+            aria-label={intl.formatMessage({ id: 'interactionsModal.close', defaultMessage: 'Close' })}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
           >
             <X className="size-5" />
@@ -164,7 +169,7 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
 /* ──── Reposts Tab ──── */
 function RepostsTab({ reposts }: { reposts: RepostEntry[] }) {
   if (reposts.length === 0) {
-    return <EmptyState message="No reposts yet" />;
+    return <EmptyState message={defineMessage({ id: 'interactionsModal.empty.reposts', defaultMessage: 'No reposts yet' })} />;
   }
 
   return (
@@ -179,7 +184,7 @@ function RepostsTab({ reposts }: { reposts: RepostEntry[] }) {
 /* ──── Quotes Tab ──── */
 function QuotesTab({ quotes }: { quotes: QuoteEntry[] }) {
   if (quotes.length === 0) {
-    return <EmptyState message="No quotes yet" />;
+    return <EmptyState message={defineMessage({ id: 'interactionsModal.empty.quotes', defaultMessage: 'No quotes yet' })} />;
   }
 
   return (
@@ -224,7 +229,7 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
   }, [emojiSummary]);
 
   if (reactions.length === 0) {
-    return <EmptyState message="No reactions yet" />;
+    return <EmptyState message={defineMessage({ id: 'interactionsModal.empty.reactions', defaultMessage: 'No reactions yet' })} />;
   }
 
   return (
@@ -287,7 +292,7 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
 function ZapsTab({ zaps }: { zaps: UnifiedZap[] }) {
   const { format: formatMoney } = useFormatMoney();
   if (zaps.length === 0) {
-    return <EmptyState message="No zaps yet" />;
+    return <EmptyState message={defineMessage({ id: 'interactionsModal.empty.zaps', defaultMessage: 'No zaps yet' })} />;
   }
 
   const totalSats = zaps.reduce((sum, z) => sum + z.amountSats, 0);
@@ -298,7 +303,13 @@ function ZapsTab({ zaps }: { zaps: UnifiedZap[] }) {
       <div className="flex items-center justify-center gap-2 px-4 py-3 bg-secondary/30 border-b border-border">
         <Zap className="size-4 text-amber-500 fill-amber-500" />
         <span className="text-sm font-bold text-amber-500">{formatMoney(totalSats)}</span>
-        <span className="text-xs text-muted-foreground">from {zaps.length} zap{zaps.length !== 1 ? 's' : ''}</span>
+        <span className="text-xs text-muted-foreground">
+          <FormattedMessage
+            id="interactionsModal.zapTotal"
+            defaultMessage="from {count, plural, one {# zap} other {# zaps}}"
+            values={{ count: zaps.length }}
+          />
+        </span>
       </div>
 
       <div className="divide-y divide-border">
@@ -313,10 +324,11 @@ function ZapsTab({ zaps }: { zaps: UnifiedZap[] }) {
 /* ──── Shared Row Components ──── */
 
 function RepostRow({ entry }: { entry: RepostEntry }) {
+  const intl = useIntl();
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
   return (
@@ -351,10 +363,11 @@ function RepostRow({ entry }: { entry: RepostEntry }) {
 }
 
 function ReactionRow({ entry }: { entry: ReactionEntry }) {
+  const intl = useIntl();
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
   const customName = isCustomEmoji(entry.emoji) ? entry.emoji.slice(1, -1) : undefined;
 
@@ -402,10 +415,11 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
 
 
 function ZapRow({ zap }: { zap: UnifiedZap }) {
+  const intl = useIntl();
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(
     () => nip19.neventEncode({ id: zap.linkEventId, author: zap.linkPubkey }),
     [zap.linkEventId, zap.linkPubkey],
@@ -481,10 +495,11 @@ function mergeZaps(lightning: ZapEntry[], onchain: OnchainZapEntry[]): UnifiedZa
 }
 
 function QuoteRow({ quote }: { quote: QuoteEntry }) {
+  const intl = useIntl();
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 
   return (
@@ -519,10 +534,10 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
   );
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({ message }: { message: MessageDescriptor }) {
   return (
     <div className="py-12 text-center text-muted-foreground text-sm">
-      {message}
+      <FormattedMessage {...message} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { FileText, Clock } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -54,9 +55,10 @@ interface EmbeddedArticleCardProps {
  * at the bottom. Used for both naddr embeds and nevent quotes of kind 30023.
  */
 export function EmbeddedArticleCard({ event, className, disableHoverCards, hideAuthor, sourceUrl }: EmbeddedArticleCardProps) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const avatarShape = getAvatarShape(metadata);
 
@@ -150,7 +152,7 @@ export function EmbeddedArticleCard({ event, className, disableHoverCards, hideA
           )}
 
           <FileText className="size-3.5 shrink-0" />
-          <span>Article</span>
+          <span><FormattedMessage id="embeddedArticle.label" defaultMessage="Article" /></span>
           {readingTime && (
             <>
               <span aria-hidden="true">·</span>

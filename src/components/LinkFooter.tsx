@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Info, BookOpen, Shield, Code, ScrollText } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 interface LinkFooterProps {
   /** Optional callback fired when an internal (React Router) link is clicked. */
@@ -12,9 +13,11 @@ const iconClass = 'size-3 shrink-0';
 
 /** Shared footer links used in both sidebars. */
 export function LinkFooter({ onNavigate }: LinkFooterProps) {
+  const intl = useIntl();
+
   return (
     <footer className="mt-auto pt-3 pb-3 -mx-1 sidebar:bg-background/85 sidebar:rounded-xl sidebar:p-3">
-      <nav className="flex items-center justify-center gap-0.5 flex-wrap" aria-label="Footer links">
+      <nav className="flex items-center justify-center gap-0.5 flex-wrap" aria-label={intl.formatMessage({ id: 'linkFooter.ariaLabel', defaultMessage: 'Footer links' })}>
         <a
           href="https://about.ditto.pub"
           className={chipClass}
@@ -22,7 +25,7 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
           rel="noopener noreferrer"
         >
           <Info className={iconClass} />
-          About
+          <FormattedMessage id="linkFooter.about" defaultMessage="About" />
         </a>
 
         <a
@@ -32,12 +35,12 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
           rel="noopener noreferrer"
         >
           <BookOpen className={iconClass} />
-          Docs
+          <FormattedMessage id="linkFooter.docs" defaultMessage="Docs" />
         </a>
 
         <Link to="/privacy" className={chipClass} onClick={onNavigate}>
           <Shield className={iconClass} />
-          Privacy
+          <FormattedMessage id="linkFooter.privacy" defaultMessage="Privacy" />
         </Link>
 
         <a
@@ -47,12 +50,12 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
           rel="noopener noreferrer"
         >
           <Code className={iconClass} />
-          Source
+          <FormattedMessage id="linkFooter.source" defaultMessage="Source" />
         </a>
 
         <Link to="/changelog" className={chipClass} onClick={onNavigate}>
           <ScrollText className={iconClass} />
-          Changelog
+          <FormattedMessage id="linkFooter.changelog" defaultMessage="Changelog" />
         </Link>
 
         <a
@@ -62,7 +65,7 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
           rel="noopener noreferrer"
         >
           <span className="text-xs leading-none" aria-hidden>🎭</span>
-          Edit with Shakespeare
+          <FormattedMessage id="linkFooter.editWithShakespeare" defaultMessage="Edit with Shakespeare" />
         </a>
       </nav>
     </footer>

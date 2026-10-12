@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { QRCodeCanvas } from '@/components/ui/qrcode';
@@ -20,6 +21,7 @@ interface GenericPaymentContentProps {
  * custodial handles fall back to their web payment page.
  */
 export function GenericPaymentContent({ method, target }: GenericPaymentContentProps) {
+  const intl = useIntl();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
@@ -39,17 +41,24 @@ export function GenericPaymentContent({ method, target }: GenericPaymentContentP
     try {
       await navigator.clipboard.writeText(target.authority);
       setCopied(true);
-      toast({ title: 'Copied', description: `${method.label} address copied to clipboard` });
+      toast({
+        title: intl.formatMessage({ id: 'genericPayment.copied', defaultMessage: 'Copied' }),
+        description: intl.formatMessage({ id: 'genericPayment.copiedDescription', defaultMessage: '{method} address copied to clipboard' }, { method: method.label }),
+      });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast({ title: 'Copy failed', description: 'Please copy manually.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'genericPayment.copyFailed', defaultMessage: 'Copy failed' }),
+        description: intl.formatMessage({ id: 'genericPayment.copyFailedDescription', defaultMessage: 'Please copy manually.' }),
+        variant: 'destructive',
+      });
     }
   };
 
   return (
     <div className="grid gap-3 px-4 py-4 w-full overflow-hidden">
       <div className="flex justify-center">
-        <div className="bg-white p-3 rounded-xl" aria-label={`${method.label} payment QR code`}>
+        <div className="bg-white p-3 rounded-xl" aria-label={intl.formatMessage({ id: 'genericPayment.qrLabel', defaultMessage: '{method} payment QR code' }, { method: method.label })}>
           <QRCodeCanvas value={qrValue} size={220} level="M" className="block" />
         </div>
       </div>
@@ -59,7 +68,7 @@ export function GenericPaymentContent({ method, target }: GenericPaymentContentP
           type="button"
           onClick={handleCopy}
           title={target.authority}
-          aria-label={`Copy ${method.label} address`}
+          aria-label={intl.formatMessage({ id: 'genericPayment.copyAddress', defaultMessage: 'Copy {method} address' }, { method: method.label })}
           className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-mono text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer max-w-full"
         >
           <span className="truncate">{displayAddress}</span>
@@ -74,7 +83,7 @@ export function GenericPaymentContent({ method, target }: GenericPaymentContentP
       {uri && (
         <Button type="button" onClick={() => openUrl(uri)} className="w-full">
           <ExternalLink className="h-4 w-4 mr-2" />
-          Open in {method.label}
+          <FormattedMessage id="genericPayment.openIn" defaultMessage="Open in {method}" values={{ method: method.label }} />
         </Button>
       )}
     </div>

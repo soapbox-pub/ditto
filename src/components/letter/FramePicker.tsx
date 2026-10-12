@@ -1,6 +1,7 @@
 import { FRAME_PRESETS, type FrameStyle } from '@/lib/letterTypes';
 import { NoneFramePreview, EmojiFramePreview } from './FramePreviews';
 import { Switch } from '@/components/ui/switch';
+import { FormattedMessage } from 'react-intl';
 
 interface FramePickerProps {
   frame: FrameStyle;
@@ -38,7 +39,9 @@ export function FramePicker({ frame, frameTint, onFrameSelect, onFrameTintChange
 
       {hasFrame && (
         <div className="flex items-center justify-between px-1 pt-1">
-          <span className="text-sm text-muted-foreground font-medium">match stationery color</span>
+          <span className="text-sm text-muted-foreground font-medium">
+            <FormattedMessage id="framePicker.matchColor" defaultMessage="match stationery color" />
+          </span>
           <Switch checked={frameTint} onCheckedChange={onFrameTintChange} />
         </div>
       )}

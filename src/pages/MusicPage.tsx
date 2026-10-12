@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Music } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { PageHeader } from '@/components/PageHeader';
@@ -33,13 +34,14 @@ type MusicTab = 'discover' | 'tracks' | 'playlists' | 'artists';
  * content from the curator's kind 30000 `d:music-artists` follow set.
  */
 export function MusicPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<MusicTab>('discover');
 
   useSeoMeta({
-    title: `Music | ${config.appName}`,
-    description: 'Discover music on Nostr',
+    title: intl.formatMessage({ id: 'musicPage.seoTitle', defaultMessage: 'Music | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'musicPage.seoDescription', defaultMessage: 'Discover music on Nostr' }),
   });
 
   useLayoutOptions({ showFAB: false, hasSubHeader: !!user });
@@ -50,16 +52,16 @@ export function MusicPage() {
 
   return (
     <main className="flex-1 min-w-0">
-      <PageHeader title="Music" icon={sidebarItemIcon('music', 'size-5')}>
+      <PageHeader title={intl.formatMessage({ id: 'musicPage.title', defaultMessage: 'Music' })} icon={sidebarItemIcon('music', 'size-5')}>
         <KindInfoButton kindDef={musicDef} icon={<Music className="size-5" />} />
       </PageHeader>
 
       {/* Tabs */}
       <SubHeaderBar>
-        <TabButton label="Discover" active={activeTab === 'discover'} onClick={() => setActiveTab('discover')} />
-        <TabButton label="Tracks" active={activeTab === 'tracks'} onClick={() => setActiveTab('tracks')} />
-        <TabButton label="Playlists" active={activeTab === 'playlists'} onClick={() => setActiveTab('playlists')} />
-        <TabButton label="Artists" active={activeTab === 'artists'} onClick={() => setActiveTab('artists')} />
+        <TabButton label={intl.formatMessage({ id: 'musicPage.tab.discover', defaultMessage: 'Discover' })} active={activeTab === 'discover'} onClick={() => setActiveTab('discover')} />
+        <TabButton label={intl.formatMessage({ id: 'musicPage.tab.tracks', defaultMessage: 'Tracks' })} active={activeTab === 'tracks'} onClick={() => setActiveTab('tracks')} />
+        <TabButton label={intl.formatMessage({ id: 'musicPage.tab.playlists', defaultMessage: 'Playlists' })} active={activeTab === 'playlists'} onClick={() => setActiveTab('playlists')} />
+        <TabButton label={intl.formatMessage({ id: 'musicPage.tab.artists', defaultMessage: 'Artists' })} active={activeTab === 'artists'} onClick={() => setActiveTab('artists')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 

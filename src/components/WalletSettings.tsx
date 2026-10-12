@@ -432,6 +432,7 @@ export function WalletSettings() {
             </DialogTitle>
             <button
               onClick={() => setAddDialogOpen(false)}
+              aria-label={intl.formatMessage({ id: 'settings.wallet.closeDialog', defaultMessage: 'Close' })}
               className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
             >
               <X className="size-5" />

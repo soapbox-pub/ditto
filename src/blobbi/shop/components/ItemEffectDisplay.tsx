@@ -5,6 +5,8 @@
  * This is the single source of truth for how item effects are rendered.
  */
 
+import { defineMessages, FormattedMessage } from 'react-intl';
+
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { ItemEffect } from '@blobbi-kit/core/types/shop';
@@ -26,13 +28,13 @@ const STAT_DISPLAY_ORDER: (keyof ItemEffect)[] = [
 /**
  * Display labels for each stat (for accessibility and consistency).
  */
-const STAT_LABELS: Record<keyof ItemEffect, string> = {
-  hunger: 'hunger',
-  happiness: 'happiness',
-  energy: 'energy',
-  hygiene: 'hygiene',
-  health: 'health',
-};
+const STAT_LABELS = defineMessages({
+  hunger: { id: 'itemEffect.stat.hunger', defaultMessage: 'hunger' },
+  happiness: { id: 'itemEffect.stat.happiness', defaultMessage: 'happiness' },
+  energy: { id: 'itemEffect.stat.energy', defaultMessage: 'energy' },
+  hygiene: { id: 'itemEffect.stat.hygiene', defaultMessage: 'hygiene' },
+  health: { id: 'itemEffect.stat.health', defaultMessage: 'health' },
+}) satisfies Record<keyof ItemEffect, unknown>;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,7 +97,7 @@ export function ItemEffectDisplay({
   if (entries.length === 0) {
     return (
       <span className={cn('text-muted-foreground', size === 'sm' ? 'text-xs' : 'text-sm', className)}>
-        No effects
+        <FormattedMessage id="itemEffect.none" defaultMessage="No effects" />
       </span>
     );
   }
@@ -119,7 +121,7 @@ export function ItemEffectDisplay({
               {formatStatValue(value)}
             </span>
             {' '}
-            {STAT_LABELS[stat]}
+            <FormattedMessage {...STAT_LABELS[stat]} />
             {index < displayEntries.length - 1 && ', '}
           </span>
         ))}
@@ -143,12 +145,16 @@ export function ItemEffectDisplay({
                 : 'bg-red-500/20 text-red-700 dark:text-red-300'
             )}
           >
-            {formatStatValue(value)} {STAT_LABELS[stat]}
+            {formatStatValue(value)} <FormattedMessage {...STAT_LABELS[stat]} />
           </Badge>
         ))}
         {hasMore && (
           <span className={cn('text-muted-foreground self-center', size === 'sm' ? 'text-xs' : 'text-sm')}>
-            +{entries.length - displayEntries.length} more
+            <FormattedMessage
+              id="itemEffect.more"
+              defaultMessage="+{count} more"
+              values={{ count: entries.length - displayEntries.length }}
+            />
           </span>
         )}
       </div>
@@ -173,7 +179,7 @@ export function ItemEffectDisplay({
               {formatStatValue(value)}
             </Badge>
             <span className={cn('capitalize', size === 'sm' ? 'text-xs' : 'text-sm')}>
-              {STAT_LABELS[stat]}
+              <FormattedMessage {...STAT_LABELS[stat]} />
             </span>
           </div>
         ))}

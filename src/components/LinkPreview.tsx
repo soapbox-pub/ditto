@@ -1,5 +1,6 @@
 import { ExternalLink, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useMediaGate } from '@/components/MediaGate';
@@ -103,7 +104,7 @@ export function LinkPreview({ url, className, hideImage, navigateToComments, sho
               onClick={(e) => e.stopPropagation()}
             >
               <ExternalLink className="size-3" />
-              <span>Open</span>
+              <span><FormattedMessage id="linkPreview.open" defaultMessage="Open" /></span>
             </a>
           ) : (
             /* Discuss — card opens externally, so offer navigation to /i/ */
@@ -121,7 +122,7 @@ export function LinkPreview({ url, className, hideImage, navigateToComments, sho
               }}
             >
               <MessageSquare className="size-3" />
-              <span>Discuss</span>
+              <span><FormattedMessage id="linkPreview.discuss" defaultMessage="Discuss" /></span>
             </button>
           ))}
         </div>

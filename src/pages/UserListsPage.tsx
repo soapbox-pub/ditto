@@ -11,7 +11,7 @@ import {
   Info, Plus, Trash2, Scroll, Users, Pencil,
   Check, X, Pin, Loader2,
 } from 'lucide-react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -42,10 +42,11 @@ import type { UserList } from '@/hooks/useUserLists';
 // ─── Mini Avatar ──────────────────────────────────────────────────────────────
 
 function MiniAvatar({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   return (
     <Avatar shape={avatarShape} className="size-7 border-2 border-background shrink-0">
       <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
@@ -76,8 +77,8 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
     renameList.mutate(
       { listId: list.id, title: renameValue },
       {
-        onSuccess: () => { toast({ title: 'List renamed' }); setEditing(false); },
-        onError: () => { toast({ title: 'Failed to rename', variant: 'destructive' }); setEditing(false); },
+        onSuccess: () => { toast({ title: intl.formatMessage({ id: 'userLists.renamed', defaultMessage: 'List renamed' }) }); setEditing(false); },
+        onError: () => { toast({ title: intl.formatMessage({ id: 'userLists.renameFailed', defaultMessage: 'Failed to rename' }), variant: 'destructive' }); setEditing(false); },
       },
     );
   };
@@ -130,7 +131,11 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
             <div>
               <span className="text-sm font-medium truncate block">{list.title}</span>
               <span className="text-xs text-muted-foreground">
-                {list.pubkeys.length} {list.pubkeys.length === 1 ? 'person' : 'people'}
+                <FormattedMessage
+                  id="userLists.peopleCount"
+                  defaultMessage="{count, plural, one {# person} other {# people}}"
+                  values={{ count: list.pubkeys.length }}
+                />
               </span>
             </div>
           )}
@@ -172,7 +177,7 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
               variant="ghost"
               className="size-7 text-muted-foreground hover:text-foreground"
               onClick={() => { setEditing(true); setRenameValue(list.title); }}
-              title="Rename"
+              title={intl.formatMessage({ id: 'userLists.rename', defaultMessage: 'Rename' })}
             >
               <Pencil className="size-3.5" />
             </Button>
@@ -181,7 +186,7 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
               variant="ghost"
               className="size-7 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(list)}
-              title="Delete"
+              title={intl.formatMessage({ id: 'userLists.delete', defaultMessage: 'Delete' })}
             >
               <Trash2 className="size-3.5" />
             </Button>
@@ -196,14 +201,15 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function UserListsPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { lists, isLoading, createList, deleteList } = useUserLists();
   const { savedFeeds, removeSavedFeed } = useSavedFeeds();
 
   useSeoMeta({
-    title: `Lists | Settings | ${config.appName}`,
-    description: 'Manage your lists on Nostr.',
+    title: intl.formatMessage({ id: 'userLists.seoTitle', defaultMessage: 'Lists | Settings | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'userLists.seoDescription', defaultMessage: 'Manage your lists on Nostr.' }),
   });
 
   const [newListName, setNewListName] = useState('');
@@ -217,11 +223,11 @@ export function UserListsPage() {
       { title: newListName.trim() },
       {
         onSuccess: () => {
-          toast({ title: `List "${newListName.trim()}" created` });
+          toast({ title: intl.formatMessage({ id: 'userLists.created', defaultMessage: 'List "{name}" created' }, { name: newListName.trim() }) });
           setNewListName('');
         },
         onError: () => {
-          toast({ title: 'Failed to create list', variant: 'destructive' });
+          toast({ title: intl.formatMessage({ id: 'userLists.createFailed', defaultMessage: 'Failed to create list' }), variant: 'destructive' });
         },
       },
     );
@@ -233,7 +239,7 @@ export function UserListsPage() {
       { listId: deleteTarget.id },
       {
         onSuccess: () => {
-          toast({ title: `List "${deleteTarget.title}" deleted` });
+          toast({ title: intl.formatMessage({ id: 'userLists.deleted', defaultMessage: 'List "{name}" deleted' }, { name: deleteTarget.title }) });
           // Drop its home feed tab too, or it lingers as an empty tab.
           const pointer = `a:30000:${user.pubkey}:${deleteTarget.id}`;
           const pinned = savedFeeds.find((f) => f.vars.some((v) => v.pointer === pointer));
@@ -241,7 +247,7 @@ export function UserListsPage() {
           setDeleteTarget(null);
         },
         onError: () => {
-          toast({ title: 'Failed to delete list', variant: 'destructive' });
+          toast({ title: intl.formatMessage({ id: 'userLists.deleteFailed', defaultMessage: 'Failed to delete list' }), variant: 'destructive' });
           setDeleteTarget(null);
         },
       },
@@ -251,7 +257,7 @@ export function UserListsPage() {
   return (
     <main>
       {/* Header */}
-      <PageHeader title="Lists" icon={<Scroll className="size-5" />}>
+      <PageHeader title={intl.formatMessage({ id: 'userLists.title', defaultMessage: 'Lists' })} icon={<Scroll className="size-5" />}>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground hover:text-foreground">
@@ -263,9 +269,14 @@ export function UserListsPage() {
               <div className="text-primary [&>svg]:size-10">
                 <Scroll className="size-10" />
               </div>
-              <DialogTitle className="text-lg">Lists</DialogTitle>
+              <DialogTitle className="text-lg">
+                <FormattedMessage id="userLists.title" defaultMessage="Lists" />
+              </DialogTitle>
               <DialogDescription className="text-sm leading-relaxed">
-                Organize people into lists. Lists are stored on Nostr so they follow you across clients.
+                <FormattedMessage
+                  id="userLists.info"
+                  defaultMessage="Organize people into lists. Lists are stored on Nostr so they follow you across clients."
+                />
               </DialogDescription>
             </div>
           </DialogContent>
@@ -277,9 +288,14 @@ export function UserListsPage() {
         <div className="flex items-center gap-4 px-3 pt-2 pb-4">
           <IntroImage src="/lists-intro.png" />
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold">Lists</h2>
+            <h2 className="text-sm font-semibold">
+              <FormattedMessage id="userLists.title" defaultMessage="Lists" />
+            </h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Group people into named lists. Use any list as the source for a custom feed, or filter searches by list members.
+              <FormattedMessage
+                id="userLists.intro"
+                defaultMessage="Group people into named lists. Use any list as the source for a custom feed, or filter searches by list members."
+              />
             </p>
           </div>
         </div>
@@ -287,7 +303,7 @@ export function UserListsPage() {
         {/* Create new list */}
         <div className="flex gap-2 mb-4">
           <Input
-            placeholder="New list name…"
+            placeholder={intl.formatMessage({ id: 'userLists.newPlaceholder', defaultMessage: 'New list name…' })}
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
@@ -299,7 +315,7 @@ export function UserListsPage() {
             className="shrink-0 gap-1.5"
           >
             <Plus className="size-4" />
-            Create
+            <FormattedMessage id="userLists.create" defaultMessage="Create" />
           </Button>
         </div>
 
@@ -307,7 +323,7 @@ export function UserListsPage() {
         <div>
           <div className="relative px-3 py-3.5">
             <h2 className="text-base font-semibold">
-              Your Lists
+              <FormattedMessage id="userLists.yourLists" defaultMessage="Your Lists" />
               {!isLoading && lists.length > 0 && (
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   {lists.length}
@@ -334,7 +350,10 @@ export function UserListsPage() {
               </div>
             ) : lists.length === 0 ? (
               <p className="px-3 py-4 text-sm text-muted-foreground">
-                No lists yet. Create one above, or add users from the&nbsp;… menu on notes and profiles.
+                <FormattedMessage
+                  id="userLists.empty"
+                  defaultMessage="No lists yet. Create one above, or add users from the … menu on notes and profiles."
+                />
               </p>
             ) : (
               <div className="space-y-0.5 px-1">
@@ -347,7 +366,7 @@ export function UserListsPage() {
         </div>
 
         <p className="text-xs text-muted-foreground px-3 pt-4 leading-relaxed">
-          Lists are stored on Nostr (NIP-51) and sync across clients.
+          <FormattedMessage id="userLists.footer" defaultMessage="Lists are stored on Nostr (NIP-51) and sync across clients." />
         </p>
       </div>
 
@@ -355,18 +374,26 @@ export function UserListsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete list?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <FormattedMessage id="userLists.deleteTitle" defaultMessage="Delete list?" />
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete "{deleteTarget?.title}" and its {deleteTarget?.pubkeys.length ?? 0} members. This action cannot be undone.
+              <FormattedMessage
+                id="userLists.deleteDescription"
+                defaultMessage='This will delete "{name}" and its {count, plural, one {# member} other {# members}}. This action cannot be undone.'
+                values={{ name: deleteTarget?.title, count: deleteTarget?.pubkeys.length ?? 0 }}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              <FormattedMessage id="userLists.delete" defaultMessage="Delete" />
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

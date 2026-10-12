@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import { ArrowLeft, Play, Pause, Music, ListMusic, Disc3, Zap, Clock, Calendar, Tag, Loader2 } from 'lucide-react';
@@ -56,6 +57,7 @@ export function MusicDetailContent({ event }: { event: NostrEvent }) {
 // ── Track detail ──────────────────────────────────────────────────────────────
 
 function TrackDetail({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const goBack = useGoBack();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
@@ -109,7 +111,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
         <button onClick={goBack} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">Track Details</h1>
+        <h1 className="text-xl font-bold truncate"><FormattedMessage id="musicDetail.trackDetails" defaultMessage="Track Details" /></h1>
       </div>
 
       {/* Hero: artwork + info side by side */}
@@ -135,7 +137,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
         {/* Info */}
         <div className="flex-1 min-w-0 space-y-2 pt-1">
-          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? <FormattedMessage id="musicDetail.untitled" defaultMessage="Untitled" />}</h2>
           {parsed?.artist && <p className="text-base text-muted-foreground">{parsed.artist}</p>}
           {!parsed?.artist && (
             <Link to={profileUrl} className="flex items-center gap-2 group" onClick={(e) => e.stopPropagation()}>
@@ -173,7 +175,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-primary/15 text-primary hover:bg-primary/25',
               )}
-              aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
+              aria-label={isNowPlaying && player.isPlaying ? intl.formatMessage({ id: 'musicDetail.pause', defaultMessage: 'Pause' }) : intl.formatMessage({ id: 'musicDetail.play', defaultMessage: 'Play' })}
             >
               {loadState.status === 'decrypting'
                 ? <Loader2 className="size-5 animate-spin" />
@@ -197,7 +199,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
                     'size-11 rounded-full flex items-center justify-center transition-colors',
                     isReposted ? 'text-accent hover:bg-accent/10' : 'bg-secondary/50 text-muted-foreground hover:bg-secondary',
                   )}
-                  title="Repost"
+                  title={intl.formatMessage({ id: 'musicDetail.repost', defaultMessage: 'Repost' })}
                 >
                   <RepostIcon className="size-5" />
                 </button>
@@ -208,7 +210,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
               <ZapDialog target={event}>
                 <button
                   className="size-11 rounded-full bg-secondary/50 text-muted-foreground hover:bg-secondary flex items-center justify-center transition-colors"
-                  title="Zap"
+                  title={intl.formatMessage({ id: 'musicDetail.zap', defaultMessage: 'Zap' })}
                 >
                   <Zap className="size-5" />
                 </button>
@@ -219,7 +221,11 @@ function TrackDetail({ event }: { event: NostrEvent }) {
             {zapAmount > 0 && (
               <button onClick={() => setInteractionsTab('zaps')} className="ml-1 text-right hover:opacity-80">
                 <p className="text-lg font-bold leading-tight">{formatMoney(zapAmount)}</p>
-                <p className="text-xs text-muted-foreground">{formatNumber(stats.data?.zapCount ?? 0)} zap{(stats.data?.zapCount ?? 0) !== 1 ? 's' : ''}</p>
+                <p className="text-xs text-muted-foreground"><FormattedMessage
+                    id="musicDetail.zapCount"
+                    defaultMessage="{count, plural, one {{formatted} zap} other {{formatted} zaps}}"
+                    values={{ count: stats.data?.zapCount ?? 0, formatted: formatNumber(stats.data?.zapCount ?? 0) }}
+                  /></p>
               </button>
             )}
           </div>
@@ -253,19 +259,19 @@ function TrackDetail({ event }: { event: NostrEvent }) {
           onClick={() => setInteractionsTab('zaps')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Top Zappers
+          <FormattedMessage id="musicDetail.topZappers" defaultMessage="Top Zappers" />
         </button>
         <button
           onClick={() => setReplyOpen(true)}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Comments <span className="text-xs ml-1 opacity-70">{formatNumber(comments.length || 0)}</span>
+          <FormattedMessage id="musicDetail.comments" defaultMessage="Comments" /> <span className="text-xs ml-1 opacity-70">{formatNumber(comments.length || 0)}</span>
         </button>
         <button
           onClick={() => setInteractionsTab('reactions')}
           className="flex-1 py-3 text-center text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         >
-          Reactions <span className="text-xs ml-1 opacity-70">{formatNumber(stats.data?.reactions || 0)}</span>
+          <FormattedMessage id="musicDetail.reactions" defaultMessage="Reactions" /> <span className="text-xs ml-1 opacity-70">{formatNumber(stats.data?.reactions || 0)}</span>
         </button>
       </div>
 
@@ -280,7 +286,7 @@ function TrackDetail({ event }: { event: NostrEvent }) {
 
       {comments.length === 0 && !commentsLoading && (
         <div className="py-10 text-center text-sm text-muted-foreground">
-          No comments yet
+          <FormattedMessage id="musicDetail.noComments" defaultMessage="No comments yet" />
         </div>
       )}
 
@@ -333,7 +339,7 @@ function PlaylistDescription({ text }: { text: string }) {
           onClick={() => setExpanded((v) => !v)}
           className="text-xs text-primary font-medium mt-1 hover:underline"
         >
-          {expanded ? 'Show less' : 'Show more'}
+          {expanded ? <FormattedMessage id="musicDetail.showLess" defaultMessage="Show less" /> : <FormattedMessage id="musicDetail.showMore" defaultMessage="Show more" />}
         </button>
       )}
     </div>
@@ -379,7 +385,6 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
 
   const trackCount = parsed?.trackRefs.length ?? 0;
   const isAlbum = parsed?.isAlbum ?? false;
-  const typeLabel = isAlbum ? 'Album' : 'Playlist';
   const FallbackIcon = isAlbum ? Disc3 : ListMusic;
 
   // Check if the player is currently playing this playlist
@@ -411,7 +416,9 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
         <button onClick={goBack} className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold truncate">{typeLabel} Details</h1>
+        <h1 className="text-xl font-bold truncate">
+          {isAlbum ? <FormattedMessage id="musicDetail.albumDetails" defaultMessage="Album Details" /> : <FormattedMessage id="musicDetail.playlistDetails" defaultMessage="Playlist Details" />}
+        </h1>
       </div>
 
       {/* Hero */}
@@ -436,12 +443,12 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
 
         <div className="flex-1 min-w-0 space-y-2 pt-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? 'Untitled'}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold leading-tight">{parsed?.title ?? <FormattedMessage id="musicDetail.untitled" defaultMessage="Untitled" />}</h2>
           </div>
 
           {isAlbum && (
             <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary w-fit">
-              <Disc3 className="size-3" />Album
+              <Disc3 className="size-3" /><FormattedMessage id="musicDetail.album" defaultMessage="Album" />
             </span>
           )}
 
@@ -456,7 +463,12 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             {trackCount > 0 && (
               <span className="flex items-center gap-1">
-                <ListMusic className="size-3" />{trackCount} track{trackCount !== 1 ? 's' : ''}
+                <ListMusic className="size-3" />
+                <FormattedMessage
+                  id="musicDetail.trackCount"
+                  defaultMessage="{count, plural, one {# track} other {# tracks}}"
+                  values={{ count: trackCount }}
+                />
               </span>
             )}
             {parsed?.released && (
@@ -483,8 +495,8 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
               )}
             >
               {isPlayingThisPlaylist && player.isPlaying
-                ? <><Pause className="size-4" fill="currentColor" />Pause</>
-                : <><Play className="size-4 ml-0.5" fill="currentColor" />Play All</>}
+                ? <><Pause className="size-4" fill="currentColor" /><FormattedMessage id="musicDetail.pause" defaultMessage="Pause" /></>
+                : <><Play className="size-4 ml-0.5" fill="currentColor" /><FormattedMessage id="musicDetail.playAll" defaultMessage="Play All" /></>}
             </button>
           )}
         </div>
@@ -502,7 +514,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
       {(trackCount > 0) && (
         <div className="mt-6">
           <div className="px-4 mb-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tracks</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide"><FormattedMessage id="musicDetail.tracks" defaultMessage="Tracks" /></h3>
           </div>
 
           {tracksLoading ? (
@@ -524,7 +536,7 @@ function PlaylistDetail({ event }: { event: NostrEvent }) {
             </div>
           ) : (
             <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-              No tracks could be loaded.
+              <FormattedMessage id="musicDetail.noTracks" defaultMessage="No tracks could be loaded." />
             </p>
           )}
         </div>
@@ -546,6 +558,7 @@ function PlaylistTrackRow({
   index: number;
   onPlayFromIndex: (index: number) => void;
 }) {
+  const intl = useIntl();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const [imgError, setImgError] = useState(false);
@@ -586,7 +599,7 @@ function PlaylistTrackRow({
         onClick={handlePlay}
         disabled={loadState.status === 'decrypting'}
         className="size-8 flex items-center justify-center shrink-0 disabled:cursor-progress"
-        aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
+        aria-label={isNowPlaying && player.isPlaying ? intl.formatMessage({ id: 'musicDetail.pause', defaultMessage: 'Pause' }) : intl.formatMessage({ id: 'musicDetail.play', defaultMessage: 'Play' })}
       >
         {loadState.status === 'decrypting' ? (
           <Loader2 className="size-4 text-primary animate-spin" />

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Markdown from 'react-markdown';
+import { FormattedMessage, useIntl } from 'react-intl';
 import rehypeSanitize from 'rehype-sanitize';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { ExternalLink, MapPin, Tag } from 'lucide-react';
@@ -46,6 +47,7 @@ export function ClassifiedListingContent({ event, expanded, className }: Classif
 
 function ListingDetail({ listing, className }: { listing: ParsedClassifiedListing; className?: string }) {
   const { event, title, summary, images, price, status, location, sourceUrl, hashtags } = listing;
+  const intl = useIntl();
   const components = useMemo(() => buildMarkdownComponents(event), [event]);
 
   // Description minus the lines that just repeat the title / summary / price
@@ -76,12 +78,12 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
               />
               {isSold && (
                 <span className="absolute left-4 top-4 rounded-full bg-foreground/90 px-3 py-1 text-xs font-bold uppercase tracking-widest text-background">
-                  Sold
+                  <FormattedMessage id="classifiedListing.sold" defaultMessage="Sold" />
                 </span>
               )}
             </div>
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1" role="listbox" aria-label="Listing photos">
+              <div className="flex gap-2 overflow-x-auto pb-1" role="listbox" aria-label={intl.formatMessage({ id: 'classifiedListing.photos', defaultMessage: 'Listing photos' })}>
                 {images.map((url) => {
                   const active = url === mainImage;
                   return (
@@ -120,7 +122,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
             )}
             {isSold && (
               <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-secondary-foreground">
-                Sold
+                <FormattedMessage id="classifiedListing.sold" defaultMessage="Sold" />
               </span>
             )}
           </div>
@@ -149,7 +151,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
                 openUrl(sourceUrl);
               }}
             >
-              View on {host}
+              <FormattedMessage id="classifiedListing.viewOn" defaultMessage="View on {host}" values={{ host }} />
               <ExternalLink className="ml-2 size-4" aria-hidden="true" />
             </Button>
           )}
@@ -160,7 +162,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
       {description && (
         <div className="mt-7 border-t border-border pt-5">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Description
+            <FormattedMessage id="classifiedListing.description" defaultMessage="Description" />
           </h2>
           <div
             dir="auto"
@@ -242,7 +244,9 @@ function ListingFeedCard({ listing, className }: { listing: ParsedClassifiedList
             <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 sm:size-6">
               <Tag className="size-3 text-primary sm:size-3.5" />
             </span>
-            {isSold ? 'Sold' : 'For Sale'}
+            {isSold
+              ? <FormattedMessage id="classifiedListing.sold" defaultMessage="Sold" />
+              : <FormattedMessage id="classifiedListing.forSale" defaultMessage="For Sale" />}
           </div>
 
           {/* Price — the big number */}

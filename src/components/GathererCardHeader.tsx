@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { LinkEmbed } from '@/components/LinkEmbed';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -125,7 +126,7 @@ function CardDisplay({ card, url }: { card: ScryfallCard; url: string }) {
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <CardsIcon className="size-3.5" />
-          <span>View on Gatherer</span>
+          <span><FormattedMessage id="gathererCard.viewOnGatherer" defaultMessage="View on Gatherer" /></span>
           <ExternalLink className="size-3" />
         </a>
         <a
@@ -134,7 +135,7 @@ function CardDisplay({ card, url }: { card: ScryfallCard; url: string }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <span>View on Scryfall</span>
+          <span><FormattedMessage id="gathererCard.viewOnScryfall" defaultMessage="View on Scryfall" /></span>
           <ExternalLink className="size-3" />
         </a>
       </div>
@@ -169,6 +170,7 @@ function CardImageTilt({
   name: string;
   onClick: () => void;
 }) {
+  const intl = useIntl();
   const tilt = useCardTilt(18, 1.04);
   const glareRef = useRef<HTMLDivElement>(null);
   const glareFadeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -255,7 +257,7 @@ function CardImageTilt({
       <button
         type="button"
         onClick={onClick}
-        aria-label={`View ${name} full size`}
+        aria-label={intl.formatMessage({ id: 'gathererCard.viewFullSize', defaultMessage: 'View {name} full size' }, { name })}
         className={cn(
           'block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           CARD_CORNER_RADIUS,

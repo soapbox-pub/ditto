@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import { Award, Bookmark, CalendarClock, ClipboardList, HandHeart, MessageSquareOff, Music, Radio, SmilePlus, Users, Video } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -378,10 +379,11 @@ const EMBED_BADGE_LIMIT = 6;
 export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEvent; className?: string }) {
   const { nostr } = useNostr();
   const navigate = useNavigate();
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const badgeRefs = useMemo(() => parseProfileBadges(event), [event]);
@@ -506,7 +508,11 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
         {/* Kind label */}
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <Award className="size-3 shrink-0" />
-          {badgeRefs.length} badge{badgeRefs.length !== 1 ? 's' : ''}
+          <FormattedMessage
+            id="embeddedNaddr.badgeCount"
+            defaultMessage="{count, plural, one {# badge} other {# badges}}"
+            values={{ count: badgeRefs.length }}
+          />
         </p>
       </div>
     </div>
@@ -666,7 +672,7 @@ function EmbeddedCampaignCard({
       </div>
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
         <HandHeart className="size-3" />
-        Fundraiser
+        <FormattedMessage id="embeddedNaddr.fundraiser" defaultMessage="Fundraiser" />
       </div>
       <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
         {campaign.title}
@@ -717,7 +723,7 @@ function EmbeddedQuizCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
         <ClipboardList className="size-3" />
-        Quiz
+        <FormattedMessage id="embeddedNaddr.quiz" defaultMessage="Quiz" />
       </div>
       <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
         {quiz.title}
@@ -728,7 +734,11 @@ function EmbeddedQuizCard({
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+        <FormattedMessage
+          id="embeddedNaddr.questionCount"
+          defaultMessage="{count, plural, one {# question} other {# questions}}"
+          values={{ count: questionCount }}
+        />
       </p>
     </EmbeddedCardShell>
   );
@@ -750,11 +760,14 @@ function EmbeddedRoomCard({
   className?: string;
   disableHoverCards?: boolean;
 }) {
+  const intl = useIntl();
   const isSpace = event.kind === 30312;
   const Icon = isSpace ? Video : CalendarClock;
 
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const title = getTag('title') || getTag('room') || (isSpace ? 'Untitled Room' : 'Untitled Meeting');
+  const title = getTag('title') || getTag('room') || (isSpace
+    ? intl.formatMessage({ id: 'embeddedNaddr.untitledRoom', defaultMessage: 'Untitled Room' })
+    : intl.formatMessage({ id: 'embeddedNaddr.untitledMeeting', defaultMessage: 'Untitled Meeting' }));
   const summary = getTag('summary');
   const status = getTag('status');
 
@@ -773,7 +786,9 @@ function EmbeddedRoomCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
         <Icon className="size-3" />
-        {isSpace ? 'Room' : 'Meeting'}
+        {isSpace
+          ? <FormattedMessage id="embeddedNaddr.room" defaultMessage="Room" />
+          : <FormattedMessage id="embeddedNaddr.meeting" defaultMessage="Meeting" />}
         {status && (
           <span className="ml-1 rounded-full bg-secondary/60 px-2 py-0.5 text-[10px] text-muted-foreground normal-case tracking-normal">
             {status}
@@ -811,8 +826,9 @@ function EmbeddedStreamCard({
   className?: string;
   disableHoverCards?: boolean;
 }) {
+  const intl = useIntl();
   const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const title = getTag('title') || 'Untitled Stream';
+  const title = getTag('title') || intl.formatMessage({ id: 'embeddedNaddr.untitledStream', defaultMessage: 'Untitled Stream' });
   const summary = getTag('summary');
   const imageUrl = sanitizeUrl(getTag('image'));
   const currentParticipants = getTag('current_participants');
@@ -912,7 +928,11 @@ function EmbeddedStatusCard({
   }, [event]);
 
   const Icon = isMusic ? Music : SmilePlus;
-  const label = isMusic ? 'Listening to' : dTag === 'general' ? 'Status' : `${dTag} status`;
+  const label = isMusic
+    ? <FormattedMessage id="embeddedNaddr.listeningTo" defaultMessage="Listening to" />
+    : dTag === 'general'
+      ? <FormattedMessage id="embeddedNaddr.status" defaultMessage="Status" />
+      : <FormattedMessage id="embeddedNaddr.typedStatus" defaultMessage="{type} status" values={{ type: dTag }} />;
   const cleared = !text || isExpired;
 
   return (
@@ -929,7 +949,9 @@ function EmbeddedStatusCard({
       </div>
       {cleared ? (
         <p className="text-xs italic text-muted-foreground">
-          {isExpired ? 'This status has expired' : 'No status set'}
+          {isExpired
+            ? <FormattedMessage id="embeddedNaddr.statusExpired" defaultMessage="This status has expired" />
+            : <FormattedMessage id="embeddedNaddr.noStatus" defaultMessage="No status set" />}
         </p>
       ) : (
         <p dir="auto" className="text-sm font-medium leading-snug break-words line-clamp-3 text-foreground">
@@ -989,7 +1011,7 @@ function EmbeddedWebBookmarkCard({
       )}
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
         <Bookmark className="size-3" />
-        Bookmark
+        <FormattedMessage id="embeddedNaddr.bookmark" defaultMessage="Bookmark" />
       </div>
       {title && (
         <p dir="auto" className="text-sm font-semibold leading-snug line-clamp-2 break-words">
@@ -1044,7 +1066,7 @@ function EmbeddedNaddrTombstone({ addr, className }: { addr: AddrCoords; classNa
     >
       <div className="px-3.5 py-4 flex items-center gap-2 text-muted-foreground">
         <MessageSquareOff className="size-4 shrink-0" />
-        <span className="text-sm">This post could not be loaded</span>
+        <span className="text-sm"><FormattedMessage id="embedded.couldNotLoad" defaultMessage="This post could not be loaded" /></span>
       </div>
     </div>
   );

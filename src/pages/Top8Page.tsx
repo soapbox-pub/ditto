@@ -149,9 +149,11 @@ export function Top8Page() {
   const { toast } = useToast();
   const { top8, isLoading, setTop8 } = useTop8();
 
+  const pageTitle = intl.formatMessage({ id: 'top8.card.title', defaultMessage: 'Top 8' });
+
   useSeoMeta({
-    title: `Top 8 | ${config.appName}`,
-    description: 'Curate your eight favorite people on Nostr.',
+    title: `${pageTitle} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'top8.metaDescription', defaultMessage: 'Curate your eight favorite people on Nostr.' }),
   });
 
   // Staged ordering. `null` means "no local edits yet" — read straight through
@@ -245,7 +247,7 @@ export function Top8Page() {
   if (!user) {
     return (
       <main>
-        <PageHeader title="Top 8" icon={<Crown className="size-5" />} />
+        <PageHeader title={pageTitle} icon={<Crown className="size-5" />} />
         <div className="py-20 px-8 flex flex-col items-center gap-6 text-center">
           <div className="p-4 rounded-full bg-primary/10">
             <Crown className="size-8 text-primary" />
@@ -269,7 +271,7 @@ export function Top8Page() {
 
   return (
     <main>
-      <PageHeader title="Top 8" icon={<Crown className="size-5" />}>
+      <PageHeader title={pageTitle} icon={<Crown className="size-5" />}>
         {isDirty && (
           <Button size="sm" className="rounded-full shrink-0" onClick={handleSave} disabled={setTop8.isPending}>
             {setTop8.isPending && <Loader2 className="size-4 mr-1.5 animate-spin" />}

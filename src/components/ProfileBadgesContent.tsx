@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Award } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -129,7 +130,11 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
         </div>
       ) : badgeRefs.length > 0 ? (
         <div className="rounded-xl border border-border bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
-          {badgeRefs.length} badge{badgeRefs.length !== 1 ? 's' : ''} referenced but definitions could not be loaded.
+          <FormattedMessage
+            id="profileBadges.definitionsFailed"
+            defaultMessage="{count, plural, one {# badge} other {# badges}} referenced but definitions could not be loaded."
+            values={{ count: badgeRefs.length }}
+          />
         </div>
       ) : null}
     </div>

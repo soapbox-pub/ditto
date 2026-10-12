@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { impactLight } from '@/lib/haptics';
 import type { WebxdcHandle } from '@/components/Webxdc';
@@ -43,6 +44,7 @@ function haptic() {
  * events into the webxdc iframe via `webxdc.keyboard` postMessage.
  */
 export function GameControls({ webxdcHandle, className }: GameControlsProps) {
+  const intl = useIntl();
   const activeKeys = useRef(new Set<string>());
 
   const sendKey = useCallback(
@@ -104,7 +106,7 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
           {/* Up */}
           <button
             className="absolute top-0 left-1/2 -translate-x-1/2 w-11 h-11 flex items-center justify-center rounded-lg active:bg-primary/20 transition-colors z-10"
-            aria-label="D-pad up"
+            aria-label={intl.formatMessage({ id: 'gameControls.up', defaultMessage: 'D-pad up' })}
             {...handlers('up')}
           >
             <svg width="16" height="10" viewBox="0 0 16 10" className="text-foreground/70">
@@ -114,7 +116,7 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
           {/* Down */}
           <button
             className="absolute bottom-0 left-1/2 -translate-x-1/2 w-11 h-11 flex items-center justify-center rounded-lg active:bg-primary/20 transition-colors z-10"
-            aria-label="D-pad down"
+            aria-label={intl.formatMessage({ id: 'gameControls.down', defaultMessage: 'D-pad down' })}
             {...handlers('down')}
           >
             <svg width="16" height="10" viewBox="0 0 16 10" className="text-foreground/70">
@@ -124,7 +126,7 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
           {/* Left */}
           <button
             className="absolute left-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-lg active:bg-primary/20 transition-colors z-10"
-            aria-label="D-pad left"
+            aria-label={intl.formatMessage({ id: 'gameControls.left', defaultMessage: 'D-pad left' })}
             {...handlers('left')}
           >
             <svg width="10" height="16" viewBox="0 0 10 16" className="text-foreground/70">
@@ -134,7 +136,7 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
           {/* Right */}
           <button
             className="absolute right-0 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-lg active:bg-primary/20 transition-colors z-10"
-            aria-label="D-pad right"
+            aria-label={intl.formatMessage({ id: 'gameControls.right', defaultMessage: 'D-pad right' })}
             {...handlers('right')}
           >
             <svg width="10" height="16" viewBox="0 0 10 16" className="text-foreground/70">
@@ -147,14 +149,14 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
         <div className="flex items-center gap-3">
           <button
             className="size-14 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-sm font-bold text-foreground/70"
-            aria-label="B button"
+            aria-label={intl.formatMessage({ id: 'gameControls.b', defaultMessage: 'B button' })}
             {...handlers('b')}
           >
             B
           </button>
           <button
             className="size-14 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-sm font-bold text-foreground/70 -mt-8"
-            aria-label="A button"
+            aria-label={intl.formatMessage({ id: 'gameControls.a', defaultMessage: 'A button' })}
             {...handlers('a')}
           >
             A
@@ -166,17 +168,17 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
       <div className="flex items-center justify-center gap-6">
         <button
           className="h-8 px-4 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider text-foreground/60"
-          aria-label="Select"
+          aria-label={intl.formatMessage({ id: 'gameControls.select', defaultMessage: 'Select' })}
           {...handlers('select')}
         >
-          Select
+          <FormattedMessage id="gameControls.select" defaultMessage="Select" />
         </button>
         <button
           className="h-8 px-4 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 flex items-center justify-center active:bg-primary/20 active:scale-95 transition-all text-[10px] font-bold uppercase tracking-wider text-foreground/60"
-          aria-label="Start"
+          aria-label={intl.formatMessage({ id: 'gameControls.start', defaultMessage: 'Start' })}
           {...handlers('start')}
         >
-          Start
+          <FormattedMessage id="gameControls.start" defaultMessage="Start" />
         </button>
       </div>
     </div>

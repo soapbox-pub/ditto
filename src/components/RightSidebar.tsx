@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { LinkFooter } from '@/components/LinkFooter';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { X } from 'lucide-react';
@@ -74,8 +75,8 @@ export function RightSidebar() {
       {/* Trending Tags */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Trends</h2>
-          <Link to="/trends" className="text-sm text-primary hover:underline">View all</Link>
+          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.trends" defaultMessage="Trends" /></h2>
+          <Link to="/trends" className="text-sm text-primary hover:underline"><FormattedMessage id="rightSidebar.viewAll" defaultMessage="View all" /></Link>
         </div>
 
         {tagsLoading ? (
@@ -102,7 +103,14 @@ export function RightSidebar() {
                   <div className="font-bold text-sm">#{item.tag}</div>
                   {item.accounts > 0 && (
                     <div className="text-xs text-muted-foreground">
-                      <span className="text-primary font-semibold">{formatNumber(item.accounts)}</span> people talking
+                      <FormattedMessage
+                        id="rightSidebar.peopleTalking"
+                        defaultMessage="<b>{count}</b> people talking"
+                        values={{
+                          count: formatNumber(item.accounts),
+                          b: (chunks) => <span className="text-primary font-semibold">{chunks}</span>,
+                        }}
+                      />
                     </div>
                   )}
                 </div>
@@ -115,15 +123,15 @@ export function RightSidebar() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No trends available.</p>
+          <p className="text-sm text-muted-foreground"><FormattedMessage id="rightSidebar.noTrends" defaultMessage="No trends available." /></p>
         )}
       </section>
 
       {/* Hot Posts */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>Hot Posts</h2>
-          <Link to="/trends" className="text-sm text-primary hover:underline">More</Link>
+          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.hotPosts" defaultMessage="Hot Posts" /></h2>
+          <Link to="/trends" className="text-sm text-primary hover:underline"><FormattedMessage id="rightSidebar.more" defaultMessage="More" /></Link>
         </div>
 
         {hotLoading ? (
@@ -146,14 +154,14 @@ export function RightSidebar() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No hot posts right now.</p>
+          <p className="text-sm text-muted-foreground"><FormattedMessage id="rightSidebar.noHotPosts" defaultMessage="No hot posts right now." /></p>
         )}
       </section>
 
       {/* Latest Accounts */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>New Accounts</h2>
+          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.newAccounts" defaultMessage="New Accounts" /></h2>
         </div>
 
         {accountsLoading ? (
@@ -184,10 +192,11 @@ export function RightSidebar() {
 
 /** Compact hot post card for the sidebar. */
 function HotPostCard({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
   const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`, event);
 
@@ -196,8 +205,8 @@ function HotPostCard({ event }: { event: NostrEvent }) {
     // Strip URLs for a cleaner snippet
     const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();
     if (clean.length > 100) return clean.slice(0, 100) + '…';
-    return clean || '(media)';
-  }, [event.content]);
+    return clean || intl.formatMessage({ id: 'widgets.common.media', defaultMessage: '(media)' });
+  }, [event.content, intl]);
 
   return (
     <button
@@ -225,6 +234,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
 }
 
 function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss: (pubkey: string) => void }) {
+  const intl = useIntl();
   let metadata: { name?: string; display_name?: string; nip05?: string; picture?: string } = {};
   try {
     metadata = n.json().pipe(n.metadata()).parse(event.content);
@@ -232,7 +242,7 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
     // Invalid metadata
   }
 
-  const displayName = metadata.name || metadata.display_name || 'Anonymous';
+  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const latestAvatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
@@ -259,7 +269,7 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
       <button
         onClick={() => onDismiss(event.pubkey)}
         className="p-1 rounded-full text-muted-foreground hover:bg-secondary transition-colors opacity-0 group-hover:opacity-100"
-        aria-label={`Dismiss ${displayName}`}
+        aria-label={intl.formatMessage({ id: 'rightSidebar.dismissAccount', defaultMessage: 'Dismiss {name}' }, { name: displayName })}
       >
         <X className="size-4" />
       </button>

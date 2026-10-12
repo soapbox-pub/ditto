@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import { nip19 } from 'nostr-tools';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   ArrowLeft,
   CalendarDays,
@@ -67,15 +68,21 @@ function getEventCoord(event: NostrEvent): string {
   return `${event.kind}:${event.pubkey}:${d}`;
 }
 
-function formatDetailDate(event: NostrEvent): string {
+const rsvpLabels = defineMessages({
+  accepted: { id: 'calendarEvent.rsvp.going', defaultMessage: 'Going' },
+  tentative: { id: 'calendarEvent.rsvp.maybe', defaultMessage: 'Maybe' },
+  declined: { id: 'calendarEvent.rsvp.cantGo', defaultMessage: "Can't Go" },
+});
+
+function formatDetailDate(event: NostrEvent, locale: string, notSpecified: string): string {
   const startRaw = getTag(event.tags, 'start');
   const endRaw = getTag(event.tags, 'end');
-  if (!startRaw) return 'Date not specified';
+  if (!startRaw) return notSpecified;
 
   if (event.kind === 31922) {
     const fmt = (d: string) => {
       const [y, m, day] = d.split('-').map(Number);
-      return new Date(y, m - 1, day).toLocaleDateString('en-US', {
+      return new Date(y, m - 1, day).toLocaleDateString(locale, {
         weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
       });
     };
@@ -94,13 +101,13 @@ function formatDetailDate(event: NostrEvent): string {
     ...(startTzid ? { timeZone: startTzid } : {}),
   };
 
-  const dateFmt = new Intl.DateTimeFormat('en-US', opts);
+  const dateFmt = new Intl.DateTimeFormat(locale, opts);
   const startStr = dateFmt.format(new Date(startTs));
 
   if (endTs) {
     const sameDay = new Date(startTs).toDateString() === new Date(endTs).toDateString();
     if (sameDay) {
-      const timeFmt = new Intl.DateTimeFormat('en-US', {
+      const timeFmt = new Intl.DateTimeFormat(locale, {
         hour: 'numeric', minute: '2-digit',
         ...(startTzid ? { timeZone: startTzid } : {}),
       });
@@ -121,10 +128,11 @@ function roleSort(a: string, b: string): number {
 // --- Sub-components ---
 
 function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: string; size?: 'sm' | 'md' }) {
+  const intl = useIntl();
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name || metadata?.display_name || 'Anonymous';
+  const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
   const avatarCls = size === 'sm' ? 'size-8' : 'size-11';
   const fallbackCls = size === 'sm' ? 'text-xs' : '';
@@ -139,7 +147,7 @@ function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: str
       </Avatar>
       <div className="min-w-0 flex-1">
         <p className={cn('font-semibold truncate group-hover:underline', size === 'sm' ? 'text-sm' : 'text-[15px]')}>{name}</p>
-        {!label && size === 'md' && <p className="text-xs text-muted-foreground">Organizer</p>}
+        {!label && size === 'md' && <p className="text-xs text-muted-foreground"><FormattedMessage id="calendarEvent.organizer" defaultMessage="Organizer" /></p>}
       </div>
       {label && (
         <Badge variant="secondary" className="ml-auto capitalize text-xs shrink-0">{label}</Badge>
@@ -151,12 +159,13 @@ function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: str
 // --- Main Component ---
 
 export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const goBack = useGoBack();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
 
-  const title = getTag(event.tags, 'title') ?? 'Untitled Event';
+  const title = getTag(event.tags, 'title') ?? intl.formatMessage({ id: 'calendarEvent.untitled', defaultMessage: 'Untitled Event' });
   const image = getTag(event.tags, 'image');
   const locationRaw = getTag(event.tags, 'location');
   const location = locationRaw ? parseLocation(locationRaw) : undefined;
@@ -165,7 +174,8 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
   const links = getAllTags(event.tags, 'r').map(([, v]) => sanitizeUrl(v)).filter((v): v is string => !!v);
 
   const eventCoord = useMemo(() => getEventCoord(event), [event]);
-  const dateStr = useMemo(() => formatDetailDate(event), [event]);
+  const dateNotSpecified = intl.formatMessage({ id: 'calendarEvent.dateNotSpecified', defaultMessage: 'Date not specified' });
+  const dateStr = useMemo(() => formatDetailDate(event, intl.locale, dateNotSpecified), [event, intl.locale, dateNotSpecified]);
 
   // Participants grouped by role
   const participantsByRole = useMemo(() => {
@@ -173,14 +183,14 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
     const groups = new Map<string, string[]>();
     for (const tag of pTags) {
       const pubkey = tag[1];
-      const role = tag[3] || 'Participant';
+      const role = tag[3] || intl.formatMessage({ id: 'calendarEvent.participant', defaultMessage: 'Participant' });
       if (!pubkey) continue;
       const list = groups.get(role) ?? [];
       list.push(pubkey);
       groups.set(role, list);
     }
     return Array.from(groups.entries()).sort(([a], [b]) => roleSort(a, b));
-  }, [event.tags]);
+  }, [event.tags, intl]);
 
   // RSVP state
   const rsvps = useEventRSVPs(eventCoord);
@@ -204,11 +214,11 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
       });
       setSelectedStatus(null);
       setRsvpNote('');
-      toast({ title: 'RSVP updated' });
+      toast({ title: intl.formatMessage({ id: 'calendarEvent.rsvpUpdated', defaultMessage: 'RSVP updated' }) });
     } catch {
-      toast({ title: 'Failed to update RSVP', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'calendarEvent.rsvpFailed', defaultMessage: 'Failed to update RSVP' }), variant: 'destructive' });
     }
-  }, [activeStatus, eventCoord, event.pubkey, rsvpNote, publishRSVP, toast]);
+  }, [activeStatus, eventCoord, event.pubkey, rsvpNote, publishRSVP, toast, intl]);
 
   const handleShare = useCallback(async () => {
     const d = getTag(event.tags, 'd') ?? '';
@@ -220,11 +230,11 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
     const url = `${shareOrigin}/${naddr}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast({ title: 'Link copied to clipboard' });
+      toast({ title: intl.formatMessage({ id: 'calendarEvent.linkCopied', defaultMessage: 'Link copied to clipboard' }) });
     } catch {
-      toast({ title: 'Failed to copy link', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'calendarEvent.linkCopyFailed', defaultMessage: 'Failed to copy link' }), variant: 'destructive' });
     }
-  }, [event, toast, shareOrigin]);
+  }, [event, toast, shareOrigin, intl]);
 
   const isAuthor = user?.pubkey === event.pubkey;
   const showRSVP = !!user && !isAuthor;
@@ -236,11 +246,11 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
         <button
           onClick={goBack}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
-          aria-label="Go back"
+          aria-label={intl.formatMessage({ id: 'calendarEvent.goBack', defaultMessage: 'Go back' })}
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold flex-1">Event Details</h1>
+        <h1 className="text-xl font-bold flex-1"><FormattedMessage id="calendarEvent.details" defaultMessage="Event Details" /></h1>
       </div>
 
       {/* ── Cover image ── */}
@@ -265,14 +275,14 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <ZapDialog target={event}>
-              <button className="p-2 rounded-full hover:bg-secondary/60 transition-colors" aria-label="Zap">
+              <button className="p-2 rounded-full hover:bg-secondary/60 transition-colors" aria-label={intl.formatMessage({ id: 'calendarEvent.zap', defaultMessage: 'Zap' })}>
                 <Zap className="size-5" />
               </button>
             </ZapDialog>
             <button
               className="p-2 rounded-full hover:bg-secondary/60 transition-colors"
               onClick={handleShare}
-              aria-label="Share"
+              aria-label={intl.formatMessage({ id: 'calendarEvent.share', defaultMessage: 'Share' })}
             >
               <Share2 className="size-5" />
             </button>
@@ -311,7 +321,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
           <>
             <Separator />
             <section className="space-y-2">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">About</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide"><FormattedMessage id="calendarEvent.about" defaultMessage="About" /></h2>
               {event.content ? (
                 <NoteContent event={event} className="text-sm leading-relaxed text-foreground" hideEmbedImages={!!image} />
               ) : (
@@ -346,7 +356,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
             <Separator />
             <section className="space-y-3">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <Users className="size-4" /> Participants
+                <Users className="size-4" /> <FormattedMessage id="calendarEvent.participants" defaultMessage="Participants" />
               </h2>
               <div className="space-y-2">
                 {participantsByRole.map(([role, pubkeys]) =>
@@ -360,7 +370,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
         {/* RSVP section */}
         {showRSVP && (
           <div className="rounded-[1.25rem] bg-background/85 p-4 space-y-3">
-            <h2 className="text-sm font-semibold px-1">Your RSVP</h2>
+            <h2 className="text-sm font-semibold px-1"><FormattedMessage id="calendarEvent.yourRsvp" defaultMessage="Your RSVP" /></h2>
 
             {myRsvp.status && !selectedStatus && (
               <div className="px-1">
@@ -372,7 +382,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
                     myRsvp.status === 'declined' && 'border-destructive text-destructive',
                   )}
                 >
-                  {myRsvp.status === 'accepted' ? 'Going' : myRsvp.status === 'tentative' ? 'Maybe' : "Can't Go"}
+                  <FormattedMessage {...rsvpLabels[myRsvp.status]} />
                 </Badge>
               </div>
             )}
@@ -384,7 +394,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
                 className={cn('flex-1 rounded-full', activeStatus === 'accepted' && 'bg-green-600 hover:bg-green-700 text-white')}
                 onClick={() => setSelectedStatus('accepted')}
               >
-                <Check className="size-3.5 mr-1.5" /> Going
+                <Check className="size-3.5 mr-1.5" /> <FormattedMessage {...rsvpLabels.accepted} />
               </Button>
               <Button
                 size="sm"
@@ -392,7 +402,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
                 className={cn('flex-1 rounded-full', activeStatus === 'tentative' && 'bg-amber-500 hover:bg-amber-600 text-white')}
                 onClick={() => setSelectedStatus('tentative')}
               >
-                <HelpCircle className="size-3.5 mr-1.5" /> Maybe
+                <HelpCircle className="size-3.5 mr-1.5" /> <FormattedMessage {...rsvpLabels.tentative} />
               </Button>
               <Button
                 size="sm"
@@ -400,13 +410,13 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
                 className={cn('flex-1 rounded-full', activeStatus === 'declined' && 'bg-destructive hover:bg-destructive/90 text-destructive-foreground')}
                 onClick={() => setSelectedStatus('declined')}
               >
-                <XIcon className="size-3.5 mr-1.5" /> Can't Go
+                <XIcon className="size-3.5 mr-1.5" /> <FormattedMessage {...rsvpLabels.declined} />
               </Button>
             </div>
 
             {activeStatus && (
               <Textarea
-                placeholder="Add a note (optional)"
+                placeholder={intl.formatMessage({ id: 'calendarEvent.notePlaceholder', defaultMessage: 'Add a note (optional)' })}
                 value={rsvpNote}
                 onChange={(e) => setRsvpNote(e.target.value)}
                 className="mt-1 resize-none rounded-xl"
@@ -421,7 +431,11 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
                 disabled={publishRSVP.isPending}
                 className="w-full mt-1 rounded-full"
               >
-                {publishRSVP.isPending ? 'Updating...' : myRsvp.status ? 'Update RSVP' : 'Submit RSVP'}
+                {publishRSVP.isPending
+                  ? <FormattedMessage id="calendarEvent.updating" defaultMessage="Updating..." />
+                  : myRsvp.status
+                    ? <FormattedMessage id="calendarEvent.updateRsvp" defaultMessage="Update RSVP" />
+                    : <FormattedMessage id="calendarEvent.submitRsvp" defaultMessage="Submit RSVP" />}
               </Button>
             )}
           </div>
@@ -431,16 +445,22 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
         {rsvps.total > 0 && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <Users className="size-4" /> Attendees
+              <Users className="size-4" /> <FormattedMessage id="calendarEvent.attendees" defaultMessage="Attendees" />
             </h2>
             <div className="space-y-2.5">
               {([
-                ['Going', rsvps.accepted, 'border-green-500/50 bg-green-500/5 text-green-600'],
-                ['Maybe', rsvps.tentative, 'border-amber-500/50 bg-amber-500/5 text-amber-600'],
-                ["Can't Go", rsvps.declined, 'border-muted-foreground/30 bg-muted/30 text-muted-foreground'],
-              ] as const).map(([label, pks, cls]) => pks.length > 0 && (
-                <div key={label} className="flex items-center gap-3">
-                  <Badge variant="outline" className={cn(cls, 'shrink-0 text-xs')}>{label} ({pks.length})</Badge>
+                ['accepted', rsvps.accepted, 'border-green-500/50 bg-green-500/5 text-green-600'],
+                ['tentative', rsvps.tentative, 'border-amber-500/50 bg-amber-500/5 text-amber-600'],
+                ['declined', rsvps.declined, 'border-muted-foreground/30 bg-muted/30 text-muted-foreground'],
+              ] as const).map(([status, pks, cls]) => pks.length > 0 && (
+                <div key={status} className="flex items-center gap-3">
+                  <Badge variant="outline" className={cn(cls, 'shrink-0 text-xs')}>
+                    <FormattedMessage
+                      id="calendarEvent.attendeeCount"
+                      defaultMessage="{label} ({count})"
+                      values={{ label: intl.formatMessage(rsvpLabels[status]), count: pks.length }}
+                    />
+                  </Badge>
                   <RSVPAvatars pubkeys={pks} maxVisible={8} size="sm" />
                 </div>
               ))}

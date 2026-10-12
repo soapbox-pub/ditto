@@ -1,3 +1,5 @@
+import { FormattedMessage, useIntl } from 'react-intl';
+
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bookmark } from 'lucide-react';
 import { NoteCard } from '@/components/NoteCard';
@@ -12,10 +14,12 @@ import { LoginArea } from '@/components/auth/LoginArea';
 
 export function BookmarksPage() {
   const { config } = useAppContext();
+  const intl = useIntl();
+  const pageTitle = intl.formatMessage({ id: 'bookmarks.title', defaultMessage: 'Bookmarks' });
 
   useSeoMeta({
-    title: `Bookmarks | ${config.appName}`,
-    description: 'Your saved bookmarks on Nostr.',
+    title: `${pageTitle} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'bookmarks.metaDescription', defaultMessage: 'Your saved bookmarks on Nostr.' }),
   });
 
   const { user } = useCurrentUser();
@@ -25,7 +29,7 @@ export function BookmarksPage() {
 
   return (
       <main className="">
-        <PageHeader title="Bookmarks" icon={<Bookmark className="size-5" />} />
+        <PageHeader title={pageTitle} icon={<Bookmark className="size-5" />} />
 
         <PullToRefresh onRefresh={handleRefresh}>
           {/* Content */}
@@ -35,9 +39,9 @@ export function BookmarksPage() {
                 <Bookmark className="size-8 text-primary" />
               </div>
               <div className="space-y-2 max-w-xs">
-                <h2 className="text-xl font-bold">Save posts for later</h2>
+                <h2 className="text-xl font-bold"><FormattedMessage id="bookmarks.loggedOut.title" defaultMessage="Save posts for later" /></h2>
                 <p className="text-muted-foreground text-sm">
-                  Log in to bookmark posts and find them here anytime.
+                  <FormattedMessage id="bookmarks.loggedOut.description" defaultMessage="Log in to bookmark posts and find them here anytime." />
                 </p>
               </div>
               <LoginArea className="max-w-60" />
@@ -60,9 +64,9 @@ export function BookmarksPage() {
                 <Bookmark className="size-8 text-muted-foreground" />
               </div>
               <div className="space-y-2 max-w-xs">
-                <h2 className="text-xl font-bold">No bookmarks yet</h2>
+                <h2 className="text-xl font-bold"><FormattedMessage id="bookmarks.empty.title" defaultMessage="No bookmarks yet" /></h2>
                 <p className="text-muted-foreground text-sm">
-                  When you bookmark a post, it will show up here. Tap the bookmark icon on any post to save it.
+                  <FormattedMessage id="bookmarks.empty.description" defaultMessage="When you bookmark a post, it will show up here. Tap the bookmark icon on any post to save it." />
                 </p>
               </div>
             </div>

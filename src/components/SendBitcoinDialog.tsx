@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FormattedMessage } from 'react-intl';
+import { defineMessages, FormattedMessage, type IntlShape, useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
   AlertTriangle,
@@ -97,13 +97,13 @@ type FeeSpeed = 'fastest' | 'halfHour' | 'hour' | 'economy' | 'custom';
 /** The preset tiers (everything except `'custom'`), in display order. */
 type PresetFeeSpeed = Exclude<FeeSpeed, 'custom'>;
 
-const FEE_SPEED_LABELS: Record<FeeSpeed, string> = {
-  fastest: '~10 min',
-  halfHour: '~30 min',
-  hour: '~1 hour',
-  economy: '~1 day',
-  custom: 'Custom',
-};
+const FEE_SPEED_LABELS = defineMessages<FeeSpeed>({
+  fastest: { id: 'sendBitcoin.feeSpeed.fastest', defaultMessage: '~10 min' },
+  halfHour: { id: 'sendBitcoin.feeSpeed.halfHour', defaultMessage: '~30 min' },
+  hour: { id: 'sendBitcoin.feeSpeed.hour', defaultMessage: '~1 hour' },
+  economy: { id: 'sendBitcoin.feeSpeed.economy', defaultMessage: '~1 day' },
+  custom: { id: 'sendBitcoin.feeSpeed.custom', defaultMessage: 'Custom' },
+});
 
 const FEE_SPEED_ORDER: PresetFeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
 
@@ -219,6 +219,7 @@ interface SendResult {
  *    event after broadcast (no `e`/`a` tag → profile-level zap, per NIP.md).
  */
 export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: SendBitcoinDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -297,12 +298,12 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     } else if (hasValidBtc) {
       setRecipient({ address: parsed.address, kind: 'onchain', raw: parsed.address });
     } else {
-      setError("Couldn't read the payment address from that link.");
+      setError(intl.formatMessage({ id: 'sendBitcoin.error.badLink', defaultMessage: "Couldn't read the payment address from that link." }));
     }
 
     pendingAmountSats.current = parsed.amountSats ?? null;
     initialUriHandled.current = true;
-  }, [isOpen, initialUri]);
+  }, [isOpen, initialUri, intl]);
 
   // Apply the pending amount (in sats, from the URI) once we can express it in
   // the form's display currency. In sats mode the input *is* sats, so we seed
@@ -444,18 +445,18 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
 
   const sendMutation = useMutation<SendResult, Error, void>({
     mutationFn: async () => {
-      if (!user) throw new Error('You must be logged in.');
-      if (!recipient) throw new Error('Choose a recipient.');
-      if (!canSignPsbt || !signPsbt) throw new Error("Your login doesn't support sending Bitcoin.");
-      if (!utxos?.length) throw new Error('No spendable Bitcoin available.');
-      if (feeSpeed !== 'custom' && !feeRates) throw new Error('Fee rates not loaded.');
-      if (recipient.pubkey === user.pubkey) throw new Error("You can't send to yourself.");
-      if (amountSats <= 0) throw new Error('Enter an amount.');
-      if (insufficient) throw new Error('Not enough Bitcoin for this amount + network fee.');
+      if (!user) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.loggedOut', defaultMessage: 'You must be logged in.' }));
+      if (!recipient) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.noRecipient', defaultMessage: 'Choose a recipient.' }));
+      if (!canSignPsbt || !signPsbt) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.unsupportedSigner', defaultMessage: "Your login doesn't support sending Bitcoin." }));
+      if (!utxos?.length) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.noUtxos', defaultMessage: 'No spendable Bitcoin available.' }));
+      if (feeSpeed !== 'custom' && !feeRates) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.feeRatesNotLoaded', defaultMessage: 'Fee rates not loaded.' }));
+      if (recipient.pubkey === user.pubkey) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.self', defaultMessage: "You can't send to yourself." }));
+      if (amountSats <= 0) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.noAmount', defaultMessage: 'Enter an amount.' }));
+      if (insufficient) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.insufficient', defaultMessage: 'Not enough Bitcoin for this amount + network fee.' }));
 
       setProgress('building');
       const rate = resolveFeeRate(feeSpeed, feeRates, customFeeRate);
-      if (rate < 1) throw new Error('Enter a fee rate of at least 1 sat/vB.');
+      if (rate < 1) throw new Error(intl.formatMessage({ id: 'sendBitcoin.error.minFeeRate', defaultMessage: 'Enter a fee rate of at least 1 sat/vB.' }));
 
       let psbtHex: string;
       let fee: number;
@@ -536,7 +537,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
       }
     },
     onError: (err) => {
-      toast({ title: 'Transaction failed', description: err.message, variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'sendBitcoin.failed', defaultMessage: 'Transaction failed' }), description: err.message, variant: 'destructive' });
     },
     onSettled: () => {
       setProgress('idle');
@@ -547,21 +548,21 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
 
   const handleSend = useCallback(async () => {
     setError('');
-    if (!user) { setError('You must be logged in.'); return; }
-    if (!recipient) { setError('Choose a recipient.'); return; }
-    if (recipient.pubkey === user.pubkey) { setError("You can't send to yourself."); return; }
-    if (!btcPrice) { setError('Waiting for BTC price…'); return; }
-    if (amountSats <= 0) { setError('Enter an amount.'); return; }
-    if (!utxos?.length) { setError("You don't have any Bitcoin yet."); return; }
+    if (!user) { setError(intl.formatMessage({ id: 'sendBitcoin.error.loggedOut', defaultMessage: 'You must be logged in.' })); return; }
+    if (!recipient) { setError(intl.formatMessage({ id: 'sendBitcoin.error.noRecipient', defaultMessage: 'Choose a recipient.' })); return; }
+    if (recipient.pubkey === user.pubkey) { setError(intl.formatMessage({ id: 'sendBitcoin.error.self', defaultMessage: "You can't send to yourself." })); return; }
+    if (!btcPrice) { setError(intl.formatMessage({ id: 'sendBitcoin.error.waitingForPrice', defaultMessage: 'Waiting for BTC price…' })); return; }
+    if (amountSats <= 0) { setError(intl.formatMessage({ id: 'sendBitcoin.error.noAmount', defaultMessage: 'Enter an amount.' })); return; }
+    if (!utxos?.length) { setError(intl.formatMessage({ id: 'sendBitcoin.error.noBitcoin', defaultMessage: "You don't have any Bitcoin yet." })); return; }
     if (currentFeeRate < 1) {
       setError(
         feeSpeed === 'custom'
-          ? 'Enter a fee rate of at least 1 sat/vB.'
-          : "Fee rates haven't loaded yet.",
+          ? intl.formatMessage({ id: 'sendBitcoin.error.minFeeRate', defaultMessage: 'Enter a fee rate of at least 1 sat/vB.' })
+          : intl.formatMessage({ id: 'sendBitcoin.error.feeRatesLoading', defaultMessage: "Fee rates haven't loaded yet." }),
       );
       return;
     }
-    if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
+    if (insufficient) { setError(intl.formatMessage({ id: 'sendBitcoin.error.insufficient', defaultMessage: 'Not enough Bitcoin for this amount + network fee.' })); return; }
 
     if (requiresArm && !confirmArmed) {
       setConfirmArmed(true);
@@ -573,7 +574,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     } catch {
       // Toast handled in onError; nothing further to do here.
     }
-  }, [user, recipient, btcPrice, amountSats, utxos, currentFeeRate, feeSpeed, insufficient, requiresArm, confirmArmed, sendMutation]);
+  }, [user, recipient, btcPrice, amountSats, utxos, currentFeeRate, feeSpeed, insufficient, requiresArm, confirmArmed, sendMutation, intl]);
 
   // ── Reset on close ───────────────────────────────────────────
 
@@ -622,7 +623,9 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
               />
             </AlertDescription>
           </Alert>
-          <Button onClick={handleClose}>Close</Button>
+          <Button onClick={handleClose}>
+            <FormattedMessage id="sendBitcoin.close" defaultMessage="Close" />
+          </Button>
         </DialogContent>
       </Dialog>
     );
@@ -637,12 +640,14 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
         <PortalContainerProvider value={portalContainer}>
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold flex items-center gap-1.5">
-            {success ? 'Success' : 'Send Bitcoin'}
+            {success
+              ? <FormattedMessage id="sendBitcoin.successTitle" defaultMessage="Success" />
+              : <FormattedMessage id="sendBitcoin.title" defaultMessage="Send Bitcoin" />}
           </DialogTitle>
           <button
             onClick={handleClose}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            aria-label="Close"
+            aria-label={intl.formatMessage({ id: 'sendBitcoin.close', defaultMessage: 'Close' })}
           >
             <X className="size-5" />
           </button>
@@ -701,22 +706,21 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                 <Alert className="border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400">
                   <AlertTriangle className="size-4" />
                   <AlertDescription className="text-xs">
-                    Money you send is public and can be traced back to you.{' '}
+                    <FormattedMessage id="sendBitcoin.privacy.notice" defaultMessage="Money you send is public and can be traced back to you." />{' '}
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
                           type="button"
                           className="underline underline-offset-2 font-medium hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                         >
-                          Learn more
+                          <FormattedMessage id="sendBitcoin.privacy.learnMore" defaultMessage="Learn more" />
                         </button>
                       </PopoverTrigger>
                       <PopoverContent side="top" align="start" className="w-72 text-xs leading-relaxed">
-                        Bitcoin is a public ledger. Transactions you send can
-                        be traced back to you forever, even after being
-                        exchanged by multiple people. Send it only to those
-                        you wish to support publicly, or cash out at an
-                        exchange.
+                        <FormattedMessage
+                          id="sendBitcoin.privacy.details"
+                          defaultMessage="Bitcoin is a public ledger. Transactions you send can be traced back to you forever, even after being exchanged by multiple people. Send it only to those you wish to support publicly, or cash out at an exchange."
+                        />
                       </PopoverContent>
                     </Popover>
                   </AlertDescription>
@@ -739,14 +743,14 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                 {isPending ? (
                   <>
                     <Loader2 className="size-4 mr-1.5 animate-spin" />
-                    {progressLabel(progress)}
+                    {progressLabel(progress, intl)}
                   </>
                 ) : insufficient ? (
-                  <>Not enough Bitcoin</>
+                  <FormattedMessage id="sendBitcoin.notEnough" defaultMessage="Not enough Bitcoin" />
                 ) : requiresArm && confirmArmed ? (
-                  <>Tap again to send {totalDisplay}</>
+                  <FormattedMessage id="sendBitcoin.confirmSend" defaultMessage="Tap again to send {amount}" values={{ amount: totalDisplay }} />
                 ) : (
-                  <>Send {totalDisplay}</>
+                  <FormattedMessage id="sendBitcoin.send" defaultMessage="Send {amount}" values={{ amount: totalDisplay }} />
                 )}
               </Button>
 
@@ -760,19 +764,24 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                         className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <span>
-                          Fee{' '}
-                          {estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
-                            ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
-                            : feeRatesLoading && feeSpeed !== 'custom'
-                              ? 'loading…'
-                              : feeRatesError && feeSpeed !== 'custom'
-                                ? 'unavailable'
-                                : '…'}
+                          <FormattedMessage
+                            id="sendBitcoin.feeLine"
+                            defaultMessage="Fee {amount}"
+                            values={{
+                              amount: estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
+                                ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
+                                : feeRatesLoading && feeSpeed !== 'custom'
+                                  ? intl.formatMessage({ id: 'sendBitcoin.feeLoading', defaultMessage: 'loading…' })
+                                  : feeRatesError && feeSpeed !== 'custom'
+                                    ? intl.formatMessage({ id: 'sendBitcoin.feeUnavailable', defaultMessage: 'unavailable' })
+                                    : '…',
+                            }}
+                          />
                           <span className="opacity-60">
                             {' · '}
                             {feeSpeed === 'custom' && currentFeeRate >= 1
                               ? `${currentFeeRate} sat/vB`
-                              : FEE_SPEED_LABELS[feeSpeed]}
+                              : intl.formatMessage(FEE_SPEED_LABELS[feeSpeed])}
                           </span>
                         </span>
                       </button>
@@ -781,21 +790,25 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                       <div className="flex flex-col">
                         {feeRatesError && (
                           <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                            <p className="text-destructive">Couldn't load fee rates.</p>
+                            <p className="text-destructive">
+                              <FormattedMessage id="sendBitcoin.feeRatesFailed" defaultMessage="Couldn't load fee rates." />
+                            </p>
                             <button
                               type="button"
                               onClick={() => refetchFeeRates()}
                               className="mt-1 underline hover:text-foreground transition-colors"
                             >
-                              Retry
+                              <FormattedMessage id="sendBitcoin.retry" defaultMessage="Retry" />
                             </button>
-                            <p className="mt-1">Or enter a custom rate below.</p>
+                            <p className="mt-1">
+                              <FormattedMessage id="sendBitcoin.customRateHint" defaultMessage="Or enter a custom rate below." />
+                            </p>
                           </div>
                         )}
                         {feeRatesLoading && !feeRatesError && (
                           <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
                             <Loader2 className="size-3 animate-spin" />
-                            Loading fee rates…
+                            <FormattedMessage id="sendBitcoin.feeRatesLoading" defaultMessage="Loading fee rates…" />
                           </div>
                         )}
                         {feeRates && uniqueFeeSpeeds.map((speed) => {
@@ -811,7 +824,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                                 selected && 'bg-muted font-medium',
                               )}
                             >
-                              <span>{FEE_SPEED_LABELS[speed]}</span>
+                              <span><FormattedMessage {...FEE_SPEED_LABELS[speed]} /></span>
                               <span className="text-muted-foreground">{rate} sat/vB</span>
                             </button>
                           );
@@ -825,7 +838,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                             feeSpeed === 'custom' && 'bg-muted font-medium',
                           )}
                         >
-                          <span>{FEE_SPEED_LABELS.custom}</span>
+                          <span><FormattedMessage {...FEE_SPEED_LABELS.custom} /></span>
                         </button>
                         {feeSpeed === 'custom' && (
                           <div className="flex items-center gap-1.5 px-2 py-1.5">
@@ -837,9 +850,9 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
                               autoFocus
                               value={customFeeRate}
                               onChange={(e) => setCustomFeeRate(e.target.value)}
-                              placeholder="e.g. 5"
+                              placeholder={intl.formatMessage({ id: 'sendBitcoin.customRatePlaceholder', defaultMessage: 'e.g. 5' })}
                               className="h-7 text-xs"
-                              aria-label="Custom fee rate in sat/vB"
+                              aria-label={intl.formatMessage({ id: 'sendBitcoin.customRateLabel', defaultMessage: 'Custom fee rate in sat/vB' })}
                             />
                             <span className="text-xs text-muted-foreground whitespace-nowrap">sat/vB</span>
                           </div>
@@ -850,7 +863,11 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
 
                   {showBalance && !insufficient && (currency === 'sats' || btcPrice) && (
                     <span className="text-muted-foreground">
-                      Balance: {formatMoneyAmount(totalBalance, currency, btcPrice)}
+                      <FormattedMessage
+                        id="sendBitcoin.balance"
+                        defaultMessage="Balance: {amount}"
+                        values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice) }}
+                      />
                     </span>
                   )}
                 </div>
@@ -864,13 +881,13 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   );
 }
 
-function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing'): string {
+function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing', intl: IntlShape): string {
   switch (progress) {
-    case 'building': return 'Building…';
-    case 'signing': return 'Signing…';
-    case 'broadcasting': return 'Broadcasting…';
-    case 'publishing': return 'Publishing…';
-    default: return 'Sending…';
+    case 'building': return intl.formatMessage({ id: 'sendBitcoin.progress.building', defaultMessage: 'Building…' });
+    case 'signing': return intl.formatMessage({ id: 'sendBitcoin.progress.signing', defaultMessage: 'Signing…' });
+    case 'broadcasting': return intl.formatMessage({ id: 'sendBitcoin.progress.broadcasting', defaultMessage: 'Broadcasting…' });
+    case 'publishing': return intl.formatMessage({ id: 'sendBitcoin.progress.publishing', defaultMessage: 'Publishing…' });
+    default: return intl.formatMessage({ id: 'sendBitcoin.progress.sending', defaultMessage: 'Sending…' });
   }
 }
 
@@ -902,6 +919,7 @@ interface RecipientPickerProps {
  * picker focused: every selection is something the user can actually be paid.
  */
 function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed }: RecipientPickerProps) {
+  const intl = useIntl();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -1156,11 +1174,11 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
     }
 
     toast({
-      title: "Couldn't read that QR code",
-      description: 'Expected a Bitcoin address, a silent payment address (sp1…), or a Nostr identifier (npub, nprofile, NIP-05).',
+      title: intl.formatMessage({ id: 'sendBitcoin.scan.failed', defaultMessage: "Couldn't read that QR code" }),
+      description: intl.formatMessage({ id: 'sendBitcoin.scan.failedDescription', defaultMessage: 'Expected a Bitcoin address, a silent payment address (sp1…), or a Nostr identifier (npub, nprofile, NIP-05).' }),
       variant: 'destructive',
     });
-  }, [selectBtcAddress, selectSpAddress, toast]);
+  }, [selectBtcAddress, selectSpAddress, toast, intl]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -1247,7 +1265,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
             // user can recover the choice list without un-focusing first.
             onClick={() => { if (trimmedRaw.length > 0) setOpen(true); }}
             onKeyDown={handleKeyDown}
-            placeholder="Search people, paste npub, or enter a Bitcoin or sp1… address"
+            placeholder={intl.formatMessage({ id: 'sendBitcoin.recipientPlaceholder', defaultMessage: 'Search people, paste npub, or enter a Bitcoin or sp1… address' })}
             autoComplete="off"
             role="combobox"
             aria-expanded={popoverOpen}
@@ -1259,7 +1277,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
           <button
             type="button"
             onClick={() => setScannerOpen(true)}
-            aria-label="Scan QR code"
+            aria-label={intl.formatMessage({ id: 'sendBitcoin.scan.label', defaultMessage: 'Scan QR code' })}
             className="absolute right-1 top-1/2 -translate-y-1/2 size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <QrCode className="size-4" />
@@ -1269,7 +1287,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
             isOpen={scannerOpen}
             onClose={() => setScannerOpen(false)}
             onScan={handleScan}
-            title="Scan recipient QR"
+            title={intl.formatMessage({ id: 'sendBitcoin.scan.title', defaultMessage: 'Scan recipient QR' })}
           />
         </div>
       </PopoverAnchor>
@@ -1321,7 +1339,7 @@ function RecipientPicker({ value, onChange, initialQuery, onInitialQueryConsumed
           </div>
         ) : (
           <div className="py-6 text-center text-sm text-muted-foreground">
-            No matches. Paste an npub, a Bitcoin address, or a silent payment address.
+            <FormattedMessage id="sendBitcoin.noMatches" defaultMessage="No matches. Paste an npub, a Bitcoin address, or a silent payment address." />
           </div>
         )}
       </PopoverContent>
@@ -1338,6 +1356,7 @@ function SelectedRecipientChip({
   value: ResolvedRecipient;
   onClear: () => void;
 }) {
+  const intl = useIntl();
   const { pubkey, profile, address, kind } = value;
   // Author lookup only when we have a pubkey but no inline profile.
   const author = useAuthor(profile ? undefined : pubkey);
@@ -1345,10 +1364,10 @@ function SelectedRecipientChip({
   const tags = profile?.event.tags ?? author.data?.event?.tags ?? [];
 
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || 'Anonymous'
+    ? metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
     : kind === 'sp'
-      ? 'Silent payment address'
-      : 'Bitcoin address';
+      ? intl.formatMessage({ id: 'sendBitcoin.recipient.spAddress', defaultMessage: 'Silent payment address' })
+      : intl.formatMessage({ id: 'sendBitcoin.recipient.btcAddress', defaultMessage: 'Bitcoin address' });
 
   const subtitle = pubkey
     ? metadata?.nip05 ?? nip19.npubEncode(pubkey)
@@ -1373,7 +1392,9 @@ function SelectedRecipientChip({
         </div>
       )}
       <div className="flex-1 min-w-0 overflow-hidden">
-        <div className="text-[11px] text-muted-foreground leading-tight">To</div>
+        <div className="text-[11px] text-muted-foreground leading-tight">
+          <FormattedMessage id="sendBitcoin.recipient.to" defaultMessage="To" />
+        </div>
         <div className="text-sm font-medium truncate">
           {pubkey ? <EmojifiedText tags={tags}>{displayName}</EmojifiedText> : displayName}
         </div>
@@ -1384,7 +1405,7 @@ function SelectedRecipientChip({
       <button
         type="button"
         onClick={onClear}
-        aria-label="Clear recipient"
+        aria-label={intl.formatMessage({ id: 'sendBitcoin.recipient.clear', defaultMessage: 'Clear recipient' })}
         className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
       >
         <X className="size-4" />
@@ -1406,8 +1427,9 @@ function ProfileRow({
   isSelected: boolean;
   onClick: (profile: SearchProfile) => void;
 }) {
+  const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || 'Anonymous';
+  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const subtitle = metadata.nip05 ?? nip19.npubEncode(pubkey);
 
   return (
@@ -1433,7 +1455,7 @@ function ProfileRow({
         {isFollowed && (
           <span
             className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
-            title="Following"
+            title={intl.formatMessage({ id: 'sendBitcoin.recipient.following', defaultMessage: 'Following' })}
           >
             <UserRoundCheck className="size-2 text-primary-foreground" strokeWidth={3} />
           </span>
@@ -1462,6 +1484,7 @@ function IdentifierRow({
   isSelected: boolean;
   onSelectPubkey: (pubkey: string, raw: string) => void;
 }) {
+  const intl = useIntl();
   // Resolve nip05 → pubkey asynchronously. For other types we already have
   // the pubkey inline.
   const nip05Id = match.type === 'nip05' ? match.identifier : undefined;
@@ -1476,7 +1499,7 @@ function IdentifierRow({
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || 'Anonymous'
+    ? metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
     : match.type === 'nip05' ? match.identifier : '';
 
   const subtitle = match.type === 'nip05'
@@ -1538,7 +1561,9 @@ function IdentifierRow({
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-sm truncate">
           {author.isLoading ? (
-            <span className="text-muted-foreground">Loading profile…</span>
+            <span className="text-muted-foreground">
+              <FormattedMessage id="sendBitcoin.recipient.loadingProfile" defaultMessage="Loading profile…" />
+            </span>
           ) : (
             <EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>
           )}
@@ -1579,7 +1604,9 @@ function BtcAddressRow({
         <Bitcoin className="size-4 text-orange-500" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm truncate">Send to Bitcoin address</div>
+        <div className="font-semibold text-sm truncate">
+          <FormattedMessage id="sendBitcoin.recipient.sendToBtc" defaultMessage="Send to Bitcoin address" />
+        </div>
         <div className="text-xs text-muted-foreground truncate font-mono">
           {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
         </div>
@@ -1622,7 +1649,9 @@ function SpAddressRow({
         <EyeOff className="size-4 text-violet-500" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm truncate">Send to silent payment address</div>
+        <div className="font-semibold text-sm truncate">
+          <FormattedMessage id="sendBitcoin.recipient.sendToSp" defaultMessage="Send to silent payment address" />
+        </div>
         <div className="text-xs text-muted-foreground truncate font-mono">
           {address.length > 28 ? `${address.slice(0, 14)}…${address.slice(-10)}` : address}
         </div>
@@ -1680,7 +1709,9 @@ function RawAddressSuccess({ txid, amountSats, currency, btcPrice, onClose }: Ra
       </div>
 
       <div className="grid gap-1">
-        <h2 className="text-lg font-semibold tracking-tight">Bitcoin sent</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          <FormattedMessage id="sendBitcoin.success.title" defaultMessage="Bitcoin sent" />
+        </h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
           {amountDisplay}
         </div>
@@ -1695,11 +1726,11 @@ function RawAddressSuccess({ txid, amountSats, currency, btcPrice, onClose }: Ra
         >
           <Link to={`/i/bitcoin:tx:${txid}`} onClick={onClose}>
             <ExternalLink className="size-4 mr-2" />
-            View transaction
+            <FormattedMessage id="sendBitcoin.success.viewTransaction" defaultMessage="View transaction" />
           </Link>
         </Button>
         <Button type="button" onClick={onClose} className="w-full">
-          Done
+          <FormattedMessage id="sendBitcoin.success.done" defaultMessage="Done" />
         </Button>
       </div>
     </div>

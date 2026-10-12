@@ -1,4 +1,5 @@
 import { Info } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
@@ -22,13 +23,6 @@ function formatNumber(n: number): string {
   return n.toLocaleString();
 }
 
-const chartConfig: ChartConfig = {
-  count: {
-    label: 'Users',
-    color: 'hsl(var(--primary))',
-  },
-};
-
 /**
  * Usage metrics for a single client: Monthly Active Users headline plus a
  * 30-day time-series of active users. Data comes from NIP-45 COUNT queries
@@ -38,7 +32,15 @@ const chartConfig: ChartConfig = {
  * feed remains the focus when stats are unavailable.
  */
 export function ClientMetrics({ clientTags }: ClientMetricsProps) {
+  const intl = useIntl();
   const { data, isLoading, isError } = useClientMetrics(clientTags);
+
+  const chartConfig: ChartConfig = {
+    count: {
+      label: intl.formatMessage({ id: 'clientMetrics.users', defaultMessage: 'Users' }),
+      color: 'hsl(var(--primary))',
+    },
+  };
 
   if (isError) return null;
 
@@ -52,18 +54,18 @@ export function ClientMetrics({ clientTags }: ClientMetricsProps) {
             ) : (
               <h2 className="text-2xl font-bold tracking-tight">
                 {formatNumber(data.mau)}{' '}
-                <span className="text-muted-foreground font-medium">Active Users</span>
+                <span className="text-muted-foreground font-medium"><FormattedMessage id="clientMetrics.activeUsers" defaultMessage="Active Users" /></span>
               </h2>
             )}
             <Popover>
               <PopoverTrigger
                 className="shrink-0 -mr-1 -mt-1 rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="About this metric"
+                aria-label={intl.formatMessage({ id: 'clientMetrics.about', defaultMessage: 'About this metric' })}
               >
                 <Info className="size-4" />
               </PopoverTrigger>
               <PopoverContent align="end" className="w-72 text-sm text-muted-foreground">
-                Count of distinct users who posted events in the past 30 days.
+                <FormattedMessage id="clientMetrics.explainer" defaultMessage="Count of distinct users who posted events in the past 30 days." />
               </PopoverContent>
             </Popover>
           </div>

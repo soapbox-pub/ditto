@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { FileCog } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
@@ -28,6 +29,7 @@ interface EmbeddedMemoryCardCardProps {
  * viewer. Block 0 and continuation blocks show a system row (no icon).
  */
 export function EmbeddedMemoryCardCard({ event, className, disableHoverCards }: EmbeddedMemoryCardCardProps) {
+  const intl = useIntl();
   const visual = useMemo(() => {
     try {
       return decodeBlockVisual(hexToBytes(event.content));
@@ -50,7 +52,7 @@ export function EmbeddedMemoryCardCard({ event, className, disableHoverCards }: 
 
   const isSave = !!visual;
   const isHeader = block === 0 || state === 'header';
-  const title = visual?.title || tagVal(event, 'title') || '(untitled save)';
+  const title = visual?.title || tagVal(event, 'title') || intl.formatMessage({ id: 'memoryCardEmbed.untitledSave', defaultMessage: '(untitled save)' });
 
   return (
     <EmbeddedCardShell
@@ -71,7 +73,11 @@ export function EmbeddedMemoryCardCard({ event, className, disableHoverCards }: 
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold leading-snug">
-            {isSave ? title : isHeader ? 'System block' : 'Continuation block'}
+            {isSave
+              ? title
+              : isHeader
+                ? <FormattedMessage id="memoryCardEmbed.systemBlock" defaultMessage="System block" />
+                : <FormattedMessage id="memoryCardEmbed.continuationBlock" defaultMessage="Continuation block" />}
           </p>
           {isSave && filename && (
             <p className="truncate font-mono text-[11px] text-muted-foreground">{filename}</p>
@@ -84,7 +90,7 @@ export function EmbeddedMemoryCardCard({ event, className, disableHoverCards }: 
             )}
             {block >= 0 && (
               <span className="rounded border border-border bg-background px-1.5 py-0.5 font-mono">
-                block #{block}
+                <FormattedMessage id="memoryCardEmbed.blockNumber" defaultMessage="block #{block}" values={{ block }} />
               </span>
             )}
             {region && (

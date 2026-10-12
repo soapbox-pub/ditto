@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Disc3, ListMusic } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { parseMusicPlaylist } from '@/lib/musicHelpers';
@@ -66,12 +67,19 @@ export function MusicPlaylistCard({ event }: MusicPlaylistCardProps) {
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {parsed.isAlbum && (
           <span className="inline-flex items-center gap-0.5 font-medium text-primary/70">
-            <Disc3 className="size-3" />Album
+            <Disc3 className="size-3" />
+            <FormattedMessage id="musicPlaylist.album" defaultMessage="Album" />
           </span>
         )}
         {parsed.isAlbum && trackCount > 0 && <span>·</span>}
         {trackCount > 0 && (
-          <span>{trackCount} track{trackCount !== 1 ? 's' : ''}</span>
+          <span>
+            <FormattedMessage
+              id="musicPlaylist.trackCount"
+              defaultMessage="{count, plural, one {# track} other {# tracks}}"
+              values={{ count: trackCount }}
+            />
+          </span>
         )}
       </div>
     </Link>

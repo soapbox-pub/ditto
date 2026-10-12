@@ -3,6 +3,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { retextSmartypants } from './articleSmartypants';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Clock } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { ImetaImage } from '@/components/ImetaImage';
 import { buildMarkdownComponents } from '@/components/markdownComponents';
@@ -25,6 +26,7 @@ interface ArticleContentProps {
 
 /** Renders kind 30023 long-form article content with Markdown. */
 export function ArticleContent({ event, preview, className }: ArticleContentProps) {
+  const intl = useIntl();
   const title = getTag(event.tags, 'title');
   const summary = getTag(event.tags, 'summary');
   const rawImage = getTag(event.tags, 'image');
@@ -43,7 +45,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
           <ImetaImage
             src={image}
             imeta={imageImeta}
-            alt={title ?? 'Article image'}
+            alt={title ?? intl.formatMessage({ id: 'articleContent.imageAlt', defaultMessage: 'Article image' })}
             className="w-full rounded-lg object-cover max-h-64 mt-2"
           />
         )}
@@ -55,7 +57,9 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
           </p>
         )}
         <div className="flex items-center gap-2 mt-2">
-          <span className="inline-block text-xs font-medium text-primary">Read article</span>
+          <span className="inline-block text-xs font-medium text-primary">
+            <FormattedMessage id="articleContent.readArticle" defaultMessage="Read article" />
+          </span>
           {readingTime && (
             <>
               <span className="text-xs text-muted-foreground" aria-hidden="true">·</span>
@@ -87,7 +91,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
         <ImetaImage
           src={image}
           imeta={imageImeta}
-          alt={title ?? 'Article image'}
+          alt={title ?? intl.formatMessage({ id: 'articleContent.imageAlt', defaultMessage: 'Article image' })}
           className="w-full rounded-xl object-cover max-h-96 mb-6"
           loading="eager"
         />

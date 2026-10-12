@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { Shield, X } from 'lucide-react';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -105,7 +105,8 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
           variant="ghost"
           size="sm"
           className={`h-7 w-7 p-0 shrink-0 ${hasPermissions ? 'text-primary' : ''}`}
-          title="Site permissions"
+          title={intl.formatMessage({ id: 'nsitePermissions.sitePermissions', defaultMessage: 'Site permissions' })}
+          aria-label={intl.formatMessage({ id: 'nsitePermissions.sitePermissions', defaultMessage: 'Site permissions' })}
         >
           <Shield className="size-3.5" />
         </Button>
@@ -113,7 +114,7 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
       <PopoverContent align="end" className="w-80 p-0">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b">
-          <p className="text-sm font-medium truncate">Permissions</p>
+          <p className="text-sm font-medium truncate"><FormattedMessage id="nsitePermissions.title" defaultMessage="Permissions" /></p>
           {hasPermissions && (
             <Button
               variant="ghost"
@@ -121,7 +122,7 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
               className="h-7 px-2 text-xs text-destructive hover:text-destructive"
               onClick={handleClearAll}
             >
-              Revoke all
+              <FormattedMessage id="nsitePermissions.revokeAll" defaultMessage="Revoke all" />
             </Button>
           )}
         </div>
@@ -132,10 +133,10 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
             <div className="px-4 py-6 text-center">
               <Shield className="size-8 text-muted-foreground/30 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">
-                No permissions granted
+                <FormattedMessage id="nsitePermissions.empty" defaultMessage="No permissions granted" />
               </p>
               <p className="text-xs text-muted-foreground/60 mt-1">
-                Permissions will appear here when the app requests them.
+                <FormattedMessage id="nsitePermissions.emptyHint" defaultMessage="Permissions will appear here when the app requests them." />
               </p>
             </div>
           ) : (
@@ -155,7 +156,8 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
                     type="button"
                     className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                     onClick={() => handleRemove(perm)}
-                    title="Remove"
+                    title={intl.formatMessage({ id: 'nsitePermissions.remove', defaultMessage: 'Remove' })}
+                    aria-label={intl.formatMessage({ id: 'nsitePermissions.remove', defaultMessage: 'Remove' })}
                   >
                     <X className="size-3.5" />
                   </button>

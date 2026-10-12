@@ -146,7 +146,7 @@ export function NsiteSidebarItem({
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(id); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title="Remove"
+          title={intl.formatMessage({ id: 'nsiteSidebarItem.remove', defaultMessage: 'Remove' })}
         >
           <X className="size-4" />
         </button>

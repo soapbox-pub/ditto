@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { ExternalLink, Sparkles } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -29,15 +30,14 @@ interface ConstellationContentProps {
 }
 
 interface ParsedConstellation {
-  title: string;
+  title: string | undefined;
   description: string;
   edges: Array<readonly [number, number]>;
 }
 
 function parseConstellation(event: NostrEvent): ParsedConstellation {
   const title = event.tags.find(([n]) => n === 'title')?.[1]
-    ?? event.tags.find(([n]) => n === 'd')?.[1]
-    ?? 'Untitled constellation';
+    ?? event.tags.find(([n]) => n === 'd')?.[1];
 
   const edges: Array<readonly [number, number]> = [];
   for (const tag of event.tags) {
@@ -58,7 +58,11 @@ function parseConstellation(event: NostrEvent): ParsedConstellation {
 }
 
 export function ConstellationContent({ event, className }: ConstellationContentProps) {
-  const { title, description, edges } = useMemo(() => parseConstellation(event), [event]);
+  const intl = useIntl();
+  const parsed = useMemo(() => parseConstellation(event), [event]);
+  const { description, edges } = parsed;
+  const title = parsed.title
+    ?? intl.formatMessage({ id: 'constellation.untitled', defaultMessage: 'Untitled constellation' });
 
   // Birdstar routes constellations at `/:nip19` using the event's naddr1
   // coordinate (kind 30621 is addressable). Build the link once so we can
@@ -104,7 +108,7 @@ export function ConstellationContent({ event, className }: ConstellationContentP
                 }}
                 className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                View on Birdstar
+                <FormattedMessage id="constellation.viewOnBirdstar" defaultMessage="View on Birdstar" />
                 <ExternalLink aria-hidden className="size-3" />
               </button>
             )}

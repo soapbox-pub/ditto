@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ExternalLink, GitFork, Globe, Package, Shield, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { ReleaseNotesPreview } from '@/components/ReleaseNotesPreview';
@@ -100,6 +101,7 @@ function ScreenshotLightbox({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const intl = useIntl();
   const [index, setIndex] = useState(initialIndex);
 
   // Reset index when lightbox opens with a new image.
@@ -128,13 +130,13 @@ function ScreenshotLightbox({
         <DialogPrimitive.Content
           className="fixed inset-0 z-[250] flex items-center justify-center focus:outline-none"
           onClick={() => onOpenChange(false)}
-          aria-label="Screenshot viewer"
+          aria-label={intl.formatMessage({ id: 'softwareApp.screenshotViewer', defaultMessage: 'Screenshot viewer' })}
         >
           {/* Close button */}
           <button
             onClick={(e) => { e.stopPropagation(); onOpenChange(false); }}
             className="absolute top-4 right-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white transition-colors hover:bg-black/70"
-            aria-label="Close"
+            aria-label={intl.formatMessage({ id: 'softwareApp.close', defaultMessage: 'Close' })}
           >
             <X className="size-5" />
           </button>
@@ -144,7 +146,7 @@ function ScreenshotLightbox({
             <button
               onClick={(e) => { e.stopPropagation(); prev(); }}
               className="absolute left-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white transition-colors hover:bg-black/70"
-              aria-label="Previous screenshot"
+              aria-label={intl.formatMessage({ id: 'softwareApp.previousScreenshot', defaultMessage: 'Previous screenshot' })}
             >
               <ChevronLeft className="size-6" />
             </button>
@@ -153,7 +155,7 @@ function ScreenshotLightbox({
           {/* Image */}
           <img
             src={images[index]}
-            alt={`Screenshot ${index + 1} of ${images.length}`}
+            alt={intl.formatMessage({ id: 'softwareApp.screenshotAlt', defaultMessage: 'Screenshot {index} of {total}' }, { index: index + 1, total: images.length })}
             className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl select-none"
             onClick={(e) => e.stopPropagation()}
             draggable={false}
@@ -165,7 +167,7 @@ function ScreenshotLightbox({
             <button
               onClick={(e) => { e.stopPropagation(); next(); }}
               className="absolute right-4 z-10 rounded-full bg-black/50 p-2 text-white/80 hover:text-white transition-colors hover:bg-black/70"
-              aria-label="Next screenshot"
+              aria-label={intl.formatMessage({ id: 'softwareApp.nextScreenshot', defaultMessage: 'Next screenshot' })}
             >
               <ChevronRight className="size-6" />
             </button>
@@ -181,7 +183,7 @@ function ScreenshotLightbox({
                   className={`size-2 rounded-full transition-colors ${
                     i === index ? 'bg-white' : 'bg-white/40 hover:bg-white/60'
                   }`}
-                  aria-label={`Go to screenshot ${i + 1}`}
+                  aria-label={intl.formatMessage({ id: 'softwareApp.goToScreenshot', defaultMessage: 'Go to screenshot {index}' }, { index: i + 1 })}
                 />
               ))}
             </div>
@@ -194,6 +196,7 @@ function ScreenshotLightbox({
 
 /** Horizontally scrollable screenshot strip with click-to-open lightbox. */
 function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; maxHeight: string; maxCount?: number }) {
+  const intl = useIntl();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const displayImages = maxCount ? images.slice(0, maxCount) : images;
@@ -211,7 +214,7 @@ function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; ma
               setLightboxIndex(i);
               setLightboxOpen(true);
             }}
-            aria-label={`View screenshot ${i + 1}`}
+            aria-label={intl.formatMessage({ id: 'softwareApp.viewScreenshot', defaultMessage: 'View screenshot {index}' }, { index: i + 1 })}
           >
             <img
               src={url}
@@ -245,7 +248,8 @@ interface SoftwareAppContentProps {
 
 /** Renders a kind 32267 software app event, published by Zapstore, ngit, and others. */
 export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) {
-  const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unknown App';
+  const intl = useIntl();
+  const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || intl.formatMessage({ id: 'softwareApp.unknownApp', defaultMessage: 'Unknown App' });
   const summary = getTag(event.tags, 'summary');
   const icon = getTag(event.tags, 'icon');
   const images = getAllTags(event.tags, 'image');
@@ -404,7 +408,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
             onClick={(e) => { e.stopPropagation(); void openUrl(websiteUrl); }}
           >
             <Globe className="size-3.5" />
-            Website
+            <FormattedMessage id="softwareApp.website" defaultMessage="Website" />
           </Button>
         )}
         {repoUrl && (
@@ -415,7 +419,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
             onClick={(e) => { e.stopPropagation(); void openUrl(repoUrl); }}
           >
             <GitFork className="size-3.5" />
-            Source
+            <FormattedMessage id="softwareApp.source" defaultMessage="Source" />
           </Button>
         )}
         {appId && isOnZapstore && (
@@ -455,7 +459,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
         >
           <div className="flex items-center gap-2 text-sm font-medium">
             <Package className="size-4 text-primary" />
-            <span>Release {latestVersion}</span>
+            <span><FormattedMessage id="softwareApp.release" defaultMessage="Release {version}" values={{ version: latestVersion }} /></span>
           </div>
           <ReleaseNotesPreview notes={latestRelease.content} className="line-clamp-6" />
         </Link>

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { useIntl } from "react-intl";
 import { Box } from "lucide-react";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
@@ -132,6 +133,8 @@ function ProfileRedirect() {
 }
 
 export function AppRouter() {
+  const intl = useIntl();
+
   return (
     <AudioPlayerProvider>
       {/* useTransitions={false} restores react-router v6's synchronous
@@ -284,7 +287,8 @@ export function AppRouter() {
               element={
                 <KindFeedPage
                   kind={getSectionKinds("development")}
-                  title="Development"
+                  title={intl.formatMessage({ id: "appRouter.development", defaultMessage: "Development" })}
+                  feedId="development"
                   icon={sidebarItemIcon("development", "size-5")}
                   showFAB={false}
                 />

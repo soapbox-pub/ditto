@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Loader2, X, ZapOff, Zap } from 'lucide-react';
 import QrScanner from 'qr-scanner';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -15,6 +16,17 @@ interface QrScannerDialogProps {
   /** Override the dialog title (defaults to "Scan QR code"). */
   title?: string;
 }
+
+const cameraErrors = defineMessages({
+  insecure: { id: 'qrScanner.error.insecure', defaultMessage: 'Camera access requires a secure (HTTPS) connection.' },
+  unsupported: { id: 'qrScanner.error.unsupported', defaultMessage: "This browser doesn't support camera access." },
+  didNotStart: { id: 'qrScanner.error.didNotStart', defaultMessage: "Camera didn't start. Another app may be using it, or your browser may have blocked the scanner." },
+  notFound: { id: 'qrScanner.error.notFound', defaultMessage: 'No camera was found on this device.' },
+  denied: { id: 'qrScanner.error.denied', defaultMessage: 'Camera permission was denied. Enable it in your settings to scan QR codes.' },
+  inUse: { id: 'qrScanner.error.inUse', defaultMessage: 'Another app is using the camera. Close it and try again.' },
+  overconstrained: { id: 'qrScanner.error.overconstrained', defaultMessage: "This device's camera doesn't support the requested settings." },
+  generic: { id: 'qrScanner.error.generic', defaultMessage: 'Could not access the camera.' },
+});
 
 /** How long to wait after `start()` resolves before declaring the camera dead. */
 const VIDEO_READY_TIMEOUT_MS = 6000;
@@ -38,7 +50,9 @@ const VIDEO_READY_TIMEOUT_MS = 6000;
  *     `VIDEO_READY_TIMEOUT_MS` — usually means the worker engine failed to
  *     initialize or another app is holding the camera.
  */
-export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code' }: QrScannerDialogProps) {
+export function QrScannerDialog({ isOpen, onClose, onScan, title: titleProp }: QrScannerDialogProps) {
+  const intl = useIntl();
+  const title = titleProp ?? intl.formatMessage({ id: 'qrScanner.title', defaultMessage: 'Scan QR code' });
   // Callback ref so we know the moment the element is attached. Radix
   // Dialog mounts content lazily inside a Portal, so a plain `useRef` is
   // still null on the first effect tick after `isOpen` flips to true.
@@ -63,13 +77,13 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
     // Secure-context guard — getUserMedia is only available on https / localhost.
     if (typeof window !== 'undefined' && window.isSecureContext === false) {
       setStatus('error');
-      setError('Camera access requires a secure (HTTPS) connection.');
+      setError(intl.formatMessage(cameraErrors.insecure));
       return;
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus('error');
-      setError("This browser doesn't support camera access.");
+      setError(intl.formatMessage(cameraErrors.unsupported));
       return;
     }
 
@@ -100,7 +114,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
       );
     } catch (err) {
       setStatus('error');
-      setError(humanizeCameraError(err));
+      setError(humanizeCameraError(err, intl));
       return;
     }
 
@@ -118,7 +132,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
           cancelled = true;
           scanner.stop();
           setStatus('error');
-          setError("Camera didn't start. Another app may be using it, or your browser may have blocked the scanner.");
+          setError(intl.formatMessage(cameraErrors.didNotStart));
         }
       }, VIDEO_READY_TIMEOUT_MS);
     };
@@ -172,7 +186,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
         if (cancelled) return;
         clearReadyTimeout();
         setStatus('error');
-        setError(humanizeCameraError(err));
+        setError(humanizeCameraError(err, intl));
       });
 
     // Arm an initial timeout in case `start()` neither resolves nor rejects
@@ -190,7 +204,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
       setHasFlash(false);
       setFlashOn(false);
     };
-  }, [isOpen, video]);
+  }, [isOpen, video, intl]);
 
   const toggleFlash = async () => {
     const scanner = scannerRef.current;
@@ -213,7 +227,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
           <button
             onClick={onClose}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            aria-label="Close"
+            aria-label={intl.formatMessage({ id: 'qrScanner.close', defaultMessage: 'Close' })}
           >
             <X className="size-5" />
           </button>
@@ -236,7 +250,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
           {status === 'starting' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80">
               <Loader2 className="size-8 animate-spin" />
-              <p className="text-sm">Starting camera…</p>
+              <p className="text-sm"><FormattedMessage id="qrScanner.starting" defaultMessage="Starting camera…" /></p>
             </div>
           )}
 
@@ -245,7 +259,7 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
               <Alert variant="destructive" className="bg-background">
                 <Camera className="size-4" />
                 <AlertDescription className="text-xs">
-                  {error || 'Could not access the camera.'}
+                  {error || intl.formatMessage(cameraErrors.generic)}
                 </AlertDescription>
               </Alert>
             </div>
@@ -255,7 +269,9 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
             <button
               type="button"
               onClick={toggleFlash}
-              aria-label={flashOn ? 'Turn flash off' : 'Turn flash on'}
+              aria-label={flashOn
+                ? intl.formatMessage({ id: 'qrScanner.flashOff', defaultMessage: 'Turn flash off' })
+                : intl.formatMessage({ id: 'qrScanner.flashOn', defaultMessage: 'Turn flash on' })}
               className="absolute bottom-3 right-3 size-10 rounded-full bg-black/50 backdrop-blur-sm text-white flex items-center justify-center hover:bg-black/70 transition-colors"
             >
               {flashOn ? <ZapOff className="size-5" /> : <Zap className="size-5" />}
@@ -265,11 +281,11 @@ export function QrScannerDialog({ isOpen, onClose, onScan, title = 'Scan QR code
 
         <div className="px-4 py-3 shrink-0">
           <p className="text-xs text-muted-foreground text-center">
-            Point your camera at a QR code.
+            <FormattedMessage id="qrScanner.hint" defaultMessage="Point your camera at a QR code." />
           </p>
           {status === 'error' && (
             <Button onClick={onClose} variant="outline" className="w-full mt-3">
-              Close
+              <FormattedMessage id="qrScanner.close" defaultMessage="Close" />
             </Button>
           )}
         </div>
@@ -286,24 +302,24 @@ function isOverconstrainedError(err: unknown): boolean {
   return /overconstrained|constraint/i.test(msg);
 }
 
-function humanizeCameraError(err: unknown): string {
+function humanizeCameraError(err: unknown, intl: IntlShape): string {
   const name = (err && typeof err === 'object' ? (err as { name?: unknown }).name : undefined);
   const msg = err instanceof Error ? err.message : String(err);
 
   if (name === 'NotFoundError' || /no camera/i.test(msg) || /not found/i.test(msg)) {
-    return 'No camera was found on this device.';
+    return intl.formatMessage(cameraErrors.notFound);
   }
   if (name === 'NotAllowedError' || /permission/i.test(msg) || /denied/i.test(msg)) {
-    return 'Camera permission was denied. Enable it in your settings to scan QR codes.';
+    return intl.formatMessage(cameraErrors.denied);
   }
   if (name === 'NotReadableError' || /in use|busy|readable/i.test(msg)) {
-    return 'Another app is using the camera. Close it and try again.';
+    return intl.formatMessage(cameraErrors.inUse);
   }
   if (name === 'SecurityError' || /secure context/i.test(msg) || /https/i.test(msg)) {
-    return 'Camera access requires a secure (HTTPS) connection.';
+    return intl.formatMessage(cameraErrors.insecure);
   }
   if (name === 'OverconstrainedError' || /overconstrained|constraint/i.test(msg)) {
-    return "This device's camera doesn't support the requested settings.";
+    return intl.formatMessage(cameraErrors.overconstrained);
   }
-  return msg || 'Could not access the camera.';
+  return msg || intl.formatMessage(cameraErrors.generic);
 }

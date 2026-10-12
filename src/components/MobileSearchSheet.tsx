@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, X, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -34,6 +35,7 @@ interface MobileSearchSheetProps {
 }
 
 export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
@@ -369,7 +371,7 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search people or topics..."
+              placeholder={intl.formatMessage({ id: 'mobileSearch.placeholder', defaultMessage: 'Search people or topics...' })}
               className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
               autoComplete="off"
               autoCorrect="off"
@@ -458,10 +460,11 @@ function MobileNip05Item({
   isSelected: boolean;
   onNavigate: (path: string) => void;
 }) {
+  const intl = useIntl();
   const { data: pubkey, isLoading } = useNip05Resolve(identifier);
   const author = useAuthor(pubkey ?? undefined);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || (pubkey ? 'Anonymous' : identifier);
+  const displayName = metadata?.name || metadata?.display_name || (pubkey ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : identifier);
   const tags = author.data?.event?.tags ?? [];
 
   if (isLoading) {
@@ -520,9 +523,10 @@ function MobilePubkeyItem({
   isSelected: boolean;
   onNavigate: (path: string) => void;
 }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const tags = author.data?.event?.tags ?? [];
 
   return (
@@ -546,7 +550,7 @@ function MobilePubkeyItem({
       <div className="flex-1 min-w-0">
         <span className="font-semibold text-sm truncate block">
           {author.isLoading ? (
-            <span className="text-muted-foreground">Loading profile...</span>
+            <span className="text-muted-foreground"><FormattedMessage id="mobileSearch.loadingProfile" defaultMessage="Loading profile..." /></span>
           ) : (
             <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
           )}
@@ -574,10 +578,11 @@ function MobileEventItem({
   isSelected: boolean;
   onNavigate: (path: string) => void;
 }) {
+  const intl = useIntl();
   const { data: event, isLoading } = useEvent(eventId, relays, authorHint);
   const author = useAuthor(event?.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || (event ? 'Anonymous' : undefined);
+  const displayName = metadata?.name || metadata?.display_name || (event ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : undefined);
 
   return (
     <button
@@ -596,17 +601,17 @@ function MobileEventItem({
       </div>
       <div className="flex-1 min-w-0">
         {isLoading ? (
-          <span className="text-sm text-muted-foreground">Loading event...</span>
+          <span className="text-sm text-muted-foreground"><FormattedMessage id="mobileSearch.loadingEvent" defaultMessage="Loading event..." /></span>
         ) : event ? (
           <>
-            <span className="text-sm truncate block">{event.content.slice(0, 80) || `Kind ${event.kind} event`}</span>
+            <span className="text-sm truncate block">{event.content.slice(0, 80) || intl.formatMessage({ id: 'mobileSearch.kindEvent', defaultMessage: 'Kind {kind} event' }, { kind: event.kind })}</span>
             <span className="text-xs text-muted-foreground truncate block">
-              {displayName ? `by ${displayName}` : raw.slice(0, 8) + '...' + raw.slice(-4)}
+              {displayName ? intl.formatMessage({ id: 'mobileSearch.byAuthor', defaultMessage: 'by {name}' }, { name: displayName }) : raw.slice(0, 8) + '...' + raw.slice(-4)}
             </span>
           </>
         ) : (
           <>
-            <span className="text-sm font-medium truncate block">Go to event</span>
+            <span className="text-sm font-medium truncate block"><FormattedMessage id="mobileSearch.goToEvent" defaultMessage="Go to event" /></span>
             <span className="text-xs text-muted-foreground truncate block font-mono">
               {raw.slice(0, 8)}...{raw.slice(-4)}
             </span>
@@ -630,10 +635,11 @@ function MobileAddrItem({
   isSelected: boolean;
   onNavigate: (path: string) => void;
 }) {
+  const intl = useIntl();
   const { data: event, isLoading } = useAddrEvent(addr, relays);
   const author = useAuthor(event?.pubkey ?? addr.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const title = event?.tags.find(([t]) => t === 'title')?.[1];
 
   return (
@@ -653,14 +659,14 @@ function MobileAddrItem({
       </div>
       <div className="flex-1 min-w-0">
         {isLoading ? (
-          <span className="text-sm text-muted-foreground">Loading...</span>
+          <span className="text-sm text-muted-foreground"><FormattedMessage id="mobileSearch.loading" defaultMessage="Loading..." /></span>
         ) : (
           <>
             <span className="text-sm truncate block">
-              {title || event?.content.slice(0, 80) || `Kind ${addr.kind} event`}
+              {title || event?.content.slice(0, 80) || intl.formatMessage({ id: 'mobileSearch.kindEvent', defaultMessage: 'Kind {kind} event' }, { kind: addr.kind })}
             </span>
             <span className="text-xs text-muted-foreground truncate block">
-              by {displayName}
+              <FormattedMessage id="mobileSearch.byAuthor" defaultMessage="by {name}" values={{ name: displayName }} />
             </span>
           </>
         )}
@@ -694,7 +700,7 @@ function MobileHexItem({
         <Hash className="size-3.5 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-medium truncate block">Go to identifier</span>
+        <span className="text-sm font-medium truncate block"><FormattedMessage id="mobileSearch.goToIdentifier" defaultMessage="Go to identifier" /></span>
         <span className="text-xs text-muted-foreground truncate block font-mono">
           {hex.slice(0, 8)}...{hex.slice(-4)}
         </span>
@@ -712,6 +718,7 @@ function SearchCountryItem({
   isSelected: boolean;
   onClick: (country: CountryEntry) => void;
 }) {
+  const intl = useIntl();
   return (
     <button
       role="option"
@@ -724,7 +731,7 @@ function SearchCountryItem({
       onMouseDown={(e) => e.preventDefault()}
     >
       <div className="size-9 shrink-0 rounded-full bg-secondary flex items-center justify-center">
-        <span className="text-lg leading-none" role="img" aria-label={`Flag of ${country.name}`}>
+        <span className="text-lg leading-none" role="img" aria-label={intl.formatMessage({ id: 'mobileSearch.flagOf', defaultMessage: 'Flag of {country}' }, { country: country.name })}>
           {country.flag}
         </span>
       </div>
@@ -745,6 +752,7 @@ function MobileCommentOnUrlItem({
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const intl = useIntl();
   const { data: preview } = useLinkPreview(url);
   const thumbnailUrl = preview?.thumbnail_url;
 
@@ -780,7 +788,7 @@ function MobileCommentOnUrlItem({
       </div>
       <div className="flex-1 min-w-0">
         <span className="text-sm font-medium truncate block">
-          {preview?.title ?? 'Comment on this link'}
+          {preview?.title ?? intl.formatMessage({ id: 'mobileSearch.commentOnLink', defaultMessage: 'Comment on this link' })}
         </span>
         <span className="text-xs text-muted-foreground truncate block">
           {(() => {
@@ -803,8 +811,9 @@ function SearchProfileItem({
   isFollowed: boolean;
   onClick: (profile: SearchProfile) => void;
 }) {
+  const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || 'Anonymous';
+  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;

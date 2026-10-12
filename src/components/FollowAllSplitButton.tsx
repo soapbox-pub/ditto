@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Check, ChevronDown, Loader2, UserPlus, VolumeX } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -79,13 +80,15 @@ export interface FollowAllSplitButtonProps {
 export function FollowAllSplitButton({
   pubkeys,
   followedPubkeys,
-  listNoun = 'this list',
+  listNoun: listNounProp,
   includeAuthorPubkey,
   className,
   size = 'default',
   followedVariant = 'default',
   followSuccessTitle,
 }: FollowAllSplitButtonProps) {
+  const intl = useIntl();
+  const listNoun = listNounProp ?? intl.formatMessage({ id: 'followAll.defaultListNoun', defaultMessage: 'this list' });
   const { user } = useCurrentUser();
   const { followMany, isPending: isFollowing } = useFollowActions();
   const { muteManyPubkeys } = useMuteList();
@@ -105,8 +108,8 @@ export function FollowAllSplitButton({
   const handleFollowAll = useCallback(async () => {
     if (!user) {
       toast({
-        title: 'Not logged in',
-        description: 'Please log in to follow users.',
+        title: intl.formatMessage({ id: 'followAll.notLoggedIn', defaultMessage: 'Not logged in' }),
+        description: intl.formatMessage({ id: 'followAll.loginToFollow', defaultMessage: 'Please log in to follow users.' }),
         variant: 'destructive',
       });
       return;
@@ -118,26 +121,32 @@ export function FollowAllSplitButton({
         : pubkeys;
       const added = await followMany(candidates);
       toast({
-        title: followSuccessTitle ?? 'Following all!',
+        title: followSuccessTitle ?? intl.formatMessage({ id: 'followAll.followingAll', defaultMessage: 'Following all!' }),
         description: added > 0
-          ? `Added ${added} new account${added !== 1 ? 's' : ''} to your follow list.`
-          : `You were already following everyone in ${listNoun}.`,
+          ? intl.formatMessage(
+            { id: 'followAll.addedToFollowList', defaultMessage: 'Added {count, plural, one {# new account} other {# new accounts}} to your follow list.' },
+            { count: added },
+          )
+          : intl.formatMessage(
+            { id: 'followAll.alreadyFollowingEveryone', defaultMessage: 'You were already following everyone in {listNoun}.' },
+            { listNoun },
+          ),
       });
     } catch (error) {
       console.error('Failed to follow all:', error);
       toast({
-        title: 'Failed to follow',
-        description: 'There was an error updating your follow list.',
+        title: intl.formatMessage({ id: 'followAll.followFailed', defaultMessage: 'Failed to follow' }),
+        description: intl.formatMessage({ id: 'followAll.followFailedDescription', defaultMessage: 'There was an error updating your follow list.' }),
         variant: 'destructive',
       });
     }
-  }, [user, pubkeys, includeAuthorPubkey, followMany, toast, listNoun, followSuccessTitle]);
+  }, [user, pubkeys, includeAuthorPubkey, followMany, toast, listNoun, followSuccessTitle, intl]);
 
   const handleMuteAll = useCallback(async () => {
     if (!user) {
       toast({
-        title: 'Not logged in',
-        description: 'Please log in to mute users.',
+        title: intl.formatMessage({ id: 'followAll.notLoggedIn', defaultMessage: 'Not logged in' }),
+        description: intl.formatMessage({ id: 'followAll.loginToMute', defaultMessage: 'Please log in to mute users.' }),
         variant: 'destructive',
       });
       return;
@@ -148,22 +157,28 @@ export function FollowAllSplitButton({
       const candidates = pubkeys.filter((pk) => pk !== user.pubkey);
       const added = await muteManyPubkeys.mutateAsync(candidates);
       toast({
-        title: 'Muted',
+        title: intl.formatMessage({ id: 'followAll.muted', defaultMessage: 'Muted' }),
         description: added > 0
-          ? `Added ${added} account${added !== 1 ? 's' : ''} to your mute list.`
-          : `Everyone in ${listNoun} was already muted.`,
+          ? intl.formatMessage(
+            { id: 'followAll.addedToMuteList', defaultMessage: 'Added {count, plural, one {# account} other {# accounts}} to your mute list.' },
+            { count: added },
+          )
+          : intl.formatMessage(
+            { id: 'followAll.alreadyMutedEveryone', defaultMessage: 'Everyone in {listNoun} was already muted.' },
+            { listNoun },
+          ),
       });
     } catch (error) {
       console.error('Failed to mute all:', error);
       toast({
-        title: 'Failed to mute',
-        description: 'There was an error updating your mute list.',
+        title: intl.formatMessage({ id: 'followAll.muteFailed', defaultMessage: 'Failed to mute' }),
+        description: intl.formatMessage({ id: 'followAll.muteFailedDescription', defaultMessage: 'There was an error updating your mute list.' }),
         variant: 'destructive',
       });
     } finally {
       setMuteDialogOpen(false);
     }
-  }, [user, pubkeys, muteManyPubkeys, toast, listNoun]);
+  }, [user, pubkeys, muteManyPubkeys, toast, listNoun, intl]);
 
   return (
     <div className={cn('inline-flex', className)}>
@@ -178,17 +193,17 @@ export function FollowAllSplitButton({
         {isFollowing ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Following…
+            <FormattedMessage id="followAll.following" defaultMessage="Following…" />
           </>
         ) : allFollowed ? (
           <>
             <Check className="size-4" />
-            Already following all
+            <FormattedMessage id="followAll.alreadyFollowingAll" defaultMessage="Already following all" />
           </>
         ) : (
           <>
             <UserPlus className="size-4" />
-            Follow All ({pubkeys.length})
+            <FormattedMessage id="followAll.followAll" defaultMessage="Follow All ({count})" values={{ count: pubkeys.length }} />
           </>
         )}
       </Button>
@@ -207,7 +222,7 @@ export function FollowAllSplitButton({
             size={size}
             variant={allFollowed ? followedVariant : 'default'}
             disabled={isBusy || !user || pubkeys.length === 0}
-            aria-label="More follow options"
+            aria-label={intl.formatMessage({ id: 'followAll.moreOptions', defaultMessage: 'More follow options' })}
           >
             <ChevronDown className="size-4" />
           </Button>
@@ -228,7 +243,7 @@ export function FollowAllSplitButton({
             className="gap-2"
           >
             <VolumeX className="size-4" />
-            Mute all
+            <FormattedMessage id="followAll.muteAll" defaultMessage="Mute all" />
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -238,16 +253,22 @@ export function FollowAllSplitButton({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Mute {muteCount} account{muteCount !== 1 ? 's' : ''}?
+              <FormattedMessage
+                id="followAll.muteConfirmTitle"
+                defaultMessage="Mute {count, plural, one {# account} other {# accounts}}?"
+                values={{ count: muteCount }}
+              />
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This will add everyone in {listNoun} to your mute list. Their
-              posts won't appear in your feeds, even if you also follow them.
-              You can unmute individual accounts later from Settings.
+              <FormattedMessage
+                id="followAll.muteConfirmDescription"
+                defaultMessage="This will add everyone in {listNoun} to your mute list. Their posts won't appear in your feeds, even if you also follow them. You can unmute individual accounts later from Settings."
+                values={{ listNoun }}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isMuting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isMuting}><FormattedMessage id="common.cancel" defaultMessage="Cancel" /></AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -258,10 +279,10 @@ export function FollowAllSplitButton({
               {isMuting ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Muting…
+                  <FormattedMessage id="followAll.muting" defaultMessage="Muting…" />
                 </>
               ) : (
-                <>Mute all</>
+                <FormattedMessage id="followAll.muteAll" defaultMessage="Mute all" />
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

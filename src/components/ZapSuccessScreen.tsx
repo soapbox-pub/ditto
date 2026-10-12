@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Check, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -48,11 +49,12 @@ export function ZapSuccessScreen({
   txid,
   onClose,
 }: ZapSuccessScreenProps) {
+  const intl = useIntl();
   const { data: author } = useAuthor(recipientPubkey);
   const { config } = useAppContext();
   const currency: CurrencyDisplay = config.currencyDisplay ?? 'usd';
   const metadata = author?.metadata;
-  const fallbackName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const fallbackName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const displayName = recipientLabel ?? fallbackName;
   const avatarShape = getAvatarShape(metadata);
 
@@ -136,7 +138,9 @@ export function ZapSuccessScreen({
       {/* Headline + amount */}
       <div className="grid gap-1">
         <h2 className="text-lg font-semibold tracking-tight">
-          {recipientLabel ? 'Donation sent' : 'Bitcoin sent'}
+          {recipientLabel
+            ? <FormattedMessage id="zapSuccess.donationSent" defaultMessage="Donation sent" />
+            : <FormattedMessage id="zapSuccess.bitcoinSent" defaultMessage="Bitcoin sent" />}
         </h2>
         <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-amber-500 to-orange-600 bg-clip-text text-transparent">
           {amountDisplay}
@@ -152,7 +156,7 @@ export function ZapSuccessScreen({
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 text-left">
-          <div className="text-[11px] text-muted-foreground leading-tight">To</div>
+          <div className="text-[11px] text-muted-foreground leading-tight"><FormattedMessage id="zapSuccess.to" defaultMessage="To" /></div>
           <div className="text-sm font-medium truncate max-w-[220px]">{displayName}</div>
         </div>
       </div>
@@ -168,12 +172,12 @@ export function ZapSuccessScreen({
           >
             <Link to={`/i/bitcoin:tx:${txid}`} onClick={onClose}>
               <ExternalLink className="size-4 mr-2" />
-              View transaction
+              <FormattedMessage id="zapSuccess.viewTransaction" defaultMessage="View transaction" />
             </Link>
           </Button>
         )}
         <Button type="button" onClick={onClose} className="w-full">
-          Done
+          <FormattedMessage id="zapSuccess.done" defaultMessage="Done" />
         </Button>
       </div>
     </div>

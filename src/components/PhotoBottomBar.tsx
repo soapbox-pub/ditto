@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useIntl } from 'react-intl';
 import { MessageCircle, Zap, MoreHorizontal } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -30,11 +31,13 @@ interface PhotoBottomBarProps {
 }
 
 export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = getDisplayName(metadata, event.pubkey) ?? 'Anonymous';
+  const displayName = getDisplayName(metadata, event.pubkey)
+    ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const { data: stats } = useEventStats(event.id, event);
   const { format: formatMoney } = useFormatMoney();
@@ -102,7 +105,7 @@ export function PhotoBottomBar({ event }: PhotoBottomBarProps) {
               <ZapDialog target={event}>
                 <button
                   className="flex items-center gap-1 p-2.5 transition-colors text-white hover:text-amber-400"
-                  title="Zap"
+                  title={intl.formatMessage({ id: 'photoBottomBar.zap', defaultMessage: 'Zap' })}
                 >
                   <Zap className="size-5" fill="none" />
                   {!!stats?.zapAmount && <span className="text-sm tabular-nums drop-shadow">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>}

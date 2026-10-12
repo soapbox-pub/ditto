@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -22,6 +23,7 @@ interface FollowButtonProps {
  * Hides itself when the target is the logged-in user or when no user is logged in.
  */
 export function FollowButton({ pubkey, className, size = 'sm' }: FollowButtonProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const { isPending, follow, unfollow } = useFollowActions();
@@ -41,17 +43,17 @@ export function FollowButton({ pubkey, className, size = 'sm' }: FollowButtonPro
       if (isFollowing) {
         await unfollow(pubkey);
         impactMedium();
-        toast({ title: 'Unfollowed' });
+        toast({ title: intl.formatMessage({ id: 'followButton.unfollowed', defaultMessage: 'Unfollowed' }) });
       } else {
         await follow(pubkey);
         impactMedium();
-        toast({ title: 'Followed' });
+        toast({ title: intl.formatMessage({ id: 'followButton.followed', defaultMessage: 'Followed' }) });
       }
     } catch (err) {
       console.error('Follow toggle failed:', err);
-      toast({ title: 'Failed to update follow list', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'followButton.failed', defaultMessage: 'Failed to update follow list' }), variant: 'destructive' });
     }
-  }, [user, pubkey, isFollowing, follow, unfollow, toast]);
+  }, [user, pubkey, isFollowing, follow, unfollow, toast, intl]);
 
   // Don't render for own profile or when logged out
   if (!user || user.pubkey === pubkey) return null;
@@ -69,7 +71,11 @@ export function FollowButton({ pubkey, className, size = 'sm' }: FollowButtonPro
       onClick={handleToggleFollow}
       disabled={isPending}
     >
-      {isPending ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
+      {isPending
+        ? '...'
+        : isFollowing
+          ? <FormattedMessage id="followButton.unfollow" defaultMessage="Unfollow" />
+          : <FormattedMessage id="followButton.follow" defaultMessage="Follow" />}
     </Button>
   );
 }

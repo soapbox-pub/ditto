@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Award, Check, Users, Gift, Loader2, MessageCircle, Newspaper } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -46,6 +47,7 @@ type DetailTab = 'awarded' | 'feed' | 'comments';
  * and tabs for "Awarded To" and "Comments".
  */
 export function BadgeDetailContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { toast } = useToast();
   const { user } = useCurrentUser();
@@ -59,7 +61,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Follow list (for "already following all" state on the Follow All split button)
@@ -184,12 +186,16 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           ) : awardedPubkeys.length > 0 ? (
             <span className="text-sm text-muted-foreground flex items-center gap-1.5">
               <Users className="size-4" />
-              Awarded to {awardedPubkeys.length} user{awardedPubkeys.length !== 1 ? 's' : ''}
+              <FormattedMessage
+                id="badgeDetail.awardedToCount"
+                defaultMessage="Awarded to {count, plural, one {# user} other {# users}}"
+                values={{ count: awardedPubkeys.length }}
+              />
             </span>
           ) : (
             <span className="text-sm text-muted-foreground flex items-center gap-1.5">
               <Users className="size-4" />
-              No awards yet
+              <FormattedMessage id="badgeDetail.noAwards" defaultMessage="No awards yet" />
             </span>
           )}
           {isIssuer && (
@@ -199,7 +205,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               onClick={() => setAwardDialogOpen(true)}
             >
               <Gift className="size-3.5" />
-              Award to…
+              <FormattedMessage id="badgeDetail.awardTo" defaultMessage="Award to…" />
             </Button>
           )}
         </div>
@@ -210,7 +216,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
             <FollowAllSplitButton
               pubkeys={awardedPubkeys}
               followedPubkeys={followedPubkeys}
-              listNoun="this badge's awardees"
+              listNoun={intl.formatMessage({ id: 'badgeDetail.listNoun', defaultMessage: "this badge's awardees" })}
               className="flex-1"
             />
           </div>
@@ -226,12 +232,12 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
               onClick={() => {
                 acceptBadge.mutate(
                   { aTag: badgeATag, awardEventId: pendingForUser.awardEvent.id },
-                  { onSuccess: () => toast({ title: 'Badge accepted!' }) },
+                  { onSuccess: () => toast({ title: intl.formatMessage({ id: 'badgeDetail.accepted', defaultMessage: 'Badge accepted!' }) }) },
                 );
               }}
             >
               <Check className="size-4 mr-1.5" />
-              Accept Badge
+              <FormattedMessage id="badgeDetail.accept" defaultMessage="Accept Badge" />
             </Button>
           </div>
         )}
@@ -240,7 +246,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
       {/* Action bar — matches PostDetailPage style */}
       <PostActionBar
         event={event}
-        replyLabel="Comments"
+        replyLabel={intl.formatMessage({ id: 'badgeDetail.tabs.comments', defaultMessage: 'Comments' })}
         onReply={() => setActiveTab('comments')}
         onMore={() => setMoreMenuOpen(true)}
         className="px-4"
@@ -248,9 +254,9 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Tabs */}
       <SubHeaderBar pinned>
-        <TabButton label="Awarded To" active={activeTab === 'awarded'} onClick={() => setActiveTab('awarded')} />
-        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
-        <TabButton label="Comments" active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
+        <TabButton label={intl.formatMessage({ id: 'badgeDetail.tabs.awardedTo', defaultMessage: 'Awarded To' })} active={activeTab === 'awarded'} onClick={() => setActiveTab('awarded')} />
+        <TabButton label={intl.formatMessage({ id: 'badgeDetail.tabs.feed', defaultMessage: 'Feed' })} active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+        <TabButton label={intl.formatMessage({ id: 'badgeDetail.tabs.comments', defaultMessage: 'Comments' })} active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
       </SubHeaderBar>
 
       {/* Tab content */}
@@ -310,7 +316,9 @@ function AwardedToTab({ awardedPubkeys, previewPubkeys, membersMap, membersLoadi
     return (
       <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
         <Users className="size-8 text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">No one has been awarded this badge yet.</p>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage id="badgeDetail.awarded.empty" defaultMessage="No one has been awarded this badge yet." />
+        </p>
       </div>
     );
   }
@@ -323,7 +331,11 @@ function AwardedToTab({ awardedPubkeys, previewPubkeys, membersMap, membersLoadi
       })}
       {awardedPubkeys.length > previewPubkeys.length && (
         <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-          +{awardedPubkeys.length - previewPubkeys.length} more
+          <FormattedMessage
+            id="badgeDetail.awarded.more"
+            defaultMessage="+{count} more"
+            values={{ count: awardedPubkeys.length - previewPubkeys.length }}
+          />
         </div>
       )}
     </div>
@@ -411,7 +423,9 @@ function HoldersFeedTab({ awardedPubkeys, awardsLoading }: {
     return (
       <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
         <Newspaper className="size-8 text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">No one has been awarded this badge yet, so there's no feed to show.</p>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage id="badgeDetail.feed.noHolders" defaultMessage="No one has been awarded this badge yet, so there's no feed to show." />
+        </p>
       </div>
     );
   }
@@ -420,7 +434,9 @@ function HoldersFeedTab({ awardedPubkeys, awardsLoading }: {
     return (
       <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
         <Newspaper className="size-8 text-muted-foreground/30" />
-        <p className="text-sm text-muted-foreground">No posts from badge holders yet.</p>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage id="badgeDetail.feed.empty" defaultMessage="No posts from badge holders yet." />
+        </p>
       </div>
     );
   }
@@ -460,7 +476,9 @@ function CommentsTab({ event, orderedReplies, commentsLoading }: {
       ) : (
         <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
           <MessageCircle className="size-8 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment on this badge.</p>
+          <p className="text-sm text-muted-foreground">
+            <FormattedMessage id="badgeDetail.comments.empty" defaultMessage="No comments yet. Be the first to comment on this badge." />
+          </p>
         </div>
       )}
     </div>
@@ -470,7 +488,8 @@ function CommentsTab({ event, orderedReplies, commentsLoading }: {
 // ─── Shared components ─────────────────────────────────────────────────────────
 
 function AwardeeCard({ pubkey, metadata, pictureImeta }: { pubkey: string; metadata?: NostrMetadata; pictureImeta?: ImetaEntry }) {
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const intl = useIntl();
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
   const profileUrl = useProfileUrl(pubkey, metadata);

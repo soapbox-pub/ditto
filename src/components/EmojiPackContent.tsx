@@ -3,6 +3,7 @@ import { Plus, Check, Loader2, Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -57,6 +58,7 @@ interface EmojiPackContentProps {
  * Shows the pack name, description, emoji grid preview, and an add/remove button.
  */
 export function EmojiPackContent({ event }: EmojiPackContentProps) {
+  const intl = useIntl();
   const pack = useMemo(() => parseEmojiPack(event), [event]);
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
@@ -118,23 +120,25 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
       }
 
       toast({
-        title: isAdded ? 'Pack removed' : 'Pack added',
+        title: isAdded
+          ? intl.formatMessage({ id: 'emojiPack.removed', defaultMessage: 'Pack removed' })
+          : intl.formatMessage({ id: 'emojiPack.added', defaultMessage: 'Pack added' }),
         description: isAdded
-          ? `"${pack.name}" removed from your emoji collection.`
-          : `"${pack.name}" added to your emoji collection!`,
+          ? intl.formatMessage({ id: 'emojiPack.removedDescription', defaultMessage: '"{name}" removed from your emoji collection.' }, { name: pack.name })
+          : intl.formatMessage({ id: 'emojiPack.addedDescription', defaultMessage: '"{name}" added to your emoji collection!' }, { name: pack.name }),
       });
     } catch (error) {
       console.error('Failed to update emoji list:', error);
       rollbackEvent(queryClient, emojiListKey, snapshot);
       toast({
-        title: 'Failed',
-        description: 'Could not update your emoji collection.',
+        title: intl.formatMessage({ id: 'emojiPack.failed', defaultMessage: 'Failed' }),
+        description: intl.formatMessage({ id: 'emojiPack.failedDescription', defaultMessage: 'Could not update your emoji collection.' }),
         variant: 'destructive',
       });
     } finally {
       setIsPending(false);
     }
-  }, [user, pack, event.pubkey, isAdded, packRef, addPack, removePack, queryClient, toast]);
+  }, [user, pack, event.pubkey, isAdded, packRef, addPack, removePack, queryClient, toast, intl]);
 
   if (!pack) return null;
 
@@ -209,7 +213,9 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
             ) : (
               <Plus className="size-3.5" />
             )}
-            {isAdded ? 'Added' : 'Add to Collection'}
+            {isAdded
+              ? <FormattedMessage id="emojiPack.addedButton" defaultMessage="Added" />
+              : <FormattedMessage id="emojiPack.addToCollection" defaultMessage="Add to Collection" />}
           </Button>
         )}
         {isOwnPack && (
@@ -220,7 +226,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
             onClick={() => setEditOpen(true)}
           >
             <Pencil className="size-3.5" />
-            Edit
+            <FormattedMessage id="settings.feed.edit" defaultMessage="Edit" />
           </Button>
         )}
       </div>

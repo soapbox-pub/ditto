@@ -1,4 +1,5 @@
 import { useId, useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 import { starByHip } from '@/lib/starCatalog';
@@ -71,6 +72,8 @@ export function ConstellationStarMap({ edges, title, className }: ConstellationS
   const glowId = `cm-glow-${uid}`;
 
   const projected = useMemo(() => project(edges), [edges]);
+  const intl = useIntl();
+  const label = title ?? intl.formatMessage({ id: 'constellationStarMap.preview', defaultMessage: 'Constellation preview' });
 
   if (!projected || projected.points.size === 0) {
     return (
@@ -80,9 +83,9 @@ export function ConstellationStarMap({ edges, title, className }: ConstellationS
           className,
         )}
         role="img"
-        aria-label={title ?? 'Constellation preview'}
+        aria-label={label}
       >
-        No recognizable stars.
+        <FormattedMessage id="constellationStarMap.noStars" defaultMessage="No recognizable stars." />
       </div>
     );
   }
@@ -97,7 +100,7 @@ export function ConstellationStarMap({ edges, title, className }: ConstellationS
         className,
       )}
       role="img"
-      aria-label={title ?? 'Constellation preview'}
+      aria-label={label}
     >
       {/* Background field stars — cover the whole container regardless of
           aspect ratio, so corners never look bare. */}

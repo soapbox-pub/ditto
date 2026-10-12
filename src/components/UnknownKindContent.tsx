@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, Star } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { CopyButton } from '@/components/EventJsonDialog';
 import { Button } from '@/components/ui/button';
@@ -87,6 +88,7 @@ function buildBarrage(seed: number): { beams: PkBeam[]; stars: PkStar[] } {
  * unrenderable event is inspectable and exportable instead of a dead end.
  */
 export function UnknownKindContent({ event, expanded = false, className }: UnknownKindContentProps) {
+  const intl = useIntl();
   const [showDetails, setShowDetails] = useState(false);
   const [attacking, setAttacking] = useState(false);
 
@@ -201,8 +203,18 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
         <div className="relative z-[1] mt-3 max-w-xs text-center">
           <p className="text-sm font-semibold leading-snug">{label}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            You&rsquo;ve stumbled onto {showKindChip ? `a kind ${event.kind} event` : 'an event kind'}{' '}
-            Ditto can&rsquo;t render yet.
+            {showKindChip ? (
+              <FormattedMessage
+                id="unknownKind.stumbledKind"
+                defaultMessage="You’ve stumbled onto a kind {kind} event Ditto can’t render yet."
+                values={{ kind: event.kind }}
+              />
+            ) : (
+              <FormattedMessage
+                id="unknownKind.stumbled"
+                defaultMessage="You’ve stumbled onto an event kind Ditto can’t render yet."
+              />
+            )}
           </p>
         </div>
 
@@ -226,7 +238,9 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
                 className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
               >
-                {showDetails ? 'Hide details' : 'View event'}
+                {showDetails
+                  ? <FormattedMessage id="unknownKind.hideDetails" defaultMessage="Hide details" />
+                  : <FormattedMessage id="unknownKind.viewEvent" defaultMessage="View event" />}
                 <ChevronDown
                   className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')}
                 />
@@ -240,21 +254,21 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
           >
             {/* Event ID */}
             <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Event ID</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.eventId" defaultMessage="Event ID" /></p>
               <div className="flex items-center gap-1 rounded-lg bg-muted px-3 py-2">
                 <p className="min-w-0 flex-1 select-all break-all font-mono text-xs text-foreground/80">
                   {nip19Id}
                 </p>
-                <CopyButton text={nip19Id} label="Event ID" />
+                <CopyButton text={nip19Id} label={intl.formatMessage({ id: 'unknownKind.eventId', defaultMessage: 'Event ID' })} />
               </div>
             </div>
 
             {/* Raw JSON */}
             <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground">Raw JSON</p>
+              <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.rawJson" defaultMessage="Raw JSON" /></p>
               <div className="relative max-h-64 overflow-auto rounded-lg border border-border bg-muted">
                 <div className="sticky right-2 top-2 float-right">
-                  <CopyButton text={jsonText} label="Event JSON" />
+                  <CopyButton text={jsonText} label={intl.formatMessage({ id: 'unknownKind.eventJson', defaultMessage: 'Event JSON' })} />
                 </div>
                 <pre className="whitespace-pre p-3 font-mono text-xs leading-relaxed text-foreground/80">
                   {jsonText}

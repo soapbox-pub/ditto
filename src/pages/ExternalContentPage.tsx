@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { ArrowLeft, Globe, MessageCircle, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ interface ExternalActionBarProps {
 }
 
 function ExternalActionBar({ content, onComment, commentCount }: ExternalActionBarProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const identifier = content.value;
@@ -74,13 +76,13 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
 
   const handleAddToSidebar = useCallback(() => {
     addToSidebar(identifier);
-    toast({ title: 'Added to sidebar' });
-  }, [identifier, addToSidebar, toast]);
+    toast({ title: intl.formatMessage({ id: 'externalContentPage.toast.addedToSidebar', defaultMessage: 'Added to sidebar' }) });
+  }, [identifier, addToSidebar, toast, intl]);
 
   const handleRemoveFromSidebar = useCallback(() => {
     removeFromSidebar(identifier);
-    toast({ title: 'Removed from sidebar' });
-  }, [identifier, removeFromSidebar, toast]);
+    toast({ title: intl.formatMessage({ id: 'externalContentPage.toast.removedFromSidebar', defaultMessage: 'Removed from sidebar' }) });
+  }, [identifier, removeFromSidebar, toast, intl]);
 
   // Share compose modal state
   const [shareOpen, setShareOpen] = useState(false);
@@ -90,7 +92,7 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
       {/* Comment button — opens the compose modal, same as the FAB */}
       <button
         className="flex items-center gap-1.5 p-2 rounded-full transition-colors text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10"
-        title="Comment"
+        title={intl.formatMessage({ id: 'externalContent.comment', defaultMessage: 'Comment' })}
         onClick={onComment}
       >
         <MessageCircle className="size-5" />
@@ -103,7 +105,7 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
       {/* Share button — opens compose modal pre-filled with the URL */}
       <button
         className="flex items-center gap-1.5 p-2 rounded-full transition-colors text-muted-foreground hover:text-accent hover:bg-accent/10"
-        title="Share to feed"
+        title={intl.formatMessage({ id: 'externalContent.shareToFeed', defaultMessage: 'Share to feed' })}
         onClick={() => setShareOpen(true)}
       >
         <Repeat2 className="size-5" />
@@ -114,7 +116,7 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
         <BookReviewFormDialog isbn={content.value.replace('isbn:', '')}>
           <button
             className="flex items-center gap-1.5 p-2 rounded-full transition-colors text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
-            title="Write a review"
+            title={intl.formatMessage({ id: 'externalContentPage.writeReview', defaultMessage: 'Write a review' })}
           >
             <Star className="size-5" />
           </button>
@@ -129,7 +131,7 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
         <DropdownMenuTrigger asChild>
           <button
             className="p-2 rounded-full transition-colors text-muted-foreground hover:text-primary hover:bg-primary/10"
-            title="More"
+            title={intl.formatMessage({ id: 'externalContentPage.more', defaultMessage: 'More' })}
           >
             <MoreHorizontal className="size-5" />
           </button>
@@ -138,12 +140,12 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
           {isInSidebar ? (
             <DropdownMenuItem onClick={handleRemoveFromSidebar} className="gap-3">
               <Trash2 className="size-4" />
-              Remove from sidebar
+              <FormattedMessage id="externalContentPage.removeFromSidebar" defaultMessage="Remove from sidebar" />
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onClick={handleAddToSidebar} className="gap-3">
               <PanelLeft className="size-4" />
-              Add to sidebar
+              <FormattedMessage id="externalContentPage.addToSidebar" defaultMessage="Add to sidebar" />
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -154,7 +156,7 @@ function ExternalActionBar({ content, onComment, commentCount }: ExternalActionB
           open={shareOpen}
           onOpenChange={setShareOpen}
           initialContent={identifier}
-          title="Share to feed"
+          title={intl.formatMessage({ id: 'externalContent.shareToFeed', defaultMessage: 'Share to feed' })}
         />
       )}
     </div>
@@ -205,6 +207,7 @@ interface ExternalContentViewProps {
  * renders the same UI inline rather than forcing a second click into `/i/`.
  */
 export function ExternalContentView({ uri, focusedEventId }: ExternalContentViewProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
 
   const content = useMemo(() => {
@@ -239,9 +242,9 @@ export function ExternalContentView({ uri, focusedEventId }: ExternalContentView
 
   const resolvedTitle = wikiSummary?.title ?? scryfallCard?.name ?? linkPreview?.title;
 
-  const pageTitle = resolvedTitle ?? (content ? headerLabel(content) : 'External Content');
+  const pageTitle = resolvedTitle ?? (content ? headerLabel(content) : intl.formatMessage({ id: 'externalContentPage.title', defaultMessage: 'External Content' }));
 
-  useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : `External Content | ${config.appName}` });
+  useSeoMeta({ title: content ? (resolvedTitle ? `${resolvedTitle} | ${config.appName}` : seoTitle(content, config.appName)) : intl.formatMessage({ id: 'externalContentPage.seoTitle', defaultMessage: 'External Content | {appName}' }, { appName: config.appName }) });
 
   // Build the NIP-73 identifier for comments.
   // For URLs, a URL object is used. For others (isbn:, iso3166:, etc.) the raw identifier
@@ -433,8 +436,12 @@ function CommentsEmptyState() {
   return (
     <div className="py-12 text-center text-muted-foreground text-sm">
       <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
-      <p className="text-lg font-medium mb-2">No comments yet</p>
-      <p>Be the first to share your thoughts about this!</p>
+      <p className="text-lg font-medium mb-2">
+        <FormattedMessage id="externalContentPage.noComments" defaultMessage="No comments yet" />
+      </p>
+      <p>
+        <FormattedMessage id="externalContentPage.noCommentsHint" defaultMessage="Be the first to share your thoughts about this!" />
+      </p>
     </div>
   );
 }
@@ -454,6 +461,7 @@ interface BookContentTabsProps {
 type BookTab = 'comments' | 'reviews';
 
 function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, focusedEventId }: BookContentTabsProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { data: reviews = [], isLoading: reviewsLoading } = useBookReviews(isbn);
   const [activeTab, setActiveTab] = useState<BookTab>('comments');
@@ -465,12 +473,16 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, f
     <>
       <SubHeaderBar>
         <TabButton
-          label={`Comments${commentCount > 0 ? ` (${commentCount})` : ''}`}
+          label={commentCount > 0
+            ? intl.formatMessage({ id: 'externalContentPage.commentsTabCount', defaultMessage: 'Comments ({count})' }, { count: commentCount })
+            : intl.formatMessage({ id: 'externalContentPage.commentsTab', defaultMessage: 'Comments' })}
           active={activeTab === 'comments'}
           onClick={() => setActiveTab('comments')}
         />
         <TabButton
-          label={`Reviews${reviewCount > 0 ? ` (${reviewCount})` : ''}`}
+          label={reviewCount > 0
+            ? intl.formatMessage({ id: 'externalContentPage.reviewsTabCount', defaultMessage: 'Reviews ({count})' }, { count: reviewCount })
+            : intl.formatMessage({ id: 'externalContentPage.reviewsTab', defaultMessage: 'Reviews' })}
           active={activeTab === 'reviews'}
           onClick={() => setActiveTab('reviews')}
         />
@@ -492,7 +504,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, f
               <BookReviewFormDialog isbn={isbn}>
                 <Button variant="outline" className="w-full">
                   <Star className="size-4 mr-2" />
-                  Write a Review
+                  <FormattedMessage id="bookReview.writeTitle" defaultMessage="Write a Review" />
                 </Button>
               </BookReviewFormDialog>
             </div>
@@ -510,8 +522,12 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, f
           ) : (
             <div className="py-12 text-center text-muted-foreground text-sm">
               <Star className="size-12 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium mb-2">No reviews yet</p>
-              <p>Be the first to review this book!</p>
+              <p className="text-lg font-medium mb-2">
+                <FormattedMessage id="externalContentPage.noReviews" defaultMessage="No reviews yet" />
+              </p>
+              <p>
+                <FormattedMessage id="externalContentPage.noReviewsHint" defaultMessage="Be the first to review this book!" />
+              </p>
             </div>
           )}
         </>
@@ -592,7 +608,9 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
             <div className="mt-2 py-3 text-center space-y-2">
               <div className="flex items-center justify-center gap-2 text-orange-600">
                 <AlertTriangle className="size-4" />
-                <span className="text-sm font-medium">Spoiler Warning</span>
+                <span className="text-sm font-medium">
+                  <FormattedMessage id="externalContentPage.spoilerWarning" defaultMessage="Spoiler Warning" />
+                </span>
               </div>
               <p className="text-xs text-muted-foreground">{review.contentWarning}</p>
               <Button
@@ -600,7 +618,7 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
                 size="sm"
                 onClick={() => setShowSpoiler(true)}
               >
-                Show Review
+                <FormattedMessage id="externalContentPage.showReview" defaultMessage="Show Review" />
               </Button>
             </div>
           ) : (
@@ -608,13 +626,15 @@ function BookReviewCard({ event, review }: { event: NostrEvent; review: BookRevi
               {hasSpoiler && (
                 <Badge variant="outline" className="text-orange-600 border-orange-200 dark:border-orange-800 mb-2">
                   <AlertTriangle className="size-3 mr-1" />
-                  Contains Spoilers
+                  <FormattedMessage id="externalContentPage.containsSpoilers" defaultMessage="Contains Spoilers" />
                 </Badge>
               )}
               {review.content ? (
                 <p className="text-sm whitespace-pre-wrap break-words">{review.content}</p>
               ) : (
-                <p className="text-sm text-muted-foreground italic">Rating only, no written review</p>
+                <p className="text-sm text-muted-foreground italic">
+                  <FormattedMessage id="externalContentPage.ratingOnly" defaultMessage="Rating only, no written review" />
+                </p>
               )}
             </div>
           )}

@@ -2,6 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { Award } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { AcceptBadgeButton } from '@/components/AcceptBadgeButton';
@@ -71,13 +72,25 @@ export function BadgeAwardCard({ event }: BadgeAwardCardProps) {
       {/* Recipient(s) row — "to @Alice" / "to @Alice and 2 others" */}
       {firstRecipient && (
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <span>to</span>
-          <RecipientName pubkey={firstRecipient} />
-          {extraRecipientCount > 0 && (
-            <span className="text-muted-foreground">
-              and {extraRecipientCount}{' '}
-              {extraRecipientCount === 1 ? 'other' : 'others'}
-            </span>
+          {extraRecipientCount > 0 ? (
+            <FormattedMessage
+              id="badgeAward.toRecipientAndOthers"
+              defaultMessage="<span>to</span> {recipient} <span>and {count, plural, one {# other} other {# others}}</span>"
+              values={{
+                recipient: <RecipientName pubkey={firstRecipient} />,
+                count: extraRecipientCount,
+                span: (chunks) => <span>{chunks}</span>,
+              }}
+            />
+          ) : (
+            <FormattedMessage
+              id="badgeAward.toRecipient"
+              defaultMessage="<span>to</span> {recipient}"
+              values={{
+                recipient: <RecipientName pubkey={firstRecipient} />,
+                span: (chunks) => <span>{chunks}</span>,
+              }}
+            />
           )}
         </div>
       )}
@@ -114,9 +127,10 @@ export function BadgeAwardCard({ event }: BadgeAwardCardProps) {
 
 /** Linked display name for a recipient pubkey, with loading skeleton and hover card. */
 function RecipientName({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const url = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {

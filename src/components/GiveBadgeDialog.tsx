@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from 'react';
 import { Award, Loader2, Check, AlertCircle } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import {
   Dialog,
@@ -40,6 +41,7 @@ interface ParsedBadge {
 }
 
 export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipientName }: GiveBadgeDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { toast } = useToast();
@@ -133,19 +135,27 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
     }
 
     if (succeeded.length > 0) {
-      const names = succeeded.length <= 3
-        ? succeeded.map((n) => `"${n}"`).join(', ')
-        : `${succeeded.length} badges`;
       toast({
-        title: 'Badges awarded!',
-        description: `${names} awarded to ${recipientName}.`,
+        title: intl.formatMessage({ id: 'giveBadge.awarded.title', defaultMessage: 'Badges awarded!' }),
+        description: succeeded.length <= 3
+          ? intl.formatMessage(
+            { id: 'giveBadge.awarded.names', defaultMessage: '{names} awarded to {name}.' },
+            { names: succeeded.map((n) => `"${n}"`).join(', '), name: recipientName },
+          )
+          : intl.formatMessage(
+            { id: 'giveBadge.awarded.count', defaultMessage: '{count} badges awarded to {name}.' },
+            { count: succeeded.length, name: recipientName },
+          ),
       });
     }
 
     if (failed.length > 0) {
       toast({
-        title: `Failed to award ${failed.length} badge${failed.length > 1 ? 's' : ''}`,
-        description: 'Please try again.',
+        title: intl.formatMessage(
+          { id: 'giveBadge.failed.title', defaultMessage: '{count, plural, one {Failed to award # badge} other {Failed to award # badges}}' },
+          { count: failed.length },
+        ),
+        description: intl.formatMessage({ id: 'giveBadge.failed.description', defaultMessage: 'Please try again.' }),
         variant: 'destructive',
       });
     }
@@ -170,10 +180,17 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
         <DialogHeader className="px-4 pt-5 pb-3">
           <DialogTitle className="flex items-center gap-2">
             <Award className="size-5 text-primary" />
-            Award Badges
+            <FormattedMessage id="giveBadge.title" defaultMessage="Award Badges" />
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Select badges to award to <span className="font-medium text-foreground">{recipientName}</span>.
+            <FormattedMessage
+              id="giveBadge.description"
+              defaultMessage="Select badges to award to <b>{name}</b>."
+              values={{
+                name: recipientName,
+                b: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+              }}
+            />
           </DialogDescription>
         </DialogHeader>
 
@@ -218,7 +235,7 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
                         {isAlreadySent && (
                           <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0 h-4 gap-1 text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-600">
                             <AlertCircle className="size-2.5" />
-                            Already sent
+                            <FormattedMessage id="giveBadge.alreadySent" defaultMessage="Already sent" />
                           </Badge>
                         )}
                       </div>
@@ -238,8 +255,16 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground text-sm">
               <Award className="size-8 mb-2 opacity-30" />
-              <p>You haven't created any badges yet.</p>
-              <p className="text-xs mt-1">Create badges on the <a href="/badges" className="text-primary hover:underline">Badges page</a>.</p>
+              <p>
+                <FormattedMessage id="giveBadge.empty" defaultMessage="You haven't created any badges yet." />
+              </p>
+              <p className="text-xs mt-1">
+                <FormattedMessage
+                  id="giveBadge.emptyHint"
+                  defaultMessage="Create badges on the <a>Badges page</a>."
+                  values={{ a: (chunks) => <a href="/badges" className="text-primary hover:underline">{chunks}</a> }}
+                />
+              </p>
             </div>
           )}
         </ScrollArea>
@@ -254,12 +279,20 @@ export function GiveBadgeDialog({ open, onOpenChange, recipientPubkey, recipient
               {isSending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  Awarding...
+                  <FormattedMessage id="giveBadge.awarding" defaultMessage="Awarding..." />
                 </>
               ) : (
                 <>
                   <Award className="size-4" />
-                  Award {selectedATags.size > 0 ? `${selectedATags.size} badge${selectedATags.size > 1 ? 's' : ''}` : 'badges'}
+                  {selectedATags.size > 0 ? (
+                    <FormattedMessage
+                      id="giveBadge.awardCount"
+                      defaultMessage="{count, plural, one {Award # badge} other {Award # badges}}"
+                      values={{ count: selectedATags.size }}
+                    />
+                  ) : (
+                    <FormattedMessage id="giveBadge.awardNone" defaultMessage="Award badges" />
+                  )}
                 </>
               )}
             </Button>

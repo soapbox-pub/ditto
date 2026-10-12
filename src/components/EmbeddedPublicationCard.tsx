@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { BookOpen, Newspaper, FileText } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -42,9 +43,10 @@ export function EmbeddedPublicationCard({
   disableHoverCards,
   hideAuthor,
 }: EmbeddedPublicationCardProps) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const avatarShape = getAvatarShape(metadata);
 
@@ -53,7 +55,11 @@ export function EmbeddedPublicationCard({
 
   const isMagazine = event.kind === MAGAZINE_KIND;
   const isIssue = event.kind === MAGAZINE_ISSUE_KIND;
-  const kindLabel = isMagazine ? 'Magazine' : isIssue ? 'Magazine Issue' : 'Ebook';
+  const kindLabel = isMagazine
+    ? intl.formatMessage({ id: 'publicationCard.magazine', defaultMessage: 'Magazine' })
+    : isIssue
+      ? intl.formatMessage({ id: 'publicationCard.magazineIssue', defaultMessage: 'Magazine Issue' })
+      : intl.formatMessage({ id: 'publicationCard.ebook', defaultMessage: 'Ebook' });
   const KindIcon = isMagazine || isIssue ? Newspaper : BookOpen;
 
   const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${naddrId}`, event);
@@ -116,13 +122,13 @@ export function EmbeddedPublicationCard({
         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <KindIcon className="size-3.5 shrink-0" aria-hidden="true" />
           <span>{kindLabel}</span>
-          {isIssue && pub.issue && <span className="text-primary">· Issue {pub.issue}</span>}
+          {isIssue && pub.issue && <span className="text-primary"><FormattedMessage id="publicationCard.issue" defaultMessage="· Issue {issue}" values={{ issue: pub.issue }} /></span>}
         </div>
 
         <p className="mt-0.5 line-clamp-2 text-base font-semibold leading-snug">{pub.title}</p>
 
         {pub.authors.length > 0 && (
-          <p className="line-clamp-1 text-sm text-muted-foreground">by {pub.authors.join(', ')}</p>
+          <p className="line-clamp-1 text-sm text-muted-foreground"><FormattedMessage id="publicationCard.byAuthors" defaultMessage="by {authors}" values={{ authors: intl.formatList(pub.authors) }} /></p>
         )}
 
         {pub.summary && (

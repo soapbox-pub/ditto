@@ -334,13 +334,13 @@ function FeedTabsSection() {
       const response = await fetch(`https://${domain}/.well-known/nostr.json`);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.statusText}`);
+        throw new Error(intl.formatMessage({ id: 'settings.feed.fetchFailed', defaultMessage: 'Failed to fetch: {status}' }, { status: response.statusText }));
       }
 
       const data = await response.json();
       
       if (!data.names || typeof data.names !== 'object') {
-        throw new Error('Invalid NIP-05 JSON format');
+        throw new Error(intl.formatMessage({ id: 'settings.feed.invalidNip05Json', defaultMessage: 'Invalid NIP-05 JSON format' }));
       }
 
       const userCount = Object.keys(data.names).length;

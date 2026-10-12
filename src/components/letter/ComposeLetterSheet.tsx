@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { ArrowLeft, Loader2, Pencil, Send, Sticker, X } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
 import { FabButton } from '@/components/FabButton';
@@ -90,9 +91,10 @@ const BODY_MAX_LENGTH = 220;
 
 /** Inline chip showing the selected recipient with avatar + name + optional clear. */
 function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () => void }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/60 min-w-0">
@@ -106,6 +108,7 @@ function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () =
       {onClear && (
         <button
           onClick={onClear}
+          aria-label={intl.formatMessage({ id: 'composeLetter.clearRecipient', defaultMessage: 'Clear recipient' })}
           className="text-muted-foreground hover:text-foreground shrink-0 transition-colors p-0.5"
         >
           <X className="size-4" strokeWidth={3} />
@@ -123,6 +126,7 @@ interface ComposeLetterSheetProps {
 }
 
 export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -153,7 +157,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
 
   const [resolvedRecipient, setResolvedRecipient] = useState<string | undefined>(initialRecipient);
   const [body, setBody] = useState('');
-  const [closing, setClosing] = useState(() => prefs.closing ?? 'Warmly,');
+  const [closing, setClosing] = useState(() => prefs.closing ?? intl.formatMessage({ id: 'composeLetter.defaultClosing', defaultMessage: 'Warmly,' }));
   const [signature, setSignature] = useState(() => prefs.signature ?? '');
   const [selectedFont, setSelectedFont] = useState(
     () => FONT_OPTIONS.find((f) => f.value === prefs.font) ?? FONT_OPTIONS[0],
@@ -276,7 +280,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const handleSend = async () => {
     if (!canSend || !user || !resolvedRecipient) return;
     if (!user.signer.nip44) {
-      toast({ title: "your signer doesn't support encryption yet", variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: "composeLetter.noEncryption", defaultMessage: "your signer doesn't support encryption yet" }), variant: 'destructive' });
       return;
     }
 
@@ -302,14 +306,16 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     } catch (err) {
       console.error('Failed to send letter:', err);
       setSealing(false);
-      toast({ title: "couldn't send that one", variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: "composeLetter.sendFailed", defaultMessage: "couldn't send that one" }), variant: 'destructive' });
     }
   };
 
   const recipientAuthor = useAuthor(resolvedRecipient);
   const recipientName = recipientAuthor.data?.metadata?.name
     || recipientAuthor.data?.metadata?.display_name
-    || (resolvedRecipient ? 'Anonymous' : 'friend');
+    || (resolvedRecipient
+      ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
+      : intl.formatMessage({ id: 'composeLetter.friend', defaultMessage: 'friend' }));
 
   const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
   const bgColor = resolvedSt.color ?? DEFAULT_STATIONERY_COLOR;
@@ -366,6 +372,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
             <SubHeaderBar pinned className="relative !top-0">
               <button
                 onClick={onClose}
+                aria-label={intl.formatMessage({ id: 'composeLetter.back', defaultMessage: 'Back' })}
                 className="pl-3 pr-1 py-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
               >
                 <ArrowLeft className="size-5" />
@@ -378,7 +385,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
           <>
             {customEmojis.length > 0 && (
               <TabButton
-                label="Stickers"
+                label={intl.formatMessage({ id: 'composeLetter.stickers', defaultMessage: 'Stickers' })}
                 active={overlay === 'sticker'}
                 onClick={() => setOverlay(overlay === 'sticker' ? 'none' : 'sticker')}
               >
@@ -386,7 +393,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
               </TabButton>
             )}
             <TabButton
-              label="Draw"
+              label={intl.formatMessage({ id: 'composeLetter.draw', defaultMessage: 'Draw' })}
               active={overlay === 'draw'}
               onClick={() => setOverlay(overlay === 'draw' ? 'none' : 'draw')}
             >
@@ -403,11 +410,11 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         beforeCard={
           <div className="max-w-xl mx-auto w-full px-5 pb-2 pt-4 max-sidebar:pt-[calc(20px+2.5rem)]">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-sm font-medium text-muted-foreground shrink-0 w-14">To</span>
+              <span className="text-sm font-medium text-muted-foreground shrink-0 w-14"><FormattedMessage id="composeLetter.to" defaultMessage="To" /></span>
               {!initialRecipient && !resolvedRecipient ? (
                 <div className="flex-1 min-w-0">
                   <ProfileSearchDropdown
-                    placeholder="search for a person..."
+                    placeholder={intl.formatMessage({ id: 'composeLetter.searchPlaceholder', defaultMessage: 'search for a person...' })}
                     onSelect={(profile) => setResolvedRecipient(profile.pubkey)}
                     hideCountry
                     className="w-full"
@@ -443,7 +450,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
               setBody(next);
             }}
             maxLength={BODY_MAX_LENGTH}
-            placeholder="dear friend..."
+            placeholder={intl.formatMessage({ id: 'composeLetter.bodyPlaceholder', defaultMessage: 'dear friend...' })}
             className="w-full flex-1 min-h-0 border-none shadow-none resize-none overflow-hidden focus:outline-none font-semibold tracking-wide"
             style={{
               paddingTop: '0.5cqw',
@@ -481,7 +488,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         <FabButton
           onClick={handleSend}
           disabled={!canSend || sealing}
-          title="Send letter"
+          title={intl.formatMessage({ id: 'composeLetter.send', defaultMessage: 'Send letter' })}
           icon={sealing
             ? <Loader2 size={18} className="animate-spin" />
             : <Send strokeWidth={3} size={18} />
@@ -495,7 +502,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
             <FabButton
               onClick={handleSend}
               disabled={!canSend || sealing}
-              title="Send letter"
+              title={intl.formatMessage({ id: 'composeLetter.send', defaultMessage: 'Send letter' })}
               icon={sealing
                 ? <Loader2 size={18} className="animate-spin" />
                 : <Send strokeWidth={3} size={18} />

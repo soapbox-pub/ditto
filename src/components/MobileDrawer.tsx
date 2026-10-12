@@ -144,7 +144,9 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               style={clipStyle}
             />
           )}
-          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+          <SheetTitle className="sr-only">
+            <FormattedMessage id="mobileDrawer.title" defaultMessage="Navigation menu" />
+          </SheetTitle>
 
           {user ? (
             <div className="flex flex-col h-full relative">

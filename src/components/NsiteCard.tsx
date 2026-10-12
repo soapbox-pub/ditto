@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { ExternalLink, FileText, Globe, History, Pin, PinOff, Play, Rocket, Server } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ interface NsiteCardProps {
 
 /** Renders an nsite deployment card with a rich link preview. */
 export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
+	const intl = useIntl();
 	const title = event.tags.find(([n]) => n === "title")?.[1];
 	const description = event.tags.find(([n]) => n === "description")?.[1];
 	const dTag = event.tags.find(([n]) => n === "d")?.[1];
@@ -49,7 +51,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	// A named site whose d tag has no NIP-5A subdomain can still run in the
 	// preview, but it has no gateway URL.
 	const siteUrl = nsiteSubdomain ? `https://${nsiteSubdomain}.nsite.lol` : undefined;
-	const displayName = title || (isNamed ? dTag : isSnapshot ? "Snapshot" : "Root Site");
+	const displayName = title || (isNamed ? dTag : isSnapshot ? intl.formatMessage({ id: "nsiteCard.snapshot", defaultMessage: "Snapshot" }) : intl.formatMessage({ id: "nsiteCard.rootSite", defaultMessage: "Root Site" }));
 
 	const aggregateHash = isSnapshot ? getNsiteAggregateHash(event) : undefined;
 
@@ -81,12 +83,12 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 	const handleTogglePin = useCallback(() => {
 		if (isPinned) {
 			removeFromSidebar(sidebarUri);
-			toast({ title: 'Removed from sidebar' });
+			toast({ title: intl.formatMessage({ id: "nsiteCard.removedFromSidebar", defaultMessage: "Removed from sidebar" }) });
 		} else {
 			addToSidebar(sidebarUri);
-			toast({ title: 'Added to sidebar' });
+			toast({ title: intl.formatMessage({ id: "nsiteCard.addedToSidebar", defaultMessage: "Added to sidebar" }) });
 		}
-	}, [sidebarUri, isPinned, addToSidebar, removeFromSidebar]);
+	}, [sidebarUri, isPinned, addToSidebar, removeFromSidebar, intl]);
 
 	// Sync open/close state with the global NsitePlayerContext.
 	const handlePreviewOpenChange = useCallback((open: boolean) => {
@@ -159,7 +161,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 						</p>
 						{isSnapshot && (
 							<span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-								Snapshot
+								<FormattedMessage id="nsiteCard.snapshot" defaultMessage="Snapshot" />
 							</span>
 						)}
 					</div>
@@ -187,13 +189,13 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 							{pathTags.length > 0 && (
 								<span className="inline-flex items-center gap-1">
 									<FileText className="size-3" />
-									{pathTags.length} {pathTags.length === 1 ? "file" : "files"}
+									<FormattedMessage id="nsiteCard.fileCount" defaultMessage="{count, plural, one {# file} other {# files}}" values={{ count: pathTags.length }} />
 								</span>
 							)}
 							{serverTags.length > 0 && (
 								<span className="inline-flex items-center gap-1">
 									<Server className="size-3" />
-									{serverTags.length} {serverTags.length === 1 ? "server" : "servers"}
+									<FormattedMessage id="nsiteCard.serverCount" defaultMessage="{count, plural, one {# server} other {# servers}}" values={{ count: serverTags.length }} />
 								</span>
 							)}
 						</div>
@@ -209,7 +211,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 					onClick={(e) => { e.stopPropagation(); handlePreviewOpenChange(true); }}
 				>
 					<Play className="size-3 mr-1" />
-					Run
+					<FormattedMessage id="nsiteCard.run" defaultMessage="Run" />
 				</Button>
 				{sourceUrl ? (
 					<Button asChild size="sm" variant="secondary" className="h-7 text-xs">
@@ -220,7 +222,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 							onClick={(e) => e.stopPropagation()}
 						>
 							<Globe className="size-3 mr-1" />
-							Source
+							<FormattedMessage id="nsiteCard.source" defaultMessage="Source" />
 						</a>
 					</Button>
 				) : siteUrl && (
@@ -232,7 +234,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 							onClick={(e) => e.stopPropagation()}
 						>
 							<ExternalLink className="size-3 mr-1" />
-							Visit
+							<FormattedMessage id="nsiteCard.visit" defaultMessage="Visit" />
 						</a>
 					</Button>
 				)}
@@ -240,7 +242,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 					<Button asChild size="sm" variant="secondary" className="h-7 text-xs">
 						<Link to={parentPath} onClick={(e) => e.stopPropagation()}>
 							<Rocket className="size-3 mr-1" />
-							Site
+							<FormattedMessage id="nsiteCard.site" defaultMessage="Site" />
 						</Link>
 					</Button>
 				)}
@@ -251,7 +253,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 					onClick={(e) => { e.stopPropagation(); handleTogglePin(); }}
 				>
 					{isPinned ? <PinOff className="size-3 mr-1" /> : <Pin className="size-3 mr-1" />}
-					{isPinned ? 'Unpin' : 'Pin'}
+					{isPinned ? <FormattedMessage id="nsiteCard.unpin" defaultMessage="Unpin" /> : <FormattedMessage id="nsiteCard.pin" defaultMessage="Pin" />}
 				</Button>
 			</div>
 		</div>

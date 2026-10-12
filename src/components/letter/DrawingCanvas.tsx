@@ -7,6 +7,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { Undo2, Check, X, Eraser } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { type Stroke, pointsToPath, strokesToSvg } from '@/lib/svgDrawing';
 
 const CANVAS_SIZE = 300;
@@ -37,6 +38,7 @@ interface DrawingCanvasProps {
 }
 
 export function DrawingCanvas({ onConfirm, onCancel }: DrawingCanvasProps) {
+  const intl = useIntl();
   const svgRef = useRef<SVGSVGElement>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [activeStroke, setActiveStroke] = useState<Stroke | null>(null);
@@ -139,13 +141,13 @@ export function DrawingCanvas({ onConfirm, onCancel }: DrawingCanvasProps) {
 
       {/* Actions */}
       <div className="flex items-center justify-center gap-2">
-        <button type="button" onClick={onCancel} className={actionBtn} title="Cancel">
+        <button type="button" onClick={onCancel} className={actionBtn} title={intl.formatMessage({ id: 'common.cancel', defaultMessage: 'Cancel' })}>
           <X className="w-5 h-5" strokeWidth={2.5} />
         </button>
-        <button type="button" onClick={() => { setStrokes([]); setActiveStroke(null); }} disabled={!hasStrokes} className={actionBtn} title="Clear all">
+        <button type="button" onClick={() => { setStrokes([]); setActiveStroke(null); }} disabled={!hasStrokes} className={actionBtn} title={intl.formatMessage({ id: 'drawingCanvas.clearAll', defaultMessage: 'Clear all' })}>
           <Eraser className="w-5 h-5" strokeWidth={2.5} />
         </button>
-        <button type="button" onClick={() => setStrokes((p) => p.slice(0, -1))} disabled={!hasStrokes} className={actionBtn} title="Undo">
+        <button type="button" onClick={() => setStrokes((p) => p.slice(0, -1))} disabled={!hasStrokes} className={actionBtn} title={intl.formatMessage({ id: 'drawingCanvas.undo', defaultMessage: 'Undo' })}>
           <Undo2 className="w-5 h-5" strokeWidth={2.5} />
         </button>
         <button
@@ -155,7 +157,7 @@ export function DrawingCanvas({ onConfirm, onCancel }: DrawingCanvasProps) {
           className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
         >
           <Check className="w-4 h-4" strokeWidth={3} />
-          done
+          <FormattedMessage id="drawingCanvas.done" defaultMessage="done" />
         </button>
       </div>
     </div>

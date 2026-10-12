@@ -302,7 +302,7 @@ function CharRing({ count, max }: { count: number; max: number }) {
 
 export function ComposeBox({ 
   onSuccess, 
-  placeholder = "What's on your mind?", 
+  placeholder, 
   compact = false, 
   replyTo, 
   quotedEvent, 
@@ -810,9 +810,13 @@ export function ComposeBox({
 
       expand();
     } catch {
-      toast({ title: 'Upload failed', description: 'Could not upload file.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'compose.uploadFailed', defaultMessage: 'Upload failed' }),
+        description: intl.formatMessage({ id: 'compose.uploadFailedDescription', defaultMessage: 'Could not upload file.' }),
+        variant: 'destructive',
+      });
     }
-  }, [uploadFile, expand, toast, imageQuality]);
+  }, [uploadFile, expand, toast, imageQuality, intl]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;
@@ -865,9 +869,13 @@ export function ComposeBox({
       await voiceRecorder.startRecording();
       expand();
     } catch {
-      toast({ title: 'Microphone access denied', description: 'Please allow microphone access to record voice messages.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'compose.micDenied', defaultMessage: 'Microphone access denied' }),
+        description: intl.formatMessage({ id: 'compose.micDeniedDescription', defaultMessage: 'Please allow microphone access to record voice messages.' }),
+        variant: 'destructive',
+      });
     }
-  }, [voiceRecorder, expand, toast]);
+  }, [voiceRecorder, expand, toast, intl]);
 
   /** Stop recording, upload, and publish as kind 1222 or 1244. */
   const handleStopAndPublishVoice = useCallback(async () => {
@@ -910,7 +918,11 @@ export function ComposeBox({
         ];
       } catch (error) {
         console.error('Failed to upload voice message:', error);
-        toast({ title: 'Upload failed', description: 'Could not upload your voice message.', variant: 'destructive' });
+        toast({
+          title: intl.formatMessage({ id: 'compose.uploadFailed', defaultMessage: 'Upload failed' }),
+          description: intl.formatMessage({ id: 'compose.voiceUploadFailedDescription', defaultMessage: 'Could not upload your voice message.' }),
+          variant: 'destructive',
+        });
         return;
       }
 
@@ -940,12 +952,15 @@ export function ComposeBox({
       }
 
       notificationSuccess();
-      toast({ title: 'Voice message sent!', description: 'Your voice message has been published.' });
+      toast({
+        title: intl.formatMessage({ id: 'compose.voiceSent', defaultMessage: 'Voice message sent!' }),
+        description: intl.formatMessage({ id: 'compose.voiceSentDescription', defaultMessage: 'Your voice message has been published.' }),
+      });
       onSuccess?.();
     } finally {
       setIsPublishingVoice(false);
     }
-  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, toast, showPublishErrorToast, onSuccess]);
+  }, [user, voiceRecorder, uploadFile, createEvent, postComment, replyTo, toast, intl, showPublishErrorToast, onSuccess]);
 
   /**
    * Strip tracking parameters from the links in an outgoing note, unless the
@@ -1090,11 +1105,15 @@ export function ComposeBox({
     notificationSuccess();
     const nevent = tryNeventEncode({ id: published.id, author: published.pubkey, kind: published.kind });
     toast({
-      title: 'Posted!',
-      description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.',
+      title: intl.formatMessage({ id: 'compose.toast.posted', defaultMessage: 'Posted!' }),
+      description: replyTo
+        ? intl.formatMessage({ id: 'compose.toast.replyPublished', defaultMessage: 'Your reply has been published.' })
+        : quotedEvent
+          ? intl.formatMessage({ id: 'compose.toast.quotePublished', defaultMessage: 'Your quote has been published.' })
+          : intl.formatMessage({ id: 'compose.toast.notePublished', defaultMessage: 'Your note has been published.' }),
       action: nevent ? (
-        <ToastAction altText="View post" asChild>
-          <Link to={`/${nevent}`}>View</Link>
+        <ToastAction altText={intl.formatMessage({ id: 'compose.toast.viewPost', defaultMessage: 'View post' })} asChild>
+          <Link to={`/${nevent}`}><FormattedMessage id="compose.toast.view" defaultMessage="View" /></Link>
         </ToastAction>
       ) : undefined,
     });
@@ -1130,7 +1149,7 @@ export function ComposeBox({
 
     resetComposeState();
     notificationSuccess();
-    toast({ title: 'Poll published!' });
+    toast({ title: intl.formatMessage({ id: 'compose.toast.pollPublished', defaultMessage: 'Poll published!' }) });
     onSuccess?.();
   };
 
@@ -1182,7 +1201,7 @@ export function ComposeBox({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Edit
+              <FormattedMessage id="compose.tab.edit" defaultMessage="Edit" />
             </button>
             <button
               onClick={() => setInternalPreviewMode(true)}
@@ -1193,7 +1212,7 @@ export function ComposeBox({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Preview
+              <FormattedMessage id="compose.tab.preview" defaultMessage="Preview" />
             </button>
           </div>
         </div>
@@ -1208,7 +1227,7 @@ export function ComposeBox({
               <Avatar shape={avatarShape} className="size-12">
                 <AvatarImage src={metadata?.picture} imeta={userImeta?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                  {(metadata?.name || metadata?.display_name || 'Anonymous')[0]?.toUpperCase() ?? '?'}
+                  {(metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }))[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
               {/* Birthday party hat — perched on the current user's avatar
@@ -1236,7 +1255,9 @@ export function ComposeBox({
               onPointerDown={expand}
               onFocus={expand}
               onPaste={handlePaste}
-              placeholder={mode === 'poll' ? 'Ask a question…' : placeholder}
+              placeholder={mode === 'poll'
+                ? intl.formatMessage({ id: 'compose.poll.questionPlaceholder', defaultMessage: 'Ask a question…' })
+                : placeholder ?? intl.formatMessage({ id: 'compose.placeholder', defaultMessage: "What's on your mind?" })}
               className={cn(
                 'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-words overflow-hidden transition-[min-height] duration-200 ease-in-out',
                 isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
@@ -1286,7 +1307,7 @@ export function ComposeBox({
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ChevronLeft className="size-3.5" />
-                Back to post
+                <FormattedMessage id="compose.poll.backToPost" defaultMessage="Back to post" />
               </button>
             )}
 
@@ -1302,7 +1323,7 @@ export function ComposeBox({
                         prev.map((o) => (o.id === opt.id ? { ...o, label: e.target.value } : o)),
                       )
                     }
-                    placeholder={`Option ${idx + 1}`}
+                    placeholder={intl.formatMessage({ id: 'compose.poll.optionPlaceholder', defaultMessage: 'Option {number}' }, { number: idx + 1 })}
                     maxLength={100}
                     className="flex-1 bg-secondary/40 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
                   />
@@ -1330,7 +1351,7 @@ export function ComposeBox({
                   className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors pt-0.5"
                 >
                   <Plus className="size-3" />
-                  Add option
+                  <FormattedMessage id="compose.poll.addOption" defaultMessage="Add option" />
                 </button>
               )}
             </div>
@@ -1349,7 +1370,9 @@ export function ComposeBox({
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30',
                   )}
                 >
-                  {t === 'singlechoice' ? 'Single choice' : 'Multiple choice'}
+                  {t === 'singlechoice'
+                    ? <FormattedMessage id="compose.poll.singleChoice" defaultMessage="Single choice" />
+                    : <FormattedMessage id="compose.poll.multipleChoice" defaultMessage="Multiple choice" />}
                 </button>
               ))}
               <div className="w-px bg-border self-stretch mx-0.5" />
@@ -1365,7 +1388,7 @@ export function ComposeBox({
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30',
                   )}
                 >
-                  {d === 0 ? <span style={{ fontSize: '15px', lineHeight: 1, position: 'relative', top: '-1px' }}>∞</span> : `${d}d`}
+                  {d === 0 ? <span style={{ fontSize: '15px', lineHeight: 1, position: 'relative', top: '-1px' }}>∞</span> : <FormattedMessage id="compose.poll.days" defaultMessage="{days}d" values={{ days: d }} />}
                 </button>
               ))}
             </div>
@@ -1379,7 +1402,7 @@ export function ComposeBox({
             <Input
               value={cwText}
               onChange={(e) => setCwText(e.target.value)}
-              placeholder="Content warning reason (optional)"
+              placeholder={intl.formatMessage({ id: 'compose.cwPlaceholder', defaultMessage: 'Content warning reason (optional)' })}
               className="h-8 text-base md:text-sm bg-secondary/50 border-0 rounded-lg"
             />
             <button
@@ -1449,7 +1472,7 @@ export function ComposeBox({
                     <X className="size-[18px]" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Cancel</TooltipContent>
+                <TooltipContent><FormattedMessage id="common.cancel" defaultMessage="Cancel" /></TooltipContent>
               </Tooltip>
 
               {/* Stop & send button */}
@@ -1464,7 +1487,9 @@ export function ComposeBox({
                 ) : (
                   <Square className="size-3.5 mr-1.5" fill="currentColor" />
                 )}
-                {isPublishingVoice ? 'Sending...' : 'Send'}
+                {isPublishingVoice
+                  ? <FormattedMessage id="compose.voice.sending" defaultMessage="Sending..." />
+                  : <FormattedMessage id="compose.voice.send" defaultMessage="Send" />}
               </Button>
             </div>
           ) : (
@@ -1484,7 +1509,7 @@ export function ComposeBox({
                       {isUploading ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Attach file</TooltipContent>
+                  <TooltipContent><FormattedMessage id="compose.attachFile" defaultMessage="Attach file" /></TooltipContent>
                 </Tooltip>
 
                 <input
@@ -1514,7 +1539,7 @@ export function ComposeBox({
                         <Mic className="size-[18px]" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>Voice message</TooltipContent>
+                    <TooltipContent><FormattedMessage id="compose.voiceMessage" defaultMessage="Voice message" /></TooltipContent>
                   </Tooltip>
                 )}
 
@@ -1542,7 +1567,7 @@ export function ComposeBox({
                        <Smile className="size-[18px]" />
                      </button>
                    </TooltipTrigger>
-                   {!pickerOpen && <TooltipContent>Emoji / GIF</TooltipContent>}
+                   {!pickerOpen && <TooltipContent><FormattedMessage id="compose.emojiGif" defaultMessage="Emoji / GIF" /></TooltipContent>}
                  </Tooltip>
 
                 {/* Overflow: Poll + CW */}
@@ -1565,7 +1590,7 @@ export function ComposeBox({
                         </button>
                       </PopoverTrigger>
                     </TooltipTrigger>
-                    {!trayOpen && <TooltipContent>More</TooltipContent>}
+                    {!trayOpen && <TooltipContent><FormattedMessage id="compose.more" defaultMessage="More" /></TooltipContent>}
                   </Tooltip>
                   <PopoverContent side="top" align="start" sideOffset={6} className="w-44 p-1.5 rounded-xl border-border shadow-lg">
                     <div className="flex flex-col gap-0.5">
@@ -1575,7 +1600,7 @@ export function ComposeBox({
                           onClick={() => { setMode((m) => m === 'poll' ? 'post' : 'poll'); setTrayOpen(false); expand(); }}
                           className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', mode === 'poll' ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
                         >
-                          <BarChart3 className="size-4" /><span className="font-medium">Poll</span>
+                          <BarChart3 className="size-4" /><span className="font-medium"><FormattedMessage id="compose.tray.poll" defaultMessage="Poll" /></span>
                         </button>
                       )}
                       <button
@@ -1583,7 +1608,7 @@ export function ComposeBox({
                         onClick={() => { setCwEnabled((v) => !v); setTrayOpen(false); expand(); }}
                         className={cn('flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors', cwEnabled ? 'text-amber-500 bg-amber-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60')}
                       >
-                        <AlertTriangle className="size-4" /><span className="font-medium">Spoiler</span>
+                        <AlertTriangle className="size-4" /><span className="font-medium"><FormattedMessage id="compose.tray.spoiler" defaultMessage="Spoiler" /></span>
                       </button>
                     </div>
                   </PopoverContent>
@@ -1615,7 +1640,9 @@ export function ComposeBox({
                     className="rounded-full px-5 font-bold transition-all motion-safe:active:scale-95"
                     size="sm"
                   >
-                    {isPollPending ? 'Publishing...' : 'Publish poll'}
+                    {isPollPending
+                      ? <FormattedMessage id="compose.poll.publishing" defaultMessage="Publishing..." />
+                      : <FormattedMessage id="compose.poll.publish" defaultMessage="Publish poll" />}
                   </Button>
                 ) : (
                   <Button
@@ -1624,7 +1651,9 @@ export function ComposeBox({
                     className="rounded-full px-5 font-bold transition-all motion-safe:active:scale-95"
                     size="sm"
                   >
-                    {isPending || isCommentPending ? 'Posting...' : 'Post!'}
+                    {isPending || isCommentPending
+                      ? <FormattedMessage id="compose.posting" defaultMessage="Posting..." />
+                      : <FormattedMessage id="compose.post" defaultMessage="Post!" />}
                   </Button>
                 )}
               </div>
@@ -1663,7 +1692,7 @@ export function ComposeBox({
                 )}
               >
                 <Smile className="size-3.5" />
-                Emoji
+                <FormattedMessage id="compose.picker.emoji" defaultMessage="Emoji" />
               </button>
               <button
                 type="button"
@@ -1679,7 +1708,7 @@ export function ComposeBox({
                   <rect x="1" y="1" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
                   <text x="9" y="9" textAnchor="middle" dominantBaseline="central" fontSize="7" fontWeight="700" fontFamily="system-ui,sans-serif" fill="currentColor" letterSpacing="0.5">GIF</text>
                 </svg>
-                GIF
+                <FormattedMessage id="compose.picker.gif" defaultMessage="GIF" />
               </button>
               {customEmojisEnabled && (
                 <button
@@ -1693,7 +1722,7 @@ export function ComposeBox({
                   )}
                 >
                   <Sticker className="size-3.5" />
-                  Stickers
+                  <FormattedMessage id="compose.picker.stickers" defaultMessage="Stickers" />
                 </button>
               )}
             </div>

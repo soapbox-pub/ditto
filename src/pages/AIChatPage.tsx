@@ -3,6 +3,7 @@ import { useSeoMeta } from '@/hooks/useSeoMeta';
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { Bot, Send, Trash2, Palette, Type } from 'lucide-react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 
 import { PageHeader } from '@/components/PageHeader';
 import { useShakespeare, useShakespeareCredits, type ChatMessage, type Model, type ChatCompletionTool } from '@/hooks/useShakespeare';
@@ -198,6 +199,7 @@ Be concise and friendly. When you use a tool, briefly describe the theme you cre
 
 export function AIChatPage() {
   const { config } = useAppContext();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { sendChatMessage, getAvailableModels, isLoading: apiLoading, error: apiError, retryAfter, clearError } = useShakespeare();
   const hasCredits = useShakespeareCredits();
@@ -214,8 +216,8 @@ export function AIChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useSeoMeta({
-    title: `AI Chat | ${config.appName}`,
-    description: 'Chat with AI assistant',
+    title: intl.formatMessage({ id: 'aiChat.seoTitle', defaultMessage: 'AI Chat | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'aiChat.metaDescription', defaultMessage: 'Chat with AI assistant' }),
   });
 
   useLayoutOptions({ noOverscroll: true });
@@ -407,8 +409,12 @@ export function AIChatPage() {
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
           <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Dork AI</h1>
-            <p className="text-muted-foreground">Log in with your Nostr account to start chatting with Dork.</p>
+            <h1 className="text-2xl font-bold">
+              <FormattedMessage id="aiChat.dorkTitle" defaultMessage="Dork AI" />
+            </h1>
+            <p className="text-muted-foreground">
+              <FormattedMessage id="aiChat.loginPrompt" defaultMessage="Log in with your Nostr account to start chatting with Dork." />
+            </p>
           </div>
           <LoginArea className="mt-2" />
         </div>
@@ -422,7 +428,9 @@ export function AIChatPage() {
       <PageHeader titleContent={
         <div className="hidden sidebar:flex items-center gap-2 flex-1 min-w-0">
           <Bot className="size-5" />
-          <h1 className="text-xl font-bold truncate">AI Chat</h1>
+          <h1 className="text-xl font-bold truncate">
+            <FormattedMessage id="aiChat.title" defaultMessage="AI Chat" />
+          </h1>
         </div>
       }>
         {hasCredits && (
@@ -430,7 +438,11 @@ export function AIChatPage() {
             {/* Model selector */}
             <Select value={selectedModel} onValueChange={setSelectedModel} disabled={modelsLoading}>
               <SelectTrigger className="w-48 h-8 text-xs">
-                <SelectValue placeholder={modelsLoading ? 'Loading...' : 'Select model'} />
+                <SelectValue
+                  placeholder={modelsLoading
+                    ? intl.formatMessage({ id: 'aiChat.modelsLoading', defaultMessage: 'Loading...' })
+                    : intl.formatMessage({ id: 'aiChat.selectModel', defaultMessage: 'Select model' })}
+                />
               </SelectTrigger>
               <SelectContent>
                 {models.map((model) => (
@@ -447,7 +459,7 @@ export function AIChatPage() {
               className="size-8"
               onClick={handleClear}
               disabled={messages.length === 0}
-              title="Clear conversation"
+              title={intl.formatMessage({ id: 'aiChat.clear', defaultMessage: 'Clear conversation' })}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -477,14 +489,26 @@ export function AIChatPage() {
               retryAfter ? (
                 <DorkErrorBanner
                   face=">[~_~]<"
-                  heading="Whoa, slow down! Dork needs a breather."
-                  body="You're sending messages a bit too fast. Want more brainpower? Grab some credits on"
+                  heading={intl.formatMessage({ id: 'aiChat.rateLimited.heading', defaultMessage: 'Whoa, slow down! Dork needs a breather.' })}
+                  body={(
+                    <FormattedMessage
+                      id="aiChat.rateLimited.body"
+                      defaultMessage="You're sending messages a bit too fast. Want more brainpower? Grab some credits on <link>Shakespeare</link> to keep chatting with Dork."
+                      values={{ link: (chunks) => <ShakespeareLink>{chunks}</ShakespeareLink> }}
+                    />
+                  )}
                 />
               ) : apiError.includes('run out of credits') ? (
                 <DorkErrorBanner
                   face=">[o_o]<"
-                  heading="You've run out of credits!"
-                  body="Grab some more on"
+                  heading={intl.formatMessage({ id: 'aiChat.noCredits.heading', defaultMessage: "You've run out of credits!" })}
+                  body={(
+                    <FormattedMessage
+                      id="aiChat.noCredits.body"
+                      defaultMessage="Grab some more on <link>Shakespeare</link> to keep chatting with Dork."
+                      values={{ link: (chunks) => <ShakespeareLink>{chunks}</ShakespeareLink> }}
+                    />
+                  )}
                 />
               ) : (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3">
@@ -507,7 +531,9 @@ export function AIChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={!selectedModel ? 'Select a model first...' : 'Send a message...'}
+              placeholder={!selectedModel
+                ? intl.formatMessage({ id: 'aiChat.selectModelFirst', defaultMessage: 'Select a model first...' })
+                : intl.formatMessage({ id: 'aiChat.inputPlaceholder', defaultMessage: 'Send a message...' })}
               disabled={!selectedModel || isStreaming}
               className="min-h-[44px] max-h-40 resize-none bg-secondary/50 border-border focus-visible:ring-1"
               rows={1}
@@ -531,8 +557,8 @@ export function AIChatPage() {
 
 // DorkThinking is imported from the shared component
 
-function DorkErrorBanner({ face, heading, body }: { face: string; heading: string; body: string }) {
-  const shakespeareLink = (
+function ShakespeareLink({ children }: { children: React.ReactNode }) {
+  return (
     <a
       href="https://shakespeare.diy"
       target="_blank"
@@ -540,10 +566,12 @@ function DorkErrorBanner({ face, heading, body }: { face: string; heading: strin
       className="inline-flex items-center gap-1 text-primary hover:underline"
     >
       <span>&#x1F3AD;</span>
-      <span>Shakespeare</span>
+      <span>{children}</span>
     </a>
   );
+}
 
+function DorkErrorBanner({ face, heading, body }: { face: string; heading: string; body: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-secondary/60 border border-border px-4 py-4 text-sm space-y-2">
       <p className="font-medium text-foreground">
@@ -551,17 +579,19 @@ function DorkErrorBanner({ face, heading, body }: { face: string; heading: strin
         {' '}{heading}
       </p>
       <p className="text-muted-foreground">
-        {body} {shakespeareLink} to keep chatting with Dork.
+        {body}
       </p>
     </div>
   );
 }
 
-const DORK_GREETINGS = [
-  "Hi, I'm Dork! What would you like me to do?",
-  "Dork here! What do you need?",
-  "Hey, it's Dork! What do you want to do?",
-];
+const greetingMessages = defineMessages({
+  hi: { id: 'aiChat.greeting.hi', defaultMessage: "Hi, I'm Dork! What would you like me to do?" },
+  here: { id: 'aiChat.greeting.here', defaultMessage: 'Dork here! What do you need?' },
+  hey: { id: 'aiChat.greeting.hey', defaultMessage: "Hey, it's Dork! What do you want to do?" },
+});
+
+const DORK_GREETINGS = [greetingMessages.hi, greetingMessages.here, greetingMessages.hey];
 
 function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
   const greeting = useMemo(() => DORK_GREETINGS[Math.floor(Math.random() * DORK_GREETINGS.length)], []);
@@ -570,13 +600,18 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
     <div className="flex flex-col items-center justify-center gap-8 text-center select-none animate-in fade-in duration-500">
       <pre className="text-4xl font-mono text-primary leading-none">{'<[o_o]>'}</pre>
       <div className="space-y-2">
-        <h2 className="text-base font-semibold tracking-tight text-foreground">Dork AI</h2>
-        <p className="text-sm text-muted-foreground">{greeting}</p>
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
+          <FormattedMessage id="aiChat.dorkTitle" defaultMessage="Dork AI" />
+        </h2>
+        <p className="text-sm text-muted-foreground"><FormattedMessage {...greeting} /></p>
       </div>
       {hasCredits === false && (
         <div className="flex flex-col items-center gap-4 max-w-xs">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            You need credits to chat with Dork. Grab some on Shakespeare to get started.
+            <FormattedMessage
+              id="aiChat.needCredits"
+              defaultMessage="You need credits to chat with Dork. Grab some on Shakespeare to get started."
+            />
           </p>
           <a
             href="https://shakespeare.diy"
@@ -585,7 +620,7 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <span>&#x1F3AD;</span>
-            Get Credits
+            <FormattedMessage id="aiChat.getCredits" defaultMessage="Get Credits" />
           </a>
         </div>
       )}
@@ -596,6 +631,7 @@ function EmptyState({ hasCredits }: { hasCredits: boolean | null }) {
 
 
 function MessageBubble({ message }: { message: DisplayMessage }) {
+  const intl = useIntl();
   const isUser = message.role === 'user';
 
   return (
@@ -630,7 +666,7 @@ function MessageBubble({ message }: { message: DisplayMessage }) {
         )}
 
         <span className="text-[10px] text-muted-foreground/60 px-1">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {intl.formatTime(message.timestamp, { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
     </div>
@@ -678,7 +714,7 @@ function ToolCallBadge({ toolCall }: { toolCall: ToolCall }) {
           <span className="size-2.5 rounded-full border border-black/10" style={{ backgroundColor: `hsl(${colors.primary})` }} />
         </span>
       )}
-      Theme applied
+      <FormattedMessage id="aiChat.themeApplied" defaultMessage="Theme applied" />
       {resultParsed.font && (
         <span className="inline-flex items-center gap-0.5 opacity-80">
           <Type className="size-2.5" />

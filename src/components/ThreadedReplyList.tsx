@@ -132,7 +132,11 @@ function ExpandThreadButton({ count, onClick, isLast }: { count: number; onClick
         <div className="size-1.5 rounded-full bg-foreground/10 my-0.5" />
       </div>
       <span className="text-sm text-primary font-medium group-hover:underline">
-        Show {count} more {count === 1 ? 'reply' : 'replies'}
+        <FormattedMessage
+          id="threadedReplies.showMore"
+          defaultMessage="Show {count} more {count, plural, one {reply} other {replies}}"
+          values={{ count }}
+        />
       </span>
     </button>
   );

@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { useIntl } from 'react-intl';
 import { Navigate } from 'react-router-dom';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
@@ -81,6 +82,7 @@ function ProfileHomeRedirect() {
  * so lazy components will show the page skeleton while loading.
  */
 export function HomePage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const homePage = config.homePage;
 
@@ -95,7 +97,7 @@ export function HomePage() {
     return (
       <LazyKindFeedPage
         kind={getSectionKinds('development')}
-        title="Development"
+        title={intl.formatMessage({ id: 'homePage.development', defaultMessage: 'Development' })}
         icon={sidebarItemIcon('development', 'size-5')}
         showFAB={false}
       />

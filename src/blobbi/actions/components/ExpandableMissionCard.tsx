@@ -12,6 +12,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Check, ChevronRight, ExternalLink, AlertCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
@@ -244,7 +245,13 @@ export function DynamicHint({ current, required }: { current: number; required: 
   return (
     <div className="flex items-center gap-1.5 text-[11px] text-amber-600/80 dark:text-amber-400/80">
       <AlertCircle className="size-3 shrink-0" />
-      <span>Lowest stat: {current}% (need {required}%+)</span>
+      <span>
+        <FormattedMessage
+          id="missionCard.lowestStat"
+          defaultMessage="Lowest stat: {current}% (need {required}%+)"
+          values={{ current, required }}
+        />
+      </span>
     </div>
   );
 }

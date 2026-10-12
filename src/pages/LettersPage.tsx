@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Loader2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { MailboxIcon } from '@/components/icons/MailboxIcon';
 import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,7 @@ function EnvelopeSkeleton({ index }: { index: number }) {
 }
 
 export function LettersPage() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('inbox');
@@ -69,20 +71,28 @@ export function LettersPage() {
 
   const activeQuery = tab === 'inbox' ? inboxQuery : sentQuery;
 
-  useSeoMeta({ title: 'Letters', description: 'Your private encrypted letters' });
+  const lettersTitle = intl.formatMessage({ id: 'letters.title', defaultMessage: 'Letters' });
+  const writeLetterTitle = intl.formatMessage({ id: 'letters.write', defaultMessage: 'Write a letter' });
+
+  useSeoMeta({
+    title: lettersTitle,
+    description: intl.formatMessage({ id: 'letters.metaDescription', defaultMessage: 'Your private encrypted letters' }),
+  });
 
   if (!user) {
     return (
       <main className="min-h-screen">
-        <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" />
+        <PageHeader title={lettersTitle} icon={<MailboxIcon className="size-5" />} backTo="/" />
         <div className="flex flex-col items-center justify-center py-24 gap-6 px-6 text-center">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
             <MailboxIcon className="w-10 h-10 text-primary" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-semibold">Your personal inbox</h2>
+            <h2 className="text-xl font-semibold">
+              <FormattedMessage id="letters.loggedOut.title" defaultMessage="Your personal inbox" />
+            </h2>
             <p className="text-muted-foreground text-sm max-w-xs">
-              Send and receive beautiful encrypted letters with stationery, frames, and stickers.
+              <FormattedMessage id="letters.loggedOut.description" defaultMessage="Send and receive beautiful encrypted letters with stationery, frames, and stickers." />
             </p>
           </div>
           <LoginArea />
@@ -96,11 +106,11 @@ export function LettersPage() {
 
   return (
     <main className="relative min-h-screen">
-      <PageHeader title="Letters" icon={<MailboxIcon className="size-5" />} backTo="/" alwaysShowBack>
+      <PageHeader title={lettersTitle} icon={<MailboxIcon className="size-5" />} backTo="/" alwaysShowBack>
         <button
           onClick={() => navigate('/settings/letters')}
           className="p-2 rounded-full text-muted-foreground hover:text-foreground transition-colors"
-          title="Letter preferences"
+          title={intl.formatMessage({ id: 'letters.preferences', defaultMessage: 'Letter preferences' })}
         >
           <Settings className="w-4 h-4" />
         </button>
@@ -108,8 +118,8 @@ export function LettersPage() {
 
       {/* Tabs */}
       <SubHeaderBar>
-        <TabButton label="Inbox" active={tab === 'inbox'} onClick={() => setTab('inbox')} />
-        <TabButton label="Sent" active={tab === 'sent'} onClick={() => setTab('sent')} />
+        <TabButton label={intl.formatMessage({ id: 'letters.tab.inbox', defaultMessage: 'Inbox' })} active={tab === 'inbox'} onClick={() => setTab('inbox')} />
+        <TabButton label={intl.formatMessage({ id: 'letters.tab.sent', defaultMessage: 'Sent' })} active={tab === 'sent'} onClick={() => setTab('sent')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 
@@ -129,16 +139,19 @@ export function LettersPage() {
               <MailboxIcon className="w-8 h-8 text-muted-foreground opacity-50" />
             </div>
             <p className="text-muted-foreground text-sm">
-              {tab === 'inbox'
-                ? prefs.friendsOnlyInbox
-                  ? 'no letters from friends yet'
-                  : 'no letters yet'
-                : 'no sent letters yet'
-              }
+              {tab === 'inbox' ? (
+                prefs.friendsOnlyInbox ? (
+                  <FormattedMessage id="letters.empty.friends" defaultMessage="no letters from friends yet" />
+                ) : (
+                  <FormattedMessage id="letters.empty.inbox" defaultMessage="no letters yet" />
+                )
+              ) : (
+                <FormattedMessage id="letters.empty.sent" defaultMessage="no sent letters yet" />
+              )}
             </p>
             {tab === 'inbox' && (
               <p className="text-xs text-muted-foreground opacity-70">
-                ask a friend to send you a letter
+                <FormattedMessage id="letters.empty.hint" defaultMessage="ask a friend to send you a letter" />
               </p>
             )}
           </div>
@@ -167,7 +180,7 @@ export function LettersPage() {
                   className="gap-2"
                 >
                   {activeQuery.isFetchingNextPage && <Loader2 className="size-4 animate-spin" />}
-                  Load more
+                  <FormattedMessage id="letters.loadMore" defaultMessage="Load more" />
                 </Button>
               </div>
             )}
@@ -187,12 +200,12 @@ export function LettersPage() {
 
       {/* Compose FAB */}
       <div className="fixed bottom-fab right-6 z-30 sidebar:hidden">
-            <FabButton onClick={() => navigate('/letters/compose')} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
+            <FabButton onClick={() => navigate('/letters/compose')} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title={writeLetterTitle} />
       </div>
       <div className="hidden sidebar:block sticky bottom-6 z-30 pointer-events-none">
         <div className="flex justify-end pr-4">
           <div className="pointer-events-auto">
-        <FabButton onClick={() => navigate('/letters/compose')} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title="Write a letter" />
+        <FabButton onClick={() => navigate('/letters/compose')} icon={<InkPenIcon style={{ width: 18, height: 18 }} strokeWidth={2.5} />} title={writeLetterTitle} />
 
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import QRCode from 'qrcode';
 import { Copy, Check } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -17,6 +18,7 @@ interface FollowQRDialogProps {
 }
 
 export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const author = useAuthor(user?.pubkey ?? '');
   const shareOrigin = useShareOrigin();
@@ -24,7 +26,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
   const [copied, setCopied] = useState(false);
 
   const metadata = author.data?.metadata;
-  const displayName = user ? metadata?.name || metadata?.display_name || 'Anonymous' : '';
+  const displayName = user ? metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : '';
 
   // Links to the profile, where following is an explicit tap. There used to be
   // a dedicated /follow/:npub landing page that published a contact-list update
@@ -63,7 +65,9 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm p-6 flex flex-col items-center gap-5 rounded-2xl">
-        <DialogTitle className="sr-only">Share follow link</DialogTitle>
+        <DialogTitle className="sr-only">
+          <FormattedMessage id="followQr.title" defaultMessage="Share follow link" />
+        </DialogTitle>
 
         {/* Avatar + name */}
         <div className="flex flex-col items-center gap-2">
@@ -74,7 +78,11 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
             </AvatarFallback>
           </Avatar>
           <p className="text-sm text-muted-foreground text-center">
-            Scan to follow <span className="text-foreground font-medium">{displayName}</span>
+            <FormattedMessage
+              id="followQr.scanToFollow"
+              defaultMessage="Scan to follow <b>{name}</b>"
+              values={{ name: displayName, b: (chunks) => <span className="text-foreground font-medium">{chunks}</span> }}
+            />
           </p>
         </div>
 
@@ -82,7 +90,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
         {qrDataUrl ? (
           <img
             src={qrDataUrl}
-            alt="Follow QR code"
+            alt={intl.formatMessage({ id: 'followQr.qrAlt', defaultMessage: 'Follow QR code' })}
             className="w-full rounded-xl border border-border"
             style={{ imageRendering: 'pixelated' }}
             decoding="async"

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Zap, Copy, Check, ExternalLink } from 'lucide-react';
 import QRCode from 'qrcode';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/useToast';
 import { openUrl } from '@/lib/downloadFile';
@@ -57,6 +58,7 @@ function abbreviateInvoice(invoice: string): string {
  */
 export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCardProps) {
   const { toast } = useToast();
+  const intl = useIntl();
   const [copied, setCopied] = useState(false);
   const [paying, setPaying] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -84,11 +86,14 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
     try {
       await navigator.clipboard.writeText(invoice);
       setCopied(true);
-      toast({ title: 'Copied', description: 'Lightning invoice copied to clipboard' });
+      toast({
+        title: intl.formatMessage({ id: 'lightningInvoice.copied', defaultMessage: 'Copied' }),
+        description: intl.formatMessage({ id: 'lightningInvoice.copiedDescription', defaultMessage: 'Lightning invoice copied to clipboard' }),
+      });
     } catch {
-      toast({ title: 'Failed to copy', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'lightningInvoice.copyFailed', defaultMessage: 'Failed to copy' }), variant: 'destructive' });
     }
-  }, [invoice, toast]);
+  }, [invoice, toast, intl]);
 
   useEffect(() => {
     if (!copied) return;
@@ -101,9 +106,13 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
     try {
       await openUrl(`lightning:${invoice}`);
     } catch {
-      toast({ title: 'Could not open wallet', description: 'No lightning wallet app is installed to handle this invoice.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'lightningInvoice.openWalletFailed', defaultMessage: 'Could not open wallet' }),
+        description: intl.formatMessage({ id: 'lightningInvoice.openWalletFailedDescription', defaultMessage: 'No lightning wallet app is installed to handle this invoice.' }),
+        variant: 'destructive',
+      });
     }
-  }, [invoice, toast]);
+  }, [invoice, toast, intl]);
 
   const handlePayWebLN = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,13 +122,13 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
       setPaying(true);
       if (webln.enable) await webln.enable();
       await webln.sendPayment(invoice);
-      toast({ title: 'Payment sent' });
+      toast({ title: intl.formatMessage({ id: 'lightningInvoice.paymentSent', defaultMessage: 'Payment sent' }) });
     } catch {
-      toast({ title: 'Payment failed', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'lightningInvoice.paymentFailed', defaultMessage: 'Payment failed' }), variant: 'destructive' });
     } finally {
       setPaying(false);
     }
-  }, [invoice, toast]);
+  }, [invoice, toast, intl]);
 
   const toggleQr = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -131,7 +140,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
   const qrImage = qrDataUrl ? (
     <img
       src={qrDataUrl}
-      alt="Lightning Invoice QR"
+      alt={intl.formatMessage({ id: 'lightningInvoice.qrAlt', defaultMessage: 'Lightning Invoice QR' })}
       className="rounded-xl"
       style={{ imageRendering: 'pixelated' }}
       decoding="async"
@@ -160,7 +169,7 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
-              alt="Lightning Invoice QR"
+              alt={intl.formatMessage({ id: 'lightningInvoice.qrAlt', defaultMessage: 'Lightning Invoice QR' })}
               className="w-full h-full rounded-xl"
               style={{ imageRendering: 'pixelated' }}
               decoding="async"
@@ -184,12 +193,12 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
               <span className="flex items-center justify-center size-5 sm:size-6 rounded-full bg-primary/15 shrink-0">
                 <Zap className="size-3 sm:size-3.5 text-primary fill-primary" />
               </span>
-              Lightning Invoice
+              <FormattedMessage id="lightningInvoice.title" defaultMessage="Lightning Invoice" />
             </div>
             {amount !== null && (
               <div className="font-bold tracking-tight leading-none mt-1 whitespace-nowrap" style={{ fontSize: 'clamp(1.5rem, 8cqw, 2.5rem)' }}>
                 {formatSats(amount)}
-                <span className="font-normal text-muted-foreground ml-1" style={{ fontSize: 'clamp(0.75rem, 3.5cqw, 1.125rem)' }}>sats</span>
+                <span className="font-normal text-muted-foreground ml-1" style={{ fontSize: 'clamp(0.75rem, 3.5cqw, 1.125rem)' }}><FormattedMessage id="lightningInvoice.sats" defaultMessage="sats" /></span>
               </div>
             )}
           </div>
@@ -217,12 +226,16 @@ export function LightningInvoiceCard({ invoice, className }: LightningInvoiceCar
                 className="gap-1.5 h-9 rounded-xl"
               >
                 <Zap className="size-3.5" />
-                {paying ? 'Paying...' : 'Pay'}
+                {paying ? (
+                  <FormattedMessage id="lightningInvoice.paying" defaultMessage="Paying..." />
+                ) : (
+                  <FormattedMessage id="lightningInvoice.pay" defaultMessage="Pay" />
+                )}
               </Button>
             )}
             <Button size="sm" variant="outline" onClick={handleOpenWallet} className="gap-1.5 h-9 rounded-xl">
               <ExternalLink className="size-3.5" />
-              Open in Wallet
+              <FormattedMessage id="lightningInvoice.openInWallet" defaultMessage="Open in Wallet" />
             </Button>
           </div>
         </div>

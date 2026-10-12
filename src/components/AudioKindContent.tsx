@@ -6,6 +6,7 @@
 
 import { useMemo } from 'react';
 import { Play, Pause, Music, ListMusic, Podcast, Clock, Loader2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { DecryptedImage } from '@/components/DecryptedImage';
@@ -27,6 +28,7 @@ function PlayButton({ isPlaying, isActive, onClick, size = 'lg', loading }: {
   /** The track is being decrypted and can't start yet. */
   loading?: boolean;
 }) {
+  const intl = useIntl();
   const sizeCls = size === 'lg' ? 'size-12' : 'size-10';
   const iconCls = size === 'lg' ? 'size-5' : 'size-4';
 
@@ -42,7 +44,9 @@ function PlayButton({ isPlaying, isActive, onClick, size = 'lg', loading }: {
           : 'bg-primary/15 text-primary hover:bg-primary/25',
         loading && 'cursor-progress',
       )}
-      aria-label={isActive && isPlaying ? 'Pause' : 'Play'}
+      aria-label={isActive && isPlaying
+        ? intl.formatMessage({ id: 'audioKindContent.pause', defaultMessage: 'Pause' })
+        : intl.formatMessage({ id: 'audioKindContent.play', defaultMessage: 'Play' })}
     >
       {loading
         ? <Loader2 className={cn(iconCls, 'animate-spin')} />
@@ -157,7 +161,13 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
         {trackCount > 0 && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ListMusic className="size-3 shrink-0" />
-            <span>{trackCount} track{trackCount !== 1 ? 's' : ''}</span>
+            <span>
+              <FormattedMessage
+                id="audioKindContent.trackCount"
+                defaultMessage="{count, plural, one {# track} other {# tracks}}"
+                values={{ count: trackCount }}
+              />
+            </span>
           </div>
         )}
       </div>
@@ -290,7 +300,7 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
       {/* Trailer info — clicks bubble up to NoteCard for navigation */}
       <div className="p-3.5 space-y-1 cursor-pointer">
         <p className="text-[15px] font-semibold leading-snug truncate">{parsed.title}</p>
-        <p className="text-xs text-muted-foreground">Trailer</p>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="audioKindContent.trailer" defaultMessage="Trailer" /></p>
         <TrackLoadNotice trackId={event.id} />
       </div>
     </div>

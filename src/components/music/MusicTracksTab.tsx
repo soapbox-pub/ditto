@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useMusicFeed } from '@/hooks/useMusicFeed';
@@ -100,7 +101,7 @@ export function MusicTracksTab() {
       {/* Track list */}
       {isError ? (
         <p className="px-4 py-12 text-sm text-muted-foreground text-center">
-          Failed to load tracks. Check your relay connections and try again.
+          <FormattedMessage id="musicTracks.loadFailed" defaultMessage="Failed to load tracks. Check your relay connections and try again." />
         </p>
       ) : showSkeleton ? (
         <div>
@@ -125,11 +126,17 @@ export function MusicTracksTab() {
         </div>
       ) : (
         <p className="px-4 py-12 text-sm text-muted-foreground text-center">
-          {selectedGenre
-            ? `No ${selectedGenre} tracks found. Try a different genre.`
-            : scope === 'following'
-              ? 'No tracks from people you follow yet.'
-              : 'No music tracks yet. Check back soon!'}
+          {selectedGenre ? (
+            <FormattedMessage
+              id="musicTracks.emptyGenre"
+              defaultMessage="No {genre} tracks found. Try a different genre."
+              values={{ genre: selectedGenre }}
+            />
+          ) : scope === 'following' ? (
+            <FormattedMessage id="musicTracks.emptyFollowing" defaultMessage="No tracks from people you follow yet." />
+          ) : (
+            <FormattedMessage id="musicTracks.empty" defaultMessage="No music tracks yet. Check back soon!" />
+          )}
         </p>
       )}
     </div>

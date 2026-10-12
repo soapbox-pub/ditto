@@ -8,24 +8,28 @@
  */
 
 import React, { useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { EggGraphic } from '../components/EggGraphic';
 import type { EggVisualBlobbi } from '../types/egg.types';
 
 export const EggGraphicDemo: React.FC = () => {
+  const intl = useIntl();
   const [animated, setAnimated] = useState(true);
   const [cracking, setCracking] = useState(false);
 
   // Demo eggs with different configurations
-  const demoEggs: Array<{ name: string; egg: EggVisualBlobbi }> = [
+  const demoEggs: Array<{ key: string; name: string; egg: EggVisualBlobbi }> = [
     {
-      name: 'Basic Common Egg',
+      key: 'basic',
+      name: intl.formatMessage({ id: 'eggDemo.basicCommonEgg', defaultMessage: 'Basic Common Egg' }),
       egg: {
         baseColor: '#f2f2f2',
         lifeStage: 'egg',
       },
     },
     {
-      name: 'Egg with Special Mark',
+      key: 'specialMark',
+      name: intl.formatMessage({ id: 'eggDemo.specialMarkEgg', defaultMessage: 'Egg with Special Mark' }),
       egg: {
         baseColor: '#ffffcc',
         specialMark: 'dot_center',
@@ -33,7 +37,8 @@ export const EggGraphicDemo: React.FC = () => {
       },
     },
     {
-      name: 'Rare Egg with Title',
+      key: 'rare',
+      name: intl.formatMessage({ id: 'eggDemo.rareEgg', defaultMessage: 'Rare Egg with Title' }),
       egg: {
         baseColor: '#cc99ff',
         secondaryColor: '#ff99ff',
@@ -43,7 +48,8 @@ export const EggGraphicDemo: React.FC = () => {
       },
     },
     {
-      name: 'Divine Egg',
+      key: 'divine',
+      name: intl.formatMessage({ id: 'eggDemo.divineEgg', defaultMessage: 'Divine Egg' }),
       egg: {
         baseColor: '#55C4A2',
         specialMark: 'divine_wordmark',
@@ -57,7 +63,8 @@ export const EggGraphicDemo: React.FC = () => {
       },
     },
     {
-      name: 'Egg with Pattern',
+      key: 'pattern',
+      name: intl.formatMessage({ id: 'eggDemo.patternEgg', defaultMessage: 'Egg with Pattern' }),
       egg: {
         baseColor: '#99ccff',
         secondaryColor: '#ccffcc',
@@ -67,7 +74,8 @@ export const EggGraphicDemo: React.FC = () => {
       },
     },
     {
-      name: 'Legendary Egg',
+      key: 'legendary',
+      name: intl.formatMessage({ id: 'eggDemo.legendaryEgg', defaultMessage: 'Legendary Egg' }),
       egg: {
         baseColor: '#6633cc',
         secondaryColor: '#9933ff',
@@ -82,7 +90,7 @@ export const EggGraphicDemo: React.FC = () => {
     <div style={{ padding: '2rem', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-          Blobbi Egg Visual System Demo
+          <FormattedMessage id="eggDemo.title" defaultMessage="Blobbi Egg Visual System Demo" />
         </h1>
 
         <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem' }}>
@@ -92,7 +100,7 @@ export const EggGraphicDemo: React.FC = () => {
               checked={animated}
               onChange={(e) => setAnimated(e.target.checked)}
             />
-            Animated
+            <FormattedMessage id="eggDemo.animated" defaultMessage="Animated" />
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <input
@@ -100,7 +108,7 @@ export const EggGraphicDemo: React.FC = () => {
               checked={cracking}
               onChange={(e) => setCracking(e.target.checked)}
             />
-            Cracking
+            <FormattedMessage id="eggDemo.cracking" defaultMessage="Cracking" />
           </label>
         </div>
 
@@ -111,9 +119,9 @@ export const EggGraphicDemo: React.FC = () => {
             gap: '2rem',
           }}
         >
-          {demoEggs.map(({ name, egg }) => (
+          {demoEggs.map(({ key, name, egg }) => (
             <div
-              key={name}
+              key={key}
               style={{
                 backgroundColor: 'white',
                 borderRadius: '8px',
@@ -152,10 +160,10 @@ export const EggGraphicDemo: React.FC = () => {
                   lineHeight: '1.4',
                 }}
               >
-                <div>Base: {egg.baseColor}</div>
-                {egg.secondaryColor && <div>Secondary: {egg.secondaryColor}</div>}
-                {egg.specialMark && <div>Mark: {egg.specialMark}</div>}
-                {egg.pattern && <div>Pattern: {egg.pattern}</div>}
+                <div><FormattedMessage id="eggDemo.base" defaultMessage="Base: {value}" values={{ value: egg.baseColor }} /></div>
+                {egg.secondaryColor && <div><FormattedMessage id="eggDemo.secondary" defaultMessage="Secondary: {value}" values={{ value: egg.secondaryColor }} /></div>}
+                {egg.specialMark && <div><FormattedMessage id="eggDemo.mark" defaultMessage="Mark: {value}" values={{ value: egg.specialMark }} /></div>}
+                {egg.pattern && <div><FormattedMessage id="eggDemo.pattern" defaultMessage="Pattern: {value}" values={{ value: egg.pattern }} /></div>}
               </div>
             </div>
           ))}
@@ -171,7 +179,7 @@ export const EggGraphicDemo: React.FC = () => {
           }}
         >
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-            Usage Instructions
+            <FormattedMessage id="eggDemo.usage" defaultMessage="Usage Instructions" />
           </h2>
           <pre
             style={{

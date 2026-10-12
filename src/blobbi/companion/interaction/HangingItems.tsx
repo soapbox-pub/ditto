@@ -29,10 +29,10 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 import type { CompanionItem, CompanionMenuAction } from './types';
-import { getMenuActionConfig } from './types';
 import type { Position } from '../types/companion.types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -227,6 +227,7 @@ function ReleasedItem({
   onDragEnd,
   onCollect,
 }: ReleasedItemProps) {
+  const intl = useIntl();
   const { item, state } = data;
   
   // Local refs for tracking pointer state
@@ -364,7 +365,7 @@ function ReleasedItem({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       role={canInteract ? 'button' : undefined}
-      aria-label={canInteract ? `${item.name} on ground. Click or drag to Blobbi to use.` : undefined}
+      aria-label={canInteract ? intl.formatMessage({ id: 'hangingItems.landedItemLabel', defaultMessage: '{name} on ground. Click or drag to Blobbi to use.' }, { name: item.name }) : undefined}
     >
       <span
         style={{ 
@@ -399,6 +400,7 @@ export function HangingItems({
   onItemCollected,
   isItemOnCooldown,
 }: HangingItemsProps) {
+  const intl = useIntl();
   // Container animation state
   const [containerState, setContainerState] = useState<ContainerState>('hidden');
   
@@ -1025,7 +1027,11 @@ export function HangingItems({
         >
           <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border">
             <p className="text-sm text-muted-foreground text-center">
-              No {getMenuActionConfig(selectedAction)?.label.toLowerCase()} items available
+              <FormattedMessage
+                id="hangingItems.empty"
+                defaultMessage="{action, select, feed {No feed items available} play {No play items available} medicine {No medicine items available} clean {No clean items available} sleep {No sleep items available} other {No items available}}"
+                values={{ action: selectedAction ?? 'other' }}
+              />
             </p>
           </div>
         </div>
@@ -1095,7 +1101,7 @@ export function HangingItems({
                     }}
                     onClick={() => handleItemClick(item, itemX)}
                     title={item.name}
-                    aria-label={`${item.name}. Click to release.`}
+                    aria-label={intl.formatMessage({ id: 'hangingItems.hangingItemLabel', defaultMessage: '{name}. Click to release.' }, { name: item.name })}
                   >
                     {/* Item emoji */}
                     <span 

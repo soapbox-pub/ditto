@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { ExternalLink, Copy, Check, Lock, Hash } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { openUrl } from '@/lib/downloadFile';
@@ -76,6 +77,7 @@ function InviteIconTile({
   crestClass: string;
   cut: string;
 }) {
+  const intl = useIntl();
   const iconUrl = useArmadaImage(preview?.icon);
   return (
     <div
@@ -83,7 +85,7 @@ function InviteIconTile({
       style={cutCorners(cut)}
     >
       {iconUrl ? (
-        <img src={iconUrl} alt={preview?.name || 'Community icon'} className="size-full object-cover" decoding="async" />
+        <img src={iconUrl} alt={preview?.name || intl.formatMessage({ id: 'armadaInvite.communityIcon', defaultMessage: 'Community icon' })} className="size-full object-cover" decoding="async" />
       ) : (
         <ArmadaCrest className={cn('text-primary', crestClass)} />
       )}
@@ -92,9 +94,14 @@ function InviteIconTile({
 }
 
 /** Localized "N channels" (or "no channels" / "1 channel"). */
-function channelsLabel(count: number): string {
-  if (count <= 0) return 'No channels';
-  return `${count} ${count === 1 ? 'channel' : 'channels'}`;
+function ChannelsLabel({ count }: { count: number }) {
+  return (
+    <FormattedMessage
+      id="armadaInvite.channels"
+      defaultMessage="{count, plural, =0 {No channels} one {# channel} other {# channels}}"
+      values={{ count: Math.max(count, 0) }}
+    />
+  );
 }
 
 /**
@@ -118,6 +125,7 @@ export function ArmadaInviteEmbed({ invite, className, variant = 'embed' }: Arma
 
 function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInviteEmbedProps) {
   const safeUrl = sanitizeUrl(invite.openUrl);
+  const intl = useIntl();
   const [copied, setCopied] = useState(false);
 
   const { data: preview, isLoading } = useArmadaInvitePreview(invite);
@@ -156,7 +164,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
               Armada
             </span>
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              · Community invite
+              · <FormattedMessage id="armadaInvite.communityInvite" defaultMessage="Community invite" />
             </span>
           </div>
 
@@ -167,39 +175,45 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
               <Skeleton className="mx-auto h-6 w-40" />
             ) : (
               <h2 className="text-lg font-bold leading-tight">
-                {communityName || 'Encrypted community'}
+                {communityName || <FormattedMessage id="armadaInvite.encryptedCommunity" defaultMessage="Encrypted community" />}
               </h2>
             )}
             <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Lock className="size-3.5 shrink-0" />
-                {invite.missingSecret ? 'Missing secret' : 'Encrypted'}
+                {invite.missingSecret ? (
+                  <FormattedMessage id="armadaInvite.missingSecret" defaultMessage="Missing secret" />
+                ) : (
+                  <FormattedMessage id="armadaInvite.encrypted" defaultMessage="Encrypted" />
+                )}
               </span>
               {preview && preview.channelCount > 0 && (
                 <span className="inline-flex items-center gap-1.5">
                   <Hash className="size-3.5 shrink-0" />
-                  {channelsLabel(preview.channelCount)}
+                  <ChannelsLabel count={preview.channelCount} />
                 </span>
               )}
             </div>
             <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-              {invite.missingSecret
-                ? "Ask whoever shared it for a fresh link. The secret can't be recovered."
-                : preview?.expired
-                  ? 'This invite has expired. Ask for a fresh link to join.'
-                  : "Ditto can't open encrypted communities. Open this invite in Armada to view and join."}
+              {invite.missingSecret ? (
+                <FormattedMessage id="armadaInvite.missingSecretHint" defaultMessage="Ask whoever shared it for a fresh link. The secret can't be recovered." />
+              ) : preview?.expired ? (
+                <FormattedMessage id="armadaInvite.expired" defaultMessage="This invite has expired. Ask for a fresh link to join." />
+              ) : (
+                <FormattedMessage id="armadaInvite.openHint" defaultMessage="Ditto can't open encrypted communities. Open this invite in Armada to view and join." />
+              )}
             </p>
           </div>
 
           <div className="flex w-full max-w-xs flex-col gap-2 pt-1">
             {invite.missingSecret ? (
               <Button variant="secondary" style={cutCorners('0.85rem')} disabled>
-                Invite incomplete
+                <FormattedMessage id="armadaInvite.incomplete" defaultMessage="Invite incomplete" />
               </Button>
             ) : (
               <Button style={cutCorners('0.85rem')} disabled={!safeUrl} onClick={openInArmada}>
                 <ExternalLink className="size-4" />
-                Open in Armada
+                <FormattedMessage id="armadaInvite.open" defaultMessage="Open in Armada" />
               </Button>
             )}
             <Button
@@ -211,7 +225,11 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
               onClick={handleCopy}
             >
               {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
-              {copied ? 'Copied' : 'Copy invite link'}
+              {copied ? (
+                <FormattedMessage id="armadaInvite.copied" defaultMessage="Copied" />
+              ) : (
+                <FormattedMessage id="armadaInvite.copyLink" defaultMessage="Copy invite link" />
+              )}
             </Button>
           </div>
         </div>
@@ -242,7 +260,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
             Armada
           </span>
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            · Community invite
+            · <FormattedMessage id="armadaInvite.communityInvite" defaultMessage="Community invite" />
           </span>
         </div>
 
@@ -253,13 +271,17 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
               <Skeleton className="h-4 w-28" />
             ) : (
               <p className="font-semibold leading-tight truncate">
-                {communityName || 'Encrypted community'}
+                {communityName || <FormattedMessage id="armadaInvite.encryptedCommunity" defaultMessage="Encrypted community" />}
               </p>
             )}
             <p className="mt-0.5 flex items-center gap-2.5 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <Lock className="size-3 shrink-0" />
-                {invite.missingSecret ? 'Missing secret' : 'Encrypted'}
+                {invite.missingSecret ? (
+                  <FormattedMessage id="armadaInvite.missingSecret" defaultMessage="Missing secret" />
+                ) : (
+                  <FormattedMessage id="armadaInvite.encrypted" defaultMessage="Encrypted" />
+                )}
               </span>
               {preview && preview.channelCount > 0 && (
                 <span className="inline-flex items-center gap-1">
@@ -274,7 +296,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
         <div className="flex items-center gap-2">
           {invite.missingSecret ? (
             <Button variant="secondary" className="flex-1" style={cutCorners('0.7rem')} disabled>
-              Invite incomplete
+              <FormattedMessage id="armadaInvite.incomplete" defaultMessage="Invite incomplete" />
             </Button>
           ) : (
             <Button
@@ -288,7 +310,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
               }}
             >
               <ExternalLink className="size-4" />
-              Open in Armada
+              <FormattedMessage id="armadaInvite.open" defaultMessage="Open in Armada" />
             </Button>
           )}
           <Button
@@ -297,7 +319,9 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
             size="icon"
             className="shrink-0 bg-primary/10 text-primary hover:bg-primary/20"
             style={cutCorners('0.7rem')}
-            aria-label={copied ? 'Link copied' : 'Copy invite link'}
+            aria-label={copied
+              ? intl.formatMessage({ id: 'armadaInvite.linkCopied', defaultMessage: 'Link copied' })
+              : intl.formatMessage({ id: 'armadaInvite.copyLink', defaultMessage: 'Copy invite link' })}
             disabled={!safeUrl}
             onClick={(e) => {
               e.preventDefault();

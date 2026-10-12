@@ -6,6 +6,7 @@
  * or creating a new Follow Set on the fly.
  */
 import { useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Plus, Loader2, List, Users, X, PartyPopper, Check } from 'lucide-react';
 import {
   Dialog,
@@ -34,6 +35,7 @@ interface AddToListDialogProps {
 
 
 export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: AddToListDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { lists, isLoading: listsLoading, addToList, createList, isInList } = useUserLists();
   const { data: followPacks = [], isLoading: packsLoading } = useFollowPacks();
@@ -60,9 +62,9 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
     setPendingId(listId);
     try {
       await addToList.mutateAsync({ listId, pubkey });
-      toast({ title: 'Added to list' });
+      toast({ title: intl.formatMessage({ id: 'addToList.addedToList', defaultMessage: 'Added to list' }) });
     } catch {
-      toast({ title: 'Failed to add to list', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'addToList.addToListFailed', defaultMessage: 'Failed to add to list' }), variant: 'destructive' });
     } finally {
       setPendingId(null);
     }
@@ -75,9 +77,9 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
     try {
       await addToPack.mutateAsync({ packId: pack.id, pubkey });
       setAddedPackIds((prev) => new Set(prev).add(pack.id));
-      toast({ title: `Added to "${pack.title}"` });
+      toast({ title: intl.formatMessage({ id: 'addToList.addedToPack', defaultMessage: 'Added to "{title}"' }, { title: pack.title }) });
     } catch {
-      toast({ title: 'Failed to add to pack', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'addToList.addToPackFailed', defaultMessage: 'Failed to add to pack' }), variant: 'destructive' });
     } finally {
       setPendingId(null);
     }
@@ -91,10 +93,10 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
         title: newListName.trim(),
         pubkeys: [pubkey],
       });
-      toast({ title: `Created "${result.title}" and added` });
+      toast({ title: intl.formatMessage({ id: 'addToList.createdAndAdded', defaultMessage: 'Created "{title}" and added' }, { title: result.title }) });
       setNewListName('');
     } catch {
-      toast({ title: 'Failed to create list', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'addToList.createFailed', defaultMessage: 'Failed to create list' }), variant: 'destructive' });
     } finally {
       setCreatingNew(false);
     }
@@ -111,10 +113,12 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
         <div className="flex items-center justify-between px-4 py-3 shrink-0">
           <DialogHeader className="p-0 space-y-0">
             <DialogTitle className="text-base font-bold">
-              {displayName ? `Add ${displayName} to list` : 'Add to list'}
+              {displayName
+                ? <FormattedMessage id="addToList.titleWithName" defaultMessage="Add {name} to list" values={{ name: displayName }} />
+                : <FormattedMessage id="addToList.title" defaultMessage="Add to list" />}
             </DialogTitle>
           </DialogHeader>
-          <Button variant="ghost" size="icon" className="rounded-full size-8 shrink-0" onClick={close}>
+          <Button variant="ghost" size="icon" className="rounded-full size-8 shrink-0" onClick={close} aria-label={intl.formatMessage({ id: 'addToList.close', defaultMessage: 'Close' })}>
             <X className="size-4" />
           </Button>
         </div>
@@ -135,7 +139,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
           ) : !hasAny ? (
             <div className="py-8 px-4 text-center text-sm text-muted-foreground">
               <List className="size-8 mx-auto mb-2 text-muted-foreground/40" />
-              No lists or packs yet. Create one below.
+              <FormattedMessage id="addToList.empty" defaultMessage="No lists or packs yet. Create one below." />
             </div>
           ) : (
             <div className="py-1">
@@ -144,7 +148,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
                 <>
                   {followPacks.length > 0 && (
                     <p className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Lists
+                      <FormattedMessage id="addToList.lists" defaultMessage="Lists" />
                     </p>
                   )}
                   {lists.map((list) => {
@@ -171,7 +175,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
                 <>
                   {lists.length > 0 && <Separator className="my-1" />}
                   <p className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Follow Packs
+                    <FormattedMessage id="addToList.followPacks" defaultMessage="Follow Packs" />
                   </p>
                   {followPacks.map((pack) => {
                     const inPack = pack.pubkeys.includes(pubkey) || addedPackIds.has(pack.id);
@@ -200,11 +204,11 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
         {/* Create new list */}
         <div className="p-3 space-y-2 shrink-0">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide px-1">
-            New list
+            <FormattedMessage id="addToList.newList" defaultMessage="New list" />
           </p>
           <div className="flex gap-2">
             <Input
-              placeholder="List name…"
+              placeholder={intl.formatMessage({ id: 'addToList.listNamePlaceholder', defaultMessage: 'List name…' })}
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleCreateAndAdd(); }}
@@ -218,7 +222,7 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
               className="h-8 gap-1"
             >
               {creatingNew ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-              Create
+              <FormattedMessage id="addToList.create" defaultMessage="Create" />
             </Button>
           </div>
         </div>
@@ -248,7 +252,7 @@ function ListRow({ icon, label, count, inList, isPending, disabled, onAdd }: Lis
           <div className="text-sm font-medium truncate">{label}</div>
           <div className="text-xs text-muted-foreground flex items-center gap-1">
             <Users className="size-3 shrink-0" />
-            {count} {count === 1 ? 'person' : 'people'}
+            <FormattedMessage id="addToList.peopleCount" defaultMessage="{count, plural, one {# person} other {# people}}" values={{ count }} />
           </div>
         </div>
       </div>
@@ -263,9 +267,9 @@ function ListRow({ icon, label, count, inList, isPending, disabled, onAdd }: Lis
         {isPending ? (
           <Loader2 className="size-3 animate-spin" />
         ) : inList ? (
-          <><Check className="size-3" /> Added</>
+          <><Check className="size-3" /> <FormattedMessage id="addToList.added" defaultMessage="Added" /></>
         ) : (
-          <><Plus className="size-3" /> Add</>
+          <><Plus className="size-3" /> <FormattedMessage id="common.add" defaultMessage="Add" /></>
         )}
       </Button>
     </div>

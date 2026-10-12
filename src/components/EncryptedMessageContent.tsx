@@ -1,5 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Mail } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -77,7 +78,9 @@ export function EncryptedMessageContent({ event, compact: _compact, className }:
   if (!recipientPubkey) {
     return (
       <div className={cn('mt-2 px-4 py-3', className)}>
-        <p className="text-sm text-muted-foreground italic">Encrypted message (no recipient found)</p>
+        <p className="text-sm text-muted-foreground italic">
+          <FormattedMessage id="encryptedMessage.noRecipient" defaultMessage="Encrypted message (no recipient found)" />
+        </p>
       </div>
     );
   }
@@ -87,7 +90,14 @@ export function EncryptedMessageContent({ event, compact: _compact, className }:
       <div className="rounded-2xl border border-border px-5 py-4">
         {/* Description */}
         <p className="text-sm text-muted-foreground text-center mb-3">
-          <span className="font-medium text-foreground">{senderName}</span> sent a direct message
+          <FormattedMessage
+            id="encryptedMessage.sentBy"
+            defaultMessage="<name>{sender}</name> sent a direct message"
+            values={{
+              sender: senderName,
+              name: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+            }}
+          />
         </p>
 
         <div className="flex items-center justify-center gap-3">
@@ -125,11 +135,12 @@ interface EncryptedMessageCompactProps {
  * and the reply composer. Matches the style of EmbeddedNoteCard.
  */
 export function EncryptedMessageCompact({ event, className }: EncryptedMessageCompactProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
   const recipientAuthor = useAuthor(recipientPubkey ?? '');
   const recipientName = recipientPubkey
@@ -210,7 +221,18 @@ export function EncryptedMessageCompact({ event, className }: EncryptedMessageCo
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Mail className="size-3.5 shrink-0" />
           <span>
-            Sent a direct message{recipientName ? <> to <span className="font-medium text-foreground">{recipientName}</span></> : ''}
+            {recipientName ? (
+              <FormattedMessage
+                id="encryptedMessage.sentTo"
+                defaultMessage="Sent a direct message to <name>{recipient}</name>"
+                values={{
+                  recipient: recipientName,
+                  name: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+                }}
+              />
+            ) : (
+              <FormattedMessage id="encryptedMessage.sent" defaultMessage="Sent a direct message" />
+            )}
           </span>
         </p>
       </div>

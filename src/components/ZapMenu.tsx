@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Users, Zap } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage } from 'react-intl';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -95,7 +96,7 @@ export function ZapMenu({ event, children }: ZapMenuProps) {
                 className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-foreground hover:bg-secondary/60 transition-colors"
               >
                 <Zap className="size-5" />
-                <span>Zap author</span>
+                <span><FormattedMessage id="zapMenu.zapAuthor" defaultMessage="Zap author" /></span>
               </button>
             )}
 
@@ -113,7 +114,7 @@ export function ZapMenu({ event, children }: ZapMenuProps) {
               }`}
             >
               <Users className="size-5" />
-              <span>Zap all members</span>
+              <span><FormattedMessage id="zapMenu.zapAllMembers" defaultMessage="Zap all members" /></span>
             </button>
           </div>
         </PopoverContent>

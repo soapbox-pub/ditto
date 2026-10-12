@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ interface RedditEmbedProps {
  * reported height so the whole post shows without an inner scrollbar.
  */
 export function RedditEmbed({ url, className }: RedditEmbedProps) {
+  const intl = useIntl();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Convert the post URL to the embed URL
@@ -56,7 +58,7 @@ export function RedditEmbed({ url, className }: RedditEmbedProps) {
       <iframe
         ref={iframeRef}
         src={embedUrl}
-        title="Reddit post"
+        title={intl.formatMessage({ id: 'redditEmbed.title', defaultMessage: 'Reddit post' })}
         className="w-full border-0"
         style={{ minHeight: 320 }}
         allowFullScreen

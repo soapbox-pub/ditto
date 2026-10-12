@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { DittoLogo } from '@/components/DittoLogo';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ function ThemeSwatch({
 }
 
 export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { theme, customTheme, applyCustomTheme, setTheme } = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -142,19 +144,19 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
             {config.appName}
           </h1>
           <p className="text-muted-foreground text-sm sidebar:text-base max-w-xs mx-auto leading-relaxed">
-            Your content. Your vibe. Your&nbsp;rules.
+            <FormattedMessage id="landingHero.tagline" defaultMessage="Your content. Your vibe. Your rules." />
           </p>
         </div>
 
         <div className="flex gap-3 justify-center landing-hero-fade" style={{ animationDelay: '160ms' }}>
           <Button onClick={onSignupClick} className="rounded-full px-6" size="sm">
-            Sign up
+            <FormattedMessage id="loginArea.signUp" defaultMessage="Sign up" />
           </Button>
           <Button onClick={onLoginClick} variant="outline" className="rounded-full px-6" size="sm">
-            Log in
+            <FormattedMessage id="loginArea.logIn" defaultMessage="Log in" />
           </Button>
           <Button variant="outline" className="rounded-full px-6" size="sm" asChild>
-            <Link to="/help">FAQ</Link>
+            <Link to="/help"><FormattedMessage id="landingHero.faq" defaultMessage="FAQ" /></Link>
           </Button>
         </div>
       </div>
@@ -163,13 +165,13 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
       <div className="pb-5 landing-hero-fade" style={{ animationDelay: '240ms' }}>
         <div className="px-4 mb-2.5 flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Make it yours
+            <FormattedMessage id="landingHero.makeItYours" defaultMessage="Make it yours" />
           </p>
           <Link
             to="/themes"
             className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
           >
-            All themes
+            <FormattedMessage id="landingHero.allThemes" defaultMessage="All themes" />
           </Link>
         </div>
 
@@ -180,7 +182,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
             <button
               onClick={() => scroll('left')}
               className="absolute left-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-              aria-label="Scroll left"
+              aria-label={intl.formatMessage({ id: 'landingHero.scrollLeft', defaultMessage: 'Scroll left' })}
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -224,7 +226,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
                 'mt-1 text-[10px] font-medium text-center truncate transition-colors',
                 theme === 'system' ? 'text-foreground' : 'text-muted-foreground',
               )}>
-                Default
+                <FormattedMessage id="landingHero.defaultTheme" defaultMessage="Default" />
               </p>
             </button>
           </div>
@@ -234,7 +236,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
             <button
               onClick={() => scroll('right')}
               className="absolute right-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-              aria-label="Scroll right"
+              aria-label={intl.formatMessage({ id: 'landingHero.scrollRight', defaultMessage: 'Scroll right' })}
             >
               <ChevronRight className="size-4" />
             </button>

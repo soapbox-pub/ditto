@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X, Sticker } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Input } from '@/components/ui/input';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import type { CustomEmoji } from '@/hooks/useCustomEmojis';
@@ -16,6 +17,7 @@ interface StickerPickerProps {
 }
 
 export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus = true, onSearchActiveChange }: StickerPickerProps) {
+  const intl = useIntl();
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -43,8 +45,8 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
     return (
       <div className="flex flex-col items-center justify-center text-muted-foreground gap-2" style={{ height }}>
         <Sticker className="size-8 opacity-40" />
-        <p className="text-sm">No sticker packs yet</p>
-        <p className="text-xs">Add emoji packs to your profile to use stickers</p>
+        <p className="text-sm"><FormattedMessage id="stickerPicker.noPacks" defaultMessage="No sticker packs yet" /></p>
+        <p className="text-xs"><FormattedMessage id="stickerPicker.noPacksHint" defaultMessage="Add emoji packs to your profile to use stickers" /></p>
       </div>
     );
   }
@@ -61,7 +63,7 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            placeholder="Search stickers..."
+            placeholder={intl.formatMessage({ id: 'stickerPicker.searchPlaceholder', defaultMessage: 'Search stickers...' })}
             className="pl-8 pr-8 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-full"
           />
           {query && (
@@ -80,8 +82,8 @@ export function StickerPicker({ customEmojis, onSelect, height = 350, autoFocus 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <p className="text-sm">No stickers found</p>
-            <p className="text-xs mt-1">Try a different search term</p>
+            <p className="text-sm"><FormattedMessage id="stickerPicker.noResults" defaultMessage="No stickers found" /></p>
+            <p className="text-xs mt-1"><FormattedMessage id="stickerPicker.noResultsHint" defaultMessage="Try a different search term" /></p>
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-1.5 p-2">

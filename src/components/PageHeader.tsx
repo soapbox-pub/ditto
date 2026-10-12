@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -30,16 +31,18 @@ interface PageHeaderProps {
  * to provide a consistent header layout.
  */
 export function PageHeader({ title, icon, subtitle, titleContent, backTo = '/', onBack, alwaysShowBack, children, className }: PageHeaderProps) {
+  const intl = useIntl();
+  const backLabel = intl.formatMessage({ id: 'pageHeader.goBack', defaultMessage: 'Go back' });
   const backButtonClass = cn('p-2 -ml-2 rounded-full hover:bg-secondary transition-colors', !alwaysShowBack && 'sidebar:hidden');
 
   return (
     <div className={cn('flex items-center gap-4 px-4 py-4 bg-background/85', className)}>
       {onBack ? (
-        <button onClick={onBack} className={backButtonClass} aria-label="Go back">
+        <button onClick={onBack} className={backButtonClass} aria-label={backLabel}>
           <ArrowLeft className="size-5" />
         </button>
       ) : (
-        <Link to={backTo} className={backButtonClass} aria-label="Go back">
+        <Link to={backTo} className={backButtonClass} aria-label={backLabel}>
           <ArrowLeft className="size-5" />
         </Link>
       )}

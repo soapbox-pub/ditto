@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { ArrowLeft, GripVertical, ImagePlus, Loader2, Plus, Trash2 } from 'lucide-react';
@@ -75,6 +76,7 @@ function newQuestion(): QuestionDraft {
 export function CreateQuizPage() {
   useLayoutOptions({ showFAB: false, hasSubHeader: true });
 
+  const intl = useIntl();
   const navigate = useNavigate();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
@@ -112,10 +114,19 @@ export function CreateQuizPage() {
     return ids;
   }, [dimensions]);
 
+  /** Display name for a dimension, falling back to its position. */
+  const dimName = (dim: DimensionDraft, index: number) =>
+    dim.label.trim() || intl.formatMessage({ id: 'createQuiz.dimensionFallback', defaultMessage: 'Dimension {n}' }, { n: index + 1 });
+  /** Lowercase variant used mid-sentence in accessible labels. */
+  const dimNameInline = (dim: DimensionDraft, index: number) =>
+    dim.label || intl.formatMessage({ id: 'createQuiz.dimensionFallbackInline', defaultMessage: 'dimension {n}' }, { n: index + 1 });
+
   if (!user) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12 text-center">
-        <p className="text-muted-foreground">You must be logged in to create a quiz.</p>
+        <p className="text-muted-foreground">
+          <FormattedMessage id="createQuiz.loggedOut" defaultMessage="You must be logged in to create a quiz." />
+        </p>
       </div>
     );
   }
@@ -132,7 +143,7 @@ export function CreateQuizPage() {
       const [[, url]] = await uploadFile(file);
       setImage(url);
     } catch {
-      toast({ title: 'Image upload failed', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createQuiz.uploadFailed', defaultMessage: 'Image upload failed' }), variant: 'destructive' });
     }
   };
 
@@ -150,22 +161,22 @@ export function CreateQuizPage() {
   };
 
   const validate = (): string | undefined => {
-    if (!title.trim()) return 'Give your quiz a title.';
-    if (!slug.trim()) return 'The quiz needs a URL slug.';
-    if (dimensions.some((d) => !d.label.trim())) return 'Every dimension needs a name.';
-    if (dimensions.length === 0) return 'Add at least one dimension.';
-    if (questions.length === 0) return 'Add at least one question.';
+    if (!title.trim()) return intl.formatMessage({ id: 'createQuiz.validation.title', defaultMessage: 'Give your quiz a title.' });
+    if (!slug.trim()) return intl.formatMessage({ id: 'createQuiz.validation.slug', defaultMessage: 'The quiz needs a URL slug.' });
+    if (dimensions.some((d) => !d.label.trim())) return intl.formatMessage({ id: 'createQuiz.validation.dimensionName', defaultMessage: 'Every dimension needs a name.' });
+    if (dimensions.length === 0) return intl.formatMessage({ id: 'createQuiz.validation.dimensions', defaultMessage: 'Add at least one dimension.' });
+    if (questions.length === 0) return intl.formatMessage({ id: 'createQuiz.validation.questions', defaultMessage: 'Add at least one question.' });
     for (const [i, q] of questions.entries()) {
-      if (!q.text.trim()) return `Question ${i + 1} needs text.`;
-      if (q.options.length < 2) return `Question ${i + 1} needs at least two options.`;
-      if (q.options.some((o) => !o.label.trim())) return `Every option in question ${i + 1} needs a label.`;
+      if (!q.text.trim()) return intl.formatMessage({ id: 'createQuiz.validation.questionText', defaultMessage: 'Question {n} needs text.' }, { n: i + 1 });
+      if (q.options.length < 2) return intl.formatMessage({ id: 'createQuiz.validation.questionOptions', defaultMessage: 'Question {n} needs at least two options.' }, { n: i + 1 });
+      if (q.options.some((o) => !o.label.trim())) return intl.formatMessage({ id: 'createQuiz.validation.optionLabel', defaultMessage: 'Every option in question {n} needs a label.' }, { n: i + 1 });
     }
     if (scoring === 'ranges') {
-      if (rangeOutcomes.length === 0) return 'Add at least one result for range scoring.';
+      if (rangeOutcomes.length === 0) return intl.formatMessage({ id: 'createQuiz.validation.results', defaultMessage: 'Add at least one result for range scoring.' });
       for (const [i, o] of rangeOutcomes.entries()) {
-        if (!o.label.trim()) return `Result ${i + 1} needs a label.`;
-        if (!o.dimKey) return `Result ${i + 1} needs a dimension.`;
-        if (o.min.trim() === '' && o.max.trim() === '') return `Result ${i + 1} needs a minimum or maximum score.`;
+        if (!o.label.trim()) return intl.formatMessage({ id: 'createQuiz.validation.resultLabel', defaultMessage: 'Result {n} needs a label.' }, { n: i + 1 });
+        if (!o.dimKey) return intl.formatMessage({ id: 'createQuiz.validation.resultDimension', defaultMessage: 'Result {n} needs a dimension.' }, { n: i + 1 });
+        if (o.min.trim() === '' && o.max.trim() === '') return intl.formatMessage({ id: 'createQuiz.validation.resultRange', defaultMessage: 'Result {n} needs a minimum or maximum score.' }, { n: i + 1 });
       }
     }
     return undefined;
@@ -174,7 +185,7 @@ export function CreateQuizPage() {
   const publish = async () => {
     const error = validate();
     if (error) {
-      toast({ title: 'Not quite done', description: error, variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createQuiz.notDone', defaultMessage: 'Not quite done' }), description: error, variant: 'destructive' });
       return;
     }
 
@@ -188,8 +199,11 @@ export function CreateQuizPage() {
         );
         if (existing.length > 0) {
           toast({
-            title: 'Slug already in use',
-            description: 'You already published a quiz with this slug. Pick a different one.',
+            title: intl.formatMessage({ id: 'createQuiz.slugTaken', defaultMessage: 'Slug already in use' }),
+            description: intl.formatMessage({
+              id: 'createQuiz.slugTakenDescription',
+              defaultMessage: 'You already published a quiz with this slug. Pick a different one.',
+            }),
             variant: 'destructive',
           });
           return;
@@ -248,11 +262,11 @@ export function CreateQuizPage() {
 
       await publishEvent({ kind: QUIZ_KIND, content: description.trim(), tags });
 
-      toast({ title: 'Quiz published!' });
+      toast({ title: intl.formatMessage({ id: 'createQuiz.published', defaultMessage: 'Quiz published!' }) });
       const naddr = tryNaddrEncode({ kind: QUIZ_KIND, pubkey: user.pubkey, identifier: slug });
       navigate(naddr ? `/${naddr}` : '/quizzes');
     } catch {
-      toast({ title: 'Failed to publish quiz', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createQuiz.publishFailed', defaultMessage: 'Failed to publish quiz' }), variant: 'destructive' });
     } finally {
       setIsPublishing(false);
     }
@@ -261,29 +275,31 @@ export function CreateQuizPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4 pb-24">
       <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="icon" aria-label="Back to quizzes">
+        <Button asChild variant="ghost" size="icon" aria-label={intl.formatMessage({ id: 'createQuiz.back', defaultMessage: 'Back to quizzes' })}>
           <Link to="/quizzes"><ArrowLeft className="size-5" /></Link>
         </Button>
-        <h1 className="text-xl font-bold">Create a quiz</h1>
+        <h1 className="text-xl font-bold">
+          <FormattedMessage id="createQuiz.title" defaultMessage="Create a quiz" />
+        </h1>
       </div>
 
       {/* Basics */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Basics</CardTitle>
+          <CardTitle className="text-base"><FormattedMessage id="createQuiz.basics" defaultMessage="Basics" /></CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="quiz-title">Title</Label>
+            <Label htmlFor="quiz-title"><FormattedMessage id="createQuiz.titleLabel" defaultMessage="Title" /></Label>
             <Input
               id="quiz-title"
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
-              placeholder="Which Element Are You?"
+              placeholder={intl.formatMessage({ id: 'createQuiz.titlePlaceholder', defaultMessage: 'Which Element Are You?' })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="quiz-slug">Slug</Label>
+            <Label htmlFor="quiz-slug"><FormattedMessage id="createQuiz.slugLabel" defaultMessage="Slug" /></Label>
             <Input
               id="quiz-slug"
               value={slug}
@@ -291,38 +307,38 @@ export function CreateQuizPage() {
                 slugTouched.current = true;
                 setSlug(slugify(e.target.value, { lower: true, strict: true, trim: false }));
               }}
-              placeholder="which-element-are-you"
+              placeholder={intl.formatMessage({ id: 'createQuiz.slugPlaceholder', defaultMessage: 'which-element-are-you' })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="quiz-summary">Summary</Label>
+            <Label htmlFor="quiz-summary"><FormattedMessage id="createQuiz.summaryLabel" defaultMessage="Summary" /></Label>
             <Input
               id="quiz-summary"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="One-line teaser shown on cards (optional)"
+              placeholder={intl.formatMessage({ id: 'createQuiz.summaryPlaceholder', defaultMessage: 'One-line teaser shown on cards (optional)' })}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="quiz-description">Description</Label>
+            <Label htmlFor="quiz-description"><FormattedMessage id="createQuiz.descriptionLabel" defaultMessage="Description" /></Label>
             <Textarea
               id="quiz-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Longer intro shown on the quiz page (optional)"
+              placeholder={intl.formatMessage({ id: 'createQuiz.descriptionPlaceholder', defaultMessage: 'Longer intro shown on the quiz page (optional)' })}
               rows={3}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="quiz-image">Cover image</Label>
+            <Label htmlFor="quiz-image"><FormattedMessage id="createQuiz.coverImageLabel" defaultMessage="Cover image" /></Label>
             <div className="flex items-center gap-2">
               <Input
                 id="quiz-image"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
-                placeholder="https://… (or upload)"
+                placeholder={intl.formatMessage({ id: 'createQuiz.coverImagePlaceholder', defaultMessage: 'https://… (or upload)' })}
               />
-              <Button asChild variant="outline" size="icon" aria-label="Upload cover image" disabled={isUploading}>
+              <Button asChild variant="outline" size="icon" aria-label={intl.formatMessage({ id: 'createQuiz.uploadCover', defaultMessage: 'Upload cover image' })} disabled={isUploading}>
                 <label className="cursor-pointer">
                   {isUploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
                   <input
@@ -345,9 +361,12 @@ export function CreateQuizPage() {
       {/* Dimensions */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Dimensions</CardTitle>
+          <CardTitle className="text-base"><FormattedMessage id="createQuiz.dimensions" defaultMessage="Dimensions" /></CardTitle>
           <p className="text-xs text-muted-foreground">
-            The categories your quiz scores: houses, axes, or just "correct answers". Each answer option adds points to one or more dimensions.
+            {intl.formatMessage({
+              id: 'createQuiz.dimensionsHint',
+              defaultMessage: 'The categories your quiz scores: houses, axes, or just "correct answers". Each answer option adds points to one or more dimensions.',
+            })}
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -358,13 +377,13 @@ export function CreateQuizPage() {
                 value={dim.label}
                 onChange={(e) =>
                   setDimensions((prev) => prev.map((d) => d.key === dim.key ? { ...d, label: e.target.value } : d))}
-                placeholder={`Dimension ${i + 1} (e.g. Gryffindor)`}
-                aria-label={`Dimension ${i + 1} name`}
+                placeholder={intl.formatMessage({ id: 'createQuiz.dimensionPlaceholder', defaultMessage: 'Dimension {n} (e.g. Gryffindor)' }, { n: i + 1 })}
+                aria-label={intl.formatMessage({ id: 'createQuiz.dimensionNameLabel', defaultMessage: 'Dimension {n} name' }, { n: i + 1 })}
               />
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Remove dimension ${i + 1}`}
+                aria-label={intl.formatMessage({ id: 'createQuiz.removeDimension', defaultMessage: 'Remove dimension {n}' }, { n: i + 1 })}
                 disabled={dimensions.length <= 1}
                 onClick={() => setDimensions((prev) => prev.filter((d) => d.key !== dim.key))}
               >
@@ -378,7 +397,7 @@ export function CreateQuizPage() {
             onClick={() => setDimensions((prev) => [...prev, { key: nextKey(), label: '' }])}
           >
             <Plus className="size-4" />
-            Add dimension
+            <FormattedMessage id="createQuiz.addDimension" defaultMessage="Add dimension" />
           </Button>
         </CardContent>
       </Card>
@@ -387,11 +406,13 @@ export function CreateQuizPage() {
       {questions.map((question, qi) => (
         <Card key={question.key}>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base">Question {qi + 1}</CardTitle>
+            <CardTitle className="text-base">
+              <FormattedMessage id="createQuiz.questionTitle" defaultMessage="Question {n}" values={{ n: qi + 1 }} />
+            </CardTitle>
             <Button
               variant="ghost"
               size="icon"
-              aria-label={`Remove question ${qi + 1}`}
+              aria-label={intl.formatMessage({ id: 'createQuiz.removeQuestion', defaultMessage: 'Remove question {n}' }, { n: qi + 1 })}
               disabled={questions.length <= 1}
               onClick={() => setQuestions((prev) => prev.filter((q) => q.key !== question.key))}
             >
@@ -403,9 +424,9 @@ export function CreateQuizPage() {
               value={question.text}
               onChange={(e) =>
                 setQuestions((prev) => prev.map((q) => q.key === question.key ? { ...q, text: e.target.value } : q))}
-              placeholder="Ask something…"
+              placeholder={intl.formatMessage({ id: 'createQuiz.questionPlaceholder', defaultMessage: 'Ask something…' })}
               rows={2}
-              aria-label={`Question ${qi + 1} text`}
+              aria-label={intl.formatMessage({ id: 'createQuiz.questionTextLabel', defaultMessage: 'Question {n} text' }, { n: qi + 1 })}
             />
 
             <div className="space-y-3">
@@ -425,13 +446,19 @@ export function CreateQuizPage() {
                             }
                           )
                         )}
-                      placeholder={`Option ${oi + 1}`}
-                      aria-label={`Question ${qi + 1} option ${oi + 1} label`}
+                      placeholder={intl.formatMessage({ id: 'createQuiz.optionPlaceholder', defaultMessage: 'Option {n}' }, { n: oi + 1 })}
+                      aria-label={intl.formatMessage(
+                        { id: 'createQuiz.optionLabel', defaultMessage: 'Question {question} option {option} label' },
+                        { question: qi + 1, option: oi + 1 },
+                      )}
                     />
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Remove option ${oi + 1} from question ${qi + 1}`}
+                      aria-label={intl.formatMessage(
+                        { id: 'createQuiz.removeOption', defaultMessage: 'Remove option {option} from question {question}' },
+                        { question: qi + 1, option: oi + 1 },
+                      )}
                       disabled={question.options.length <= 2}
                       onClick={() =>
                         setQuestions((prev) =>
@@ -450,7 +477,7 @@ export function CreateQuizPage() {
                           htmlFor={`w-${question.key}-${option.key}-${dim.key}`}
                           className="block truncate text-[11px] font-normal text-muted-foreground"
                         >
-                          {dim.label.trim() || `Dimension ${di + 1}`}
+                          {dimName(dim, di)}
                         </Label>
                         <Input
                           id={`w-${question.key}-${option.key}-${dim.key}`}
@@ -478,7 +505,7 @@ export function CreateQuizPage() {
                 )}
             >
               <Plus className="size-4" />
-              Add option
+              <FormattedMessage id="createQuiz.addOption" defaultMessage="Add option" />
             </Button>
           </CardContent>
         </Card>
@@ -486,25 +513,25 @@ export function CreateQuizPage() {
 
       <Button variant="outline" className="w-full" onClick={() => setQuestions((prev) => [...prev, newQuestion()])}>
         <Plus className="size-4" />
-        Add question
+        <FormattedMessage id="createQuiz.addQuestion" defaultMessage="Add question" />
       </Button>
 
       {/* Results */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Results</CardTitle>
+          <CardTitle className="text-base"><FormattedMessage id="createQuiz.results" defaultMessage="Results" /></CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="quiz-scoring">How is the result decided?</Label>
+            <Label htmlFor="quiz-scoring"><FormattedMessage id="createQuiz.scoringLabel" defaultMessage="How is the result decided?" /></Label>
             <Select value={scoring} onValueChange={(v) => setScoring(v as QuizScoringMode)}>
               <SelectTrigger id="quiz-scoring">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="argmax">Highest dimension wins (e.g. Sorting Hat)</SelectItem>
-                <SelectItem value="ranges">Score ranges (e.g. trivia grades, axis poles)</SelectItem>
-                <SelectItem value="scores">Just show the scores (e.g. Political Compass)</SelectItem>
+                <SelectItem value="argmax"><FormattedMessage id="createQuiz.scoring.argmax" defaultMessage="Highest dimension wins (e.g. Sorting Hat)" /></SelectItem>
+                <SelectItem value="ranges"><FormattedMessage id="createQuiz.scoring.ranges" defaultMessage="Score ranges (e.g. trivia grades, axis poles)" /></SelectItem>
+                <SelectItem value="scores"><FormattedMessage id="createQuiz.scoring.scores" defaultMessage="Just show the scores (e.g. Political Compass)" /></SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -514,7 +541,7 @@ export function CreateQuizPage() {
               {dimensions.map((dim, di) => (
                 <div key={dim.key} className="rounded-xl border p-3">
                   <p className="text-xs font-medium text-muted-foreground">
-                    If {dim.label.trim() || `Dimension ${di + 1}`} wins…
+                    <FormattedMessage id="createQuiz.ifWins" defaultMessage="If {name} wins…" values={{ name: dimName(dim, di) }} />
                   </p>
                   <Input
                     className="mt-2"
@@ -528,8 +555,14 @@ export function CreateQuizPage() {
                           image: prev[dim.key]?.image ?? '',
                         },
                       }))}
-                    placeholder={`Result title (defaults to "${dim.label.trim() || `Dimension ${di + 1}`}")`}
-                    aria-label={`Result title when ${dim.label || `dimension ${di + 1}`} wins`}
+                    placeholder={intl.formatMessage(
+                      { id: 'createQuiz.argmaxTitlePlaceholder', defaultMessage: 'Result title (defaults to "{name}")' },
+                      { name: dimName(dim, di) },
+                    )}
+                    aria-label={intl.formatMessage(
+                      { id: 'createQuiz.argmaxTitleLabel', defaultMessage: 'Result title when {name} wins' },
+                      { name: dimNameInline(dim, di) },
+                    )}
                   />
                   <Textarea
                     className="mt-2"
@@ -543,9 +576,12 @@ export function CreateQuizPage() {
                           image: prev[dim.key]?.image ?? '',
                         },
                       }))}
-                    placeholder="Result description (optional)"
+                    placeholder={intl.formatMessage({ id: 'createQuiz.resultDescriptionPlaceholder', defaultMessage: 'Result description (optional)' })}
                     rows={2}
-                    aria-label={`Result description when ${dim.label || `dimension ${di + 1}`} wins`}
+                    aria-label={intl.formatMessage(
+                      { id: 'createQuiz.argmaxDescriptionLabel', defaultMessage: 'Result description when {name} wins' },
+                      { name: dimNameInline(dim, di) },
+                    )}
                   />
                   <OutcomeImageField
                     className="mt-2"
@@ -559,7 +595,10 @@ export function CreateQuizPage() {
                           image,
                         },
                       }))}
-                    ariaLabel={`Result image when ${dim.label || `dimension ${di + 1}`} wins`}
+                    ariaLabel={intl.formatMessage(
+                      { id: 'createQuiz.argmaxImageLabel', defaultMessage: 'Result image when {name} wins' },
+                      { name: dimNameInline(dim, di) },
+                    )}
                   />
                 </div>
               ))}
@@ -577,13 +616,13 @@ export function CreateQuizPage() {
                         setRangeOutcomes((prev) =>
                           prev.map((o) => o.key === outcome.key ? { ...o, label: e.target.value } : o)
                         )}
-                      placeholder={`Result ${i + 1} title`}
-                      aria-label={`Result ${i + 1} title`}
+                      placeholder={intl.formatMessage({ id: 'createQuiz.rangeTitle', defaultMessage: 'Result {n} title' }, { n: i + 1 })}
+                      aria-label={intl.formatMessage({ id: 'createQuiz.rangeTitle', defaultMessage: 'Result {n} title' }, { n: i + 1 })}
                     />
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Remove result ${i + 1}`}
+                      aria-label={intl.formatMessage({ id: 'createQuiz.removeResult', defaultMessage: 'Remove result {n}' }, { n: i + 1 })}
                       onClick={() => setRangeOutcomes((prev) => prev.filter((o) => o.key !== outcome.key))}
                     >
                       <Trash2 className="size-4" />
@@ -591,26 +630,28 @@ export function CreateQuizPage() {
                   </div>
                   <div className="grid grid-cols-[1fr_5rem_5rem] items-end gap-2">
                     <div className="space-y-0.5">
-                      <Label className="text-[11px] font-normal text-muted-foreground">Dimension</Label>
+                      <Label className="text-[11px] font-normal text-muted-foreground"><FormattedMessage id="createQuiz.dimensionLabel" defaultMessage="Dimension" /></Label>
                       <Select
                         value={outcome.dimKey}
                         onValueChange={(v) =>
                           setRangeOutcomes((prev) => prev.map((o) => o.key === outcome.key ? { ...o, dimKey: v } : o))}
                       >
-                        <SelectTrigger aria-label={`Result ${i + 1} dimension`}>
-                          <SelectValue placeholder="Pick one" />
+                        <SelectTrigger aria-label={intl.formatMessage({ id: 'createQuiz.rangeDimension', defaultMessage: 'Result {n} dimension' }, { n: i + 1 })}>
+                          <SelectValue placeholder={intl.formatMessage({ id: 'createQuiz.pickOne', defaultMessage: 'Pick one' })} />
                         </SelectTrigger>
                         <SelectContent>
                           {dimensions.map((dim, di) => (
                             <SelectItem key={dim.key} value={dim.key}>
-                              {dim.label.trim() || `Dimension ${di + 1}`}
+                              {dimName(dim, di)}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-0.5">
-                      <Label htmlFor={`min-${outcome.key}`} className="text-[11px] font-normal text-muted-foreground">Min</Label>
+                      <Label htmlFor={`min-${outcome.key}`} className="text-[11px] font-normal text-muted-foreground">
+                        <FormattedMessage id="createQuiz.min" defaultMessage="Min" />
+                      </Label>
                       <Input
                         id={`min-${outcome.key}`}
                         type="number"
@@ -624,7 +665,9 @@ export function CreateQuizPage() {
                       />
                     </div>
                     <div className="space-y-0.5">
-                      <Label htmlFor={`max-${outcome.key}`} className="text-[11px] font-normal text-muted-foreground">Max</Label>
+                      <Label htmlFor={`max-${outcome.key}`} className="text-[11px] font-normal text-muted-foreground">
+                        <FormattedMessage id="createQuiz.max" defaultMessage="Max" />
+                      </Label>
                       <Input
                         id={`max-${outcome.key}`}
                         type="number"
@@ -644,9 +687,9 @@ export function CreateQuizPage() {
                       setRangeOutcomes((prev) =>
                         prev.map((o) => o.key === outcome.key ? { ...o, description: e.target.value } : o)
                       )}
-                    placeholder="Result description (optional)"
+                    placeholder={intl.formatMessage({ id: 'createQuiz.resultDescriptionPlaceholder', defaultMessage: 'Result description (optional)' })}
                     rows={2}
-                    aria-label={`Result ${i + 1} description`}
+                    aria-label={intl.formatMessage({ id: 'createQuiz.rangeDescription', defaultMessage: 'Result {n} description' }, { n: i + 1 })}
                   />
                   <OutcomeImageField
                     value={outcome.image}
@@ -654,7 +697,7 @@ export function CreateQuizPage() {
                       setRangeOutcomes((prev) =>
                         prev.map((o) => o.key === outcome.key ? { ...o, image } : o)
                       )}
-                    ariaLabel={`Result ${i + 1} image`}
+                    ariaLabel={intl.formatMessage({ id: 'createQuiz.rangeImage', defaultMessage: 'Result {n} image' }, { n: i + 1 })}
                   />
                 </div>
               ))}
@@ -668,17 +711,23 @@ export function CreateQuizPage() {
                   ])}
               >
                 <Plus className="size-4" />
-                Add result
+                <FormattedMessage id="createQuiz.addResult" defaultMessage="Add result" />
               </Button>
               <p className="text-xs text-muted-foreground">
-                Every result whose range matches the taker's score is shown. Leave min or max blank for "no limit".
+                {intl.formatMessage({
+                  id: 'createQuiz.rangesHint',
+                  defaultMessage: 'Every result whose range matches the taker\'s score is shown. Leave min or max blank for "no limit".',
+                })}
               </p>
             </div>
           )}
 
           {scoring === 'scores' && (
             <p className="text-sm text-muted-foreground">
-              Takers see their raw score for each dimension, with no named results.
+              <FormattedMessage
+                id="createQuiz.scoresHint"
+                defaultMessage="Takers see their raw score for each dimension, with no named results."
+              />
             </p>
           )}
         </CardContent>
@@ -686,7 +735,9 @@ export function CreateQuizPage() {
 
       <Button className="w-full" size="lg" onClick={publish} disabled={isPublishing}>
         {isPublishing && <Loader2 className="size-4 animate-spin" />}
-        {isPublishing ? 'Publishing…' : 'Publish quiz'}
+        {isPublishing
+          ? <FormattedMessage id="createQuiz.publishing" defaultMessage="Publishing…" />
+          : <FormattedMessage id="createQuiz.publish" defaultMessage="Publish quiz" />}
       </Button>
     </div>
   );
@@ -704,6 +755,7 @@ function OutcomeImageField({
   ariaLabel: string;
   className?: string;
 }) {
+  const intl = useIntl();
   const { toast } = useToast();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
 
@@ -712,7 +764,7 @@ function OutcomeImageField({
       const [[, url]] = await uploadFile(file);
       onChange(url);
     } catch {
-      toast({ title: 'Image upload failed', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createQuiz.uploadFailed', defaultMessage: 'Image upload failed' }), variant: 'destructive' });
     }
   };
 
@@ -721,10 +773,10 @@ function OutcomeImageField({
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Result image URL (optional, or upload)"
+        placeholder={intl.formatMessage({ id: 'createQuiz.resultImagePlaceholder', defaultMessage: 'Result image URL (optional, or upload)' })}
         aria-label={ariaLabel}
       />
-      <Button asChild variant="outline" size="icon" aria-label={`Upload: ${ariaLabel}`} disabled={isUploading}>
+      <Button asChild variant="outline" size="icon" aria-label={intl.formatMessage({ id: 'createQuiz.uploadFor', defaultMessage: 'Upload: {label}' }, { label: ariaLabel })} disabled={isUploading}>
         <label className="cursor-pointer">
           {isUploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
           <input

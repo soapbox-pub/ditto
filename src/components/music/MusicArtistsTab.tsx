@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useCuratedMusicArtists } from '@/hooks/useCuratedMusicArtists';
 import { useMusicData } from '@/hooks/useMusicData';
 import { ProfileCard, ProfileCardSkeleton } from '@/components/discovery/ProfileCard';
@@ -15,6 +16,7 @@ import { ProfileCard, ProfileCardSkeleton } from '@/components/discovery/Profile
  * - Loaded: Grid of profile cards with track counts
  */
 export function MusicArtistsTab() {
+  const intl = useIntl();
   const { data: curatedPubkeys } = useCuratedMusicArtists();
   const { artists, isLoading, isError } = useMusicData();
 
@@ -58,7 +60,7 @@ export function MusicArtistsTab() {
   if (isError) {
     return (
       <p className="px-4 py-12 text-sm text-muted-foreground text-center">
-        Failed to load artists. Check your relay connections and try again.
+        <FormattedMessage id="musicArtists.error" defaultMessage="Failed to load artists. Check your relay connections and try again." />
       </p>
     );
   }
@@ -66,7 +68,7 @@ export function MusicArtistsTab() {
   if (allArtists.length === 0) {
     return (
       <p className="px-4 py-12 text-sm text-muted-foreground text-center">
-        No music artists found yet. Check back soon!
+        <FormattedMessage id="musicArtists.empty" defaultMessage="No music artists found yet. Check back soon!" />
       </p>
     );
   }
@@ -77,7 +79,9 @@ export function MusicArtistsTab() {
         <ProfileCard
           key={a.pubkey}
           pubkey={a.pubkey}
-          subtitle={a.trackCount > 0 ? `${a.trackCount} track${a.trackCount !== 1 ? 's' : ''}` : undefined}
+          subtitle={a.trackCount > 0
+            ? intl.formatMessage({ id: 'musicArtists.trackCount', defaultMessage: '{count, plural, one {# track} other {# tracks}}' }, { count: a.trackCount })
+            : undefined}
         />
       ))}
     </div>

@@ -1,4 +1,5 @@
 import { Frown } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,7 @@ export function BrokenEventFallback({ compact = false, className }: BrokenEventF
         )}
       >
         <Frown className={cn(compact ? 'size-4' : 'size-5')} aria-hidden="true" />
-        <span>This post could not be displayed</span>
+        <span><FormattedMessage id="brokenEvent.message" defaultMessage="This post could not be displayed" /></span>
       </div>
     </div>
   );

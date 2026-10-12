@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward, Maximize2, X, GripVertical, Loader2 } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { useAudioPlayer, useAudioProgress } from '@/contexts/audioPlayerContextDef';
 import { TrackLoadNotice } from '@/components/AudioTrackStatus';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ function clampToViewport(x: number, y: number, w: number, h: number) {
  * Position persisted to localStorage.
  */
 export function MinimizedAudioBar() {
+  const intl = useIntl();
   const player = useAudioPlayer();
   const { currentTrack, minimized, isPlaying, playlist, currentIndex, loadState, artworkSrc } = player;
   const { currentTime, duration } = useAudioProgress();
@@ -154,7 +156,7 @@ export function MinimizedAudioBar() {
               onClick={() => player.prevTrack()}
               disabled={!canPrev}
               className="p-1.5 rounded-full hover:bg-secondary transition-colors disabled:opacity-30"
-              aria-label="Previous"
+              aria-label={intl.formatMessage({ id: 'minimizedAudioBar.previous', defaultMessage: 'Previous' })}
             >
               <SkipBack className="size-3.5" />
             </button>
@@ -164,7 +166,9 @@ export function MinimizedAudioBar() {
             onClick={() => isPlaying ? player.pause() : player.resume()}
             disabled={loadState.status === 'decrypting'}
             className="p-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:cursor-progress"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-label={isPlaying
+              ? intl.formatMessage({ id: 'minimizedAudioBar.pause', defaultMessage: 'Pause' })
+              : intl.formatMessage({ id: 'minimizedAudioBar.play', defaultMessage: 'Play' })}
           >
             {loadState.status === 'decrypting'
               ? <Loader2 className="size-3.5 animate-spin" />
@@ -178,7 +182,7 @@ export function MinimizedAudioBar() {
               onClick={() => player.nextTrack()}
               disabled={!canNext}
               className="p-1.5 rounded-full hover:bg-secondary transition-colors disabled:opacity-30"
-              aria-label="Next"
+              aria-label={intl.formatMessage({ id: 'minimizedAudioBar.next', defaultMessage: 'Next' })}
             >
               <SkipForward className="size-3.5" />
             </button>
@@ -190,7 +194,7 @@ export function MinimizedAudioBar() {
               if (currentTrack.path) navigate(currentTrack.path);
             }}
             className="p-1.5 rounded-full hover:bg-secondary transition-colors"
-            aria-label="Expand"
+            aria-label={intl.formatMessage({ id: 'minimizedAudioBar.expand', defaultMessage: 'Expand' })}
           >
             <Maximize2 className="size-3.5" />
           </button>
@@ -198,7 +202,7 @@ export function MinimizedAudioBar() {
           <button
             onClick={() => player.stop()}
             className="p-1.5 rounded-full hover:bg-secondary transition-colors"
-            aria-label="Close"
+            aria-label={intl.formatMessage({ id: 'minimizedAudioBar.close', defaultMessage: 'Close' })}
           >
             <X className="size-3.5" />
           </button>

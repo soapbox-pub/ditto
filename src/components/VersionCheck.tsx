@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { toast } from '@/hooks/useToast';
 import { ToastAction } from '@/components/ui/toast';
@@ -47,6 +48,7 @@ async function fetchChangelogExcerpt(version: string): Promise<string | undefine
 /** Compares the running app version against localStorage and shows a toast when the version changes. */
 export function VersionCheck() {
   const { config } = useAppContext();
+  const intl = useIntl();
 
   useEffect(() => {
     const currentVersion = import.meta.env.VERSION;
@@ -57,32 +59,31 @@ export function VersionCheck() {
     localStorage.setItem(storageKey, currentVersion);
 
     if (storedVersion && storedVersion !== currentVersion) {
+      const title = intl.formatMessage({ id: 'versionCheck.whatsNew', defaultMessage: "What's new in v{version}" }, { version: currentVersion });
+      const action = (
+        <ToastAction altText={intl.formatMessage({ id: 'versionCheck.viewChangelog', defaultMessage: 'View changelog' })} asChild>
+          <Link to="/changelog"><FormattedMessage id="versionCheck.seeAll" defaultMessage="See all" /></Link>
+        </ToastAction>
+      );
+
       // Show the toast immediately, then enrich it with a changelog excerpt.
       const { update, id } = toast({
-        title: `What's new in v${currentVersion}`,
-        action: (
-          <ToastAction altText="View changelog" asChild>
-            <Link to="/changelog">See all</Link>
-          </ToastAction>
-        ),
+        title,
+        action,
       });
 
       fetchChangelogExcerpt(currentVersion).then((excerpt) => {
         if (excerpt) {
           update({
             id,
-            title: `What's new in v${currentVersion}`,
+            title,
             description: excerpt,
-            action: (
-              <ToastAction altText="View changelog" asChild>
-                <Link to="/changelog">See all</Link>
-              </ToastAction>
-            ),
+            action,
           });
         }
       });
     }
-  }, [config.appId]);
+  }, [config.appId, intl]);
 
   return null;
 }

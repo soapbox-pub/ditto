@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ExternalLink, Download, FileText, BookOpen } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
@@ -50,12 +51,12 @@ function PdfFrame({ url, title, className }: { url: string; title: string; class
       <div className="flex h-full flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
         <FileText className="size-10 text-muted-foreground" aria-hidden="true" />
         <p className="max-w-xs text-sm text-muted-foreground">
-          This PDF can't be displayed inline.
+          <FormattedMessage id="pdfViewer.cannotDisplay" defaultMessage="This PDF can't be displayed inline." />
         </p>
         <Button asChild variant="outline">
           <a href={url} download target="_blank" rel="noopener noreferrer">
             <Download className="mr-2 size-4" />
-            Download PDF
+            <FormattedMessage id="pdfViewer.download" defaultMessage="Download PDF" />
           </a>
         </Button>
       </div>
@@ -63,7 +64,9 @@ function PdfFrame({ url, title, className }: { url: string; title: string; class
   );
 }
 
-export function PdfViewer({ url, title, label = 'Read', className }: PdfViewerProps) {
+export function PdfViewer({ url, title, label: labelProp, className }: PdfViewerProps) {
+  const intl = useIntl();
+  const label = labelProp ?? intl.formatMessage({ id: 'pdfViewer.read', defaultMessage: 'Read' });
   const [open, setOpen] = useState(false);
   // On native the inline WebView PDF experience is inconsistent; prefer the
   // native open/share sheet there instead of an embedded frame.
@@ -107,11 +110,11 @@ export function PdfViewer({ url, title, label = 'Read', className }: PdfViewerPr
               variant="ghost"
               size="icon"
               onClick={openExternally}
-              aria-label="Open PDF in new tab"
+              aria-label={intl.formatMessage({ id: 'pdfViewer.openInNewTab', defaultMessage: 'Open PDF in new tab' })}
             >
               <ExternalLink className="size-4" />
             </Button>
-            <Button asChild variant="ghost" size="icon" aria-label="Download PDF">
+            <Button asChild variant="ghost" size="icon" aria-label={intl.formatMessage({ id: 'pdfViewer.download', defaultMessage: 'Download PDF' })}>
               <a href={url} download={filename} target="_blank" rel="noopener noreferrer">
                 <Download className="size-4" />
               </a>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/PageHeader';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -22,7 +23,7 @@ interface ArchiveItem {
   /** Year (optional) */
   year?: string;
   /** Brief one-liner */
-  tagline: string;
+  tagline: MessageDescriptor;
   /** Category for filtering */
   category: Category;
 }
@@ -30,7 +31,7 @@ interface ArchiveItem {
 type Category = 'games' | 'films' | 'audio' | 'software' | 'animation' | 'tv';
 
 interface CategoryMeta {
-  label: string;
+  label: MessageDescriptor;
   icon: React.ReactNode;
   gradient: string;
   accent: string;
@@ -42,37 +43,37 @@ interface CategoryMeta {
 
 const CATEGORIES: Record<Category, CategoryMeta> = {
   games: {
-    label: 'Classic Games',
+    label: defineMessage({ id: 'archive.category.games', defaultMessage: 'Classic Games' }),
     icon: <Gamepad2 className="size-4" />,
     gradient: 'from-violet-500/20 to-fuchsia-500/20',
     accent: 'text-violet-500 dark:text-violet-400',
   },
   films: {
-    label: 'Public Domain Films',
+    label: defineMessage({ id: 'archive.category.films', defaultMessage: 'Public Domain Films' }),
     icon: <Film className="size-4" />,
     gradient: 'from-amber-500/20 to-orange-500/20',
     accent: 'text-amber-600 dark:text-amber-400',
   },
   audio: {
-    label: 'Audio Treasures',
+    label: defineMessage({ id: 'archive.category.audio', defaultMessage: 'Audio Treasures' }),
     icon: <Mic className="size-4" />,
     gradient: 'from-emerald-500/20 to-teal-500/20',
     accent: 'text-emerald-600 dark:text-emerald-400',
   },
   tv: {
-    label: 'Classic Television',
+    label: defineMessage({ id: 'archive.category.tv', defaultMessage: 'Classic Television' }),
     icon: <Monitor className="size-4" />,
     gradient: 'from-sky-500/20 to-cyan-500/20',
     accent: 'text-sky-600 dark:text-sky-400',
   },
   animation: {
-    label: 'Classic Cartoons',
+    label: defineMessage({ id: 'archive.category.animation', defaultMessage: 'Classic Cartoons' }),
     icon: <Sparkles className="size-4" />,
     gradient: 'from-pink-500/20 to-rose-500/20',
     accent: 'text-pink-500 dark:text-pink-400',
   },
   software: {
-    label: 'Software History',
+    label: defineMessage({ id: 'archive.category.software', defaultMessage: 'Software History' }),
     icon: <Archive className="size-4" />,
     gradient: 'from-blue-500/20 to-indigo-500/20',
     accent: 'text-blue-600 dark:text-blue-400',
@@ -85,84 +86,84 @@ const ITEMS: ArchiveItem[] = [
     identifier: 'msdos_Oregon_Trail_The_1990',
     title: 'The Oregon Trail',
     year: '1990',
-    tagline: 'You have died of dysentery. The game that traumatized a generation.',
+    tagline: defineMessage({ id: 'archive.item.theOregonTrail', defaultMessage: 'You have died of dysentery. The game that traumatized a generation.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Prince_of_Persia_1990',
     title: 'Prince of Persia',
     year: '1990',
-    tagline: 'Rotoscoped beauty. 60 minutes to save the princess.',
+    tagline: defineMessage({ id: 'archive.item.princeOfPersia', defaultMessage: 'Rotoscoped beauty. 60 minutes to save the princess.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Wolfenstein_3D_1992',
     title: 'Wolfenstein 3D',
     year: '1992',
-    tagline: 'The grandfather of first-person shooters.',
+    tagline: defineMessage({ id: 'archive.item.wolfenstein3d', defaultMessage: 'The grandfather of first-person shooters.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_SimCity_1989',
     title: 'SimCity',
     year: '1989',
-    tagline: 'Build your dream city. Watch it get destroyed by Godzilla.',
+    tagline: defineMessage({ id: 'archive.item.simcity', defaultMessage: 'Build your dream city. Watch it get destroyed by Godzilla.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Pac-Man_1983',
     title: 'Pac-Man',
     year: '1983',
-    tagline: 'Waka waka waka waka waka.',
+    tagline: defineMessage({ id: 'archive.item.pacMan', defaultMessage: 'Waka waka waka waka waka.' }),
     category: 'games',
   },
   {
     identifier: 'Doom-2',
     title: 'Doom II',
     year: '1994',
-    tagline: 'Rip and tear, until it is done.',
+    tagline: defineMessage({ id: 'archive.item.doomIi', defaultMessage: 'Rip and tear, until it is done.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Donkey_Kong_1983',
     title: 'Donkey Kong',
     year: '1983',
-    tagline: 'The game that introduced the world to Mario.',
+    tagline: defineMessage({ id: 'archive.item.donkeyKong', defaultMessage: 'The game that introduced the world to Mario.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Where_in_the_World_is_Carmen_Sandiego_Enhanced_1989',
     title: 'Where in the World is Carmen Sandiego?',
     year: '1989',
-    tagline: 'Geography class never felt this cool.',
+    tagline: defineMessage({ id: 'archive.item.whereInTheWorldIsCarmenSandiego', defaultMessage: 'Geography class never felt this cool.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Golden_Axe_1990',
     title: 'Golden Axe',
     year: '1990',
-    tagline: 'Hack, slash, and ride dragons through a fantasy realm.',
+    tagline: defineMessage({ id: 'archive.item.goldenAxe', defaultMessage: 'Hack, slash, and ride dragons through a fantasy realm.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Scorched_Earth_1991',
     title: 'Scorched Earth',
     year: '1991',
-    tagline: 'The mother of all games. Nuclear tanks on pixel hills.',
+    tagline: defineMessage({ id: 'archive.item.scorchedEarth', defaultMessage: 'The mother of all games. Nuclear tanks on pixel hills.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Dune_2_-_The_Building_of_a_Dynasty_1992',
     title: 'Dune II',
     year: '1992',
-    tagline: 'The game that invented real-time strategy.',
+    tagline: defineMessage({ id: 'archive.item.duneIi', defaultMessage: 'The game that invented real-time strategy.' }),
     category: 'games',
   },
   {
     identifier: 'msdos_Leisure_Suit_Larry_1_-_Land_of_the_Lounge_Lizards_1987',
     title: 'Leisure Suit Larry',
     year: '1987',
-    tagline: 'The most awkward adventure in gaming history.',
+    tagline: defineMessage({ id: 'archive.item.leisureSuitLarry', defaultMessage: 'The most awkward adventure in gaming history.' }),
     category: 'games',
   },
 
@@ -170,13 +171,13 @@ const ITEMS: ArchiveItem[] = [
   {
     identifier: 'stick-rpg-complete',
     title: 'Stick RPG Complete',
-    tagline: 'The Flash game that consumed entire afternoons.',
+    tagline: defineMessage({ id: 'archive.item.stickRpgComplete', defaultMessage: 'The Flash game that consumed entire afternoons.' }),
     category: 'games',
   },
   {
     identifier: 'the-binding-of-isaac_202111',
     title: 'The Binding of Isaac (Flash)',
-    tagline: 'Edmund McMillen\'s dark roguelike masterpiece, original Flash version.',
+    tagline: defineMessage({ id: 'archive.item.theBindingOfIsaacFlash', defaultMessage: "Edmund McMillen's dark roguelike masterpiece, original Flash version." }),
     category: 'games',
   },
 
@@ -185,42 +186,42 @@ const ITEMS: ArchiveItem[] = [
     identifier: 'Nosferatu_most_complete_version_93_mins.',
     title: 'Nosferatu',
     year: '1922',
-    tagline: 'The unauthorized Dracula adaptation that became an immortal classic.',
+    tagline: defineMessage({ id: 'archive.item.nosferatu', defaultMessage: 'The unauthorized Dracula adaptation that became an immortal classic.' }),
     category: 'films',
   },
   {
     identifier: 'Night.Of.The.Living.Dead_1080p',
     title: 'Night of the Living Dead',
     year: '1968',
-    tagline: 'George Romero invented an entire genre in one night.',
+    tagline: defineMessage({ id: 'archive.item.nightOfTheLivingDead', defaultMessage: 'George Romero invented an entire genre in one night.' }),
     category: 'films',
   },
   {
     identifier: 'his_girl_friday',
     title: 'His Girl Friday',
     year: '1940',
-    tagline: 'Rapid-fire dialogue. Cary Grant at his most charming.',
+    tagline: defineMessage({ id: 'archive.item.hisGirlFriday', defaultMessage: 'Rapid-fire dialogue. Cary Grant at his most charming.' }),
     category: 'films',
   },
   {
     identifier: 'house_on_haunted_hill_ipod',
     title: 'House on Haunted Hill',
     year: '1959',
-    tagline: 'Vincent Price offers $10,000 to anyone who survives the night.',
+    tagline: defineMessage({ id: 'archive.item.houseOnHauntedHill', defaultMessage: 'Vincent Price offers $10,000 to anyone who survives the night.' }),
     category: 'films',
   },
   {
     identifier: 'Sita_Sings_the_Blues',
     title: 'Sita Sings the Blues',
     year: '2008',
-    tagline: 'Ancient Indian epic meets 1920s jazz. A creative commons triumph.',
+    tagline: defineMessage({ id: 'archive.item.sitaSingsTheBlues', defaultMessage: 'Ancient Indian epic meets 1920s jazz. A creative commons triumph.' }),
     category: 'films',
   },
   {
     identifier: '774-plan-9-from-outer-space',
     title: 'Plan 9 from Outer Space',
     year: '1957',
-    tagline: 'The "worst movie ever made" is the best movie ever made.',
+    tagline: defineMessage({ id: 'archive.item.plan9FromOuterSpace', defaultMessage: 'The "worst movie ever made" is the best movie ever made.' }),
     category: 'films',
   },
 
@@ -228,19 +229,19 @@ const ITEMS: ArchiveItem[] = [
   {
     identifier: 'theloneranger_201705',
     title: 'The Lone Ranger',
-    tagline: 'Hi-yo, Silver! Away! Justice rides on horseback.',
+    tagline: defineMessage({ id: 'archive.item.theLoneRanger', defaultMessage: 'Hi-yo, Silver! Away! Justice rides on horseback.' }),
     category: 'tv',
   },
   {
     identifier: 'get-smart',
     title: 'Get Smart',
-    tagline: 'Would you believe... the funniest spy show ever made?',
+    tagline: defineMessage({ id: 'archive.item.getSmart', defaultMessage: 'Would you believe... the funniest spy show ever made?' }),
     category: 'tv',
   },
   {
     identifier: 'GreenAcresCompleteSeries',
     title: 'Green Acres',
-    tagline: 'A New York lawyer moves to the country. Chaos follows.',
+    tagline: defineMessage({ id: 'archive.item.greenAcres', defaultMessage: 'A New York lawyer moves to the country. Chaos follows.' }),
     category: 'tv',
   },
 
@@ -249,31 +250,31 @@ const ITEMS: ArchiveItem[] = [
     identifier: 'gd77-05-08.sbd.hicks.4982.sbeok.shnf',
     title: 'Grateful Dead - Cornell \'77',
     year: '1977',
-    tagline: 'The greatest live concert recording of all time. No debate.',
+    tagline: defineMessage({ id: 'archive.item.gratefulDeadCornell77', defaultMessage: 'The greatest live concert recording of all time. No debate.' }),
     category: 'audio',
   },
   {
     identifier: 'alice_in_wonderland_librivox',
     title: 'Alice\'s Adventures in Wonderland',
-    tagline: 'Lewis Carroll\'s masterpiece, read aloud for free. Down the rabbit hole.',
+    tagline: defineMessage({ id: 'archive.item.alicesAdventuresInWonderland', defaultMessage: "Lewis Carroll's masterpiece, read aloud for free. Down the rabbit hole." }),
     category: 'audio',
   },
   {
     identifier: 'art_of_war_librivox',
     title: 'The Art of War',
-    tagline: 'Sun Tzu\'s timeless strategy treatise. The most downloaded audiobook on the internet.',
+    tagline: defineMessage({ id: 'archive.item.theArtOfWar', defaultMessage: "Sun Tzu's timeless strategy treatise. The most downloaded audiobook on the internet." }),
     category: 'audio',
   },
   {
     identifier: 'ird059',
     title: 'The Conet Project',
-    tagline: 'Recordings of mysterious shortwave numbers stations. Pure Cold War eeriness.',
+    tagline: defineMessage({ id: 'archive.item.theConetProject', defaultMessage: 'Recordings of mysterious shortwave numbers stations. Pure Cold War eeriness.' }),
     category: 'audio',
   },
   {
     identifier: 'adventures_holmes',
     title: 'The Adventures of Sherlock Holmes',
-    tagline: 'Elementary, my dear Watson. 12 stories of deduction.',
+    tagline: defineMessage({ id: 'archive.item.theAdventuresOfSherlockHolmes', defaultMessage: 'Elementary, my dear Watson. 12 stories of deduction.' }),
     category: 'audio',
   },
 
@@ -281,32 +282,32 @@ const ITEMS: ArchiveItem[] = [
   {
     identifier: 'BettyBoopCartoons',
     title: 'Betty Boop Cartoons',
-    tagline: 'Boop-Oop-a-Doop! Pre-code animation at its most daring.',
+    tagline: defineMessage({ id: 'archive.item.bettyBoopCartoons', defaultMessage: 'Boop-Oop-a-Doop! Pre-code animation at its most daring.' }),
     category: 'animation',
   },
   {
     identifier: 'superman_the_mechanical_monsters',
     title: 'Superman: The Mechanical Monsters',
     year: '1941',
-    tagline: 'Fleischer Studios\' gorgeous Art Deco Superman. Still jaw-dropping.',
+    tagline: defineMessage({ id: 'archive.item.supermanTheMechanicalMonsters', defaultMessage: "Fleischer Studios' gorgeous Art Deco Superman. Still jaw-dropping." }),
     category: 'animation',
   },
   {
     identifier: 'popeye_patriotic_popeye',
     title: 'Patriotic Popeye',
-    tagline: 'I yam what I yam! Spinach-fueled heroics.',
+    tagline: defineMessage({ id: 'archive.item.patrioticPopeye', defaultMessage: 'I yam what I yam! Spinach-fueled heroics.' }),
     category: 'animation',
   },
   {
     identifier: 'bb_minnie_the_moocher',
     title: 'Betty Boop: Minnie the Moocher',
-    tagline: 'Cab Calloway rotoscoped into a ghost walrus. Peak surrealism.',
+    tagline: defineMessage({ id: 'archive.item.bettyBoopMinnieTheMoocher', defaultMessage: 'Cab Calloway rotoscoped into a ghost walrus. Peak surrealism.' }),
     category: 'animation',
   },
   {
     identifier: 'woody_woodpecker_pantry_panic',
     title: 'Woody Woodpecker: Pantry Panic',
-    tagline: 'Ha-ha-ha-HA-ha! The bird who drove everyone insane.',
+    tagline: defineMessage({ id: 'archive.item.woodyWoodpeckerPantryPanic', defaultMessage: 'Ha-ha-ha-HA-ha! The bird who drove everyone insane.' }),
     category: 'animation',
   },
 
@@ -314,13 +315,13 @@ const ITEMS: ArchiveItem[] = [
   {
     identifier: 'flash_badger',
     title: 'Badger Badger Badger',
-    tagline: 'Mushroom! MUSHROOM! A snake! Peak early internet.',
+    tagline: defineMessage({ id: 'archive.item.badgerBadgerBadger', defaultMessage: 'Mushroom! MUSHROOM! A snake! Peak early internet.' }),
     category: 'animation',
   },
   {
     identifier: 'peanut-butter-jelly-time',
     title: 'Peanut Butter Jelly Time',
-    tagline: 'A dancing banana changed the internet forever.',
+    tagline: defineMessage({ id: 'archive.item.peanutButterJellyTime', defaultMessage: 'A dancing banana changed the internet forever.' }),
     category: 'animation',
   },
 
@@ -329,7 +330,7 @@ const ITEMS: ArchiveItem[] = [
     identifier: 'DuckandC1951',
     title: 'Duck and Cover',
     year: '1951',
-    tagline: 'Bert the Turtle taught kids to survive nuclear war. (Spoiler: no.)',
+    tagline: defineMessage({ id: 'archive.item.duckAndCover', defaultMessage: 'Bert the Turtle taught kids to survive nuclear war. (Spoiler: no.)' }),
     category: 'films',
   },
 
@@ -337,13 +338,13 @@ const ITEMS: ArchiveItem[] = [
   {
     identifier: 'win95_in_dosbox',
     title: 'Windows 95 in Your Browser',
-    tagline: 'The startup sound that changed personal computing. Press Start.',
+    tagline: defineMessage({ id: 'archive.item.windows95InYourBrowser', defaultMessage: 'The startup sound that changed personal computing. Press Start.' }),
     category: 'software',
   },
   {
     identifier: 'win3_stock',
     title: 'Windows 3.11',
-    tagline: 'Program Manager, File Manager, Solitaire. The holy trinity.',
+    tagline: defineMessage({ id: 'archive.item.windows311', defaultMessage: 'Program Manager, File Manager, Solitaire. The holy trinity.' }),
     category: 'software',
   },
 ];
@@ -374,7 +375,7 @@ function CategoryPill({ category, active, onClick }: {
   onClick: () => void;
 }) {
   const meta = category === 'all'
-    ? { label: 'All', icon: <Sparkles className="size-3.5" />, accent: 'text-primary' }
+    ? { label: defineMessage({ id: 'archive.category.all', defaultMessage: 'All' }), icon: <Sparkles className="size-3.5" />, accent: 'text-primary' }
     : CATEGORIES[category];
 
   return (
@@ -389,7 +390,7 @@ function CategoryPill({ category, active, onClick }: {
       )}
     >
       {meta.icon}
-      {meta.label}
+      <FormattedMessage {...meta.label} />
     </button>
   );
 }
@@ -435,7 +436,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
           'absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-xs font-medium flex items-center gap-1 text-white',
         )}>
           {meta.icon}
-          {meta.label}
+          <FormattedMessage {...meta.label} />
         </div>
       </div>
 
@@ -445,7 +446,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
           {item.title}
         </h3>
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-          {item.tagline}
+          <FormattedMessage {...item.tagline} />
         </p>
       </div>
     </Link>
@@ -457,18 +458,21 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
 // ---------------------------------------------------------------------------
 
 /** Maps archive.org mediatype to a human-friendly label. */
-function mediatypeLabel(mediatype: string): string {
-  switch (mediatype) {
-    case 'software': return 'Software';
-    case 'movies': return 'Video';
-    case 'audio': return 'Audio';
-    case 'etree': return 'Live Music';
-    case 'texts': return 'Text';
-    default: return mediatype;
-  }
+const MEDIATYPE_LABELS: Record<string, MessageDescriptor> = {
+  software: defineMessage({ id: 'archive.mediatype.software', defaultMessage: 'Software' }),
+  movies: defineMessage({ id: 'archive.mediatype.movies', defaultMessage: 'Video' }),
+  audio: defineMessage({ id: 'archive.mediatype.audio', defaultMessage: 'Audio' }),
+  etree: defineMessage({ id: 'archive.mediatype.etree', defaultMessage: 'Live Music' }),
+  texts: defineMessage({ id: 'archive.mediatype.texts', defaultMessage: 'Text' }),
+};
+
+function mediatypeLabel(mediatype: string): React.ReactNode {
+  const label = MEDIATYPE_LABELS[mediatype];
+  return label ? <FormattedMessage {...label} /> : mediatype;
 }
 
 function ArchiveSearchBar() {
+  const intl = useIntl();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -546,7 +550,7 @@ function ArchiveSearchBar() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search the Internet Archive..."
+          placeholder={intl.formatMessage({ id: 'archive.searchPlaceholder', defaultMessage: 'Search the Internet Archive...' })}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => {
@@ -559,6 +563,7 @@ function ArchiveSearchBar() {
           <button
             type="button"
             onClick={handleClear}
+            aria-label={intl.formatMessage({ id: 'archive.clearSearch', defaultMessage: 'Clear search' })}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <X className="size-3.5" />
@@ -593,7 +598,7 @@ function ArchiveSearchBar() {
             </div>
           ) : (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No results found for &ldquo;{debouncedQuery}&rdquo;
+              <FormattedMessage id="archive.noResults" defaultMessage="No results found for “{query}”" values={{ query: debouncedQuery }} />
             </div>
           )}
 
@@ -628,7 +633,7 @@ function ArchiveSearchResultItem({ result, onSelect }: { result: ArchiveSearchRe
         <p className="text-sm font-medium truncate">{result.title}</p>
         <p className="text-xs text-muted-foreground truncate">
           {mediatypeLabel(result.mediatype)}
-          {result.downloads > 0 && <> &middot; {formatDownloads(result.downloads)} downloads</>}
+          {result.downloads > 0 && <> &middot; <FormattedMessage id="archive.downloads" defaultMessage="{count} downloads" values={{ count: formatDownloads(result.downloads) }} /></>}
         </p>
       </div>
     </button>
@@ -649,12 +654,13 @@ function formatDownloads(n: number): string {
 const CATEGORY_ORDER: (Category | 'all')[] = ['all', 'games', 'films', 'animation', 'audio', 'tv', 'software'];
 
 export function ArchivePage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const [activeCategory, setActiveCategory] = useState<Category | 'all'>('all');
 
   useSeoMeta({
-    title: `Archive | ${config.appName}`,
-    description: 'Explore the best of the Internet Archive: classic games, films, music, and more.',
+    title: intl.formatMessage({ id: 'archive.seoTitle', defaultMessage: 'Archive | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'archive.seoDescription', defaultMessage: 'Explore the best of the Internet Archive: classic games, films, music, and more.' }),
   });
 
   const filtered = useMemo(() => {
@@ -665,16 +671,17 @@ export function ArchivePage() {
   return (
     <main>
       <PageHeader
-        title="Archive"
+        title={intl.formatMessage({ id: 'archive.title', defaultMessage: 'Archive' })}
         icon={<Archive className="size-5" />}
-        subtitle="Treasures from the Internet Archive"
+        subtitle={intl.formatMessage({ id: 'archive.subtitle', defaultMessage: 'Treasures from the Internet Archive' })}
       >
         <a
           href="https://archive.org"
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-          title="Visit archive.org"
+          title={intl.formatMessage({ id: 'archive.visit', defaultMessage: 'Visit archive.org' })}
+          aria-label={intl.formatMessage({ id: 'archive.visit', defaultMessage: 'Visit archive.org' })}
         >
           <ExternalLink className="size-4" />
         </a>
@@ -708,7 +715,7 @@ export function ArchivePage() {
         {filtered.length === 0 && (
           <div className="py-16 text-center">
             <Sparkles className="size-10 mx-auto mb-3 text-muted-foreground/30" />
-            <p className="text-muted-foreground text-sm">No items in this category yet.</p>
+            <p className="text-muted-foreground text-sm"><FormattedMessage id="archive.emptyCategory" defaultMessage="No items in this category yet." /></p>
           </div>
         )}
       </div>
@@ -717,16 +724,22 @@ export function ArchivePage() {
       <div className="px-4 pb-8">
         <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-4 py-3 text-center">
           <p className="text-xs text-muted-foreground">
-            Content provided by the{' '}
-            <a
-              href="https://archive.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-foreground transition-colors"
-            >
-              Internet Archive
-            </a>
-            , a non-profit digital library. All items are in the public domain or freely available.
+            <FormattedMessage
+              id="archive.attribution"
+              defaultMessage="Content provided by the <link>Internet Archive</link>, a non-profit digital library. All items are in the public domain or freely available."
+              values={{
+                link: (chunks) => (
+                  <a
+                    href="https://archive.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              }}
+            />
           </p>
         </div>
       </div>
