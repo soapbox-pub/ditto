@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { useIntl } from "react-intl";
+import { useTarotText } from "@/hooks/useTarotText";
 import type { TarotCardData } from "@/lib/tarot/cards";
+import { tarotCardName } from "@/lib/tarot/text";
 import { cn } from "@/lib/utils";
 import { TarotCardBack } from "./TarotCardBack";
 import { TarotCardFace } from "./TarotCardFace";
@@ -33,6 +36,9 @@ export function TarotCard({
   onCardClick,
   onSettledClick,
 }: TarotCardProps) {
+  const intl = useIntl();
+  const text = useTarotText();
+
   // Cards that mount already revealed (restored readings, share image)
   // settle immediately and never animate.
   const [settled, setSettled] = useState(!!isRevealed);
@@ -57,8 +63,14 @@ export function TarotCard({
   }
 
   const label = isRevealed
-    ? `${card.name}${card.isReversed ? " (Reversed)" : ""}`
-    : "Reveal card";
+    ? intl.formatMessage(
+      {
+        id: "tarot.card.label",
+        defaultMessage: "{name}{reversed, select, true { (Reversed)} other {}}",
+      },
+      { name: tarotCardName(text, card), reversed: String(!!card.isReversed) },
+    )
+    : intl.formatMessage({ id: "tarot.card.reveal", defaultMessage: "Reveal card" });
 
   // Settled: flat render, no perspective, no backfaces — crisp text.
   if (isRevealed && settled) {
@@ -80,7 +92,13 @@ export function TarotCard({
             e.stopPropagation();
             onSettledClick();
           }}
-          aria-label={`${label}. Read interpretation`}
+          aria-label={intl.formatMessage(
+            {
+              id: "tarot.card.readInterpretation",
+              defaultMessage: "{card}. Read interpretation",
+            },
+            { card: label },
+          )}
         >
           {face}
         </button>

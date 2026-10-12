@@ -36,7 +36,10 @@ import {
   pumpkin,
   wineGlassBottle,
 } from "@lucide/lab";
-import { cardEyebrow, type TarotCardData } from "@/lib/tarot/cards";
+import { defineMessages, FormattedMessage } from "react-intl";
+import { useTarotText } from "@/hooks/useTarotText";
+import { cardNumeral, type TarotCardData, type TarotSuit } from "@/lib/tarot/cards";
+import { tarotCardName } from "@/lib/tarot/text";
 
 const Cauldron = createLucideIcon("Cauldron", cauldron);
 const Goblet = createLucideIcon("Goblet", goblet);
@@ -85,15 +88,21 @@ const icons: Record<
   gem: Gem,
 };
 
+const SUIT_LABELS = defineMessages<Exclude<TarotSuit, "major">>({
+  wands: { id: "tarot.suit.wands", defaultMessage: "Wands" },
+  cups: { id: "tarot.suit.cups", defaultMessage: "Cups" },
+  swords: { id: "tarot.suit.swords", defaultMessage: "Swords" },
+  pentacles: { id: "tarot.suit.pentacles", defaultMessage: "Pentacles" },
+});
+
 /**
  * Cards whose single icon doesn't already depict the count get a
  * multi-icon arrangement (the Swords and Coins icons already show pairs).
  */
 function CardArt({ card }: { card: TarotCardData }) {
   const IconComponent = icons[card.icon] || Star;
-  const lowerCaseName = card.name.toLowerCase();
 
-  if (lowerCaseName === "two of cups") {
+  if (card.id === "two-of-cups") {
     return (
       <div className="two-of-cups">
         <Wine className="card-icon cup-1" />
@@ -102,7 +111,7 @@ function CardArt({ card }: { card: TarotCardData }) {
     );
   }
 
-  if (lowerCaseName === "three of swords") {
+  if (card.id === "three-of-swords") {
     return (
       <div className="icon-layout-3 three-of-swords">
         <IconComponent className="card-icon sword-1" />
@@ -112,7 +121,7 @@ function CardArt({ card }: { card: TarotCardData }) {
     );
   }
 
-  if (lowerCaseName.startsWith("three of")) {
+  if (card.id.startsWith("three-of-")) {
     return (
       <div className="icon-layout-3">
         <div className="row-1">
@@ -140,7 +149,8 @@ interface TarotCardFaceProps {
 
 /** The face-up front of a tarot card: numeral, name, artwork, orientation. */
 export function TarotCardFace({ card }: TarotCardFaceProps) {
-  const isLongName = card.name.length > 14;
+  const name = tarotCardName(useTarotText(), card);
+  const isLongName = name.length > 14;
 
   return (
     <div className={`tarot-face suit-${card.suit}`}>
@@ -149,9 +159,13 @@ export function TarotCardFace({ card }: TarotCardFaceProps) {
       <span className="face-corner face-corner-bl" aria-hidden="true">✦</span>
       <span className="face-corner face-corner-br" aria-hidden="true">✦</span>
       <header className="face-header">
-        <span className="face-eyebrow">{cardEyebrow(card)}</span>
+        <span className="face-eyebrow">
+          {card.suit === "major"
+            ? cardNumeral(card)
+            : <FormattedMessage {...SUIT_LABELS[card.suit]} />}
+        </span>
         <span className={`face-name ${isLongName ? "long" : ""}`}>
-          {card.name}
+          {name}
         </span>
       </header>
       <div className="face-art">
@@ -159,8 +173,16 @@ export function TarotCardFace({ card }: TarotCardFaceProps) {
       </div>
       <footer className="face-footer">
         {card.isReversed
-          ? <span className="reversed">Reversed</span>
-          : <span>Upright</span>}
+          ? (
+            <span className="reversed">
+              <FormattedMessage id="tarot.orientation.reversed" defaultMessage="Reversed" />
+            </span>
+          )
+          : (
+            <span>
+              <FormattedMessage id="tarot.orientation.upright" defaultMessage="Upright" />
+            </span>
+          )}
       </footer>
     </div>
   );

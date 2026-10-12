@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/useToast";
 import {
   buildCardTags,
   CARD_POSITIONS,
+  cardEnglishName,
   READING_DURATIONS,
   type ReadingType,
   SPREAD_PAST_PRESENT_FUTURE,
@@ -25,11 +26,14 @@ import { TarotSpread } from "./TarotSpread";
 import { TarotStars } from "./TarotStars";
 import "./TarotReader.css";
 
-/** NIP-31 alt text summarizing the draw for clients that don't render kind 2256. */
+/**
+ * NIP-31 alt text summarizing the draw for clients that don't render kind
+ * 2256. Always English, whatever the author's locale, like the `c` tags.
+ */
 function buildAlt(cards: TarotCardData[], readingType: ReadingType): string {
   const label = readingType === "daily" ? "Daily" : "Weekly";
   const list = cards
-    .map((c) => c.name + (c.isReversed ? " (Reversed)" : ""))
+    .map((c) => cardEnglishName(c) + (c.isReversed ? " (Reversed)" : ""))
     .join(", ");
   return `${label} tarot reading with three cards: ${list} (past/present/future)`;
 }

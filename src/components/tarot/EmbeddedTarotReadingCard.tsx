@@ -3,8 +3,10 @@ import { MoonStar } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { EmbeddedCardShell } from "@/components/EmbeddedCardShell";
+import { useTarotText } from "@/hooks/useTarotText";
 import { tryNeventEncode } from "@/lib/safeNip19";
 import { parseCardsFromEvent, readingTypeFromEvent } from "@/lib/tarot/cards";
+import { tarotCardName } from "@/lib/tarot/text";
 import { POSITION_LABELS } from "./TarotReadingSection";
 
 /**
@@ -26,6 +28,7 @@ export function EmbeddedTarotReadingCard({
     [event.id, event.pubkey],
   );
 
+  const text = useTarotText();
   const cards = parseCardsFromEvent(event);
   const readingType = readingTypeFromEvent(event);
 
@@ -61,7 +64,7 @@ export function EmbeddedTarotReadingCard({
         <ul className="space-y-0.5">
           {cards.map((card, index) => (
             <li
-              key={`${card.name}-${index}`}
+              key={`${card.id}-${index}`}
               className="flex items-baseline gap-2 text-sm text-foreground"
             >
               <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground w-14">
@@ -70,7 +73,7 @@ export function EmbeddedTarotReadingCard({
                   : card.position}
               </span>
               <span className="font-medium truncate">
-                {card.name}
+                {tarotCardName(text, card)}
                 {card.isReversed && (
                   <span className="text-muted-foreground font-normal">
                     {" "}

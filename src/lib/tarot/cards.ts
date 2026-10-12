@@ -1,6 +1,4 @@
 import type { NostrEvent } from "@nostrify/nostrify";
-import majorArcanaData from "./major-arcana.json";
-import minorArcanaData from "./minor-arcana.json";
 
 /**
  * Tarot reading library, using NIP-TR kind 2256 events.
@@ -12,6 +10,10 @@ import minorArcanaData from "./minor-arcana.json";
  * spread is named by an `s` tag and the cadence by `t` tags (`daily`/`weekly`).
  * The interpretation prose lives in `content`. The draw is fully reconstructable
  * from the tags alone — Nostr is the database.
+ *
+ * This module holds only the deck's structure, so feed parsing stays cheap.
+ * Card names, meanings, and fortunes are per-locale prose loaded on demand
+ * from `./text/` (see `./text.ts`).
  */
 
 /** NIP-TR tarot reading event kind. */
@@ -20,15 +22,19 @@ export const TAROT_READING_KIND = 2256;
 /** The spread this app draws: three cards read as past, present, future. */
 export const SPREAD_PAST_PRESENT_FUTURE = "past-present-future";
 
-export interface TarotCardData {
-  name: string;
-  suit: string;
+export type TarotSuit = "major" | "wands" | "cups" | "swords" | "pentacles";
+
+/** A card in the deck. Its display text lives in the locale's tarot text. */
+export interface TarotDeckCard {
+  /** NIP-TR identifier: the traditional English name, kebab-cased. */
+  id: string;
+  suit: TarotSuit;
+  /** Key into the card-face icon map. */
   icon: string;
-  meaning_up: string;
-  meaning_rev: string;
-  desc: string;
-  fortune_telling: string[];
-  fortune_telling_rev: string[];
+}
+
+/** A drawn card: a deck card plus its orientation and spread position. */
+export interface TarotCardData extends TarotDeckCard {
   isReversed?: boolean;
   position?: string;
 }
@@ -43,9 +49,94 @@ export const READING_DURATIONS: Record<ReadingType, number> = {
 
 export const CARD_POSITIONS = ["past", "present", "future"] as const;
 
-export const MAJOR_ARCANA = majorArcanaData as TarotCardData[];
-export const MINOR_ARCANA = minorArcanaData as TarotCardData[];
-export const ALL_CARDS: TarotCardData[] = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+/** The major arcana in traditional order, The Fool (0) to The World (XXI). */
+export const MAJOR_ARCANA: readonly TarotDeckCard[] = [
+  { id: "the-fool", suit: "major", icon: "sparkles" },
+  { id: "the-magician", suit: "major", icon: "wand-sparkles" },
+  { id: "the-high-priestess", suit: "major", icon: "book-open" },
+  { id: "the-empress", suit: "major", icon: "crown" },
+  { id: "the-emperor", suit: "major", icon: "castle" },
+  { id: "the-hierophant", suit: "major", icon: "scroll" },
+  { id: "the-lovers", suit: "major", icon: "hand-heart" },
+  { id: "the-chariot", suit: "major", icon: "shield" },
+  { id: "strength", suit: "major", icon: "dumbbell" },
+  { id: "the-hermit", suit: "major", icon: "hedgehog" },
+  { id: "wheel-of-fortune", suit: "major", icon: "loader-pinwheel" },
+  { id: "justice", suit: "major", icon: "scale" },
+  { id: "the-hanged-man", suit: "major", icon: "ghost" },
+  { id: "death", suit: "major", icon: "skull" },
+  { id: "temperance", suit: "major", icon: "goblet" },
+  { id: "the-devil", suit: "major", icon: "pumpkin" },
+  { id: "the-tower", suit: "major", icon: "tornado" },
+  { id: "the-star", suit: "major", icon: "star" },
+  { id: "the-moon", suit: "major", icon: "moon-star" },
+  { id: "the-sun", suit: "major", icon: "sun" },
+  { id: "judgement", suit: "major", icon: "gavel" },
+  { id: "the-world", suit: "major", icon: "globe" },
+];
+
+export const MINOR_ARCANA: readonly TarotDeckCard[] = [
+  { id: "ace-of-wands", suit: "wands", icon: "wand" },
+  { id: "two-of-wands", suit: "wands", icon: "sprout" },
+  { id: "three-of-wands", suit: "wands", icon: "flame" },
+  { id: "four-of-wands", suit: "wands", icon: "sparkles" },
+  { id: "five-of-wands", suit: "wands", icon: "flame" },
+  { id: "six-of-wands", suit: "wands", icon: "crown" },
+  { id: "seven-of-wands", suit: "wands", icon: "shield" },
+  { id: "eight-of-wands", suit: "wands", icon: "wand-sparkles" },
+  { id: "nine-of-wands", suit: "wands", icon: "dumbbell" },
+  { id: "ten-of-wands", suit: "wands", icon: "dumbbell" },
+  { id: "page-of-wands", suit: "wands", icon: "sprout" },
+  { id: "knight-of-wands", suit: "wands", icon: "flame" },
+  { id: "queen-of-wands", suit: "wands", icon: "sun" },
+  { id: "king-of-wands", suit: "wands", icon: "crown" },
+  { id: "ace-of-cups", suit: "cups", icon: "wine" },
+  { id: "two-of-cups", suit: "cups", icon: "wineGlassBottle" },
+  { id: "three-of-cups", suit: "cups", icon: "cauldron" },
+  { id: "four-of-cups", suit: "cups", icon: "goblet" },
+  { id: "five-of-cups", suit: "cups", icon: "wine" },
+  { id: "six-of-cups", suit: "cups", icon: "hand-heart" },
+  { id: "seven-of-cups", suit: "cups", icon: "ghost" },
+  { id: "eight-of-cups", suit: "cups", icon: "moon-star" },
+  { id: "nine-of-cups", suit: "cups", icon: "goblet" },
+  { id: "ten-of-cups", suit: "cups", icon: "hand-heart" },
+  { id: "page-of-cups", suit: "cups", icon: "goblet" },
+  { id: "knight-of-cups", suit: "cups", icon: "wine" },
+  { id: "queen-of-cups", suit: "cups", icon: "cauldron" },
+  { id: "king-of-cups", suit: "cups", icon: "crown" },
+  { id: "ace-of-swords", suit: "swords", icon: "sword" },
+  { id: "two-of-swords", suit: "swords", icon: "swords" },
+  { id: "three-of-swords", suit: "swords", icon: "sword" },
+  { id: "four-of-swords", suit: "swords", icon: "shield" },
+  { id: "five-of-swords", suit: "swords", icon: "swords" },
+  { id: "six-of-swords", suit: "swords", icon: "globe" },
+  { id: "seven-of-swords", suit: "swords", icon: "ghost" },
+  { id: "eight-of-swords", suit: "swords", icon: "swords" },
+  { id: "nine-of-swords", suit: "swords", icon: "moon-star" },
+  { id: "ten-of-swords", suit: "swords", icon: "skull" },
+  { id: "page-of-swords", suit: "swords", icon: "sword" },
+  { id: "knight-of-swords", suit: "swords", icon: "tornado" },
+  { id: "queen-of-swords", suit: "swords", icon: "scale" },
+  { id: "king-of-swords", suit: "swords", icon: "gavel" },
+  { id: "ace-of-pentacles", suit: "pentacles", icon: "circle-dollar-sign" },
+  { id: "two-of-pentacles", suit: "pentacles", icon: "coins" },
+  { id: "three-of-pentacles", suit: "pentacles", icon: "gem" },
+  { id: "four-of-pentacles", suit: "pentacles", icon: "coins" },
+  { id: "five-of-pentacles", suit: "pentacles", icon: "coins" },
+  { id: "six-of-pentacles", suit: "pentacles", icon: "hand-heart" },
+  { id: "seven-of-pentacles", suit: "pentacles", icon: "sprout" },
+  { id: "eight-of-pentacles", suit: "pentacles", icon: "gem" },
+  { id: "nine-of-pentacles", suit: "pentacles", icon: "gem" },
+  { id: "ten-of-pentacles", suit: "pentacles", icon: "castle" },
+  { id: "page-of-pentacles", suit: "pentacles", icon: "book-open" },
+  { id: "knight-of-pentacles", suit: "pentacles", icon: "shield" },
+  { id: "queen-of-pentacles", suit: "pentacles", icon: "sprout" },
+  { id: "king-of-pentacles", suit: "pentacles", icon: "crown" },
+];
+
+export const ALL_CARDS: readonly TarotDeckCard[] = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+
+const CARDS_BY_ID = new Map(ALL_CARDS.map((card) => [card.id, card]));
 
 const ROMAN_NUMERALS = [
   "0", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
@@ -53,15 +144,25 @@ const ROMAN_NUMERALS = [
 ];
 
 /**
- * The small line above the card name: the traditional roman numeral for
- * major arcana (The Fool = 0 … The World = XXI), or the suit for minors.
+ * The traditional roman numeral of a major arcana card (The Fool = 0 … The
+ * World = XXI), or undefined for minor arcana.
  */
-export function cardEyebrow(card: TarotCardData): string {
-  if (card.suit === "major") {
-    const index = MAJOR_ARCANA.findIndex((c) => c.name === card.name);
-    return index >= 0 ? ROMAN_NUMERALS[index] : "✦";
-  }
-  return card.suit;
+export function cardNumeral(card: TarotDeckCard): string | undefined {
+  if (card.suit !== "major") return undefined;
+  const index = MAJOR_ARCANA.findIndex((c) => c.id === card.id);
+  return index >= 0 ? ROMAN_NUMERALS[index] : "✦";
+}
+
+/**
+ * The card's traditional English name, rebuilt from its identifier. Used
+ * where the text must not depend on the reader's locale (NIP-31 `alt` tags)
+ * and as a placeholder while the localized text loads.
+ */
+export function cardEnglishName(card: TarotDeckCard): string {
+  return card.id
+    .split("-")
+    .map((word) => (word === "of" ? word : word[0].toUpperCase() + word.slice(1)))
+    .join(" ");
 }
 
 /** A locally cached reading (per pubkey, per reading type). */
@@ -102,19 +203,14 @@ export function cardsMatch(a: TarotCardData[], b: TarotCardData[]): boolean {
     a.length === b.length &&
     a.every(
       (card, i) =>
-        card.name === b[i].name && !!card.isReversed === !!b[i].isReversed,
+        card.id === b[i].id && !!card.isReversed === !!b[i].isReversed,
     )
   );
 }
 
-/** The card's NIP-TR identifier: its traditional English name, kebab-cased. */
-export function cardIdentifier(card: TarotCardData): string {
-  return card.name.toLowerCase().replaceAll(" ", "-");
-}
-
 /** Look up a card by its NIP-TR identifier, or undefined if out of vocabulary. */
-export function cardByIdentifier(identifier: string): TarotCardData | undefined {
-  return ALL_CARDS.find((card) => cardIdentifier(card) === identifier);
+export function cardByIdentifier(identifier: string): TarotDeckCard | undefined {
+  return CARDS_BY_ID.get(identifier);
 }
 
 /**
@@ -125,8 +221,8 @@ export function cardByIdentifier(identifier: string): TarotCardData | undefined 
 export function buildCardTags(cards: TarotCardData[]): string[][] {
   return cards.map((card) =>
     card.isReversed
-      ? ["c", cardIdentifier(card), "reversed"]
-      : ["c", cardIdentifier(card)],
+      ? ["c", card.id, "reversed"]
+      : ["c", card.id],
   );
 }
 
@@ -165,23 +261,42 @@ export function parseCardsFromEvent(event: NostrEvent): TarotCardData[] | null {
   return cards.length > 0 ? cards : null;
 }
 
+/**
+ * Rebuild a cached card from the deck. Older caches stored the full card
+ * (English `name` and prose) instead of an `id`, so fall back to deriving
+ * the identifier from the name.
+ */
+function restoreCachedCard(value: unknown): TarotCardData | null {
+  if (!value || typeof value !== "object") return null;
+  const { id, name, isReversed, position } = value as Record<string, unknown>;
+  const identifier = typeof id === "string"
+    ? id
+    : typeof name === "string"
+    ? name.toLowerCase().replaceAll(" ", "-")
+    : undefined;
+  const card = identifier ? cardByIdentifier(identifier) : undefined;
+  if (!card) return null;
+  return {
+    ...card,
+    isReversed: isReversed === true,
+    ...(typeof position === "string" ? { position } : {}),
+  };
+}
+
 /** Read and validate a cached reading from localStorage, or null. */
 export function readCachedReading(key: string): CachedReading | null {
   const raw = localStorage.getItem(key);
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      Array.isArray((parsed as CachedReading).cards) &&
-      typeof (parsed as CachedReading).timestamp === "number"
-    ) {
-      return parsed as CachedReading;
-    }
+    if (!parsed || typeof parsed !== "object") return null;
+    const { cards, timestamp } = parsed as Record<string, unknown>;
+    if (!Array.isArray(cards) || typeof timestamp !== "number") return null;
+    const restored = cards.map(restoreCachedCard);
+    if (restored.some((card) => !card)) return null;
+    return { cards: restored as TarotCardData[], timestamp };
   } catch {
-    // fall through to null
+    return null;
   }
-  return null;
 }
 
