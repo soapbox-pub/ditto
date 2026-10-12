@@ -1,0 +1,1250 @@
+{
+  "the-fool": {
+    "name": "Der Narr",
+    "meaning_up": "Neubeginn, Unschuld, Spontaneität, ein freier Geist",
+    "meaning_rev": "Naivität, Torheit, Leichtsinn, Risikofreude",
+    "desc": "Der Narr steht am Rand eines Abgrunds, bereit für eine neue Reise, und ahnt nichts von den Herausforderungen, die vor ihm liegen. Er verkörpert grenzenloses Potenzial und den Mut, einen Sprung ins Ungewisse zu wagen. Seine Gegenwart kündigt eine Zeit des Neubeginns an, in der jeder Schritt ein Abenteuer und jeder Moment voller Staunen ist.",
+    "fortune_telling": [
+      "Du bist gesprungen, bevor du geschaut hast, und es hat geklappt. Dieser Anfängermut steckt bis heute in allem, was du seitdem aufgebaut hast.",
+      "Du stehst am Rand von etwas Neuem. Du brauchst nicht die ganze Landkarte. Mach den Schritt.",
+      "Ein Neuanfang kommt auf dich zu, der Offenheit verlangt, nicht Fachwissen. Sag Ja, solange es sich noch ein bisschen gruselig anfühlt."
+    ],
+    "fortune_telling_rev": [
+      "Du bist losgestürmt, ohne den Boden zu prüfen, und das hat dich etwas gekostet. Dieser Stolperer hat dir gezeigt, wo die Kanten sind.",
+      "Deine Begeisterung trägt dich an ein paar ziemlich offensichtlichen Warnschildern vorbei. Halt kurz inne und schau nach unten, bevor du den nächsten Schritt machst.",
+      "Ein verlockender Sprung liegt vor dir. Prüf zuerst die Landung."
+    ]
+  },
+  "the-magician": {
+    "name": "Der Magier",
+    "meaning_up": "Manifestation, Einfallsreichtum, Macht, inspiriertes Handeln",
+    "meaning_rev": "Manipulation, schlechte Planung, ungenutzte Talente",
+    "desc": "Der Magier ist ein Meister der Elemente, ein Kanal für die Kraft des Universums. Er steht für die Fähigkeit, die eigenen Wünsche durch pure Willenskraft und Einfallsreichtum Wirklichkeit werden zu lassen. Seine Gegenwart kündigt eine Zeit gewaltiger Kraft und die Möglichkeit inspirierten Handelns an.",
+    "fortune_telling": [
+      "Du hast einmal aus fast nichts etwas Echtes gemacht. Dieser Einfallsreichtum hat den Boden gelegt, auf dem du heute stehst.",
+      "Alles, was du brauchst, liegt schon auf dem Tisch. Hör auf, auf besseres Werkzeug zu warten, und leg los.",
+      "Bald kommt ein Moment, in dem deine Fähigkeiten und eine Gelegenheit perfekt zusammenpassen. Sei bereit, schnell zu handeln."
+    ],
+    "fortune_telling_rev": [
+      "Dein Talent hat sich auf zu viele halbfertige Kunststücke verteilt. Ein Teil dieser Kraft ist ungenutzt versickert.",
+      "Das Können hast du, nur der Fokus fehlt. Such dir eine Sache aus und bring sie zu Ende.",
+      "Jemand verspricht dir vielleicht bald mehr, als er halten kann. Schau in die Ärmel, bevor du einschlägst."
+    ]
+  },
+  "the-high-priestess": {
+    "name": "Die Hohepriesterin",
+    "meaning_up": "Intuition, heiliges Wissen, das göttlich Weibliche, das Unterbewusstsein",
+    "meaning_rev": "Geheimnisse, abgeschnitten von der Intuition, Rückzug und Schweigen",
+    "desc": "Die Hohepriesterin ist die Hüterin des Unterbewussten, Bewahrerin heiligen Wissens und verborgener Geheimnisse. Sie steht für die Kraft der Intuition und dafür, wie wichtig es ist, auf die eigene innere Stimme zu hören. Ihre Gegenwart kündigt eine Zeit tiefer Innenschau und der Verbindung zum göttlich Weiblichen an.",
+    "fortune_telling": [
+      "Du wusstest etwas, bevor du es beweisen konntest, und du hattest recht. Dieses stille Wissen hat deinen Weg geprägt.",
+      "Die Antwort liegt nicht da draußen. Sitz lange genug still, dann taucht sie auf.",
+      "Bald zeigt sich eine Wahrheit, aber nur, wenn du lange genug aufhörst zu reden, um sie zu hören."
+    ],
+    "fortune_telling_rev": [
+      "Du hast ein Bauchgefühl ignoriert und dafür bezahlt. Das Signal war da, nur der Ton war leise gedreht.",
+      "Du fragst alle nach ihrer Meinung, nur dich selbst nicht. Werd still und hör nach innen.",
+      "Geheimnisse in deiner Nähe wollen geheim bleiben. Vertrau dem, was du spürst, mehr als dem, was man dir erzählt."
+    ]
+  },
+  "the-empress": {
+    "name": "Die Herrscherin",
+    "meaning_up": "Weiblichkeit, Schönheit, Natur, Fürsorge, Fülle",
+    "meaning_rev": "Kreative Blockade, Abhängigkeit von anderen",
+    "desc": "Die Herrscherin verkörpert das göttlich Weibliche, ein Symbol für Fruchtbarkeit, Kreativität und Fülle. Sie steht für die nährende Kraft der Natur und die Schönheit, die uns umgibt. Ihre Gegenwart kündigt eine Zeit des Wachstums an, materiell wie spirituell.",
+    "fortune_telling": [
+      "Jemand oder etwas hat dich großzügig genährt, und das trägt bis heute Früchte.",
+      "Das ist eine Zeit zum Pflegen, nicht zum Erzwingen. Füttere, was wachsen soll.",
+      "Etwas, das du gepflanzt hast, steht kurz vor der Blüte. Mach Platz für die Fülle."
+    ],
+    "fortune_telling_rev": [
+      "Du hast so viel weggegeben, dass für dich nichts mehr übrig war. Diese Erschöpfung hallt noch nach.",
+      "Aus einer leeren Tasse kann man nichts einschenken. Kümmer dich heute zuerst um dich.",
+      "Kommendes Wachstum gerät ins Stocken, wenn man es erstickt. Pfleg es, und dann tritt einen Schritt zurück."
+    ]
+  },
+  "the-emperor": {
+    "name": "Der Herrscher",
+    "meaning_up": "Autorität, Ordnung, Struktur, eine Vaterfigur",
+    "meaning_rev": "Dominanz, übermäßige Kontrolle, fehlende Disziplin, Starrheit",
+    "desc": "Der Herrscher ist ein Symbol für Autorität und Macht, ein Regent, der Struktur und Ordnung in die Welt bringt. Er steht für die Bedeutung von Disziplin und Rechtsstaatlichkeit. Seine Gegenwart kündigt eine Zeit der Stabilität und Kontrolle an.",
+    "fortune_telling": [
+      "Struktur, oder jemand, der sie durchgesetzt hat, hat deinem Leben seine Form gegeben. Die Disziplin ist geblieben.",
+      "Das Chaos verlangt nach einem Plan. Zieh die Linien und halte sie.",
+      "Bald bekommst du echte Verantwortung übertragen. Herrsche so, wie du selbst beherrscht werden wolltest."
+    ],
+    "fortune_telling_rev": [
+      "Jemandes eiserner Griff hat Spuren hinterlassen. Du weißt seitdem genau, was Kontrolle kostet.",
+      "Du hältst zu fest. Lockere den Griff, bevor etwas reißt.",
+      "Ein Machtkampf bahnt sich an. Bring Maßstäbe mit, keinen Hammer."
+    ]
+  },
+  "the-hierophant": {
+    "name": "Der Hierophant",
+    "meaning_up": "Spirituelle Weisheit, religiöse Überzeugungen, Anpassung, Tradition, Institutionen",
+    "meaning_rev": "Eigene Überzeugungen, Freiheit, den Status quo infrage stellen",
+    "desc": "Der Hierophant ist ein spiritueller Lehrer, ein Wegweiser, der anderen hilft, ihren eigenen Weg zur Erleuchtung zu finden. Er steht für die Bedeutung von Tradition und den Wert von Institutionen. Seine Gegenwart kündigt eine Zeit des Lernens und des spirituellen Wachstums an.",
+    "fortune_telling": [
+      "Tradition und gute Lehrer haben dir dein Fundament gegeben. Die alten Wege haben dir gut gedient.",
+      "Bevor du das Rad neu erfindest, frag jemanden, der schon eins gerollt hat. Das Bewährte hat heute Antworten.",
+      "Ein Mentor oder ein altbewährter Weg taucht bald auf. Es liegt Weisheit darin, ihn zu gehen."
+    ],
+    "fortune_telling_rev": [
+      "Du hast mit Konventionen gebrochen, und genau das hat dich zu dem gemacht, wer du bist.",
+      "Das Regelbuch funktioniert nicht. Schreib deine eigene Seite.",
+      "Bald wächst du über eine Lehre hinaus. Geh respektvoll, aber geh."
+    ]
+  },
+  "the-lovers": {
+    "name": "Die Liebenden",
+    "meaning_up": "Liebe, Harmonie, Beziehungen, gemeinsame Werte, Entscheidungen",
+    "meaning_rev": "Selbstliebe, Disharmonie, Ungleichgewicht, widersprüchliche Werte",
+    "desc": "Die Liebenden stehen für die Kraft der Liebe und die Bedeutung von Beziehungen. Sie symbolisieren die Vereinigung zweier Seelen und die Harmonie, die aus einer tiefen Verbindung entsteht. Ihre Gegenwart kündigt eine Zeit der Entscheidungen an und die Notwendigkeit, im Einklang mit den eigenen Werten zu handeln.",
+    "fortune_telling": [
+      "Eine Verbindung, für die du dich mit ganzem Herzen entschieden hast, hat alles danach geprägt.",
+      "Hier geht es um Einklang, nicht nur um Zuneigung. Wähle, was zu deinen Werten passt.",
+      "Eine bedeutsame Begegnung oder Weggabelung kommt auf dich zu. Entscheide mit dem Herzen und mit offenen Augen."
+    ],
+    "fortune_telling_rev": [
+      "Eine Verbindung, die nicht gepasst hat, oder eine halbherzige Entscheidung zieht noch hinter dir her.",
+      "Zwischen dem, was dir wichtig ist, und dem, was du tust, stimmt etwas nicht. Stimm es neu.",
+      "Eine bequeme Option wird dich von der richtigen weglocken wollen. Such keinen faulen Kompromiss."
+    ]
+  },
+  "the-chariot": {
+    "name": "Der Wagen",
+    "meaning_up": "Kontrolle, Willenskraft, Erfolg, Tatkraft, Entschlossenheit",
+    "meaning_rev": "Selbstdisziplin, Widerstand, fehlende Richtung",
+    "desc": "Der Wagen ist ein Symbol für Sieg und Erfolg, ein Beweis für die Macht von Willenskraft und Entschlossenheit. Er steht für die Fähigkeit, Hindernisse zu überwinden und die eigenen Ziele zu erreichen. Seine Gegenwart kündigt eine Zeit des Handelns und des Vorwärtsdrangs an.",
+    "fortune_telling": [
+      "Du hast gewonnen, weil du dich geweigert hast aufzuhören. Dieser Sieg nährt bis heute dein Selbstvertrauen.",
+      "Nimm die Zügel in die Hand. Gegensätzliche Kräfte ziehen an einem Strang, wenn du mit Absicht lenkst.",
+      "Der Schwung baut sich zu einem Sieg auf. Behalt beide Hände an den Zügeln."
+    ],
+    "fortune_telling_rev": [
+      "Du hast kräftig in die falsche Richtung gedrückt, und es hat echte Stärke gebraucht, das zuzugeben.",
+      "Du gibst Gas, ohne zu lenken. Ziel erst, dann beschleunige.",
+      "Ein Hindernis vor dir lässt sich nicht mit Gewalt bewegen. Lenk um, statt es zu rammen."
+    ]
+  },
+  "strength": {
+    "name": "Die Kraft",
+    "meaning_up": "Stärke, Mut, Überzeugungskraft, Einfluss, Mitgefühl",
+    "meaning_rev": "Innere Stärke, Selbstzweifel, Schwäche, Unsicherheit",
+    "desc": "Die Kraft ist ein Symbol für innere Stärke und Mut, ein Beweis dafür, dass sich jede Herausforderung mit Anmut und Mitgefühl meistern lässt. Sie steht für die Bedeutung von Selbstbeherrschung und die Macht eines sanften Herzens. Ihre Gegenwart kündigt eine Zeit stiller Zuversicht und innerer Entschlossenheit an.",
+    "fortune_telling": [
+      "Du hast etwas Wildes gezähmt, in dir oder in deinem Leben, mit Geduld statt mit Gewalt.",
+      "Sanft schlägt laut, zumindest heute. Führ mit der weichen Hand.",
+      "Eine Herausforderung kommt, die sich nicht mit Muskeln lösen lässt. Deine Ruhe wird es schaffen."
+    ],
+    "fortune_telling_rev": [
+      "Zweifel haben dich einmal einknicken lassen, obwohl du die Kraft hattest zu bleiben.",
+      "Der innere Kritiker brüllt. Es ist eine Hauskatze. Füttere lieber deinen Mut.",
+      "Deine Geduld wird auf die Probe gestellt. Verwechsle Sanftheit nicht mit Schwäche."
+    ]
+  },
+  "the-hermit": {
+    "name": "Der Eremit",
+    "meaning_up": "Seelensuche, Innenschau, Alleinsein, innere Führung",
+    "meaning_rev": "Isolation, Einsamkeit, Rückzug",
+    "desc": "Der Eremit ist ein Symbol für Innenschau und Einsamkeit, eine weise alte Seele, die Erkenntnis in sich selbst sucht. Er steht dafür, wie wichtig es ist, sich Zeit für sich zu nehmen und auf die eigene innere Führung zu hören. Seine Gegenwart kündigt eine Zeit der Seelensuche und der spirituellen Erleuchtung an.",
+    "fortune_telling": [
+      "Zeit allein hat dir eine Antwort gegeben, die dir keine Menschenmenge je hätte geben können.",
+      "Tritt einen Schritt zurück vom Lärm. Deine Laterne leuchtet im Dunkeln besser.",
+      "Eine Phase des Alleinseins kommt, und sie wird produktiv sein, nicht einsam."
+    ],
+    "fortune_telling_rev": [
+      "Du hast dich ein bisschen zu weit zurückgezogen, und die Welt hat sich ohne dich weitergedreht.",
+      "Aus Nachdenken ist Verstecken geworden. Mach einen Schritt in Richtung Tür.",
+      "Die Isolation wird dich locken. Nimm die Weisheit mit, lass das Exil aus."
+    ]
+  },
+  "wheel-of-fortune": {
+    "name": "Das Rad des Schicksals",
+    "meaning_up": "Glück, Karma, Lebenszyklen, Bestimmung, ein Wendepunkt",
+    "meaning_rev": "Pech, Widerstand gegen Veränderung, Zyklen durchbrechen",
+    "desc": "Das Rad des Schicksals ist ein Symbol für Bestimmung und Fügung, eine Erinnerung daran, dass das Leben ein sich ständig drehendes Rad aus Höhen und Tiefen ist. Es steht dafür, Veränderung anzunehmen und mit dem Strom zu schwimmen. Seine Gegenwart kündigt eine Zeit großer Chancen und einen Wendepunkt im Leben an.",
+    "fortune_telling": [
+      "Das Glück hat sich einmal in deine Richtung gedreht und alles umgeleitet.",
+      "Das Rad dreht sich. Lockere den Griff und fahr mit.",
+      "Die Umstände drehen sich bald zu deinen Gunsten. Sei bereit loszulegen, wenn es so weit ist."
+    ],
+    "fortune_telling_rev": [
+      "Eine üble Drehung des Rads hat dich umgehauen. Du bist trotzdem wieder aufgestanden, und das zählt.",
+      "Das Rad kannst du nicht anhalten, nur deinen Griff daran. Pass dich an.",
+      "Ein Rückschlag vor dir ist vorübergehend. Wehr dich weniger, dann geht er schneller vorbei."
+    ]
+  },
+  "justice": {
+    "name": "Die Gerechtigkeit",
+    "meaning_up": "Gerechtigkeit, Fairness, Wahrheit, Ursache und Wirkung, Gesetz",
+    "meaning_rev": "Ungerechtigkeit, fehlende Verantwortung, Unehrlichkeit",
+    "desc": "Die Gerechtigkeit ist ein Symbol für Wahrheit und Fairness, eine Erinnerung daran, dass jede Handlung Folgen hat. Sie steht dafür, Verantwortung für die eigenen Entscheidungen zu übernehmen und ein Leben in Integrität zu führen. Ihre Gegenwart kündigt eine Zeit der Rechenschaft und der Suche nach der Wahrheit an.",
+    "fortune_telling": [
+      "Du hast bekommen, was deine Taten verdient hatten, im Guten wie im Schlechten. Die Waage war ehrlich.",
+      "Wäge es fair ab, auch deinen eigenen Anteil daran. Dann entscheide.",
+      "Eine Entscheidung fällt zu deinen Gunsten aus, wenn deine Hände sauber sind. Halte sie sauber."
+    ],
+    "fortune_telling_rev": [
+      "Dir ist etwas Ungerechtes widerfahren, und es bringt deine Waage bis heute in Schieflage.",
+      "Hier drückt sich jemand vor der Verantwortung, vielleicht du. Stell die Waage gerade hin.",
+      "Ein Ungleichgewicht wird nach Ausgleich verlangen. Sag früh die Wahrheit, das ist billiger."
+    ]
+  },
+  "the-hanged-man": {
+    "name": "Der Gehängte",
+    "meaning_up": "Innehalten, Hingabe, Loslassen, neue Perspektiven",
+    "meaning_rev": "Verzögerungen, Widerstand, Stillstand, Unentschlossenheit",
+    "desc": "Der Gehängte ist ein Symbol für Hingabe und Loslassen, eine Erinnerung daran, dass es manchmal das Beste ist, gar nichts zu tun. Er steht dafür, innezuhalten und die Dinge aus einer neuen Perspektive zu betrachten. Seine Gegenwart kündigt eine Zeit des Opfers und der Suche nach einer neuen Art zu sein an.",
+    "fortune_telling": [
+      "Eine Pause, die du dir nicht ausgesucht hast, war am Ende genau der Punkt. Sie hat verändert, wie du die Dinge siehst.",
+      "Hör auf zu zappeln. Die Aussicht von hier aus ist die Lektion.",
+      "Eine Verzögerung vor dir ist ein verkapptes Upgrade. Gib dich ihr hin."
+    ],
+    "fortune_telling_rev": [
+      "Du hast an einer festgefahrenen Situation festgehalten, lange nachdem sie dir nichts mehr beibringen konnte.",
+      "Dieses Opfer ist nicht mehr edel, es ist Stillstand. Schneid dich los.",
+      "Du wirst versucht sein, weiter abzuwarten. Manche Türen gehen erst auf, wenn du loslässt."
+    ]
+  },
+  "death": {
+    "name": "Der Tod",
+    "meaning_up": "Enden, Veränderung, Verwandlung, Übergang",
+    "meaning_rev": "Widerstand gegen Veränderung, persönliche Wandlung, innere Reinigung",
+    "desc": "Der Tod ist ein Symbol für Enden und Anfänge, eine Erinnerung daran, dass alles vergeht. Er steht dafür, das Alte loszulassen, um Platz für das Neue zu schaffen. Seine Gegenwart kündigt eine Zeit großer Verwandlung und den Übergang in ein neues Leben an.",
+    "fortune_telling": [
+      "Etwas ist vollständig zu Ende gegangen, und du bist anders nachgewachsen. Dieses Ende hat Platz für all das hier gemacht.",
+      "Etwas geht zu Ende. Halt ihm die Tür auf.",
+      "Bald schließt sich ein Kapitel. Trauere richtig darum, und dann reise mit leichtem Gepäck."
+    ],
+    "fortune_telling_rev": [
+      "Du hast etwas lange über seine Zeit hinaus künstlich am Leben gehalten, und das hat dich ausgelaugt.",
+      "Du wehrst dich gegen eine Veränderung, die längst passiert ist. Lockere den Griff.",
+      "Die Veränderung klopft so lange, bis du aufmachst. Öffne die Tür zu deinen eigenen Bedingungen."
+    ]
+  },
+  "temperance": {
+    "name": "Die Mäßigkeit",
+    "meaning_up": "Gleichgewicht, Mäßigung, Geduld, Sinn",
+    "meaning_rev": "Ungleichgewicht, Maßlosigkeit, Selbstheilung, Neuausrichtung",
+    "desc": "Die Mäßigkeit ist ein Symbol für Gleichgewicht und Maß, eine Erinnerung daran, dass alles in Harmonie geschehen sollte. Sie steht für Geduld und dafür, einen Mittelweg zu finden. Ihre Gegenwart kündigt eine Zeit der Heilung und der Suche nach Sinn an.",
+    "fortune_telling": [
+      "Du hast einen Mittelweg gefunden, wo andere sich für eine Seite entschieden haben. Dieses Gleichgewicht hat dich getragen.",
+      "Mischen, nicht maßlos werden. Die richtige Mischung ist subtil.",
+      "Geduld und Maß werden still eine Situation gewinnen, die mit Gewalt verloren ginge."
+    ],
+    "fortune_telling_rev": [
+      "Irgendeine Form von Übermaß hat dich aus dem Gleichgewicht gebracht, und das Wackeln hast du eine Weile gespürt.",
+      "Etwas stimmt nicht in den Proportionen. Gieß ein bisschen zurück.",
+      "Extreme werden bald aufregend aussehen. Der Mittelweg ist trotzdem der schnelle."
+    ]
+  },
+  "the-devil": {
+    "name": "Der Teufel",
+    "meaning_up": "Schattenselbst, Anhaftung, Sucht, Einschränkung, Sexualität",
+    "meaning_rev": "Einschränkende Glaubenssätze loslassen, dunkle Gedanken erkunden, Loslösung",
+    "desc": "Der Teufel ist ein Symbol für unser Schattenselbst, eine Erinnerung an die Teile von uns, die wir verborgen halten. Er steht dafür, uns unseren Ängsten zu stellen und uns von unseren Abhängigkeiten zu befreien. Seine Gegenwart kündigt eine Zeit der Versuchung und der Suche nach Freiheit an.",
+    "fortune_telling": [
+      "Etwas hatte seine Haken in dir. Es beim Namen zu nennen, war der Anfang von allem Besseren.",
+      "Prüf die Ketten. Die meisten sind locker genug, um rauszuschlüpfen.",
+      "Eine vergoldete Falle wartet auf dich. Genieß den Glanz, aber lass den Käfig links liegen."
+    ],
+    "fortune_telling_rev": [
+      "Du hast eine Kette gesprengt, die andere für unzerbrechlich hielten.",
+      "Die Freiheit ist näher, als es sich anfühlt. Ein ehrlicher Blick auf die Gewohnheit, und sie lockert sich.",
+      "Du bist kurz davor, einem Laster oder einem schlechten Deal zu entwachsen. Lass ganz los."
+    ]
+  },
+  "the-tower": {
+    "name": "Der Turm",
+    "meaning_up": "Plötzliche Veränderung, Umbruch, Chaos, Offenbarung, Erwachen",
+    "meaning_rev": "Persönliche Wandlung, Angst vor Veränderung, eine abgewendete Katastrophe",
+    "desc": "Der Turm ist ein Symbol für plötzliche Veränderung und Umbruch, eine Erinnerung daran, dass alles vergänglich ist. Er steht dafür, auf das Unerwartete vorbereitet zu sein und das Chaos anzunehmen. Seine Gegenwart kündigt eine Zeit großer Offenbarung und eines spirituellen Erwachens an.",
+    "fortune_telling": [
+      "Etwas ist plötzlich eingestürzt, und auf genau dem Boden, den es freigeräumt hat, baust du heute.",
+      "Was gerade wackelt, war nie stabil. Rette dich, nicht das Gerüst.",
+      "Ein plötzlicher Umbruch steht bevor. Er nimmt nur mit, was nicht solide war."
+    ],
+    "fortune_telling_rev": [
+      "Du hast die Risse früh gesehen und bist vor dem Einsturz raus. Leise abgewendete Katastrophen zählen auch als Siege.",
+      "Du stützt etwas, das fallen will. Ein kontrollierter Abriss ist besser als ein Einsturz.",
+      "Eine Krise vor dir lässt sich noch abfedern. Verstärke, was wichtig ist, und lass den Rest los."
+    ]
+  },
+  "the-star": {
+    "name": "Der Stern",
+    "meaning_up": "Hoffnung, Vertrauen, Sinn, Erneuerung, Spiritualität",
+    "meaning_rev": "Fehlendes Vertrauen, Verzweiflung, Selbstvertrauen, Entfremdung",
+    "desc": "Der Stern ist ein Symbol für Hoffnung und Zuversicht, eine Erinnerung daran, dass es in der Dunkelheit immer ein Licht gibt. Er steht dafür, einen Sinn zu haben und an sich selbst zu glauben. Seine Gegenwart kündigt eine Zeit der Erneuerung und der Verbindung zum Göttlichen an.",
+    "fortune_telling": [
+      "Nach einer harten Zeit hat die Hoffnung dich wiedergefunden. Sie war eigentlich nie weg.",
+      "Du heilst. Bleib langsam, bleib ehrlich, schau weiter nach oben.",
+      "Erleichterung und Erneuerung sind unterwegs. Der Wunsch, über den du schweigst, ist näher, als du denkst."
+    ],
+    "fortune_telling_rev": [
+      "Eine Enttäuschung hat deine Hoffnung eine Weile gedämpft. Die Sterne sind geblieben, wo sie waren. Du hast nur aufgehört hinzusehen.",
+      "Zynismus ist ein billiger Schild. Leg ihn für einen Abend ab und schau, was passiert.",
+      "Wenn sich Zweifel einschleichen, denk dran: Das ist nur Wetter. Der Himmel dahinter hat sich nicht bewegt."
+    ]
+  },
+  "the-moon": {
+    "name": "Der Mond",
+    "meaning_up": "Illusion, Angst, Unruhe, Unterbewusstsein, Intuition",
+    "meaning_rev": "Angst loslassen, unterdrückte Gefühle, innere Verwirrung",
+    "desc": "Der Mond ist ein Symbol für Illusion und Angst, eine Erinnerung daran, dass nicht alles so ist, wie es scheint. Er steht dafür, auf die eigene Intuition zu hören und das Unterbewusstsein zu erforschen. Seine Gegenwart kündigt eine Zeit der Unruhe und der Suche nach der Wahrheit an.",
+    "fortune_telling": [
+      "Ein Stück deiner Geschichte bist du halb im Dunkeln gegangen, nur nach Instinkt. Genau das hat dich hierher gebracht.",
+      "Gerade ist nicht alles so, wie es aussieht. Geh langsam und vertrau deinem Bauch mehr als dem grellen Schein.",
+      "Eine verwirrende Phase liegt vor dir. Der Instinkt liest, was die Logik nicht entziffern kann."
+    ],
+    "fortune_telling_rev": [
+      "Ein Nebel, in dem du gelebt hast, hat sich endlich gelichtet, und die Wahrheit war freundlicher als die Angst.",
+      "Die Angst ist lauter als die Fakten. Mach Licht und schau nach.",
+      "Klarheit ist im Anmarsch. Was dir im Dunkeln Angst gemacht hat, sieht im Morgengrauen ganz gewöhnlich aus."
+    ]
+  },
+  "the-sun": {
+    "name": "Die Sonne",
+    "meaning_up": "Positivität, Spaß, Wärme, Erfolg, Lebenskraft",
+    "meaning_rev": "Inneres Kind, Niedergeschlagenheit, übertriebener Optimismus",
+    "desc": "Die Sonne ist ein Symbol für Positivität und Lebensfreude, eine Erinnerung daran, dass es immer einen Grund zum Glücklichsein gibt. Sie steht dafür, im Moment zu leben und die einfachen Freuden des Lebens zu genießen. Ihre Gegenwart kündigt eine Zeit des Erfolgs und der Lebenskraft an.",
+    "fortune_telling": [
+      "Eine Zeit echter Freude hat alles gewärmt, was danach kam.",
+      "Heute ist ein guter Tag. Prüf ihn nicht auf Herz und Nieren. Genieß ihn.",
+      "Helle Tage kommen: Erfolg, Wärme und nichts, was man entschlüsseln müsste."
+    ],
+    "fortune_telling_rev": [
+      "Eine Wolke hat sich über eine glückliche Zeit gelegt, und du hast gelernt, dass Freude verteidigt werden will.",
+      "Die Sonne scheint, und du sitzt drinnen. Tritt mal kurz aus deiner eigenen Trübsal heraus.",
+      "Gute Nachrichten kommen ein bisschen verspätet. Trotzdem gut. Lass die Vorhänge offen."
+    ]
+  },
+  "judgement": {
+    "name": "Das Gericht",
+    "meaning_up": "Urteil, Wiedergeburt, innere Berufung, Vergebung",
+    "meaning_rev": "Selbstzweifel, innerer Kritiker, den Ruf überhören",
+    "desc": "Das Gericht ist ein Symbol für Wiedergeburt und Erneuerung, eine Erinnerung daran, dass wir alle die Kraft haben, unser Leben zum Besseren zu verändern. Es steht dafür, auf die innere Berufung zu hören und sich selbst die Fehler der Vergangenheit zu vergeben. Seine Gegenwart kündigt eine Zeit der Vergebung und einen Neuanfang an.",
+    "fortune_telling": [
+      "Ein Weckruf hat deinen Kurs verändert. Du bist ihm gefolgt, und das ist der Teil, der zählt.",
+      "Zieh ehrlich Bilanz. Vergib deiner alten Version und steh auf.",
+      "Ein Ruf zu etwas Größerem kommt. Wachse daran."
+    ],
+    "fortune_telling_rev": [
+      "Du warst härter mit dir als jede Jury.",
+      "Die Selbstzweifel übertönen den Ruf. Leg den Richterhammer weg und hör hin.",
+      "Du bekommst eine zweite Chance, von der du glaubst, dass du sie nicht verdienst. Nimm sie trotzdem."
+    ]
+  },
+  "the-world": {
+    "name": "Die Welt",
+    "meaning_up": "Vollendung, Ganzheit, Erfolg, Reisen",
+    "meaning_rev": "Nach persönlichem Abschluss suchen, Abkürzungen, Verzögerungen",
+    "desc": "Die Welt ist ein Symbol für Vollendung und Ganzheit, eine Erinnerung daran, dass alles miteinander verbunden ist. Sie steht dafür, die eigenen Erfolge zu feiern und sich ganz zu fühlen. Ihre Gegenwart kündigt eine Zeit des Reisens und ein neues Kapitel im Leben an.",
+    "fortune_telling": [
+      "Du hast etwas ganz zu Ende gebracht. Diese Vollendung ist ein Fundament, nicht nur eine Erinnerung.",
+      "Der Kreis schließt sich. Feier, bevor du den nächsten beginnst.",
+      "Die Vollendung ist nah, und sie wird sich so gut anfühlen wie versprochen. Danach öffnet sich die Welt."
+    ],
+    "fortune_telling_rev": [
+      "Etwas endete bei neunzig Prozent, und das juckt immer noch.",
+      "Du bist einen ehrlichen Schubs vom Ziel entfernt. Schließ den Kreis.",
+      "Hör nicht bei fast auf. Auf dem letzten Kilometer wohnt die Bedeutung."
+    ]
+  },
+  "ace-of-wands": {
+    "name": "Ass der Stäbe",
+    "meaning_up": "Inspiration, neue Chancen, Wachstum, Potenzial",
+    "meaning_rev": "Eine keimende Idee, fehlende Richtung, Ablenkungen, Verzögerungen",
+    "desc": "Das Ass der Stäbe steht für einen neuen Funken der Inspiration und einen Schub kreativer Energie. Es ist ein Zeichen für Neubeginn und das Potenzial zu wachsen. Diese Karte ermutigt dich, deinen Leidenschaften zu folgen und die Chancen zu ergreifen, die sich dir bieten.",
+    "fortune_telling": [
+      "Ein Funke der Inspiration hat deinen ganzen Weg in Brand gesetzt.",
+      "Die Idee, die gerade flackert, lebt. Schmiede das Eisen, solange es heiß ist.",
+      "Ein Schwall kreatives Feuer kommt auf dich zu. Halt Anzündholz bereit."
+    ],
+    "fortune_telling_rev": [
+      "Ein vielversprechender Funke ist mangels Luft verpufft. Er hat dir gezeigt, wie du den nächsten hütest.",
+      "Die Idee ist echt, nur die Richtung ist verschwommen. Ziel, bevor du zündest.",
+      "Verzögerungen werden ein neues Vorhaben auf die Probe stellen. Deck die Glut ab, aber gib sie nicht auf."
+    ]
+  },
+  "two-of-wands": {
+    "name": "Zwei der Stäbe",
+    "meaning_up": "Zukunftsplanung, Fortschritt, Entscheidungen, Entdeckung",
+    "meaning_rev": "Angst vor dem Unbekannten, fehlende Planung",
+    "desc": "Die Zwei der Stäbe steht für einen Moment der Planung und Entscheidung. Du hast eine Wahl zu treffen, die deine Zukunft prägen wird. Diese Karte ermutigt dich, deine Möglichkeiten auszuloten und einen mutigen Schritt zu wagen.",
+    "fortune_telling": [
+      "Du hast einmal vor der Landkarte gestanden und dich getraut, größer zu planen. Diese Vision hat dich in Bewegung gebracht.",
+      "Die Welt ist größer als dein aktueller Blickwinkel. Plan die kühnere Route.",
+      "Eine Wahl zwischen sicher und weit kommt auf dich zu. Pack für weit."
+    ],
+    "fortune_telling_rev": [
+      "Du hast die Karte gezeichnet, bist aber nie losgefahren. Die Lektion ist trotzdem gereist.",
+      "Die Angst vor dem Unbekannten hat sich als Vernunft verkleidet. Was ist es wirklich?",
+      "Du wirst versucht sein, dich mit dem kleineren Plan zufriedenzugeben. Schrumpf die Karte nicht."
+    ]
+  },
+  "three-of-wands": {
+    "name": "Drei der Stäbe",
+    "meaning_up": "Fortschritt, Expansion, Weitblick, Chancen in der Ferne",
+    "meaning_rev": "Kleinbleiben, fehlender Weitblick, unerwartete Verzögerungen",
+    "desc": "Die Drei der Stäbe steht für Fortschritt und Expansion. Deine Pläne sind in Bewegung, und du siehst langsam die Früchte deiner Mühe. Diese Karte ermutigt dich, optimistisch in die Zukunft zu blicken und offen für neue Chancen zu sein.",
+    "fortune_telling": [
+      "Du hast deine Schiffe früh losgeschickt, und seitdem kommen sie zurück.",
+      "Deine Bemühungen sind schon unterwegs. Schau auf den Horizont, nicht auf deine Füße.",
+      "Die Erträge längst getaner Arbeit segeln heran. Die Expansion folgt."
+    ],
+    "fortune_telling_rev": [
+      "Du hast auf Erträge gewartet, die spät oder mager kamen. Deine Geduld hatte ordentlich Training.",
+      "Der Fortschritt ist langsamer als geplant. Pass den Zeitplan an, nicht das Ziel.",
+      "Hindernisse könnten verzögern, was dir zusteht. Es kommt trotzdem an. Bau weiter am Steg."
+    ]
+  },
+  "four-of-wands": {
+    "name": "Vier der Stäbe",
+    "meaning_up": "Feier, Freude, Harmonie, Heimkehr, Meilensteine",
+    "meaning_rev": "Unruhe zu Hause, Übergänge, eine abgesagte Feier",
+    "desc": "Die Vier der Stäbe ist eine Karte der Feier und der Heimkehr. Ein Fundament ist gelegt, und es hält. Diese Karte ermutigt dich, den Meilenstein mit den Menschen zu feiern, die dir beim Bauen geholfen haben.",
+    "fortune_telling": [
+      "Du hast etwas gebaut, zu dem es sich heimzukommen lohnt, und der Empfang steht noch.",
+      "Ein Meilenstein verdient es, gefeiert zu werden. Häng die Girlande heute auf, nicht irgendwann.",
+      "Eine Heimkehr oder ein Fest ist unterwegs. Feg schon mal die Veranda."
+    ],
+    "fortune_telling_rev": [
+      "Ein Zuhause, das gewackelt hat, hat dir gezeigt, wofür Fundamente da sind.",
+      "Die Party fühlt sich verfrüht an, weil das Fundament noch einen Balken braucht. Setz ihn ein.",
+      "Pläne für ein Treffen könnten sich verschieben. Die Menschen zählen mehr als das Datum."
+    ]
+  },
+  "five-of-wands": {
+    "name": "Fünf der Stäbe",
+    "meaning_up": "Wettbewerb, Konflikt, Rivalität, Spannung, Meinungsverschiedenheit",
+    "meaning_rev": "Konflikte vermeiden, Entspannung, eine gemeinsame Basis finden",
+    "desc": "Die Fünf der Stäbe steht für Reibung und Wettbewerb. Alle schlagen um sich, niemand zielt. Diese Karte ermutigt dich, aus der Rauferei ein Trainingsduell zu machen. Die Energie ist nützlich, sobald sie Regeln hat.",
+    "fortune_telling": [
+      "Eine Rivalität hat dich mehr geschärft, als es irgendein leichter Sieg gekonnt hätte.",
+      "Das Chaos um dich herum ist größtenteils Energie ohne Regeln. Gib ihr Regeln.",
+      "Ein Wettstreit steht bevor. Trainier so, als würden die anderen es schon tun."
+    ],
+    "fortune_telling_rev": [
+      "Ein Streit, aus dem du dich rausgehalten hast, hat sich von selbst erledigt. Gute Wahl.",
+      "Die Spannung kann abfließen, sobald jemand als Erstes den Stab senkt. Sei dieser Jemand.",
+      "Ein aufziehender Zusammenstoß kann noch zur Zusammenarbeit werden. Biete früh einen Waffenstillstand an."
+    ]
+  },
+  "six-of-wands": {
+    "name": "Sechs der Stäbe",
+    "meaning_up": "Sieg, Erfolg, öffentliche Anerkennung, Fortschritt, Selbstvertrauen",
+    "meaning_rev": "Stiller Erfolg, tiefer Fall, Egoismus, Zweifel",
+    "desc": "Die Sechs der Stäbe ist die Ehrenrunde. Deine Mühe wurde gesehen und benannt. Diese Karte ermutigt dich, die Anerkennung anzunehmen, ohne dich dafür zu entschuldigen, und nicht zu vergessen, wer neben dir geritten ist.",
+    "fortune_telling": [
+      "Du hast vor Zeugen einen Sieg errungen, und das hat verändert, wie du dich hältst.",
+      "Die Anerkennung ist verdient. Wink zurück.",
+      "Applaus kommt für Arbeit, die du längst erledigt hast. Stell dich dorthin, wo man dich sehen kann."
+    ],
+    "fortune_telling_rev": [
+      "Ein Triumph, für den niemand geklatscht hat, zählt trotzdem. Du weißt, was er gekostet hat.",
+      "Zweifel platzen in die Siegesparade. Der Sieg ist echt, auch wenn die Menge still ist.",
+      "Anerkennung kommt vielleicht spät oder schief. Mach die Arbeit um der Arbeit willen."
+    ]
+  },
+  "seven-of-wands": {
+    "name": "Sieben der Stäbe",
+    "meaning_up": "Herausforderung, Schutz, Ausdauer, die eigene Position verteidigen",
+    "meaning_rev": "Erschöpfung, Aufgeben, Überforderung, Boden preisgeben",
+    "desc": "Die Sieben der Stäbe zeigt dich auf der Anhöhe, während Herausforderer heraufklettern. Diese Karte ermutigt dich, zu verteidigen, was du aufgebaut hast. Du hast den Vorteil, auch wenn es sich nicht so anfühlt.",
+    "fortune_telling": [
+      "Du hast eine Stellung gehalten, von der alle sagten, du würdest sie verlieren. Genau deshalb hast du sie noch.",
+      "Du stehst über dem Getümmel, nicht darunter. Halte den Hügel.",
+      "Herausforderer für etwas, das du aufgebaut hast, sind im Anmarsch. Die Anhöhe gehört dir. Nutze sie."
+    ],
+    "fortune_telling_rev": [
+      "Du hast einmal Boden preisgegeben und dabei gelernt, welche Hügel den Kampf wert sind.",
+      "Die Erschöpfung lässt Aufgeben wie Strategie aussehen. Erst ausruhen, dann entscheiden.",
+      "Der Druck, der kommt, wird dich verleiten, den Stab fallen zu lassen. Leg ihn bewusst ab oder gar nicht."
+    ]
+  },
+  "eight-of-wands": {
+    "name": "Acht der Stäbe",
+    "meaning_up": "Tempo, schnelles Handeln, Bewegung, eintreffende Nachrichten, Schwung",
+    "meaning_rev": "Verzögerungen, Frust, verzettelte Energie, Widerstand gegen Veränderung",
+    "desc": "Die Acht der Stäbe ist purer Schwung: Nachrichten treffen ein, Pläne beschleunigen, alles ist gleichzeitig in der Luft. Diese Karte ermutigt dich, mit dem Tempo zu gehen, statt dich dagegenzustemmen.",
+    "fortune_telling": [
+      "Alles ist auf einmal passiert, und du hast das meiste davon gefangen. Genau das war die Kunst.",
+      "Die Luft ist voller Pfeile. Schieß deinen ab, solange der Wind hält.",
+      "Nachrichten und Bewegung rauschen heran. Mach die Startbahn frei."
+    ],
+    "fortune_telling_rev": [
+      "Eine Verzögerung, die dich rasend gemacht hat, war in Wahrheit Zielen.",
+      "Deine Energie verteilt sich auf zu viele Ziele. Wähl drei, dann eins.",
+      "Kurz vor dem Abheben könnte es stocken. Prüf die Befiederung, nicht deinen Wert."
+    ]
+  },
+  "nine-of-wands": {
+    "name": "Neun der Stäbe",
+    "meaning_up": "Widerstandskraft, Beharrlichkeit, letztes Gefecht, Grenzen, Biss",
+    "meaning_rev": "Müdigkeit, Misstrauen, Weiterkämpfen, wo Ruhe fällig wäre",
+    "desc": "Die Neun der Stäbe ist der zweite Atem, von dem du nichts wusstest. Angeschlagen, aber aufrecht: Diese Karte ermutigt dich durchzuhalten. Die letzte Strecke ist kürzer, als sie von hier aus aussieht.",
+    "fortune_telling": [
+      "Du bist schon öfter umgehauen worden und trotzdem wieder aufgestanden. Das ist dein ganzer Lebenslauf.",
+      "Du bist belastbarer, als sich der Tag heute anfühlt. Noch einmal festhalten.",
+      "Ein letzter Kraftakt wird alles verlangen, was du noch hast. Es reicht."
+    ],
+    "fortune_telling_rev": [
+      "Du hast Erschöpfung einmal für Schwäche gehalten. Es war einfach nur Erschöpfung.",
+      "Nicht jeder, der sich nähert, ist ein Feind. Senk die Deckung einen Zentimeter.",
+      "Vielleicht willst du einen Schritt vor dem Ziel hinschmeißen. Setz dich hinter der Ziellinie hin, nicht davor."
+    ]
+  },
+  "ten-of-wands": {
+    "name": "Zehn der Stäbe",
+    "meaning_up": "Last, Verantwortung, harte Arbeit, das Ziel in Sicht",
+    "meaning_rev": "Zu viel tragen, Burnout, Delegieren, Entlastung",
+    "desc": "Die Zehn der Stäbe zeigt volle Arme und ein Ziel in Sichtweite. Die Last ist echt, das Ziel auch. Diese Karte ermutigt dich, nur das zu tragen, was wirklich deins ist, und den Rest abzulegen.",
+    "fortune_telling": [
+      "Du hast mehr als deinen Anteil getragen, und daraus ist die Kraft entstanden, die du heute nutzt.",
+      "Einiges von dem, was du schleppst, gehört nicht dir. Mach Inventur, bevor du weitergehst.",
+      "Die Last wird kurz vor der Ablieferung schwerer. Die Tür ist nah."
+    ],
+    "fortune_telling_rev": [
+      "Du hast endlich etwas abgelegt, und nichts ist eingestürzt. Merk dir das.",
+      "Burnout ist eine Rechnung, die immer bezahlt wird. Delegiere, bevor sie fällig ist.",
+      "Jemand wird anbieten, dir ein Bündel abzunehmen. Lass es diesmal zu."
+    ]
+  },
+  "page-of-wands": {
+    "name": "Bube der Stäbe",
+    "meaning_up": "Begeisterung, Entdeckerlust, freier Geist, ein Funke Neuigkeit",
+    "meaning_rev": "Zögern, Fehlstarts, ziellose Leidenschaft",
+    "desc": "Der Bube der Stäbe ist reines Anfängerfeuer: neugierig, rastlos und ohne Angst davor, bei etwas neu auszusehen. Diese Karte ermutigt dich, dem Spannenden nachzujagen, bevor das Spannende abkühlt.",
+    "fortune_telling": [
+      "Deine Anfängerbegeisterung hat einmal Türen geöffnet, die Fachwissen nicht aufbekommen hätte.",
+      "Die Neugier klopft an. Mach auf, bevor sie weiterzieht.",
+      "Eine aufregende Nachricht oder Einladung ist unterwegs. Erst Ja sagen, dann planen."
+    ],
+    "fortune_telling_rev": [
+      "Ein Fehlstart hat dich so blamiert, dass du vorsichtig wurdest. Der Start war trotzdem richtig.",
+      "Die Leidenschaft ist echt, aber sie läuft im Kreis. Richte sie auf etwas aus.",
+      "Du wirst an einer offenen Tür zögern. Zögere lieber, während du hindurchgehst."
+    ]
+  },
+  "knight-of-wands": {
+    "name": "Ritter der Stäbe",
+    "meaning_up": "Energie, Leidenschaft, Abenteuer, impulsives Handeln, Charisma",
+    "meaning_rev": "Leichtsinn, Hast, verzettelte Kraft, ein steckengebliebener Angriff",
+    "desc": "Der Ritter der Stäbe stürmt erst los und liest das Gelände hinterher. Anziehend und furchtlos, ermutigt dich diese Karte zu kühner Bewegung, mit gerade genug Zügel, damit das Pferd irgendwohin zeigt.",
+    "fortune_telling": [
+      "Ein Sprung, den du ohne Hinschauen gewagt hast, ist besser gelandet als all die sorgfältigen Pläne.",
+      "Das Feuer brennt, und das Pferd ist gesattelt. Reite los, aber halt die Zügel.",
+      "Ein Abenteuer kommt ganz ohne Reiseplan. Fahr trotzdem mit."
+    ],
+    "fortune_telling_rev": [
+      "Ein leichtsinniger Angriff hat dich einmal etwas gekostet. Den Mut hast du behalten, die Achtlosigkeit verloren.",
+      "Tempo ohne Richtung ist bloß Lärm. Geh runter auf Galopp.",
+      "Du wirst angreifen wollen, bevor du das Gelände erkundet hast. Erkunde einen Tag, dann greif an."
+    ]
+  },
+  "queen-of-wands": {
+    "name": "Königin der Stäbe",
+    "meaning_up": "Selbstvertrauen, Wärme, Entschlossenheit, Ausstrahlung, Mut",
+    "meaning_rev": "Selbstzweifel, Eifersucht, eine gedämpfte Flamme, fordernde Launen",
+    "desc": "Die Königin der Stäbe glüht: selbstbewusst, großzügig mit ihrem Feuer, unmöglich zu übersehen. Diese Karte ermutigt dich, deinen ganzen Raum einzunehmen. Dein Licht dimmt das von niemand anderem.",
+    "fortune_telling": [
+      "Jemandes Glaube an dich hat eine Fackel entzündet, die du immer noch trägst.",
+      "Du strahlst am stärksten, wenn du aufhörst, eine Show abzuziehen. Brenn einfach.",
+      "Eine Rolle, die genau deine Wärme braucht, kommt auf dich zu. Nimm sie laut und deutlich an."
+    ],
+    "fortune_telling_rev": [
+      "Eine Zeit gedämpften Lichts hat dir gezeigt, dass deine Flamme nie das Problem war.",
+      "Vergleiche stehlen dir die Wärme. Mach das Fenster zu.",
+      "Kurz vor deinem großen Moment werden Zweifel flüstern. Lass sie deinem Rücken zuflüstern."
+    ]
+  },
+  "king-of-wands": {
+    "name": "König der Stäbe",
+    "meaning_up": "Vision, Führung, Kühnheit, Ehre, Unternehmergeist",
+    "meaning_rev": "Impulsivität, Herrschsucht, eine Vision ohne Umsetzung",
+    "desc": "Der König der Stäbe verwandelt Feuer in Richtung. Er hat nicht nur die Vision, er bringt auch andere dazu, sie zu sehen. Diese Karte ermutigt dich, aus Überzeugung zu führen und die Details nachkommen zu lassen.",
+    "fortune_telling": [
+      "Du hast einmal eine wilde Idee in etwas Funktionierendes verwandelt. Die Leute haben es bemerkt.",
+      "Der Raum wartet darauf, dass jemand entscheidet. Das darfst ruhig du sein.",
+      "Ein Platz an der Spitze wird frei. Nimm ihn, bevor sich ein Ausschuss bildet."
+    ],
+    "fortune_telling_rev": [
+      "Eine Vision, die du nicht landen konntest, hat dich gelehrt, dass Führen vor allem Landen ist.",
+      "Deine Überzeugung kippt ins Plattwalzen. Stell heute eine echte Frage.",
+      "Was kommt, braucht mehr Durchhalten als Feuerwerk. Bring zuerst etwas zu Ende."
+    ]
+  },
+  "ace-of-cups": {
+    "name": "Ass der Kelche",
+    "meaning_up": "Liebe, neue Beziehungen, Mitgefühl, Kreativität",
+    "meaning_rev": "Selbstliebe, Intuition, unterdrückte Gefühle",
+    "desc": "Das Ass der Kelche steht für einen Neubeginn im Reich der Gefühle. Es ist ein Symbol für Liebe, Mitgefühl und Kreativität. Diese Karte ermutigt dich, dein Herz zu öffnen und den Gefühlen freien Lauf zu lassen.",
+    "fortune_telling": [
+      "Eine Liebe oder Freundschaft ist wie ein Wetterumschwung gekommen und hat dein ganzes Klima verändert.",
+      "Dein Kelch füllt sich. Denk nicht zu viel nach, trink.",
+      "Neue Liebe, neue Wärme oder neues Mitgefühl sind auf dem Weg zu dir. Lass die Tür unverriegelt."
+    ],
+    "fortune_telling_rev": [
+      "Du hast deinen Kelch zugedeckt gehalten, während etwas Echtes eingeschenkt wurde.",
+      "Hinter dem Damm stauen sich Gefühle. Lass eins raus und schau, was passiert.",
+      "Eine emotionale Öffnung kommt, als Unannehmlichkeit verkleidet. Öffne dich trotzdem."
+    ]
+  },
+  "two-of-cups": {
+    "name": "Zwei der Kelche",
+    "meaning_up": "Vereinte Liebe, Partnerschaft, gegenseitige Anziehung",
+    "meaning_rev": "Selbstliebe, Trennungen, Disharmonie, Misstrauen",
+    "desc": "Die Zwei der Kelche steht für eine tiefe Verbindung zwischen zwei Menschen. Sie ist ein Symbol für Partnerschaft, gegenseitigen Respekt und Liebe. Diese Karte ermutigt dich, deine Beziehungen zu pflegen und die Bande zu feiern, die euch verbinden.",
+    "fortune_telling": [
+      "Eine echte Partnerschaft hat verdoppelt, was du tragen konntest.",
+      "Diese Verbindung beruht auf Gegenseitigkeit. Komm ihr auf halbem Weg entgegen, genau auf halbem.",
+      "Eine bedeutsame Bindung entsteht. Was du ihr gibst, gibt sie dir zurück."
+    ],
+    "fortune_telling_rev": [
+      "Eine Bindung ist aus dem Gleichgewicht geraten, ein Kelch war immer leerer als der andere.",
+      "Eine Seite schenkt mehr ein als die andere. Gleich es aus oder sprich es an.",
+      "Ein kleiner Riss steht bevor. Flick ihn, solange er noch klein ist."
+    ]
+  },
+  "three-of-cups": {
+    "name": "Drei der Kelche",
+    "meaning_up": "Feier, Freundschaft, Kreativität, Zusammenarbeit",
+    "meaning_rev": "Unabhängigkeit, Zeit für dich, exzessives Feiern, „drei sind einer zu viel“",
+    "desc": "Die Drei der Kelche ist eine Karte der Feier und der Freundschaft. Sie steht für eine Zeit der Freude, Kreativität und Zusammenarbeit. Diese Karte ermutigt dich, dich mit anderen zu verbinden und das Glück des Augenblicks zu teilen.",
+    "fortune_telling": [
+      "Deine Leute waren einmal für dich da, die Gläser erhoben. Sie haben die schweren Zeiten leichter gemacht.",
+      "Das schreit nach Gesellschaft. Trommel deine Leute zusammen und feiert ganz bewusst eine Kleinigkeit.",
+      "Ein Wiedersehen oder eine Feier steht an. Sag zu und bring die guten Snacks mit."
+    ],
+    "fortune_telling_rev": [
+      "Die Party ging zu lang, oder der Freundeskreis war zu flach. Du hast gelernt, wer zum Aufräumen bleibt.",
+      "Zu viel Lärm, zu wenig Nahrung für die Seele. Tausch die Menge gegen die zwei, die wirklich zählen.",
+      "Achte auf ein fünftes Rad am Wagen oder einen übervollen Kalender. Schütze deinen inneren Kreis."
+    ]
+  },
+  "four-of-cups": {
+    "name": "Vier der Kelche",
+    "meaning_up": "Besinnung, Gleichgültigkeit, Neubewertung, ein verpasstes Angebot",
+    "meaning_rev": "Neue Motivation, Akzeptanz, sich bewusst einlassen",
+    "desc": "Die Vier der Kelche zeigt drei Kelche, die dich langweilen, und einen vierten, den du noch nicht bemerkt hast. Diese Karte ermutigt dich zu ehrlicher Besinnung, aber mit offenen Augen, denn gerade wird dir etwas angeboten.",
+    "fortune_telling": [
+      "Ein Angebot, das du abgewunken hast, ist zurückgekommen. Manche Kelche sind geduldig.",
+      "Du starrst auf das, was dich langweilt, während dir etwas Neues hingehalten wird. Schau mal nach links.",
+      "Ein leises Angebot kommt, das man beim Schmollen leicht übersieht. Übersieh diese Woche nichts."
+    ],
+    "fortune_telling_rev": [
+      "Der Nebel der Gleichgültigkeit hat sich schon einmal gelichtet, und die Welt war noch da.",
+      "Dein Appetit aufs Leben kehrt zurück. Füttere ihn mit etwas Echtem.",
+      "Du bist kurz davor, wieder mitzumachen. Wenn die Einladung kommt, willst du sie tatsächlich."
+    ]
+  },
+  "five-of-cups": {
+    "name": "Fünf der Kelche",
+    "meaning_up": "Verlust, Trauer, Bedauern, Enttäuschung, am Verschütteten hängen",
+    "meaning_rev": "Akzeptanz, weitergehen, Vergebung, finden, was geblieben ist",
+    "desc": "Die Fünf der Kelche trauert um drei umgekippte Kelche, während hinter ihr zwei volle stehen. Der Verlust ist echt, der Rest auch. Diese Karte ermutigt dich, um das Verlorene zu trauern, ohne zu vergessen, was noch da ist.",
+    "fortune_telling": [
+      "Du hast etwas verloren, das dir wichtig war, und du hast das Verlieren überlebt. Beides ist wahr.",
+      "Drei Kelche sind umgekippt, zwei stehen noch. Das Verschüttete hast du jetzt oft genug gezählt.",
+      "Bald könnte eine Enttäuschung kommen. Sie wird nicht den ganzen Tisch abräumen."
+    ],
+    "fortune_telling_rev": [
+      "Du hast dich endlich umgedreht und zwei volle Kelche gefunden. Sie standen die ganze Zeit da.",
+      "Die Akzeptanz kommt in Stücken. Nimm jedes Stück, wie es kommt.",
+      "Vergebung, für andere oder für dich selbst, ist näher, als die Trauer zugeben will."
+    ]
+  },
+  "six-of-cups": {
+    "name": "Sechs der Kelche",
+    "meaning_up": "Nostalgie, Kindheitserinnerungen, Unschuld, Wiedersehen, Geschenke",
+    "meaning_rev": "In der Vergangenheit leben, rosarote Brille, nach vorne gehen",
+    "desc": "Die Sechs der Kelche ist erinnerte Süße: alte Freunde, alte Orte, die Person, die du warst, bevor alles kompliziert wurde. Diese Karte ermutigt dich, die Vergangenheit wie einen Garten zu besuchen: genieß ihn, und dann komm nach Hause.",
+    "fortune_telling": [
+      "Etwas aus deiner Kindheit lenkt dich bis heute, sanft und meistens gut.",
+      "Eine alte Freude würde heute gut in dein Leben passen. Stell dich ihr neu vor.",
+      "Jemand aus deiner Vergangenheit taucht wieder auf. Begrüßt euch als die, die ihr heute seid."
+    ],
+    "fortune_telling_rev": [
+      "Die gute alte Zeit bestand auch nur aus Tagen. Das zu erkennen, hat dich befreit.",
+      "Die Nostalgie mietet zu viel von deiner Gegenwart. Gib ihr ein kleineres Zimmer.",
+      "Die Vergangenheit ruft bald mit einem schmeichelhaften Angebot an. Gleich es zuerst mit der Gegenwart ab."
+    ]
+  },
+  "seven-of-cups": {
+    "name": "Sieben der Kelche",
+    "meaning_up": "Wahlmöglichkeiten, Fantasie, Illusion, Wunschdenken, Optionen",
+    "meaning_rev": "Klarheit, Entscheidung, die Fata Morgana durchschauen",
+    "desc": "Die Sieben der Kelche tischt ein Festmahl an Möglichkeiten auf, und mindestens die Hälfte ist Fata Morgana. Diese Karte ermutigt dich, eine Sache bewusst zu wollen. Ein gewählter Kelch schlägt eine Wolke aus Vielleichts.",
+    "fortune_telling": [
+      "Zu viele Optionen haben dich einmal gelähmt, bis schlechtes Wählen dir das Wählen beigebracht hat.",
+      "Die Hälfte dieser glitzernden Kelche ist Rauch. Wähl nach Gewicht, nicht nach Glanz.",
+      "Ein Buffet an Möglichkeiten kommt auf dich zu. Leg deine Kriterien fest, bevor du die Auswahl siehst."
+    ],
+    "fortune_telling_rev": [
+      "Der Nebel der Vielleichts hat sich endlich gelichtet, und ein echter Kelch ist übrig geblieben.",
+      "Die Klarheit bricht durch. Lass sie ihre Arbeit beenden, bevor du wieder alles verkomplizierst.",
+      "Eine Entscheidung, um die du herumträumst, vereinfacht sich bald von selbst. Unterschreib sie dann."
+    ]
+  },
+  "eight-of-cups": {
+    "name": "Acht der Kelche",
+    "meaning_up": "Weggehen, Suche nach tieferem Sinn, Aufbruch, Loslassen",
+    "meaning_rev": "Angst vor dem Gehen, Zurückdriften, ein letzter Versuch, Vermeidung",
+    "desc": "Die Acht der Kelche verlässt im Mondlicht einen gedeckten Tisch, nicht weil er schlecht war, sondern weil er es einfach nicht war. Diese Karte ermutigt zum mutigen Abgang. Manche Suchen beginnen erst, wenn du aufstehst.",
+    "fortune_telling": [
+      "Du bist einmal von etwas Gutem weggegangen, um etwas Wahres zu suchen. Es war der richtige Weg.",
+      "Der Tisch ist gedeckt, aber dein Herz sitzt nicht daran. Du weißt es längst.",
+      "Ein Aufbruch steht bevor, deiner oder der von jemand anderem. Reise mit leichtem Gepäck und segne den Tisch."
+    ],
+    "fortune_telling_rev": [
+      "Du bist für einen letzten Versuch zurückgegangen, und der hat die Frage endgültig beantwortet.",
+      "Angst vor dem Gehen ist kein Grund zu bleiben. Sortier den Stapel.",
+      "Vielleicht driftest du zu einer alten Tür zurück. Fass die Klinke an und erinnere dich, warum du gegangen bist."
+    ]
+  },
+  "nine-of-cups": {
+    "name": "Neun der Kelche",
+    "meaning_up": "Zufriedenheit, Erfüllung, erfüllte Wünsche, Dankbarkeit",
+    "meaning_rev": "Selbstgefälligkeit, innere Leere hinter dem Festmahl, unerfüllte Wünsche",
+    "desc": "Die Neun der Kelche ist die Wunschkarte: das Festmahl ist angerichtet und wird tatsächlich genossen. Diese Karte ermutigt dich, Zufriedenheit zu bemerken, während sie passiert, und nicht erst im Rückblick.",
+    "fortune_telling": [
+      "Ein Wunsch ist wahr geworden, und du hättest fast vergessen, es zu bemerken. Du hast es gerade noch rechtzeitig gemerkt.",
+      "Das hier ist der schöne Teil. Bleib eine ganze Minute darin sitzen.",
+      "Ein Wunsch steht kurz davor, erfüllt zu werden. Sei jetzt konkret und später dankbar."
+    ],
+    "fortune_telling_rev": [
+      "Das Festmahl, nach dem du noch hungrig warst, hat dir gezeigt, wonach du dich wirklich sehnst.",
+      "Die Auslage ist beeindruckend, nur der Appetit fehlt. Nähr zuerst das Innere.",
+      "Ein Wunsch kommt vielleicht schlichter verpackt, als du bestellt hast. Pack ihn trotzdem aus."
+    ]
+  },
+  "ten-of-cups": {
+    "name": "Zehn der Kelche",
+    "meaning_up": "Harmonie, Familie, dauerhaftes Glück, emotionale Erfüllung",
+    "meaning_rev": "Angespannte Bindungen, ein Ideal mit Rissen, ein Zuhause im Ungleichgewicht",
+    "desc": "Die Zehn der Kelche ist der Regenbogen über dem Haus: Verbundenheit, die auch an gewöhnlichen Tagen hält, nicht nur an guten. Diese Karte ermutigt dich, dich um die Menschen zu kümmern, die sich wie Zuhause anfühlen.",
+    "fortune_telling": [
+      "Die Menschen, die sich wie Zuhause anfühlen, sind kein Zufall. Das hast du aufgebaut.",
+      "Die Harmonie um dich herum ist echt. Hör auf, sie nach Rissen abzusuchen.",
+      "Eine Zeit echter Zufriedenheit zieht herauf. Lass sie unkompliziert sein."
+    ],
+    "fortune_telling_rev": [
+      "Ein Bilderbuch-Ideal hat Risse bekommen, und in der Lücke ist etwas Echteres gewachsen.",
+      "Die Postkarte und der Alltag zu Hause sind sich uneinig. Kümmer dich um den Alltag.",
+      "Kleine Spannungen zu Hause wollen Aufmerksamkeit, bevor sie Entschuldigungen wollen. Kümmer dich früh darum."
+    ]
+  },
+  "page-of-cups": {
+    "name": "Bube der Kelche",
+    "meaning_up": "Kreative Anfänge, intuitive Botschaften, Feinfühligkeit, Verspieltheit",
+    "meaning_rev": "Emotionale Unreife, blockierte Kreativität, Launenhaftigkeit",
+    "desc": "Der Bube der Kelche findet einen Fisch im Pokal und sagt Hallo. Offenherzig und ein bisschen seltsam, ermutigt dich diese Karte, den verspielten Impuls ernst zu nehmen. Staunen ist eine Fähigkeit.",
+    "fortune_telling": [
+      "Ein sanfter, schräger Impuls, dem du einmal gefolgt bist, ist zu etwas geworden, das du liebst.",
+      "Da ist ein Fisch in deinem Kelch. Sag Hallo, statt ihn zurückgehen zu lassen.",
+      "Eine zärtliche, unerwartete Nachricht kommt. Nimm sie ohne Ironie an."
+    ],
+    "fortune_telling_rev": [
+      "Früher hat eine Laune deine Entscheidungen getroffen. Aus der bist du rausgewachsen.",
+      "Die kreative Leitung ist mit Befangenheit verstopft. Mach absichtlich etwas Schlechtes.",
+      "Bald könnten die Gefühle den Fakten vorauslaufen. Lass sie laufen, aber gib ihnen nicht das Steuer."
+    ]
+  },
+  "knight-of-cups": {
+    "name": "Ritter der Kelche",
+    "meaning_up": "Romantik, Charme, ein eintreffendes Angebot, dem Herzen folgen",
+    "meaning_rev": "Launenhaftigkeit, unrealistische Versprechen, ein aufgeschobener Antrag",
+    "desc": "Der Ritter der Kelche reitet langsam heran, den Kelch ausgestreckt, und meint jedes Wort davon ernst, zumindest heute. Diese Karte ermutigt zu großen Gesten, gegeben und empfangen, mit einem sanft geöffneten Auge.",
+    "fortune_telling": [
+      "Ein Angebot kam einmal auf einem weißen Pferd, und es anzunehmen hat einiges verändert.",
+      "Lass heute das Herz vorangehen. Es ist besser informiert als sonst.",
+      "Eine Einladung oder ein romantischer Annäherungsversuch naht. Hör dir alles bis zum Ende an."
+    ],
+    "fortune_telling_rev": [
+      "Ein wunderschönes Versprechen, das sich in Luft aufgelöst hat, hat dich gelehrt, nach den Satteltaschen zu sehen.",
+      "Die Geste ist hübsch, nur die Logistik fehlt. Frag nach der Logistik.",
+      "Ein charmantes Angebot vor dir ist vielleicht mehr Stimmung als Plan. Genieß es und prüf es."
+    ]
+  },
+  "queen-of-cups": {
+    "name": "Königin der Kelche",
+    "meaning_up": "Mitgefühl, emotionale Tiefe, Intuition, ruhige Fürsorge",
+    "meaning_rev": "Emotionale Überforderung, Märtyrertum, verschwimmende Grenzen",
+    "desc": "Die Königin der Kelche hält die Gefühle aller, ohne ihre eigenen zu verschütten. Zutiefst intuitiv, ermutigt dich diese Karte zu einem Mitgefühl, das dich selbst mit einschließt.",
+    "fortune_telling": [
+      "Jemand hat einmal deine Gefühle gehalten, ohne zurückzuzucken. Von dieser Person hast du den Trick gelernt.",
+      "Deine Intuition läuft heute glasklar. Vertrau deiner Einschätzung.",
+      "Bald braucht jemand genau deine Art von Ruhe. Du wirst genug davon zum Teilen haben."
+    ],
+    "fortune_telling_rev": [
+      "Du bist in Gefühlen ertrunken, die gar nicht deine waren, und hast gelernt, aufs Etikett zu schauen.",
+      "Du saugst schon wieder den ganzen Raum auf. Wring dich aus.",
+      "Kümmern kann bald in Schleppen kippen. Gib zurück, was nicht deins ist."
+    ]
+  },
+  "king-of-cups": {
+    "name": "König der Kelche",
+    "meaning_up": "Emotionale Reife, Diplomatie, Gleichgewicht, besonnener Rat",
+    "meaning_rev": "Unterdrückung, Manipulation, ein Sturm hinter der Ruhe",
+    "desc": "Der König der Kelche hält seinen Thron auf offener See ruhig. Er fühlt alles und kentert bei nichts: Diese Karte ermutigt dich, deine Gefühle zu meistern, ohne sie zu verleugnen.",
+    "fortune_telling": [
+      "Du bist einmal ruhig geblieben, während jemand anderes im Sturm stand, und das hat mehr bedeutet, als du ahnst.",
+      "Das Wasser ist aufgewühlt, und du bist der Kiel. Steuer sanft.",
+      "Du wirst bald gebeten, zu vermitteln. Deine Ruhe wird die entscheidende Stimme sein."
+    ],
+    "fortune_telling_rev": [
+      "Die Ruhe, die du vorgespielt hast, während du untergingst, hat dich gelehrt, früher Signal zu geben.",
+      "Aus Gelassenheit ist still und leise Unterdrückung geworden. Sag einer Person die Wahrheit.",
+      "Ein zurückgehaltenes Gefühl wird im falschen Moment rauswollen. Gib ihm vorher einen guten Termin."
+    ]
+  },
+  "ace-of-swords": {
+    "name": "Ass der Schwerter",
+    "meaning_up": "Durchbrüche, neue Ideen, geistige Klarheit, Erfolg",
+    "meaning_rev": "Innere Klarheit, eine Idee überdenken, getrübtes Urteilsvermögen",
+    "desc": "Das Ass der Schwerter steht für einen Moment des Durchbruchs und der geistigen Klarheit. Es ist ein Symbol für neue Ideen, Wahrheit und Erfolg. Diese Karte ermutigt dich, klar zu denken und dich durch die Verwirrung zur Wahrheit durchzuschneiden.",
+    "fortune_telling": [
+      "Eine einzige klare Erkenntnis hat sich durch Jahre voller Nebel geschnitten.",
+      "Die Wahrheit ist heute scharf. Setz sie präzise ein, nicht beiläufig.",
+      "Eine bahnbrechende Einsicht kommt. Wenn sie landet, handle sauber danach."
+    ],
+    "fortune_telling_rev": [
+      "Eine Halbwahrheit oder eine wirre Entscheidung hat Spuren hinterlassen.",
+      "Dein Denken ist getrübt. Schwing die Klinge erst, wenn es sich klärt.",
+      "Hüte dich vor einem klugen Argument, das in die falsche Richtung schneidet. Erst schärfen, dann entscheiden."
+    ]
+  },
+  "two-of-swords": {
+    "name": "Zwei der Schwerter",
+    "meaning_up": "Schwierige Entscheidungen, Abwägen von Optionen, eine Sackgasse, Vermeidung",
+    "meaning_rev": "Unentschlossenheit, Verwirrung, Informationsflut, Patt",
+    "desc": "Die Zwei der Schwerter steht für eine schwierige Entscheidung oder eine Sackgasse. Du stehst vor einer Wahl, fühlst dich aber vielleicht festgefahren oder siehst keinen Weg nach vorn. Diese Karte ermutigt dich, ins Gleichgewicht zu finden und mit klarem Kopf zu entscheiden.",
+    "fortune_telling": [
+      "Du hast dich einmal geweigert zu wählen, und das Patt hat gehalten. Mancher Frieden ist bloß ein Waffenstillstand.",
+      "Die Augenbinde hast du selbst geknotet. Beide Optionen kosten etwas. Wähl eine und nimm sie ab.",
+      "Eine Entscheidung, um die du dich drückst, kommt wieder. Begegne ihr mit offenen Augen."
+    ],
+    "fortune_telling_rev": [
+      "Ein Damm aus Unentschlossenheit ist endlich gebrochen, und die Flut hat die Wahrheit sortiert.",
+      "Das Patt bekommt Risse. Lass es zu. Bewegung schlägt Stillstand.",
+      "Hinauszögern funktioniert bald nicht mehr. Entscheide, bevor für dich entschieden wird."
+    ]
+  },
+  "three-of-swords": {
+    "name": "Drei der Schwerter",
+    "meaning_up": "Herzschmerz, seelischer Schmerz, Kummer, Trauer, Verletzung",
+    "meaning_rev": "Negative Selbstgespräche, Schmerz loslassen, Optimismus, Vergebung",
+    "desc": "Die Drei der Schwerter ist eine Karte des Herzschmerzes und des seelischen Leids. Sie steht für eine Zeit des Kummers, der Trauer und der Verletzung. Diese Karte ermutigt dich, deinen Schmerz anzuerkennen und dir selbst zu erlauben zu heilen.",
+    "fortune_telling": [
+      "Ein Herzschmerz ist glatt durchgegangen, und du bist um ihn herum geheilt. Er gehört jetzt zu deiner Architektur.",
+      "Das tut weh, weil es dir wichtig war. Fühl es richtig. Abkürzungen hinterlassen hässlichere Narben.",
+      "Bald könnte eine schmerzhafte Wahrheit ankommen. Sie wird weniger wehtun als das Nichtwissen."
+    ],
+    "fortune_telling_rev": [
+      "Eine alte Wunde hat endlich begonnen, sich zu schließen. Du hast aufgehört, das Ende immer wieder zu lesen.",
+      "Du heilst. Hör auf, an der Naht zu zupfen, um nachzusehen.",
+      "Vergebung, gegeben oder empfangen, ist näher, als es aussieht. Lass die Schwerter herausfallen."
+    ]
+  },
+  "four-of-swords": {
+    "name": "Vier der Schwerter",
+    "meaning_up": "Ruhe, Erholung, Besinnung, eine strategische Pause",
+    "meaning_rev": "Rastlosigkeit, Burnout, Erholung verweigern, Stillstand",
+    "desc": "Die Vier der Schwerter legt die Klingen nieder und schließt ganz bewusst die Augen. Ruhe ist hier Strategie, keine Kapitulation. Diese Karte ermutigt zu der bewussten Pause, die den nächsten Zug erst möglich macht.",
+    "fortune_telling": [
+      "Eine Pause, die du dir endlich gegönnt hast, hat mehr repariert, als du erwartet hattest.",
+      "Die Pause ist die Strategie. Nimm sie ganz oder gar nicht.",
+      "Eine ruhige Phase kommt. Leg Schlaf auf die hohe Kante, du wirst ihn später brauchen."
+    ],
+    "fortune_telling_rev": [
+      "Auf Reserve zu fahren hat dir gezeigt, was es kostet, den Boxenstopp auszulassen.",
+      "Du nennst Rastlosigkeit schon wieder Produktivität. Leg dich hin.",
+      "Wenn du die Ruhe verweigerst, trifft sie bald die Entscheidung für dich. Wähl sie lieber selbst."
+    ]
+  },
+  "five-of-swords": {
+    "name": "Fünf der Schwerter",
+    "meaning_up": "Konflikt, ein hohler Sieg, Gewinnen um jeden Preis, Zwietracht",
+    "meaning_rev": "Versöhnung, Wiedergutmachung, die Fehde beenden",
+    "desc": "Die Fünf der Schwerter gewinnt den Streit und leert dabei das Feld. Jemand hat alle Schwerter eingesammelt und alle Gesellschaft verloren. Diese Karte ermutigt dich, den vollen Preis zu berechnen, bevor du den Sieg für dich beanspruchst.",
+    "fortune_telling": [
+      "Du hast einmal einen Kampf gewonnen und danach allein auf dem Feld gestanden. Du erinnerst dich an die Stille.",
+      "Du kannst diesen Schlagabtausch gewinnen und den Raum verlieren. Rechne vorher den Preis aus.",
+      "Ein kommender Konflikt bietet eine Trophäe aus Blech. Überleg, ob du sie überhaupt abholen willst."
+    ],
+    "fortune_telling_rev": [
+      "Eine Entschuldigung, gegeben oder empfangen, hat einen Krieg beendet, von dem keiner mehr wusste, wie er angefangen hat.",
+      "Die Fehde läuft nur noch aus Schwung, nicht aus gutem Grund. Jemand kann aufhören. Sei dieser Jemand.",
+      "Eine Chance zur Wiedergutmachung kommt näher. Ergreif sie, bevor der Stolz den Preis hochtreibt."
+    ]
+  },
+  "six-of-swords": {
+    "name": "Sechs der Schwerter",
+    "meaning_up": "Übergang, weiterziehen, ruhigeres Fahrwasser voraus, Überfahrt",
+    "meaning_rev": "Sich gegen den Aufbruch sträuben, Unerledigtes, eine raue Überfahrt",
+    "desc": "Die Sechs der Schwerter ist die stille Fährfahrt weg von den Turbulenzen: nicht triumphal, einfach notwendig. Diese Karte ermutigt zur leisen Überfahrt, denn das andere Ufer ist wirklich ruhiger.",
+    "fortune_telling": [
+      "Du hast schon einmal eine schwere Überfahrt geschafft. Das Wasser hinter dir beweist es.",
+      "Das Boot ist beladen und zeigt auf ruhigeres Wasser. Bleib im Boot.",
+      "Ein Übergang kommt: unglamourös, notwendig und auf der anderen Seite besser."
+    ],
+    "fortune_telling_rev": [
+      "Der Umzug, gegen den du dich ein Jahr lang gesträubt hast, hat einen Nachmittag gedauert, als du ihn zugelassen hast.",
+      "Du ruderst zurück zu dem, was du verlassen hast. Wende das Boot.",
+      "Unerledigtes wird an den Rudern zerren. Klär es vor der Überfahrt, oder lass es los."
+    ]
+  },
+  "seven-of-swords": {
+    "name": "Sieben der Schwerter",
+    "meaning_up": "Täuschung, Strategie, Alleingang, damit durchkommen",
+    "meaning_rev": "Geständnis, Gewissen, reinen Tisch machen, ein aufgeflogener Plan",
+    "desc": "Die Sieben der Schwerter schleicht mit einem Arm voller Klingen und einem Blick über die Schulter davon. Manchmal ist es Raffinesse, manchmal Abkürzung. Diese Karte ermutigt dich, dich zu fragen, was davon du gerade tust.",
+    "fortune_telling": [
+      "Eine Abkürzung, die du einmal genommen hast, quietscht immer noch. Seitdem nimmst du weniger davon.",
+      "Jemandes Strategie, vielleicht deine, hat ein Geheimfach. Durchsuch das Gepäck.",
+      "In deiner Nähe bahnt sich ein hinterhältiges Manöver an. Zähl deine Schwerter vorher und nachher."
+    ],
+    "fortune_telling_rev": [
+      "Reinen Tisch zu machen hat dich einmal weniger gekostet, als es mit dir herumzutragen.",
+      "Das Gewissen ist lauter als der Plan. Da hast du deine Antwort.",
+      "Etwas Verborgenes kommt gleich von selbst ans Licht. Komm der Verkündung zuvor."
+    ]
+  },
+  "eight-of-swords": {
+    "name": "Acht der Schwerter",
+    "meaning_up": "Einschränkung, sich gefangen fühlen, selbst gesetzte Grenzen, Opferrolle",
+    "meaning_rev": "Freiheit, neue Perspektive, die Fesseln lösen",
+    "desc": "Die Acht der Schwerter steht gefesselt und mit verbundenen Augen in einem Käfig ohne Schloss. Die Falle ist echt, die Gitterstäbe sind vor allem Glaube. Diese Karte ermutigt dich, die Fesseln zu testen. Sie sind lockerer, als sie sich anfühlen.",
+    "fortune_telling": [
+      "Ein Käfig, den du endlich getestet hast, war die ganze Zeit offen.",
+      "Die Fesseln sind lockerer, als sie sich anfühlen. Wackel ein bisschen, bevor du dich fügst.",
+      "Vielleicht fühlst du dich bald in die Ecke gedrängt. Bevor du in Panik gerätst, zähl die tatsächlichen Wände."
+    ],
+    "fortune_telling_rev": [
+      "Die Augenbinde fiel, und das Gefängnis war eine Wiese. Du bist losgegangen.",
+      "Dein Blickwinkel weitet sich. Lass ihn das zu Ende bringen, bevor du irgendetwas neu entscheidest.",
+      "Eine Befreiung kommt, vor allem weil du aufhörst, den Mietvertrag für den Käfig zu verlängern."
+    ]
+  },
+  "nine-of-swords": {
+    "name": "Neun der Schwerter",
+    "meaning_up": "Angst, schlaflose Nächte, Sorgen, böse Vorahnung, Grübeln",
+    "meaning_rev": "Nachlassende Angst, Klarheit im Morgengrauen, um Hilfe bitten",
+    "desc": "Die Neun der Schwerter ist 3 Uhr morgens mit dem kompletten Sorgenkatalog in Dauerschleife. Die Schwerter hängen an der Wand, nicht in dir. Diese Karte ermutigt zur Tageslicht-Rechnung: Das meiste nächtliche Grauen überlebt das Frühstück nicht.",
+    "fortune_telling": [
+      "Die Katastrophe, wegen der du nicht schlafen konntest, ist größtenteils nie eingetreten. Merk dir das Muster.",
+      "Irgendwo in deinem Kopf ist es 3 Uhr morgens. Keine Urteile vor dem Morgen.",
+      "Eine Grübelspirale könnte bald vorbeischauen. Buch ihr einen kurzen Aufenthalt, keinen Dauerwohnsitz."
+    ],
+    "fortune_telling_rev": [
+      "Die Angst einmal laut auszusprechen hat sie auf Handgepäckgröße schrumpfen lassen.",
+      "Der Morgen tut seine Arbeit, das Grauen verliert an Höhe. Hilf ihm beim Sinkflug.",
+      "Erleichterung kommt, schneller, wenn du einer Person erzählst, was da kreist."
+    ]
+  },
+  "ten-of-swords": {
+    "name": "Zehn der Schwerter",
+    "meaning_up": "Schmerzhaftes Ende, Tiefpunkt, Verrat, ein abgeschlossenes Kapitel",
+    "meaning_rev": "Erholung, Erneuerung, das Schlimmste ist vorbei, Aufstehen",
+    "desc": "Die Zehn der Schwerter ist absichtlich übertrieben: zehn Klingen, wo eine gereicht hätte, unter einem Himmel, der schon heller wird. Diese Karte ermutigt dich zu bemerken, dass es vorbei ist. So vollständige Enden zeigen nur in eine Richtung: nach oben.",
+    "fortune_telling": [
+      "Etwas ist vollständig zu Ende gegangen, und gerade diese Vollständigkeit war die Gnade.",
+      "Es ist vorbei. Komplett, dramatisch vorbei. Hör auf, nach einem elften Schwert zu suchen.",
+      "Ein hartes Ende naht: endgültig, und zwar endlich endgültig. Der Sonnenaufgang dahinter ist inklusive."
+    ],
+    "fortune_telling_rev": [
+      "Deinen schlimmsten Tag hast du schon überlebt. Er liegt da hinten, immer noch vorbei.",
+      "Du stehst auf. Die Schwerter kommen nicht mit. Lass sie im Boden stecken.",
+      "Die Erholung ist eingeplant und nimmt Fahrt auf. Das nächste Kapitel hat keine Fortsetzungshaken zu diesem."
+    ]
+  },
+  "page-of-swords": {
+    "name": "Bube der Schwerter",
+    "meaning_up": "Neugier, Wachsamkeit, neue Ideen, Fragen, geistige Energie",
+    "meaning_rev": "Klatsch, zerstreute Gedanken, viel Gerede, voreilige Schlüsse",
+    "desc": "Der Bube der Schwerter steht oben auf dem Hügel, zieht bei jedem Rascheln die Klinge und platzt vor Fragen. Diese Karte ermutigt zu scharfer Neugier, gerichtet auf Fakten, nicht auf die Nachbarn.",
+    "fortune_telling": [
+      "Eine Frage, die du einfach nicht aufhören wolltest zu stellen, hat irgendwann etwas aufgebrochen.",
+      "Deine Neugier ist heute bewaffnet. Richte sie auf Probleme, nicht auf Menschen.",
+      "Neue Informationen sind im Anflug. Prüf sie einmal, dann setz sie ein."
+    ],
+    "fortune_telling_rev": [
+      "Ein Gerücht, das du einmal weitererzählt hast, kam mit deinem Namen drauf zurück. Lektion gelernt.",
+      "Die Gedanken stieben auseinander wie aufgeschreckte Vögel. Such dir einen aus und folge ihm.",
+      "Du wirst versucht sein, voreilig Schlüsse zu ziehen. Sammle vorher noch zwei Fakten."
+    ]
+  },
+  "knight-of-swords": {
+    "name": "Ritter der Schwerter",
+    "meaning_up": "Ehrgeiz, entschlossenes Handeln, Tempo, sich für eine Sache einsetzen",
+    "meaning_rev": "Rücksichtslosigkeit, unvorbereitet losstürmen, Burnout durch Tempo",
+    "desc": "Der Ritter der Schwerter galoppiert in vollem Tempo gegen den Wind, das Argument voraus. Nicht aufzuhalten und gelegentlich nicht zu lenken, ermutigt diese Karte zu voller Hingabe, nachdem du gezielt hast.",
+    "fortune_telling": [
+      "Eine Sache, für die du mit voller Kraft losgestürmt bist, hat sich tatsächlich bewegt, weil du es getan hast.",
+      "Der Wind ist gegen dich, und du galoppierst trotzdem. Vergewissere dich nur, wohin.",
+      "Ein Moment, der entschlossenes Tempo verlangt, kommt. Entscheide jetzt, was den Sprint wert ist."
+    ],
+    "fortune_telling_rev": [
+      "Ein Angriff, der Unbeteiligte umgerannt hat, hat dich gelehrt, vom Pferd aus nach unten zu schauen.",
+      "Tempo tarnt sich als Strategie. Zügel das Pferd und lies die Karte.",
+      "Du wirst ein Hindernis plattmachen wollen, das in Wahrheit ein Mensch ist. Steig ab und rede."
+    ]
+  },
+  "queen-of-swords": {
+    "name": "Königin der Schwerter",
+    "meaning_up": "Klare Grenzen, ehrliche Wahrnehmung, Unabhängigkeit, Scharfsinn",
+    "meaning_rev": "Kälte, Bitterkeit, verletzende Worte, zu hohe Mauern",
+    "desc": "Die Königin der Schwerter durchschaut alles und sagt es auch, freundlich, wenn möglich. Ihre Ehrlichkeit ist ein öffentlicher Dienst. Diese Karte ermutigt zu klarem Blick und sauberen Grenzen. Wärme ist optional, Wahrheit nicht.",
+    "fortune_telling": [
+      "Eine Grenze, die du endlich gezogen hast, ist der Grund, warum die Dinge jetzt funktionieren.",
+      "Du siehst genau, was hier passiert. Sag es klar und freundlich, in dieser Reihenfolge.",
+      "Eine Situation wird deine nüchterne Einschätzung brauchen. Liefere sie, und zuckere nur die Ränder."
+    ],
+    "fortune_telling_rev": [
+      "Die Mauer, die das schlechte Wetter abgehalten hat, hat auch das gute abgehalten. Du hast ein Tor eingebaut.",
+      "Der Scharfsinn driftet in Richtung Wunde. Steck ihn für einen Tag in die Scheide.",
+      "Die Bitterkeit wird dir bald ihr Mikrofon anbieten. Lehn höflich ab."
+    ]
+  },
+  "king-of-swords": {
+    "name": "König der Schwerter",
+    "meaning_up": "Geistige Autorität, Wahrheit, Fairness, Disziplin, Urteilskraft",
+    "meaning_rev": "Kalte Logik, Machtmissbrauch, Starrheit, ein voreingenommenes Urteil",
+    "desc": "Der König der Schwerter herrscht nach Prinzipien und urteilt nach Präzedenzfällen. Gefühle dürfen beraten, aber nicht den Vorsitz führen. Diese Karte ermutigt zu fairen Urteilen, der Art, die du auch akzeptieren würdest, wenn sie gegen dich ausfiele.",
+    "fortune_telling": [
+      "Eine faire Entscheidung, die du unter Druck getroffen hast, wurde für jemanden zum Inbegriff von Fairness.",
+      "Du hast den klarsten Kopf im Raum. Herrsche entsprechend, und zuerst über dich selbst.",
+      "Eine Ermessensentscheidung landet bald auf deinem Tisch. Triff sie so, als würde sie zitiert werden."
+    ],
+    "fortune_telling_rev": [
+      "Ein Urteil, gefällt ohne die Aussage des Herzens, musste in Berufung. Du hast den Fall neu verhandelt.",
+      "Die Logik ist wasserdicht, und im Raum bekommt man keine Luft. Mach ein Fenster auf.",
+      "Bald wird sich Starrheit als Prinzip tarnen. Prüf, was es ist, bevor du es durchsetzt."
+    ]
+  },
+  "ace-of-pentacles": {
+    "name": "Ass der Münzen",
+    "meaning_up": "Eine neue Chance, Manifestation, Wohlstand",
+    "meaning_rev": "Verpasste Chance, fehlende Planung, schlechter Umgang mit Geld",
+    "desc": "Das Ass der Münzen steht für eine neue Chance auf Wohlstand und Fülle. Es ist ein Symbol für Manifestation, Reichtum und Sicherheit. Diese Karte ermutigt dich, die Chancen zu ergreifen, die sich dir bieten, und ein solides Fundament für deine Zukunft zu bauen.",
+    "fortune_telling": [
+      "Ein Samenkorn echter Gelegenheit hat Wurzeln geschlagen und gehalten.",
+      "Dir wird etwas Greifbares angeboten. Nimm es mit beiden Händen.",
+      "Eine konkrete Chance kommt: Geld, Arbeit oder Boden, auf dem du bauen kannst. Pflanz sie ein, steck sie nicht bloß ein."
+    ],
+    "fortune_telling_rev": [
+      "Eine Gelegenheit ist dir durch die Finger geglitten, und die Lektion ist geblieben.",
+      "Halt die Münze nicht so fest, dass du die nächste nicht mehr fangen kannst.",
+      "Ein wackeliges Angebot wird bald glitzern. Prüf den Boden, bevor du pflanzt."
+    ]
+  },
+  "two-of-pentacles": {
+    "name": "Zwei der Münzen",
+    "meaning_up": "Mehrere Prioritäten, Zeitmanagement, Prioritäten setzen, Anpassungsfähigkeit",
+    "meaning_rev": "Überlastung, Unordnung, Prioritäten neu setzen",
+    "desc": "Die Zwei der Münzen steht dafür, mehrere Prioritäten auszubalancieren und deine Zeit gut einzuteilen. Sie ist ein Symbol für Anpassungsfähigkeit und Flexibilität. Diese Karte ermutigt dich, organisiert zu sein und ein gesundes Gleichgewicht zwischen Arbeit und Leben zu finden.",
+    "fortune_telling": [
+      "Du hast alles in der Luft gehalten, als Fallenlassen keine Option war. Das war Können, kein Glück.",
+      "Du jonglierst gut, aber jongliere mit Absicht. Prioritäten sind der eigentliche Trick.",
+      "Weitere Bälle sind im Anflug. Entscheide jetzt, welche aufspringen dürfen."
+    ],
+    "fortune_telling_rev": [
+      "Du hast etwas fallen lassen, weil du zu viel getragen hast. Das passiert allen, die jonglieren.",
+      "Die Überlastung wird fällig. Leg eine Sache würdevoll ab.",
+      "Was auf dich zukommt, passt nicht in zwei Hände. Vereinfache, bevor es für dich entscheidet."
+    ]
+  },
+  "three-of-pentacles": {
+    "name": "Drei der Münzen",
+    "meaning_up": "Teamarbeit, Zusammenarbeit, Lernen, Umsetzung",
+    "meaning_rev": "Disharmonie, mangelnde Abstimmung, Alleingang",
+    "desc": "Die Drei der Münzen ist eine Karte der Teamarbeit und Zusammenarbeit. Sie steht für eine Zeit des Lernens, des Kompetenzaufbaus und der erfolgreichen Umsetzung von Plänen. Diese Karte ermutigt dich, mit anderen zusammenzuarbeiten und von ihrem Wissen zu lernen.",
+    "fortune_telling": [
+      "Die Arbeit mit anderen, und dafür geschätzt zu werden, was du kannst, hat etwas Bleibendes geschaffen.",
+      "Heute ist Teamwetter. Zeig deine Arbeit und lass andere sie besser machen.",
+      "Eine Gemeinschaftsarbeit wird dein Können zur Geltung bringen. Bring deinen besten Stein zur Kathedrale."
+    ],
+    "fortune_telling_rev": [
+      "Ein Team, das in drei Richtungen zog, hat dir gezeigt, was Abstimmung wert ist.",
+      "Alle bauen an einem anderen Gebäude. Vergleicht heute die Baupläne.",
+      "Anerkennung oder Abstimmung könnten bald wackeln. Haltet Absprachen schriftlich fest."
+    ]
+  },
+  "four-of-pentacles": {
+    "name": "Vier der Münzen",
+    "meaning_up": "Sicherheit, Sparen, Kontrolle, Festhalten, Beständigkeit",
+    "meaning_rev": "Gier, Horten, Loslassen, den Griff lockern",
+    "desc": "Die Vier der Münzen umklammert ihre Münzen so fest, dass sie niemandem die Hand geben kann. Sicherheit ist wichtig, Kreislauf ist wichtiger. Diese Karte ermutigt dich, festzuhalten, was deins ist, ohne selbst zum Tresor zu werden.",
+    "fortune_telling": [
+      "Das Sparen, als es schwer war, ist der Boden, auf dem du heute stehst.",
+      "Du hältst etwas fest, das wachsen würde, wenn es zirkulieren dürfte. Lockere einen Finger.",
+      "Eine Chance, deine Position zu sichern, kommt. Sichere sie, aber behalt die Hände frei."
+    ],
+    "fortune_telling_rev": [
+      "Du hast endlich etwas Verkrampftes losgelassen, und deine Hand hat wieder funktioniert.",
+      "Der Griff ist zur Last geworden. Loslassen ist auch eine Form von Reichtum.",
+      "Bald wirst du gebeten, zu teilen oder auszugeben. Die richtige Menge fühlt sich ein bisschen mutig an."
+    ]
+  },
+  "five-of-pentacles": {
+    "name": "Fünf der Münzen",
+    "meaning_up": "Not, Mangel, sich in der Kälte ausgeschlossen fühlen, Sorgen",
+    "meaning_rev": "Erholung, angenommene Hilfe, die Tür war offen, Besserung",
+    "desc": "Die Fünf der Münzen stapft an einem erleuchteten Fenster vorbei, überzeugt, nicht eingeladen zu sein. Die harte Zeit ist echt, der warme Raum auch. Diese Karte ermutigt dich anzuklopfen. Hilfe zählt doppelt, wenn du sie annimmst.",
+    "fortune_telling": [
+      "Eine magere Zeit hat dir genau gezeigt, worauf du verzichten kannst. Kurze Liste, oder?",
+      "Das Fenster, an dem du vorbeistapfst, ist für dich erleuchtet. Klopf an.",
+      "Eine kalte Phase könnte kommen. Sie hat ein Enddatum und auf halber Strecke eine offene Tür."
+    ],
+    "fortune_telling_rev": [
+      "Die Hilfe, die du endlich angenommen hast, war am Ende der ganze Wendepunkt.",
+      "Das Tauwetter hat begonnen. Lass die Leute trotzdem sehen, dass dir noch kalt ist.",
+      "Die Erholung ist nah, und in Gesellschaft kommt sie schneller. Nimm die nächste Hand, die dir gereicht wird."
+    ]
+  },
+  "six-of-pentacles": {
+    "name": "Sechs der Münzen",
+    "meaning_up": "Großzügigkeit, Wohltätigkeit, Geben und Nehmen, fairer Austausch",
+    "meaning_rev": "Bedingungen im Kleingedruckten, einseitiges Geben, Dankesschulden",
+    "desc": "Die Sechs der Münzen wiegt Großzügigkeit auf einer ehrlichen Waage: Geben, das würdigt, und Nehmen, das nicht kleiner macht. Diese Karte ermutigt dich, den Austausch in beide Richtungen fließen zu lassen.",
+    "fortune_telling": [
+      "Großzügigkeit, die du frei verschenkt hast, kam auf einem Weg zurück, den du nie vorhergesehen hättest.",
+      "Du bist in der Position zu geben oder an der Reihe zu empfangen. So oder so: Halt die Waage sichtbar.",
+      "Ein Austausch von Hilfe steht bevor. Gib ohne Zeremonie, nimm ohne Entschuldigung."
+    ],
+    "fortune_telling_rev": [
+      "Ein Geschenk mit Haken hat dich gelehrt, die Verpackung zu lesen.",
+      "Das Geben läuft nur noch in eine Richtung. Gleich es aus, bevor der Groll nachrechnet.",
+      "Ein kommendes Angebot hat vielleicht unsichtbare Zinsen. Frag laut nach den Konditionen."
+    ]
+  },
+  "seven-of-pentacles": {
+    "name": "Sieben der Münzen",
+    "meaning_up": "Geduld, langfristiger Blick, Bestandsaufnahme, auf die Ernte warten",
+    "meaning_rev": "Ungeduld, versunkene Kosten, fehlgeleitete Mühe, zu früh aufgeben",
+    "desc": "Die Sieben der Münzen stützt sich auf die Hacke und beäugt die Rebe: Sie wächst, aber langsam. Diese Karte ermutigt zur ehrlichen Bestandsaufnahme. Reift sie, oder hat sie bloß Wurzeln geschlagen? Dann warte oder pflanz neu, und zwar mit Absicht.",
+    "fortune_telling": [
+      "Etwas, das du vor langer Zeit gepflanzt hast, ist genau das, was dich heute still ernährt.",
+      "Die Rebe wächst im Rebentempo. Schätz ehrlich ein, und dann lass sie wachsen.",
+      "Eine Ernte reift heran. Der schlechteste Zug wäre jetzt, sie zur Kontrolle auszugraben."
+    ],
+    "fortune_telling_rev": [
+      "Du hast einmal aus reiner Sturheit eine tote Pflanze gegossen. Heute kompostierst du schneller.",
+      "Die versunkenen Kosten machen deine Gartenarbeit. Bewerte die Rebe, nicht die Stunden.",
+      "Es wird dich jucken, etwas eine Saison zu früh aufzugeben. Hol dir vorher noch eine Meinung ein."
+    ]
+  },
+  "eight-of-pentacles": {
+    "name": "Acht der Münzen",
+    "meaning_up": "Handwerkskunst, Kompetenzaufbau, Fleiß, Meisterschaft im Werden",
+    "meaning_rev": "Perfektionismus, Abkürzungen, uninspirierte Wiederholung",
+    "desc": "Die Acht der Münzen sitzt mit gesenktem Kopf an der Werkbank und macht die achte Münze besser als die siebte. Diese Karte ermutigt zu den unglamourösen Wiederholungen. Meisterschaft ist vor allem Anwesenheit.",
+    "fortune_telling": [
+      "Die Übungsrunden, die niemand gesehen hat, sind der Grund, warum es heute so leicht aussieht.",
+      "Jetzt ist Werkbankzeit. Eine sorgfältige Wiederholung mehr schlägt drei gehetzte.",
+      "Dein Können steht kurz davor, sich zu potenzieren. Bleib dran, die achte Münze glänzt."
+    ],
+    "fortune_telling_rev": [
+      "Perfektionismus hat einmal ein gutes Stück für immer auf der Werkbank liegen lassen. Das nächste hast du rausgegeben.",
+      "Die Wiederholung ist hohl geworden. Variiere die Arbeit, bevor du sie hasst.",
+      "Du wirst versucht sein, an einer Ecke zu sparen, die den ganzen Rahmen hält. Lass es."
+    ]
+  },
+  "nine-of-pentacles": {
+    "name": "Neun der Münzen",
+    "meaning_up": "Selbstständigkeit, verdienter Luxus, Unabhängigkeit, Kultiviertheit",
+    "meaning_rev": "Überarbeitung hinter dem schönen Garten, hohler Status, Abhängigkeit",
+    "desc": "Die Neun der Münzen schlendert durch ihren eigenen Garten, die Trauben reif, der Falke ruhig. Alles hier ist verdient. Diese Karte ermutigt dich, das, was deine Disziplin aufgebaut hat, auch wirklich zu genießen.",
+    "fortune_telling": [
+      "Die Unabhängigkeit, die du Münze für Münze aufgebaut hast, ist echt. Spazier durch deinen eigenen Garten und zähl nach.",
+      "Du hast dir diesen Komfort verdient. Ihn zu genießen ist kein Disziplinbruch.",
+      "Eine Zeit verdienter Leichtigkeit naht. Übe schon mal, sie mit Anstand anzunehmen."
+    ],
+    "fortune_telling_rev": [
+      "Ein Luxus, der alle beeindruckt hat außer dich, hat dir klargemacht, wofür Reichtum da ist.",
+      "Der Garten ist prachtvoll, und du bist zu beschäftigt mit Pflegen, um hindurchzuschlendern. Schlendere.",
+      "Prüf, wofür die schönen Dinge vor dir gut sind. Kauf die, die dir Zeit zurückkaufen."
+    ]
+  },
+  "ten-of-pentacles": {
+    "name": "Zehn der Münzen",
+    "meaning_up": "Vermächtnis, Familienvermögen, langfristige Sicherheit, Erbe",
+    "meaning_rev": "Familienstreit um Ressourcen, kurzfristiges Denken, wackelige Fundamente",
+    "desc": "Die Zehn der Münzen ist der Torbogen, durch den Generationen gehen: Wohlstand, der seine Erbauer überdauert. Diese Karte ermutigt dich, für Menschen zu bauen, die du vielleicht nie kennenlernen wirst.",
+    "fortune_telling": [
+      "Jemand vor dir hat den Torbogen gebaut, durch den du hereingekommen bist. Du bist mitten im Bau des nächsten.",
+      "Denk heute in Jahrzehnten. Der Zinseszins hat schon angefangen.",
+      "Etwas, das du bald gründest, wird dich überdauern. Setz den Grundstein gerade."
+    ],
+    "fortune_telling_rev": [
+      "Ein Streit ums Erbe hat dir gezeigt, was das Erbe eigentlich war.",
+      "Kurzfristiges Denken knabbert am Fundament. Gieß nach, wo es dünn ist.",
+      "In der Familie oder im Team könnte ein Streit um Ressourcen aufkommen. Halte Dinge früh schriftlich fest."
+    ]
+  },
+  "page-of-pentacles": {
+    "name": "Bube der Münzen",
+    "meaning_up": "Lerneifer, neue Fähigkeiten, bodenständiger Ehrgeiz, eine Gelegenheit zum Lernen",
+    "meaning_rev": "Aufschieberitis, ein ins Stocken geratener Kurs, Träumen ohne Tun",
+    "desc": "Der Bube der Münzen dreht die Münze immer wieder in der Hand und stellt sich schon vor, was aus ihr werden könnte. Diese Karte ermutigt zur Haltung des Lernenden: klein anfangen, genau hinschauen, Echtes bauen.",
+    "fortune_telling": [
+      "Eine Fähigkeit, mit der du holprig angefangen hast, ist heute eine, für die man dich kennt. Anfänge verzeihen.",
+      "Du hältst eine Münze, die studiert werden will, nicht ausgegeben. Schreib dich ein.",
+      "Eine Gelegenheit, etwas Handfestes zu lernen, kommt. Mach deine Notizen von Hand."
+    ],
+    "fortune_telling_rev": [
+      "Der Kurs, den du nie abgeschlossen hast, hat dir trotzdem gezeigt, wie du nicht lernst. Auch nützlich.",
+      "Das Träumen hat das Tun überrundet. Mach heute aus einer Fantasie eine Aufgabe.",
+      "Die Aufschieberitis wird dir eine sehr vernünftige Fristverlängerung anbieten. Lehn ab."
+    ]
+  },
+  "knight-of-pentacles": {
+    "name": "Ritter der Münzen",
+    "meaning_up": "Zuverlässigkeit, Routine, methodischer Fortschritt, Durchhaltevermögen",
+    "meaning_rev": "Stillstand, Langeweile, in einem Trott feststecken, übertriebene Vorsicht",
+    "desc": "Der Ritter der Münzen reitet das langsamste Pferd und kommt jedes einzelne Mal an. Diese Karte ermutigt zur beständigen Methode. Langweilig ist eine Strategie mit hervorragender Bilanz.",
+    "fortune_telling": [
+      "Jeden Tag aufzutauchen, ganz unglamourös, hat dich tatsächlich hierher gebracht.",
+      "Langsam und stetig ist nicht der Notfallplan, es ist der Plan. Reite weiter.",
+      "Eine lange Aufgabe vor dir belohnt die Beharrlichen. Sei stolz darauf, beharrlich zu sein."
+    ],
+    "fortune_telling_rev": [
+      "Ein Trott, den du für Routine gehalten hast, hat sich endlich zu erkennen gegeben. Du hast die Route geändert.",
+      "Die Routine dient dir nicht mehr, sie betäubt dich. Ändere eine Sache.",
+      "Übertriebene Vorsicht könnte dich bald eine gute Gelegenheit kosten. Trab an, nur dieses eine Mal."
+    ]
+  },
+  "queen-of-pentacles": {
+    "name": "Königin der Münzen",
+    "meaning_up": "Praktische Fürsorge, Einfallsreichtum, Geborgenheit, bodenständige Zuwendung",
+    "meaning_rev": "Selbstvernachlässigung beim Versorgen, Erdrücken, Ungleichgewicht zwischen Arbeit und Zuhause",
+    "desc": "Die Königin der Münzen hält den Garten gepflegt, die Bücher ausgeglichen und die Tür offen. Fürsorge ist hier Kompetenz. Diese Karte ermutigt dich, so zu versorgen, dass die Versorgerin selbst mit dazugehört.",
+    "fortune_telling": [
+      "Jemand hat dir einmal eine warme, funktionierende Welt geschaffen. Seitdem gibst du es weiter.",
+      "Deine Bodenständigkeit ist eine Form von Liebe. Gönn dir heute selbst eine Portion davon.",
+      "Menschen werden sich dort versammeln, wo du Dinge zum Laufen gebracht hast. Deck einen Platz mehr."
+    ],
+    "fortune_telling_rev": [
+      "Den Haushalt mit leerem Tank zu schmeißen, hat dir gezeigt, wo die Tankanzeige ist.",
+      "Alle sind satt, nur du nicht. Setz dich an deinen eigenen Tisch.",
+      "Der Drang, die Gärten aller anderen zu verwalten, kommt. Kümmer dich diese Woche zuerst um deinen."
+    ]
+  },
+  "king-of-pentacles": {
+    "name": "König der Münzen",
+    "meaning_up": "Fülle, Geschäftssinn, Sicherheit, ein ruhiges Händchen für Geld",
+    "meaning_rev": "Gier, Materialismus, Kontrolle durch Geld, ein starrsinniges Imperium",
+    "desc": "Der König der Münzen hat den Weinberg angelegt, die Bücher geführt und geht trotzdem noch selbst durch die Reihen. Reichtum, gereift zu Verantwortung. Diese Karte ermutigt dazu, das lange Spiel großzügig zu spielen.",
+    "fortune_telling": [
+      "Disziplin, die du jung geübt hast, ist zu einem Anwesen geworden, das du kaum noch bemerkst.",
+      "Dein Urteil in praktischen Dingen ist in Höchstform. Triff die große Entscheidung.",
+      "Ein Vorhaben mit echten Wurzeln kommt an deinen Tisch. Finanziere, was Menschen ernährt."
+    ],
+    "fortune_telling_rev": [
+      "Ein zu fest gehaltenes Imperium hat dir den Unterschied zwischen Besitzen und Umklammern gezeigt.",
+      "Das Kassenbuch gewinnt Diskussionen, die dem Herzen zustehen. Lass das Kassenbuch einmal außen vor.",
+      "Geld will vielleicht bald für dich reden. Sprich zuerst, gib danach aus."
+    ]
+  }
+}

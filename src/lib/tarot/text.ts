@@ -28,6 +28,8 @@ export function tarotCardName(text: TarotText | undefined, card: TarotDeckCard):
  */
 const SOURCES: Record<string, () => Promise<{ default: TarotText }>> = {
   en: () => import("./text/en.json"),
+  de: () => import("./text/de.json"),
+  ja: () => import("./text/ja.json"),
 };
 
 const loaded = new Map<string, Promise<TarotText>>();
