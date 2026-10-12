@@ -274,7 +274,8 @@ The router provides automatic scroll-to-top on navigation and a 404 `NotFound` p
 UI strings use FormatJS (`react-intl`), English inline at the call site. Translations live in `src/i18n/locales/*.json`.
 
 - **Never write user-visible text outside `<FormattedMessage>` / `intl.formatMessage()`.** Prefer `<FormattedMessage>` in JSX; use `intl.formatMessage()` only for string values (props, `title`, `aria-label`, `toast`).
-- **Never add or update non-English translations unless explicitly asked.** New strings ship untranslated by design — they fall back to the inline English.
+- **Translate every string you add or change into every locale in `src/i18n/locales/`** (currently `de` and `ja`) in the same change. Don't wait to be asked, and don't leave new strings to fall back to English. Catalogs are flat `{ "id": "text" }` objects sorted by id. When an English string's meaning changes, update its translations too. Match the English tone (Ditto's copy is playful), keep ICU placeholders and syntax intact, and use the natural punctuation of each language.
+- **Locale data outside the catalogs follows the same rule.** Long-form per-locale content (for example tarot card text in `src/lib/tarot/text/<locale>.json`, registered in `src/lib/tarot/text.ts`) needs a file for every supported locale.
 - **Ids and `defaultMessage` must be static literals**, never template strings or variables, or `npm run i18n:extract` can't see them. For lists, attach `defineMessage({ id, defaultMessage })` descriptors to the data and spread/pass them: `<FormattedMessage {...item.label} />`.
 - Ids are `area.key`. Keep them stable when the English wording changes; change an id only when its meaning changes.
 - ICU for plurals/values: `{count, plural, one {# item} other {# items}}`. Escape literal braces with apostrophes: `'{hostname}'`.
