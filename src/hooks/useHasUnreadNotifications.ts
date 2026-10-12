@@ -30,7 +30,8 @@ const UNREAD_BATCH = 10;
  *
  * Real-time updates are handled by the always-mounted NotificationStream
  * component, which holds a persistent relay subscription and invalidates the
- * `notifications-unread` query key when new events arrive — no polling.
+ * `notifications-unread` query key when new events arrive — no polling. It
+ * also picks up the read cursor moving on another device.
  *
  * Use this in navigation components (sidebar, mobile bottom nav) for the dot indicator.
  * Use `useNotifications` on the actual notifications page where the full list is needed.
@@ -72,7 +73,9 @@ export function useHasUnreadNotifications(): boolean {
   const authorsKey = authorsFilter ? authorsFilter.slice().sort().join(',') : 'all';
 
   const { data: hasUnread = false } = useQuery<boolean>({
-    queryKey: ['notifications-unread', user?.pubkey ?? '', kindsKey, authorsKey, zapCheckKey],
+    // The cursor is in the key so a cursor moved on another device (picked up
+    // live by NotificationStream) re-checks against the new cursor.
+    queryKey: ['notifications-unread', user?.pubkey ?? '', kindsKey, authorsKey, zapCheckKey, notificationsCursor],
     queryFn: async ({ signal }) => {
       if (!user || notificationsCursor === null) return false;
 
