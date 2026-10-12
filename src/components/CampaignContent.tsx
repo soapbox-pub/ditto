@@ -141,7 +141,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
           <div className="space-y-1 text-sm">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <ShieldCheck className="size-3.5" />
-              <span>Private campaign — totals are not public</span>
+              <span>Private campaign: totals are not public</span>
             </div>
             {campaign.goalUsd && campaign.goalUsd > 0 && (
               <div className="text-xs text-muted-foreground">

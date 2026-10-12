@@ -92,7 +92,7 @@ function ColorMomentsGrid({
   }
 
   if (initialized && allItems.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted-foreground">none found — try presets</p>;
+    return <p className="py-6 text-center text-sm text-muted-foreground">none found, try presets</p>;
   }
 
   return (
@@ -192,7 +192,7 @@ function ThemesGrid({
   }
 
   if (initialized && allItems.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted-foreground">none found — try presets</p>;
+    return <p className="py-6 text-center text-sm text-muted-foreground">none found, try presets</p>;
   }
 
   return (

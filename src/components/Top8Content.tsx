@@ -40,7 +40,7 @@ export function Top8Content({ event, compact, className }: Top8ContentProps) {
     return (
       <div className={cn('mt-2 px-4 py-3', className)}>
         <p className="text-sm text-muted-foreground italic">
-          <FormattedMessage id="top8.card.empty" defaultMessage="An empty Top 8 — nobody made the cut." />
+          <FormattedMessage id="top8.card.empty" defaultMessage="An empty Top 8. Nobody made the cut." />
         </p>
       </div>
     );

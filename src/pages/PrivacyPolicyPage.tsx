@@ -11,7 +11,7 @@ export function PrivacyPolicyPage() {
 
   useSeoMeta({
     title: `Privacy Policy | ${config.appName}`,
-    description: `Privacy policy for ${config.appName} — how your data is handled on the Nostr network`,
+    description: `Privacy policy for ${config.appName}: how your data is handled on the Nostr network`,
   });
 
   return (

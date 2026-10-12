@@ -353,7 +353,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
       if (addToMine && !isEditMode) {
         try {
           await addPack({ pubkey: user.pubkey, identifier });
-          toast({ title: 'Emoji pack published', description: `${name.trim()} — added to your emojis` });
+          toast({ title: 'Emoji pack published', description: `${name.trim()} was added to your emojis` });
         } catch {
           toast({
             title: 'Published, but not added to your emojis',

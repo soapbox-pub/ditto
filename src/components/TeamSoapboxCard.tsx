@@ -89,7 +89,7 @@ export function TeamSoapboxCard({ className }: { className?: string }) {
             <div className="min-w-0">
               <h3 className="text-base font-bold leading-snug">Need help? Meet Team Soapbox</h3>
               <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                These are real people who built this platform and are happy to help. Follow them and don't be shy — ask anything!
+                These are real people who built this platform and are happy to help. Follow them and don't be shy. Ask anything!
               </p>
             </div>
           </div>

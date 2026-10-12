@@ -195,7 +195,7 @@ function QuizResultScreen({
       <div className="mt-4 space-y-3 border-t pt-4">
         {shared ? (
           <p className="text-sm text-muted-foreground">
-            Your result is published — your friends can see it on this quiz.
+            Your result is published. Your friends can see it on this quiz.
           </p>
         ) : isLoggedIn ? (
           <>

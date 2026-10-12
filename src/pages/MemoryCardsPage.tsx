@@ -207,7 +207,7 @@ const GALLERY_EMPTY: Record<GalleryTab, string> = {
   mine: 'You haven’t published any memory cards yet. Clone a card or copy a save block to make one.',
   follows: 'None of the people you follow have shared a memory card yet. Try the Global tab.',
   global:
-    'No memory cards found on your relays yet. Cards are published as kind 38192 events — check back soon, or point Ditto at a relay that carries them.',
+    'No memory cards found on your relays yet. Cards are published as kind 38192 events. Check back soon, or point Ditto at a relay that carries them.',
 };
 
 function GalleryView({ tab }: { tab: GalleryTab }) {
@@ -558,7 +558,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
         title: `Downloaded ${card.cardId}.mcd`,
         description: header
           ? `${present}/16 blocks written.`
-          : `${present}/16 blocks — block 0 missing, so emulators may reject it.`,
+          : `${present}/16 blocks. Block 0 missing, so emulators may reject it.`,
       });
     } catch (e) {
       toast({ title: 'Download failed', description: String(e), variant: 'destructive' });
@@ -644,7 +644,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
         🗂️{' '}
         {hasHeader
           ? 'System block 0: header and allocation table present.'
-          : 'System block 0 not published — emulators may reject a reconstructed image.'}
+          : 'System block 0 not published. Emulators may reject a reconstructed image.'}
       </p>
 
       {/* 15 save slots — capped at 3 columns so titles stay readable inside

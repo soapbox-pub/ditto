@@ -296,7 +296,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
             })
           : intl.formatMessage({
               id: 'monero.setup.restored.description',
-              defaultMessage: 'Scanning the blockchain now — this can take a while.',
+              defaultMessage: 'Scanning the blockchain now. This can take a while.',
             }),
       });
       onComplete?.();

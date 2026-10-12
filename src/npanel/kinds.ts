@@ -424,7 +424,7 @@ function classified(p: Parts, e: NostrEvent, content: string): boolean {
     const joined = facts.join(' · ');
     p.lead = paragraph(escape(joined));
     const about = p.summary ?? contentText(p.content);
-    p.summary = about ? `${joined} — ${about}` : joined;
+    p.summary = about ? `${joined}: ${about}` : joined;
   }
   return true;
 }
@@ -462,7 +462,7 @@ function calendar(p: Parts, e: NostrEvent): void {
     const joined = facts.join(' · ');
     p.lead = paragraph(escape(joined));
     const what = p.summary ?? contentText(p.content);
-    p.summary = what ? `${what} — ${joined}` : joined;
+    p.summary = what ? `${what}: ${joined}` : joined;
   }
 }
 
@@ -484,7 +484,7 @@ function bookReview(p: Parts, e: NostrEvent): boolean {
     const stars = '★'.repeat(filled) + '☆'.repeat(5 - filled);
     p.lead = paragraph(stars);
     const review = contentText(p.content);
-    p.summary = review ? `${stars} — ${review}` : stars;
+    p.summary = review ? `${stars}: ${review}` : stars;
   }
   return true;
 }
@@ -968,7 +968,7 @@ function geocache(p: Parts, e: NostrEvent): void {
     const joined = rating.join(' · ');
     p.lead = paragraph(escape(joined));
     const about = contentText(p.content);
-    p.summary = about ? `${joined} — ${about}` : joined;
+    p.summary = about ? `${joined}: ${about}` : joined;
   }
 }
 

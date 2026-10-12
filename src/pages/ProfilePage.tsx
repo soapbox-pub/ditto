@@ -2778,7 +2778,7 @@ function ProfilePageInner() {
             <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
               <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
                   {localTabs.length === 0 ? (
-                    <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
+                    <span className="px-4 text-sm text-muted-foreground italic">No custom tabs. Use + to add one</span>
                   ) : (
                     localTabs.map((tab) => {
                       const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;

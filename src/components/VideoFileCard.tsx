@@ -47,7 +47,7 @@ export function VideoFileCard({ url, mime, size }: VideoFileCardProps) {
         <span className="block text-xs text-muted-foreground tabular-nums">
           {[kind, size ? formatBytes(size) : null].filter(Boolean).join(' · ')}
           {(kind || size) ? ' · ' : ''}
-          <FormattedMessage id="videoFileCard.hint" defaultMessage="Can't play here — tap to open" />
+          <FormattedMessage id="videoFileCard.hint" defaultMessage="Can't play here. Tap to open" />
         </span>
       </span>
       <Download className="size-5 shrink-0 text-muted-foreground group-hover:text-foreground" />

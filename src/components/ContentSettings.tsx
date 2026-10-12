@@ -85,7 +85,7 @@ export function ContentSettings() {
             <div className="min-w-0">
               <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.otherStuff" defaultMessage={"Other Stuff"} /></h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts — pick what else shows up in your home feed."} />
+                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts. Pick what else shows up in your home feed."} />
               </p>
             </div>
           </div>
@@ -1396,7 +1396,7 @@ export function LinkPrivacySection() {
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
         <Label className="text-sm font-medium"><FormattedMessage id="settings.content.stripTrackingParams" defaultMessage={"Clean up links"} /></Label>
-        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.stripTrackingParamsDescription" defaultMessage={"Remove tracking parameters from links — YouTube's ?si=, utm_ campaign tags, and the click ids ad networks add. Applied to links you post, so they're clean for everyone who reads them, and to links you view, so nothing they carry reaches the sites your app loads previews from. Only known tracking parameters are removed; the link still goes to the same page."} /></p>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.stripTrackingParamsDescription" defaultMessage={"Remove tracking parameters from links: YouTube's ?si=, utm_ campaign tags, and the click ids ad networks add. Applied to links you post, so they're clean for everyone who reads them, and to links you view, so nothing they carry reaches the sites your app loads previews from. Only known tracking parameters are removed; the link still goes to the same page."} /></p>
       </div>
       <Switch
         checked={cleanLinks}

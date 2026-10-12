@@ -3170,7 +3170,7 @@ function MissionsTabContent({
             {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
               <div className="flex flex-col items-center gap-1 py-4 text-center">
                 <Sparkles className="size-5 text-primary/40" />
-                <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
+                <p className="text-xs text-muted-foreground">All done for today. Come back tomorrow!</p>
               </div>
             )}
           </>

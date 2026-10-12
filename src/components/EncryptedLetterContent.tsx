@@ -212,10 +212,10 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
             }}
             aria-label={
               state === 'back'
-                ? 'Envelope back — click to flip to the front'
+                ? 'Envelope back. Click to flip to the front'
                 : state === 'front'
-                  ? 'Sealed envelope — click to open the flap'
-                  : 'Encrypted letter — click to close'
+                  ? 'Sealed envelope. Click to open the flap'
+                  : 'Encrypted letter. Click to close'
             }
           >
             <div

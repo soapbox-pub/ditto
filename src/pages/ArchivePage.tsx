@@ -654,7 +654,7 @@ export function ArchivePage() {
 
   useSeoMeta({
     title: `Archive | ${config.appName}`,
-    description: 'Explore the best of the Internet Archive — classic games, films, music, and more.',
+    description: 'Explore the best of the Internet Archive: classic games, films, music, and more.',
   });
 
   const filtered = useMemo(() => {

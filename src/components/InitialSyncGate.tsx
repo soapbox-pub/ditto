@@ -1164,7 +1164,7 @@ function FollowsStep({
           Find your people
         </h2>
         <p className="text-sm text-muted-foreground">
-          Your feed is empty! Pick a few packs that look interesting — tap to
+          Your feed is empty! Pick a few packs that look interesting. Tap to
           select, then continue to follow everyone in them at once.
         </p>
       </div>

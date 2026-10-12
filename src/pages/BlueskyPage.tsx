@@ -507,7 +507,7 @@ export function BlueskyPage() {
 
   useSeoMeta({
     title: `Bluesky | ${config.appName}`,
-    description: 'Explore popular posts from Bluesky \u2014 trending discussions, images, and links.',
+    description: 'Explore popular posts from Bluesky: trending discussions, images, and links.',
   });
 
   // Flatten pages, deduplicate by URI

@@ -331,7 +331,7 @@ export function WalletSettings() {
           </div>
 
           <p className="text-xs text-muted-foreground px-1">
-            <FormattedMessage id="settings.wallet.bitcoinApisDescription" defaultMessage={"Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps, and tx/address pages. Tried in order — if the top one is rate-limited or down, the next is tried automatically. Reorder so your preferred endpoint is first."} />
+            <FormattedMessage id="settings.wallet.bitcoinApisDescription" defaultMessage={"Esplora-compatible Bitcoin REST endpoints used by the wallet, on-chain zaps, and tx/address pages. Tried in order: if the top one is rate-limited or down, the next is tried automatically. Reorder so your preferred endpoint is first."} />
           </p>
 
           <div className="space-y-2">

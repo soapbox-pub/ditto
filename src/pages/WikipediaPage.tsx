@@ -610,7 +610,7 @@ export function WikipediaPage() {
 
   useSeoMeta({
     title: `Wikipedia | ${config.appName}`,
-    description: 'Explore today\'s featured Wikipedia content \u2014 trending articles, on this day, in the news, and more.',
+    description: 'Explore today\'s featured Wikipedia content: trending articles, on this day, in the news, and more.',
   });
 
   // Section refs for scrollspy

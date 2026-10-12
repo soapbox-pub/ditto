@@ -212,7 +212,7 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
   if (pubkeys.length === 0) {
     return (
       <div className={cn('mt-2 px-4 py-3', className)}>
-        <p className="text-sm text-muted-foreground italic">An empty love list — hearts yet to be written.</p>
+        <p className="text-sm text-muted-foreground italic">An empty love list, hearts yet to be written.</p>
       </div>
     );
   }

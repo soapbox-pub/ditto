@@ -14,7 +14,7 @@ export function HelpPage() {
 
   useSeoMeta({
     title: `Help | ${config.appName}`,
-    description: `Get help with ${config.appName} — Nostr 101, FAQs, and support`,
+    description: `Get help with ${config.appName}: Nostr 101, FAQs, and support`,
   });
 
   return (

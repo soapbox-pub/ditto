@@ -50,7 +50,7 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
         )}
       >
         <Bird className="size-4" aria-hidden />
-        Empty Birdex — no confirmed species yet.
+        Empty Birdex. No confirmed species yet.
       </div>
     );
   }

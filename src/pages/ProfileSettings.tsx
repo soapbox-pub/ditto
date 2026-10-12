@@ -1160,7 +1160,7 @@ function BirthdaySection() {
         <h2 className="text-sm font-semibold"><FormattedMessage id="settings.profile.birthday.title" defaultMessage={"Birthday"} /></h2>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        <FormattedMessage id="settings.profile.birthday.description" defaultMessage={"Shown on your profile — friends get confetti and a birthday tune when they visit on the day. Every field is optional; skip the year if you'd rather keep your age private."} />
+        <FormattedMessage id="settings.profile.birthday.description" defaultMessage={"Shown on your profile. Friends get confetti and a birthday tune when they visit on the day. Every field is optional; skip the year if you'd rather keep your age private."} />
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -1283,7 +1283,7 @@ function BackupKeySection() {
       <div>
         {heading}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <FormattedMessage id="settings.profile.backupKey.extensionNote" defaultMessage={"You're signed in with a browser extension (NIP-07). Your secret key is stored there — manage or export it from the extension itself."} />
+          <FormattedMessage id="settings.profile.backupKey.extensionNote" defaultMessage={"You're signed in with a browser extension (NIP-07). Your secret key is stored there, so manage or export it from the extension itself."} />
         </p>
       </div>
     );

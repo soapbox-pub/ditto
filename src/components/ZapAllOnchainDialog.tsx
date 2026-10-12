@@ -427,7 +427,7 @@ export function ZapAllOnchainDialog({
                   they can adjust before the error appears. */}
               {hasValidAmount && belowDust && (currency === 'sats' || btcPrice) && (
                 <div className="text-center text-xs text-destructive">
-                  Total too small — needs at least {formatMoneyAmount(DUST_LIMIT_SATS * recipientCount, currency, btcPrice)} to give every recipient a non-dust output.
+                  Total too small. It needs at least {formatMoneyAmount(DUST_LIMIT_SATS * recipientCount, currency, btcPrice)} to give every recipient a non-dust output.
                 </div>
               )}
 

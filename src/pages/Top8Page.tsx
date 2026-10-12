@@ -91,7 +91,7 @@ function Top8Row({ pubkey, rank, onRemove }: Top8RowProps) {
         {...listeners}
         className="shrink-0 p-1 -ml-1 rounded cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={intl.formatMessage(
-          { id: 'top8.edit.reorder', defaultMessage: 'Reorder {name} — use arrow keys to move' },
+          { id: 'top8.edit.reorder', defaultMessage: 'Reorder {name}. Use arrow keys to move' },
           { name: displayName },
         )}
       >
@@ -213,7 +213,7 @@ export function Top8Page() {
           }),
           description: intl.formatMessage({
             id: 'top8.edit.fullDescription',
-            defaultMessage: 'Remove someone first — that is the hard part.',
+            defaultMessage: 'Remove someone first. That is the hard part.',
           }),
           variant: 'destructive',
         });
@@ -282,7 +282,7 @@ export function Top8Page() {
         <p className="text-sm text-muted-foreground">
           <FormattedMessage
             id="top8.edit.intro"
-            defaultMessage="Your eight favorite people, in order. Drag to rank them — number one goes at the top. Everyone can see your Top 8 on your profile, and your followers see when you rearrange it."
+            defaultMessage="Your eight favorite people, in order. Drag to rank them; number one goes at the top. Everyone can see your Top 8 on your profile, and your followers see when you rearrange it."
           />
         </p>
 

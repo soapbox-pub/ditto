@@ -302,7 +302,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'torrents',
     addressable: false,
     section: 'media',
-    blurb: 'Torrents indexed on Nostr — a title, a file list, and an info hash, enough to open the magnet link in your torrent client. No files are stored on Nostr itself.',
+    blurb: 'Torrents indexed on Nostr: a title, a file list, and an info hash, enough to open the magnet link in your torrent client. No files are stored on Nostr itself.',
     sites: [{ url: 'https://dtan.xyz', name: 'dtan' }],
   },
   // Social
@@ -315,7 +315,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: true,
     section: 'social',
     feedOnly: true,
-    blurb: 'See what people are up to — statuses appear next to names on posts and on profile pages.',
+    blurb: 'See what people are up to. Statuses appear next to names on posts and on profile pages.',
   },
   {
     kind: 31923,
@@ -400,7 +400,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'packs',
     addressable: true,
     section: 'social',
-    blurb: 'Curated lists of people to follow — follow packs, follow lists, and people sets. Browse or create your own.',
+    blurb: 'Curated lists of people to follow: follow packs, follow lists, and people sets. Browse or create your own.',
     sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
   {
@@ -420,11 +420,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'profiles',
     feedKey: 'feedIncludeProfileUpdates',
     label: 'Profile Updates',
-    description: 'Kind 0 metadata updates — new names, avatars, and bios',
+    description: 'Kind 0 metadata updates: new names, avatars, and bios',
     addressable: false,
     section: 'social',
     feedOnly: true,
-    blurb: 'When someone changes their name, avatar, banner, or bio, the new profile shows up in the feed as a card — a lightweight way to notice that a person you follow has a new look.',
+    blurb: 'When someone changes their name, avatar, banner, or bio, the new profile shows up in the feed as a card, a lightweight way to notice that a person you follow has a new look.',
   },
   // Relay lists (feed-only — NIP-65 kind 10002)
   {
@@ -444,7 +444,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'linked-accounts',
     feedKey: 'feedIncludeExternalIdentities',
     label: 'Linked Accounts',
-    description: 'NIP-39 linked account updates — GitHub, Mastodon, Bluesky, and more',
+    description: 'NIP-39 linked account updates: GitHub, Mastodon, Bluesky, and more',
     addressable: false,
     section: 'social',
     feedOnly: true,
@@ -456,7 +456,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'love-lists',
     feedKey: 'feedIncludeLoveLists',
     label: 'Love Lists',
-    description: 'Love List updates — the people someone truly loves (kind 15683)',
+    description: 'Love List updates: the people someone truly loves (kind 15683)',
     addressable: false,
     section: 'social',
     feedOnly: true,
@@ -468,11 +468,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     id: 'top-8',
     feedKey: 'feedIncludeTop8',
     label: 'Top 8',
-    description: 'Top 8 updates — someone\'s eight favorite people, ranked (kind 18678)',
+    description: 'Top 8 updates: someone\'s eight favorite people, ranked (kind 18678)',
     addressable: false,
     section: 'social',
     feedOnly: true,
-    blurb: 'A Top 8 is someone\'s eight favorite people, in rank order — the MySpace Top 8, revived. The kind number spells "1·TOP8" on a phone keypad. Updates render as a numbered grid in the feed, so you see it when a friend shuffles their number one. Curate your own at /top-8.',
+    blurb: 'A Top 8 is someone\'s eight favorite people, in rank order. The MySpace Top 8, revived. The kind number spells "1·TOP8" on a phone keypad. Updates render as a numbered grid in the feed, so you see it when a friend shuffles their number one. Curate your own at /top-8.',
   },
   // Whimsy
   {
@@ -640,7 +640,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'quizzes',
     addressable: true,
     section: 'whimsy',
-    blurb: 'Personality tests, trivia, sorting quizzes — create one, share it, and see which results your friends got. All scoring is transparent and declared in the event itself.',
+    blurb: 'Personality tests, trivia, sorting quizzes. Create one, share it, and see which results your friends got. All scoring is transparent and declared in the event itself.',
     subKinds: [
       {
         kind: 37849,
@@ -672,7 +672,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'highlights',
     addressable: false,
     section: 'social',
-    blurb: "Highlights are excerpts people find valuable — a paragraph from an article, a passage from a blog post, or a quote from anywhere on the web. Browse what people are reading and what's resonating.",
+    blurb: "Highlights are excerpts people find valuable: a paragraph from an article, a passage from a blog post, or a quote from anywhere on the web. Browse what people are reading and what's resonating.",
   },
   // Attestations — kind 31871 (addressable). Feed-only: opening an
   // attestation's naddr lands on PostDetailPage, which renders via
@@ -687,7 +687,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: true,
     section: 'social',
     feedOnly: true,
-    blurb: 'Attestations are signed truthfulness claims about other Nostr events — an attestor verifies a claim and publishes whether it is valid, invalid, still being verified, or revoked. They enable a web of trust for notes.',
+    blurb: 'Attestations are signed truthfulness claims about other Nostr events. An attestor verifies a claim and publishes whether it is valid, invalid, still being verified, or revoked. They enable a web of trust for notes.',
   },
   // Reports — kind 1984 (regular, NIP-56). Feed-only: opening a report's
   // nevent lands on PostDetailPage, which renders it via ReportContent.
@@ -701,7 +701,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: false,
     section: 'social',
     feedOnly: true,
-    blurb: "Reports are what people flag as objectionable — spam, impersonation, malware, and worse. Nobody's report carries authority on its own; seeing them is a way to watch the network moderate itself.",
+    blurb: "Reports are what people flag as objectionable: spam, impersonation, malware, and worse. Nobody's report carries authority on its own; seeing them is a way to watch the network moderate itself.",
   },
   // Fundraisers — kind 33863 (addressable). Feed-only: opening a
   // campaign's naddr lands on PostDetailPage, which knows how to render
@@ -721,7 +721,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: true,
     section: 'social',
     feedOnly: true,
-    blurb: 'Classified listings — anything for sale on Nostr. Products, services, rentals, and giveaways, each with a price, photos, and a description.',
+    blurb: 'Classified listings: anything for sale on Nostr. Products, services, rentals, and giveaways, each with a price, photos, and a description.',
   },
   {
     kind: 33863,
@@ -745,7 +745,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: false,
     section: 'whimsy',
     feedOnly: true,
-    blurb: 'Bird-by-ear detections — someone heard a species sing or call, and logged the sighting. Identified by Wikidata entity.',
+    blurb: 'Bird-by-ear detections. Someone heard a species sing or call, and logged the sighting. Identified by Wikidata entity.',
     sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
   },
   {
@@ -757,7 +757,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     addressable: false,
     section: 'whimsy',
     feedOnly: true,
-    blurb: 'Birdex — an author\'s cumulative life list of every species they have ever identified, in chronological order of first detection.',
+    blurb: 'Birdex: an author\'s cumulative life list of every species they have ever identified, in chronological order of first detection.',
     sites: [{ url: 'https://birdstar.app', name: 'Birdstar' }],
   },
   {
@@ -782,7 +782,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'development',
     addressable: true,
     section: 'development',
-    blurb: 'Nostr-native git activity — repositories, pushes, patches, pull requests, issues, and status changes.',
+    blurb: 'Nostr-native git activity: repositories, pushes, patches, pull requests, issues, and status changes.',
     sites: [{ url: 'https://nostrhub.io', name: 'NostrHub' }, { url: 'https://gitworkshop.dev', name: 'Gitworkshop' }],
     subKinds: [
       {
@@ -798,7 +798,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         showKey: 'showDevelopment',
         feedKey: 'feedIncludeGitPushes',
         label: 'Pushes',
-        description: 'Repository state updates — branches and tags after a push',
+        description: 'Repository state updates: branches and tags after a push',
         addressable: true,
       },
       {

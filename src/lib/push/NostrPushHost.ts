@@ -222,7 +222,7 @@ export class NostrPushHost implements PushHost {
   private async ensurePushSubscription(): Promise<PushSubscription> {
     const vapid = this.vapid;
     const reg = this.registration;
-    if (!vapid || !reg) throw new Error('nostr-push is not initialized — the service worker may still be loading');
+    if (!vapid || !reg) throw new Error('nostr-push is not initialized; the service worker may still be loading');
 
     if (this.pushSubscription && this.isOurs(this.pushSubscription)) return this.pushSubscription;
 

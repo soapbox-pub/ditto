@@ -209,7 +209,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
           <span className="text-xs text-muted-foreground pt-1">
             <FormattedMessage
               id="monero.panel.cached"
-              defaultMessage="Cached balance — syncing for the latest"
+              defaultMessage="Cached balance, syncing for the latest"
             />
           </span>
         )}

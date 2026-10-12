@@ -62,7 +62,7 @@ const messages = {
     title: defineMessage({ id: 'publishError.noResponse.title', defaultMessage: 'No response from relays' }),
     description: defineMessage({
       id: 'publishError.noResponse.description',
-      defaultMessage: 'Your relays never answered. It may still have been published — check your profile before posting again.',
+      defaultMessage: 'Your relays never answered. It may still have been published, so check your profile before posting again.',
     }),
   },
   noRelays: {

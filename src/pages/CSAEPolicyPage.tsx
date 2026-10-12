@@ -11,7 +11,7 @@ export function CSAEPolicyPage() {
 
   useSeoMeta({
     title: `Child Safety Policy | ${config.appName}`,
-    description: `${config.appName}'s policy on child sexual abuse and exploitation (CSAE) — our commitment to child safety on the Nostr network`,
+    description: `${config.appName}'s policy on child sexual abuse and exploitation (CSAE) and our commitment to child safety on the Nostr network`,
   });
 
   return (

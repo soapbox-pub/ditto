@@ -347,7 +347,7 @@ export function CreateQuizPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Dimensions</CardTitle>
           <p className="text-xs text-muted-foreground">
-            The categories your quiz scores — houses, axes, or just "correct answers". Each answer option adds points to one or more dimensions.
+            The categories your quiz scores: houses, axes, or just "correct answers". Each answer option adds points to one or more dimensions.
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -678,7 +678,7 @@ export function CreateQuizPage() {
 
           {scoring === 'scores' && (
             <p className="text-sm text-muted-foreground">
-              Takers see their raw score for each dimension — no named results.
+              Takers see their raw score for each dimension, with no named results.
             </p>
           )}
         </CardContent>

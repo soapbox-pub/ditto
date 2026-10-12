@@ -690,7 +690,7 @@ export function extractTxFromSignedPsbtV2(psbtHex: string): string {
   for (let i = 0; i < psbt.outputs.length; i++) {
     if (!psbt.outputs[i].script) {
       throw new Error(
-        `PSBT v2 extract: output ${i} has no scriptPubKey — the signer must derive silent payment outputs before extraction.`,
+        `PSBT v2 extract: output ${i} has no scriptPubKey; the signer must derive silent payment outputs before extraction.`,
       );
     }
   }

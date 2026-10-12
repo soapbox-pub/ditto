@@ -64,7 +64,7 @@ export function MagicSettingsPage() {
               <FormattedMessage id="settings.magic.magicMouse" defaultMessage={"Magic Mouse"} />
             </Label>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              <FormattedMessage id="settings.magic.magicMouseDescription" defaultMessage={"Your cursor (or finger on touch devices) will emanate magical fire in the glow of your primary color. Move with purpose — every path you trace becomes a trail of flame."} />
+              <FormattedMessage id="settings.magic.magicMouseDescription" defaultMessage={"Your cursor (or finger on touch devices) will emanate magical fire in the glow of your primary color. Move with purpose: every path you trace becomes a trail of flame."} />
             </p>
           </div>
           <Switch

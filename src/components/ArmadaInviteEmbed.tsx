@@ -184,7 +184,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
             </div>
             <p className="mx-auto max-w-xs text-sm text-muted-foreground">
               {invite.missingSecret
-                ? "Ask whoever shared it for a fresh link — the secret can't be recovered."
+                ? "Ask whoever shared it for a fresh link. The secret can't be recovered."
                 : preview?.expired
                   ? 'This invite has expired. Ask for a fresh link to join.'
                   : "Ditto can't open encrypted communities. Open this invite in Armada to view and join."}
