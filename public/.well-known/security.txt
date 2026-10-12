@@ -1,0 +1,5 @@
+Contact: mailto:security@soapbox.pub
+Expires: 2027-10-12T00:00:00.000Z
+Policy: https://soapbox.pub/security
+Canonical: https://ditto.pub/.well-known/security.txt
+Preferred-Languages: en
