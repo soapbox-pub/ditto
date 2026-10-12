@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useIntl } from 'react-intl';
 
 import { LazyFeedItem } from '@/components/LazyFeedItem';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
@@ -39,6 +40,7 @@ type EmojiPacksTab = 'my-packs' | 'follows' | 'global';
  * FAB is shown on the My Packs tab, mirroring ThemesPage.
  */
 export function EmojiPacksPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
@@ -51,8 +53,8 @@ export function EmojiPacksPage() {
   const [builderOpen, setBuilderOpen] = useState(false);
 
   useSeoMeta({
-    title: `${emojisDef.label} | ${config.appName}`,
-    description: 'Browse, collect, and create custom emoji packs',
+    title: `${intl.formatMessage(emojisDef.label)} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'emojiPacks.metaDescription', defaultMessage: 'Browse, collect, and create custom emoji packs' }),
   });
 
   const handleFabClick = useCallback(() => setBuilderOpen(true), []);
@@ -89,26 +91,26 @@ export function EmojiPacksPage() {
   const icon = sidebarItemIcon('emojis', 'size-5');
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      <PageHeader title={emojisDef.label} icon={icon} backTo="/">
+    <main>
+      <PageHeader title={intl.formatMessage(emojisDef.label)} icon={icon} backTo="/">
         <KindInfoButton kindDef={emojisDef} icon={icon} />
       </PageHeader>
 
       {/* Tabs */}
       <SubHeaderBar>
         <TabButton
-          label="My Packs"
+          label={intl.formatMessage({ id: 'emojiPacks.tab.myPacks', defaultMessage: 'My Packs' })}
           active={activeTab === 'my-packs'}
           onClick={() => setActiveTab('my-packs')}
         />
         <TabButton
-          label="Follows"
+          label={intl.formatMessage({ id: 'settings.feed.follows', defaultMessage: 'Follows' })}
           active={activeTab === 'follows'}
           onClick={() => setActiveTab('follows')}
           disabled={!user}
         />
         <TabButton
-          label="Global"
+          label={intl.formatMessage({ id: 'common.global', defaultMessage: 'Global' })}
           active={activeTab === 'global'}
           onClick={() => setActiveTab('global')}
         />
@@ -149,8 +151,8 @@ export function EmojiPacksPage() {
             <FeedEmptyState
               message={
                 activeTab === 'follows'
-                  ? 'No emoji packs from people you follow yet.'
-                  : 'No emoji packs found. Be the first to share one!'
+                  ? intl.formatMessage({ id: 'emojiPacks.emptyFollows', defaultMessage: 'No emoji packs from people you follow yet.' })
+                  : intl.formatMessage({ id: 'emojiPacks.empty', defaultMessage: 'No emoji packs found. Be the first to share one!' })
               }
               onSwitchToGlobal={activeTab === 'follows' ? () => setActiveTab('global') : undefined}
             />

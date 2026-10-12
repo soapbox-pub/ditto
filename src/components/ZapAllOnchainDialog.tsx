@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bitcoin, Loader2, X, Check, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, defineMessages, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
@@ -55,12 +55,20 @@ function defaultAmount(currency: CurrencyDisplay): number {
   return currency === 'sats' ? 10_000 : 10;
 }
 
-const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
-  fastest: '~10 min',
-  halfHour: '~30 min',
-  hour: '~1 hour',
-  economy: '~1 day',
-};
+const FEE_SPEED_LABELS = defineMessages({
+  fastest: { id: 'zapAll.feeSpeed.fastest', defaultMessage: '~10 min' },
+  halfHour: { id: 'zapAll.feeSpeed.halfHour', defaultMessage: '~30 min' },
+  hour: { id: 'zapAll.feeSpeed.hour', defaultMessage: '~1 hour' },
+  economy: { id: 'zapAll.feeSpeed.economy', defaultMessage: '~1 day' },
+});
+
+const PROGRESS_LABELS = defineMessages({
+  building: { id: 'zapAll.progress.building', defaultMessage: 'Building…' },
+  signing: { id: 'zapAll.progress.signing', defaultMessage: 'Signing…' },
+  broadcasting: { id: 'zapAll.progress.broadcasting', defaultMessage: 'Broadcasting…' },
+  publishing: { id: 'zapAll.progress.publishing', defaultMessage: 'Publishing zaps…' },
+  processing: { id: 'zapAll.progress.processing', defaultMessage: 'Processing…' },
+});
 
 const FEE_SPEED_ORDER: OnchainFeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
 
@@ -118,6 +126,7 @@ export function ZapAllOnchainDialog({
   open,
   onOpenChange,
 }: ZapAllOnchainDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { config } = useAppContext();
@@ -269,23 +278,26 @@ export function ZapAllOnchainDialog({
 
   const handleZap = useCallback(async () => {
     setError('');
-    if (!user) { setError('You must be logged in.'); return; }
+    if (!user) { setError(intl.formatMessage({ id: 'zapAll.error.loggedOut', defaultMessage: 'You must be logged in.' })); return; }
     if (capability === 'unsupported') {
-      setError("Your signer can't sign Bitcoin transactions.");
+      setError(intl.formatMessage({ id: 'zapAll.error.unsupported', defaultMessage: "Your signer can't sign Bitcoin transactions." }));
       return;
     }
     // Only USD input needs a price to become sats; a sats total is payable as-is.
-    if (currency === 'usd' && !btcPrice) { setError('Waiting for BTC price…'); return; }
-    if (recipientCount === 0) { setError('No recipients to zap.'); return; }
-    if (requestedTotalSats <= 0) { setError('Enter an amount.'); return; }
+    if (currency === 'usd' && !btcPrice) { setError(intl.formatMessage({ id: 'zapAll.error.waitingPrice', defaultMessage: 'Waiting for BTC price…' })); return; }
+    if (recipientCount === 0) { setError(intl.formatMessage({ id: 'zapAll.error.noRecipients', defaultMessage: 'No recipients to zap.' })); return; }
+    if (requestedTotalSats <= 0) { setError(intl.formatMessage({ id: 'zapAll.error.amount', defaultMessage: 'Enter an amount.' })); return; }
     if (belowDust) {
       const minTotalSats = DUST_LIMIT_SATS * recipientCount;
-      const minTotal = formatMoneyAmount(minTotalSats, currency, btcPrice);
-      setError(`Total too small to divide across ${recipientCount} ${recipientCount === 1 ? 'recipient' : 'recipients'}. Minimum is ${minTotal}.`);
+      const minTotal = formatMoneyAmount(minTotalSats, currency, btcPrice, intl.locale);
+      setError(intl.formatMessage(
+        { id: 'zapAll.error.belowDust', defaultMessage: 'Total too small to divide across {count, plural, one {# recipient} other {# recipients}}. Minimum is {min}.' },
+        { count: recipientCount, min: minTotal },
+      ));
       return;
     }
-    if (!utxos?.length) { setError("You don't have any Bitcoin yet. Receive some first."); return; }
-    if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
+    if (!utxos?.length) { setError(intl.formatMessage({ id: 'zapAll.error.noBitcoin', defaultMessage: "You don't have any Bitcoin yet. Receive some first." })); return; }
+    if (insufficient) { setError(intl.formatMessage({ id: 'zapAll.error.insufficient', defaultMessage: 'Not enough Bitcoin for this amount + network fee.' })); return; }
 
     if (isLarge && !confirmArmed) {
       setConfirmArmed(true);
@@ -301,7 +313,7 @@ export function ZapAllOnchainDialog({
         feeSpeed,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Zap failed';
+      const msg = err instanceof Error ? err.message : intl.formatMessage({ id: 'zapAll.error.failed', defaultMessage: 'Zap failed' });
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
@@ -322,6 +334,7 @@ export function ZapAllOnchainDialog({
     target,
     feeSpeed,
     currency,
+    intl,
   ]);
 
   // Reset state when dialog opens/closes.
@@ -347,10 +360,10 @@ export function ZapAllOnchainDialog({
   // rounded value avoids "Total: $10 (12 × $0.83 = $9.96)" surprises. Falls
   // back to the raw input while a USD price is still loading.
   const totalDisplay = totalRecipientSats > 0
-    ? formatMoneyAmount(totalRecipientSats, currency, btcPrice)
-    : formatAmountInput(amountTotal, currency);
+    ? formatMoneyAmount(totalRecipientSats, currency, btcPrice, intl.locale)
+    : formatAmountInput(amountTotal, currency, intl.locale);
   const perRecipientDisplay = amountPerRecipientSats > 0
-    ? formatMoneyAmount(amountPerRecipientSats, currency, btcPrice)
+    ? formatMoneyAmount(amountPerRecipientSats, currency, btcPrice, intl.locale)
     : '';
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
 
@@ -364,12 +377,14 @@ export function ZapAllOnchainDialog({
       >
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold">
-            {success ? 'Zapped all!' : 'Send Bitcoin'}
+            {success
+              ? <FormattedMessage id="zapAll.titleSuccess" defaultMessage="Zapped all!" />
+              : <FormattedMessage id="zapAll.title" defaultMessage="Send Bitcoin" />}
           </DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-            aria-label="Close"
+            aria-label={intl.formatMessage({ id: 'widgets.common.close', defaultMessage: 'Close' })}
           >
             <X className="size-5" />
           </button>
@@ -396,7 +411,7 @@ export function ZapAllOnchainDialog({
                 />
               </p>
               <Button onClick={() => onOpenChange(false)} variant="secondary">
-                Close
+                <FormattedMessage id="widgets.common.close" defaultMessage="Close" />
               </Button>
             </div>
           ) : (
@@ -410,15 +425,24 @@ export function ZapAllOnchainDialog({
                 setEditing={setEditingAmount}
                 presets={TOTAL_PRESETS}
                 invalid={insufficient || belowDust}
-                label="Total amount"
+                label={intl.formatMessage({ id: 'zapAll.totalAmount', defaultMessage: 'Total amount' })}
               />
 
               {/* Per-recipient breakdown */}
               {hasValidAmount && recipientCount > 0 && amountPerRecipientSats > 0 && !belowDust && perRecipientDisplay && (
                 <div className="text-center text-xs text-muted-foreground">
-                  {perRecipientDisplay} per person
-                  {totalDisplay && (
-                    <> · {recipientCount} × {perRecipientDisplay} = {totalDisplay}</>
+                  {totalDisplay ? (
+                    <FormattedMessage
+                      id="zapAll.perPersonBreakdown"
+                      defaultMessage="{amount} per person · {count} × {amount} = {total}"
+                      values={{ amount: perRecipientDisplay, count: recipientCount, total: totalDisplay }}
+                    />
+                  ) : (
+                    <FormattedMessage
+                      id="zapAll.perPerson"
+                      defaultMessage="{amount} per person"
+                      values={{ amount: perRecipientDisplay }}
+                    />
                   )}
                 </div>
               )}
@@ -427,7 +451,11 @@ export function ZapAllOnchainDialog({
                   they can adjust before the error appears. */}
               {hasValidAmount && belowDust && (currency === 'sats' || btcPrice) && (
                 <div className="text-center text-xs text-destructive">
-                  Total too small — needs at least {formatMoneyAmount(DUST_LIMIT_SATS * recipientCount, currency, btcPrice)} to give every recipient a non-dust output.
+                  <FormattedMessage
+                    id="zapAll.dustWarning"
+                    defaultMessage="Total too small. It needs at least {min} to give every recipient a non-dust output."
+                    values={{ min: formatMoneyAmount(DUST_LIMIT_SATS * recipientCount, currency, btcPrice, intl.locale) }}
+                  />
                 </div>
               )}
 
@@ -450,21 +478,30 @@ export function ZapAllOnchainDialog({
                 {isZapping ? (
                   <>
                     <Loader2 className="size-4 mr-1.5 animate-spin" />
-                    {progressLabel(progress)}
+                    <FormattedMessage {...(progress === 'idle' ? PROGRESS_LABELS.processing : PROGRESS_LABELS[progress])} />
                   </>
                 ) : insufficient ? (
-                  <>Not enough Bitcoin</>
+                  <FormattedMessage id="zapAll.notEnough" defaultMessage="Not enough Bitcoin" />
                 ) : belowDust ? (
-                  <>Total too small</>
+                  <FormattedMessage id="zapAll.tooSmall" defaultMessage="Total too small" />
                 ) : recipientCount === 0 ? (
-                  <>No recipients</>
+                  <FormattedMessage id="zapAll.noRecipients" defaultMessage="No recipients" />
                 ) : isLarge && confirmArmed ? (
-                  <>Tap again to send {totalDisplay}</>
+                  <FormattedMessage id="zapAll.tapAgain" defaultMessage="Tap again to send {total}" values={{ total: totalDisplay }} />
                 ) : (
-                  <>
-                    Zap {recipientCount} {recipientCount === 1 ? 'person' : 'people'}
-                    {totalDisplay ? ` · ${totalDisplay}` : ''}
-                  </>
+                  totalDisplay ? (
+                    <FormattedMessage
+                      id="zapAll.zapPeopleTotal"
+                      defaultMessage="Zap {count, plural, one {# person} other {# people}} · {total}"
+                      values={{ count: recipientCount, total: totalDisplay }}
+                    />
+                  ) : (
+                    <FormattedMessage
+                      id="zapAll.zapPeople"
+                      defaultMessage="Zap {count, plural, one {# person} other {# people}}"
+                      values={{ count: recipientCount }}
+                    />
+                  )
                 )}
               </Button>
 
@@ -478,11 +515,16 @@ export function ZapAllOnchainDialog({
                         className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <span>
-                          Fee{' '}
-                          {estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
-                            ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
-                            : '…'}
-                          <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
+                          <FormattedMessage
+                            id="zapAll.fee"
+                            defaultMessage="Fee {amount}"
+                            values={{
+                              amount: estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
+                                ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice, intl.locale)}`
+                                : '…',
+                            }}
+                          />
+                          <span className="opacity-60"> · <FormattedMessage {...FEE_SPEED_LABELS[feeSpeed]} /></span>
                         </span>
                       </button>
                     </PopoverTrigger>
@@ -498,7 +540,7 @@ export function ZapAllOnchainDialog({
                               onClick={() => handleFeeSpeedChange(speed)}
                               className={`flex items-center justify-between px-2 py-1.5 rounded-sm text-xs text-left hover:bg-muted transition-colors ${selected ? 'bg-muted font-medium' : ''}`}
                             >
-                              <span>{FEE_SPEED_LABELS[speed]}</span>
+                              <span><FormattedMessage {...FEE_SPEED_LABELS[speed]} /></span>
                               <span className="text-muted-foreground">{rate} sat/vB</span>
                             </button>
                           );
@@ -509,7 +551,11 @@ export function ZapAllOnchainDialog({
 
                   {showBalance && !insufficient && (currency === 'sats' || btcPrice) && (
                     <span className="text-muted-foreground">
-                      Balance: {formatMoneyAmount(totalBalance, currency, btcPrice)}
+                      <FormattedMessage
+                        id="zapAll.balance"
+                        defaultMessage="Balance: {amount}"
+                        values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice, intl.locale) }}
+                      />
                     </span>
                   )}
                 </div>
@@ -520,16 +566,6 @@ export function ZapAllOnchainDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing'): string {
-  switch (progress) {
-    case 'building': return 'Building…';
-    case 'signing': return 'Signing…';
-    case 'broadcasting': return 'Broadcasting…';
-    case 'publishing': return 'Publishing zaps…';
-    default: return 'Processing…';
-  }
 }
 
 interface ZapAllSuccessViewProps {
@@ -552,8 +588,9 @@ function ZapAllSuccessView({
   btcPrice,
   onClose,
 }: ZapAllSuccessViewProps) {
-  const totalDisplay = formatMoneyAmount(totalAmountSats, currency, btcPrice);
-  const perRecipientDisplay = formatMoneyAmount(amountPerRecipientSats, currency, btcPrice);
+  const intl = useIntl();
+  const totalDisplay = formatMoneyAmount(totalAmountSats, currency, btcPrice, intl.locale);
+  const perRecipientDisplay = formatMoneyAmount(amountPerRecipientSats, currency, btcPrice, intl.locale);
 
   return (
     <div className="grid gap-4 px-4 py-6 text-center">
@@ -566,7 +603,11 @@ function ZapAllSuccessView({
           {totalDisplay}
         </p>
         <p className="text-sm text-muted-foreground">
-          Sent {perRecipientDisplay} to {recipientCount} {recipientCount === 1 ? 'account' : 'accounts'}
+          <FormattedMessage
+            id="zapAll.sent"
+            defaultMessage="Sent {amount} to {count, plural, one {# account} other {# accounts}}"
+            values={{ amount: perRecipientDisplay, count: recipientCount }}
+          />
         </p>
       </div>
 
@@ -576,11 +617,11 @@ function ZapAllSuccessView({
         onClick={onClose}
       >
         <ExternalLink className="size-3.5" />
-        View transaction
+        <FormattedMessage id="zapAll.viewTransaction" defaultMessage="View transaction" />
       </Link>
 
       <Button onClick={onClose} className="w-full mt-2">
-        Done
+        <FormattedMessage id="monero.send.done" defaultMessage="Done" />
       </Button>
     </div>
   );

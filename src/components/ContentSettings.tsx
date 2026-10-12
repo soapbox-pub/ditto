@@ -32,7 +32,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { FeedEditModal } from '@/components/FeedEditModal';
 import { buildKindOptions } from '@/lib/feedFilterUtils';
 import { EXTRA_KINDS, FEED_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
-import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS } from '@/lib/sidebarItems';
+import { CONTENT_KIND_ICONS, SIDEBAR_ITEMS, formatItemLabel } from '@/lib/sidebarItems';
 import { getStorageKey } from '@/lib/storageKey';
 import type { SavedFeed, TabFilter, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
@@ -85,7 +85,7 @@ export function ContentSettings() {
             <div className="min-w-0">
               <h3 className="text-sm font-semibold"><FormattedMessage id="settings.feed.otherStuff" defaultMessage={"Other Stuff"} /></h3>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts — pick what else shows up in your home feed."} />
+                <FormattedMessage id="settings.feed.otherStuffDescription" defaultMessage={"Nostr isn't just text posts. Pick what else shows up in your home feed."} />
               </p>
             </div>
           </div>
@@ -124,9 +124,9 @@ function SubKindRow({ sub }: { sub: SubKindDef }) {
   return (
     <div className="flex items-center justify-between py-2.5 pl-12 pr-3 transition-colors">
       <div className="min-w-0">
-        <span className="text-sm">{sub.label}</span>
+        <span className="text-sm"><FormattedMessage {...sub.label} /></span>
         <p className="text-xs text-muted-foreground mt-0.5">
-          <KindBadge kind={sub.kind} />{' '}{sub.description}
+          <KindBadge kind={sub.kind} />{' '}<FormattedMessage {...sub.description} />
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -163,12 +163,12 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-muted-foreground shrink-0">{icon}</span>
           <div className="min-w-0">
-            <span className="text-sm font-medium">{def.label}</span>
+            <span className="text-sm font-medium"><FormattedMessage {...def.label} /></span>
             <p className="text-xs text-muted-foreground mt-0.5">
               {/* Parent rows with subKinds are categories, not a single
                   kind — the per-kind badges live on the sub rows. */}
               {!hasSubKinds && <><KindBadge kind={def.kind} />{' '}</>}
-              {def.description}
+              <FormattedMessage {...def.description} />
             </p>
           </div>
         </div>
@@ -240,7 +240,7 @@ function FeedSettingsFormInternals() {
           <AccordionItem key={section} value={section} className="border-b border-border last:border-b-0">
             <AccordionTrigger className="px-3 py-3.5 hover:no-underline hover:bg-muted/20 transition-colors">
               <span className="flex items-center gap-3 min-w-0">
-                <span className="text-sm font-medium">{SECTION_LABELS[section]}</span>
+                <span className="text-sm font-medium"><FormattedMessage {...SECTION_LABELS[section]} /></span>
                 <Badge variant="secondary" className="shrink-0 font-normal">
                   <FormattedMessage id="settings.feed.enabledOf" defaultMessage={"{enabled} of {total} on"} values={{ enabled, total }} />
                 </Badge>
@@ -334,13 +334,13 @@ function FeedTabsSection() {
       const response = await fetch(`https://${domain}/.well-known/nostr.json`);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch: ${response.statusText}`);
+        throw new Error(intl.formatMessage({ id: 'settings.feed.fetchFailed', defaultMessage: 'Failed to fetch: {status}' }, { status: response.statusText }));
       }
 
       const data = await response.json();
       
       if (!data.names || typeof data.names !== 'object') {
-        throw new Error('Invalid NIP-05 JSON format');
+        throw new Error(intl.formatMessage({ id: 'settings.feed.invalidNip05Json', defaultMessage: 'Invalid NIP-05 JSON format' }));
       }
 
       const userCount = Object.keys(data.names).length;
@@ -818,8 +818,6 @@ function SavedFeedsSection() {
   );
 }
 
-const kindOptions = buildKindOptions();
-
 function SavedFeedRow({
   feed,
   onEdit,
@@ -845,7 +843,7 @@ function SavedFeedRow({
   const kindLabel = kinds.length === 0
     ? null
     : kinds.length === 1
-      ? (kindOptions.find((o) => o.value === String(kinds[0]))?.label ?? intl.formatMessage({ id: 'settings.feed.kindLabel', defaultMessage: "Kind {kind}" }, { kind: kinds[0] }))
+      ? (buildKindOptions(intl).find((o) => o.value === String(kinds[0]))?.label ?? intl.formatMessage({ id: 'settings.feed.kindLabel', defaultMessage: "Kind {kind}" }, { kind: kinds[0] }))
       : intl.formatMessage({ id: 'settings.feed.kindCount', defaultMessage: "{count} kinds" }, { count: kinds.length });
 
   return (
@@ -1396,7 +1394,7 @@ export function LinkPrivacySection() {
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
         <Label className="text-sm font-medium"><FormattedMessage id="settings.content.stripTrackingParams" defaultMessage={"Clean up links"} /></Label>
-        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.stripTrackingParamsDescription" defaultMessage={"Remove tracking parameters from links — YouTube's ?si=, utm_ campaign tags, and the click ids ad networks add. Applied to links you post, so they're clean for everyone who reads them, and to links you view, so nothing they carry reaches the sites your app loads previews from. Only known tracking parameters are removed; the link still goes to the same page."} /></p>
+        <p className="text-xs text-muted-foreground"><FormattedMessage id="settings.content.stripTrackingParamsDescription" defaultMessage={"Remove tracking parameters from links: YouTube's ?si=, utm_ campaign tags, and the click ids ad networks add. Applied to links you post, so they're clean for everyone who reads them, and to links you view, so nothing they carry reaches the sites your app loads previews from. Only known tracking parameters are removed; the link still goes to the same page."} /></p>
       </div>
       <Switch
         checked={cleanLinks}
@@ -1447,8 +1445,7 @@ function HomePageSetting() {
     if (user) {
       await updateSettings.mutateAsync({ homePage: value });
     }
-    const item = SIDEBAR_ITEMS.find((s) => s.id === value);
-    toast({ title: intl.formatMessage({ id: 'settings.feed.homepageSet', defaultMessage: "Homepage set to {label}" }, { label: item?.label ?? value }) });
+    toast({ title: intl.formatMessage({ id: 'settings.feed.homepageSet', defaultMessage: "Homepage set to {label}" }, { label: formatItemLabel(intl, value) }) });
   };
 
   return (
@@ -1471,7 +1468,7 @@ function HomePageSetting() {
             {SIDEBAR_ITEMS.map((item) => (
               <SelectItem key={item.id} value={item.id}>
                 <span className="flex items-center gap-2">
-                  {item.label}
+                  {formatItemLabel(intl, item.id)}
                 </span>
               </SelectItem>
             ))}

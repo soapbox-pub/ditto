@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useParams } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useNostr } from '@nostrify/react';
@@ -54,6 +55,7 @@ function useDomainPubkeys(domain: string | undefined) {
 }
 
 export function DomainFeedPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { domain } = useParams<{ domain: string }>();
   const goBack = useGoBack();
@@ -64,8 +66,12 @@ export function DomainFeedPage() {
   const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
-    title: domain ? `${domain} | ${config.appName}` : `Domain Feed | ${config.appName}`,
-    description: domain ? `Posts from users on ${domain}` : 'Domain feed',
+    title: domain
+      ? `${domain} | ${config.appName}`
+      : intl.formatMessage({ id: 'domainFeed.seoTitle', defaultMessage: 'Domain Feed | {appName}' }, { appName: config.appName }),
+    description: domain
+      ? intl.formatMessage({ id: 'domainFeed.seoDescription', defaultMessage: 'Posts from users on {domain}' }, { domain })
+      : intl.formatMessage({ id: 'domainFeed.seoDescriptionFallback', defaultMessage: 'Domain feed' }),
   });
 
   const { isMuted } = useMuteFilter();
@@ -102,26 +108,22 @@ export function DomainFeedPage() {
       <main className="">
         <PageHeader
           onBack={goBack}
-          titleContent={
-            <div className="flex items-center gap-2 min-w-0">
-              <ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />
-              <div className="min-w-0">
-                <h1 className="text-lg font-bold truncate leading-tight">{domain}</h1>
-                {pubkeys && pubkeys.length > 0 && (
-                  <p className="text-xs text-muted-foreground leading-tight">
-                    {pubkeys.length} user{pubkeys.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
-            </div>
-          }
+          title={domain}
+          icon={<ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />}
+          subtitle={pubkeys && pubkeys.length > 0
+            ? intl.formatMessage({ id: 'domainFeed.userCount', defaultMessage: '{count, plural, one {# user} other {# users}}' }, { count: pubkeys.length })
+            : undefined}
         />
 
         <PullToRefresh onRefresh={handleRefresh}>
           {pubkeysError ? (
             <div className="py-16 text-center text-muted-foreground">
-              <p>Could not fetch users from {domain}.</p>
-              <p className="text-xs mt-2">Make sure the domain has a valid /.well-known/nostr.json</p>
+              <p>
+                <FormattedMessage id="domainFeed.fetchFailed" defaultMessage="Could not fetch users from {domain}." values={{ domain }} />
+              </p>
+              <p className="text-xs mt-2">
+                <FormattedMessage id="domainFeed.fetchFailedHint" defaultMessage="Make sure the domain has a valid {path}" values={{ path: '/.well-known/nostr.json' }} />
+              </p>
             </div>
           ) : isLoading ? (
             <div className="divide-y divide-border">
@@ -144,11 +146,11 @@ export function DomainFeedPage() {
             </div>
           ) : pubkeys && pubkeys.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground">
-              No users found on {domain}.
+              <FormattedMessage id="domainFeed.noUsers" defaultMessage="No users found on {domain}." values={{ domain }} />
             </div>
           ) : (
             <div className="py-16 text-center text-muted-foreground">
-              No posts found from users on {domain}.
+              <FormattedMessage id="domainFeed.noPosts" defaultMessage="No posts found from users on {domain}." values={{ domain }} />
             </div>
           )}
         </PullToRefresh>

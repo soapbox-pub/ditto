@@ -75,7 +75,7 @@ import { usePinnedList } from '@/hooks/usePinnedList';
 
 import { feedItemKey, shouldHideFeedEvent } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
-import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
+import { formatPeopleListTitle, getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 type Tab = 'feed' | 'members' | 'comments';
@@ -144,7 +144,9 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
     return (
       <div className="py-16 text-center text-muted-foreground">
         <Users className="size-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">No members in this list yet.</p>
+        <p className="text-sm">
+          <FormattedMessage id="peopleList.noMembers" defaultMessage="No members in this list yet." />
+        </p>
       </div>
     );
   }
@@ -171,7 +173,7 @@ export function PeopleListFeedTab({ pubkeys, tabKey }: { pubkeys: string[]; tabK
   if (feedItems.length === 0) {
     return (
       <div className="py-16 text-center text-muted-foreground text-sm">
-        No posts from list members yet.
+        <FormattedMessage id="peopleList.feedEmpty" defaultMessage="No posts from list members yet." />
       </div>
     );
   }
@@ -279,7 +281,7 @@ function PeopleListCommentsTab({
         <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
           <MessageCircle className="size-8 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">
-            No comments yet. Be the first to comment.
+            <FormattedMessage id="peopleList.commentsEmpty" defaultMessage="No comments yet. Be the first to comment." />
           </p>
         </div>
       )}
@@ -309,6 +311,7 @@ function CommentsSkeleton() {
 // ─── Main Detail Component ────────────────────────────────────────────────────
 
 export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
@@ -330,7 +333,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const authorMetadata = author.data?.metadata;
   const authorAvatarShape = getAvatarShape(authorMetadata);
-  const authorName = authorMetadata?.name || authorMetadata?.display_name || 'Anonymous';
+  const authorName = authorMetadata?.name || authorMetadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const authorNpub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Parsed list (kind 3 uses author metadata as fallback; kind 15683 love
@@ -339,7 +342,9 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
   const { title, description, image, pubkeys } = useMemo(() => {
     if (isLoveList) {
       return {
-        title: authorName ? `${authorName}'s loved` : 'Love list',
+        title: authorName
+          ? intl.formatMessage({ id: 'peopleList.loveListTitle', defaultMessage: "{name}'s loved" }, { name: authorName })
+          : intl.formatMessage({ id: 'peopleList.loveListFallback', defaultMessage: 'Love list' }),
         description: '',
         image: undefined,
         pubkeys: loveListPubkeys(event),
@@ -347,17 +352,20 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
     }
     if (isTop8) {
       return {
-        title: authorName ? `${authorName}'s Top 8` : 'Top 8',
+        title: authorName
+          ? intl.formatMessage({ id: 'peopleList.top8Title', defaultMessage: "{name}'s Top 8" }, { name: authorName })
+          : intl.formatMessage({ id: 'peopleList.top8Fallback', defaultMessage: 'Top 8' }),
         description: '',
         image: undefined,
         pubkeys: top8Pubkeys(event),
       };
     }
-    return parsePeopleList(event, {
+    const parsed = parsePeopleList(event, {
       authorMetadata,
       authorDisplayName: authorName,
     });
-  }, [event, isLoveList, isTop8, authorMetadata, authorName]);
+    return { ...parsed, title: formatPeopleListTitle(intl, parsed) };
+  }, [event, isLoveList, isTop8, authorMetadata, authorName, intl]);
   // Reversed for kind 3 follow lists so newest follows show first; identity
   // for curated kinds. Used only for display — mutations and filters continue
   // to use the original `pubkeys` array.
@@ -432,16 +440,15 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         description: description || undefined,
         pubkeys,
       });
-      toast({ title: `Saved "${title}" to your lists` });
+      toast({ title: intl.formatMessage({ id: 'peopleList.cloned', defaultMessage: 'Saved "{title}" to your lists' }, { title }) });
     } catch {
-      toast({ title: 'Failed to save list', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'peopleList.cloneFailed', defaultMessage: 'Failed to save list' }), variant: 'destructive' });
     } finally {
       setCloning(false);
     }
-  }, [user, cloning, createList, title, description, pubkeys, toast]);
+  }, [user, cloning, createList, title, description, pubkeys, toast, intl]);
 
   // ── Pin to home (a home feed tab that follows this list) ──────────────────
-  const intl = useIntl();
   const canPin = !!user && (isFollowSet || isFollowPack);
   const { isPinned, isPending: pinning, togglePin: handleTogglePin } = usePinnedList(event.kind, event.pubkey, dTag, title);
 
@@ -522,7 +529,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
         {/* "N new for you" hint */}
         {newPubkeys.length > 0 && user && !isOwnList && (
           <div className="mt-4 text-sm text-green-600 dark:text-green-400">
-            {newPubkeys.length} new for you
+            <FormattedMessage id="peopleList.newForYou" defaultMessage="{count} new for you" values={{ count: newPubkeys.length }} />
           </div>
         )}
 
@@ -534,12 +541,12 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
               followedPubkeys={followedPubkeys}
               listNoun={
                 isLoveList
-                  ? "this person's love list"
+                  ? intl.formatMessage({ id: 'peopleList.listNoun.loveList', defaultMessage: "this person's love list" })
                   : isTop8
-                    ? "this person's Top 8"
+                    ? intl.formatMessage({ id: 'peopleList.listNoun.top8', defaultMessage: "this person's Top 8" })
                     : isFollowList
-                      ? "this person's follow list"
-                      : 'this list'
+                      ? intl.formatMessage({ id: 'peopleList.listNoun.followList', defaultMessage: "this person's follow list" })
+                      : intl.formatMessage({ id: 'peopleList.listNoun.list', defaultMessage: 'this list' })
               }
               includeAuthorPubkey={isFollowList ? event.pubkey : undefined}
               className="flex-1"
@@ -552,7 +559,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
             <Button asChild variant="outline" className={showFollowAllButton ? undefined : 'flex-1'}>
               <Link to="/top-8">
                 <Pencil className="size-4" />
-                Edit your Top 8
+                <FormattedMessage id="peopleList.editTop8" defaultMessage="Edit your Top 8" />
               </Link>
             </Button>
           )}
@@ -564,10 +571,12 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
                 <Button
                   variant="outline"
                   className={showFollowAllButton ? undefined : 'flex-1'}
-                  title={isFollowPack ? 'Edit this pack' : 'Edit this list'}
+                  title={isFollowPack
+                    ? intl.formatMessage({ id: 'peopleList.editPackTitle', defaultMessage: 'Edit this pack' })
+                    : intl.formatMessage({ id: 'peopleList.editListTitle', defaultMessage: 'Edit this list' })}
                 >
                   <Pencil className="size-4" />
-                  Edit
+                  <FormattedMessage id="peopleList.edit" defaultMessage="Edit" />
                   <ChevronDown className="size-3.5 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
@@ -584,14 +593,14 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
                   onSelect={() => setTimeout(() => setEditOpen(true), 0)}
                 >
                   <Pencil className="size-4" />
-                  Edit details
+                  <FormattedMessage id="peopleList.editDetails" defaultMessage="Edit details" />
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="gap-2"
                   onSelect={() => setTimeout(() => setEditMembersOpen(true), 0)}
                 >
                   <Users className="size-4" />
-                  Edit members
+                  <FormattedMessage id="peopleList.editMembers" defaultMessage="Edit members" />
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -604,14 +613,14 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
               className={showFollowAllButton ? undefined : 'flex-1'}
               onClick={handleClone}
               disabled={cloning}
-              title="Save a copy to your lists"
+              title={intl.formatMessage({ id: 'peopleList.saveCopyTitle', defaultMessage: 'Save a copy to your lists' })}
             >
               {cloning ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 <Copy className="size-4" />
               )}
-              Save
+              <FormattedMessage id="common.save" defaultMessage="Save" />
             </Button>
           )}
 
@@ -644,7 +653,7 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
       {/* Interaction bar — reply / repost / react / zap / share / more */}
       <PostActionBar
         event={event}
-        replyLabel="Comments"
+        replyLabel={intl.formatMessage({ id: 'peopleList.tabs.comments', defaultMessage: 'Comments' })}
         onReply={() => setActiveTab('comments')}
         onMore={() => setMoreMenuOpen(true)}
         className="px-4"
@@ -652,19 +661,19 @@ export function PeopleListDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Tab bar */}
       <SubHeaderBar pinned>
-        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+        <TabButton label={intl.formatMessage({ id: 'peopleList.tabs.feed', defaultMessage: 'Feed' })} active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
         <TabButton
-          label="Members"
+          label={intl.formatMessage({ id: 'peopleList.tabs.members', defaultMessage: 'Members' })}
           active={activeTab === 'members'}
           onClick={() => setActiveTab('members')}
         >
           <span className="flex items-center justify-center gap-1.5">
-            Members
+            <FormattedMessage id="peopleList.tabs.members" defaultMessage="Members" />
             <span className="text-xs text-muted-foreground">({pubkeys.length})</span>
           </span>
         </TabButton>
         <TabButton
-          label="Comments"
+          label={intl.formatMessage({ id: 'peopleList.tabs.comments', defaultMessage: 'Comments' })}
           active={activeTab === 'comments'}
           onClick={() => setActiveTab('comments')}
         />
@@ -747,9 +756,10 @@ export function MemberCard({
   listId,
   listKind,
 }: MemberCardProps) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
   const { follow, unfollow, isPending } = useFollowActions();
@@ -778,18 +788,18 @@ export function MemberCard({
       try {
         if (listKind === 39089) {
           await removeFromPack.mutateAsync({ packId: listId, pubkey });
-          toast({ title: 'Removed from pack' });
+          toast({ title: intl.formatMessage({ id: 'peopleList.removedFromPack', defaultMessage: 'Removed from pack' }) });
         } else {
           await removeFromList.mutateAsync({ listId, pubkey });
-          toast({ title: 'Removed from list' });
+          toast({ title: intl.formatMessage({ id: 'peopleList.removedFromList', defaultMessage: 'Removed from list' }) });
         }
       } catch {
-        toast({ title: 'Failed to remove', variant: 'destructive' });
+        toast({ title: intl.formatMessage({ id: 'peopleList.removeFailed', defaultMessage: 'Failed to remove' }), variant: 'destructive' });
       } finally {
         setRemoving(false);
       }
     },
-    [listId, listKind, pubkey, removeFromList, removeFromPack, toast],
+    [listId, listKind, pubkey, removeFromList, removeFromPack, toast, intl],
   );
 
   return (
@@ -833,9 +843,9 @@ export function MemberCard({
             {isPending ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : isFollowed ? (
-              'Following'
+              <FormattedMessage id="peopleList.member.following" defaultMessage="Following" />
             ) : (
-              'Follow'
+              <FormattedMessage id="peopleList.member.follow" defaultMessage="Follow" />
             )}
           </Button>
         )}
@@ -845,7 +855,7 @@ export function MemberCard({
             onClick={handleRemove}
             disabled={removing}
             className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 transition-all"
-            aria-label="Remove from list"
+            aria-label={intl.formatMessage({ id: 'peopleList.removeFromList', defaultMessage: 'Remove from list' })}
           >
             {removing
               ? <Loader2 className="size-4 animate-spin" />

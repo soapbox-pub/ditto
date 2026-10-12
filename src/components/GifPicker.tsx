@@ -1,5 +1,6 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { Search, X, ImageOff } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGifSearch, type GifResult } from '@/hooks/useGifSearch';
@@ -106,6 +107,7 @@ function GifGrid({ results, onSelect }: { results: GifResult[]; onSelect: (gif: 
 }
 
 export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: GifPickerProps) {
+  const intl = useIntl();
   const { query, setQuery, clearQuery, results, isLoading, isError, isSearching } = useGifSearch();
   const inputRef = useRef<HTMLInputElement>(null);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -144,20 +146,21 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            placeholder="Search GIFs..."
+            placeholder={intl.formatMessage({ id: 'gifPicker.searchPlaceholder', defaultMessage: 'Search GIFs...' })}
             className="pl-8 pr-20 h-9 text-base md:text-sm bg-muted/50 border-0 rounded-full"
           />
           {query ? (
             <button
               type="button"
               onClick={clearQuery}
+              aria-label={intl.formatMessage({ id: 'common.clear', defaultMessage: 'Clear' })}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="size-3.5" />
             </button>
           ) : (
             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 pointer-events-none select-none">
-              Powered by GIFverse
+              <FormattedMessage id="gifPicker.poweredBy" defaultMessage="Powered by {provider}" values={{ provider: 'GIFverse' }} />
             </span>
           )}
         </div>
@@ -166,7 +169,9 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
       {/* Section header */}
       <div className="px-3 pb-1.5">
         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-          {isSearching ? 'Results' : 'Trending'}
+          {isSearching
+            ? <FormattedMessage id="gifPicker.results" defaultMessage="Results" />
+            : <FormattedMessage id="gifPicker.trending" defaultMessage="Trending" />}
         </span>
       </div>
 
@@ -194,13 +199,13 @@ export function GifPicker({ onSelect, autoFocus = true, onSearchActiveChange }: 
         ) : isError ? (
           <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
             <ImageOff className="size-8 mb-2 opacity-40" />
-            <p className="text-sm">Failed to load GIFs</p>
-            <p className="text-xs mt-1">Please try again</p>
+            <p className="text-sm"><FormattedMessage id="gifPicker.error" defaultMessage="Failed to load GIFs" /></p>
+            <p className="text-xs mt-1"><FormattedMessage id="gifPicker.errorHint" defaultMessage="Please try again" /></p>
           </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-            <p className="text-sm">No GIFs found</p>
-            <p className="text-xs mt-1">Try a different search term</p>
+            <p className="text-sm"><FormattedMessage id="gifPicker.empty" defaultMessage="No GIFs found" /></p>
+            <p className="text-xs mt-1"><FormattedMessage id="gifPicker.emptyHint" defaultMessage="Try a different search term" /></p>
           </div>
         ) : (
           <GifGrid results={results} onSelect={handleSelect} />

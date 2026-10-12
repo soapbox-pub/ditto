@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link, useLocation } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -60,6 +61,7 @@ const hasTouch = (): boolean =>
  * Mount once near the app root.
  */
 export function HighlightSelectionButton() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { selection, clear } = useTextHighlight();
   const { toast } = useToast();
@@ -130,18 +132,18 @@ export function HighlightSelectionButton() {
       });
       const nevent = tryNeventEncode({ id: published.id, author: published.pubkey, kind: published.kind });
       toast({
-        title: 'Highlight published',
+        title: intl.formatMessage({ id: 'highlightSelection.published', defaultMessage: 'Highlight published' }),
         action: nevent ? (
-          <ToastAction altText="View highlight" asChild>
-            <Link to={`/${nevent}`}>View</Link>
+          <ToastAction altText={intl.formatMessage({ id: 'highlightSelection.viewHighlight', defaultMessage: 'View highlight' })} asChild>
+            <Link to={`/${nevent}`}><FormattedMessage id="highlightSelection.view" defaultMessage="View" /></Link>
           </ToastAction>
         ) : undefined,
       });
       closeDialog();
     } catch (error) {
       toast({
-        title: 'Failed to publish highlight',
-        description: error instanceof Error ? error.message : 'Please try again.',
+        title: intl.formatMessage({ id: 'highlightSelection.publishFailed', defaultMessage: 'Failed to publish highlight' }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'highlightSelection.tryAgain', defaultMessage: 'Please try again.' }),
         variant: 'destructive',
       });
     }
@@ -178,7 +180,7 @@ export function HighlightSelectionButton() {
       <Dialog open={!!pending} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Create highlight</DialogTitle>
+            <DialogTitle><FormattedMessage id="highlightSelection.dialogTitle" defaultMessage="Create highlight" /></DialogTitle>
           </DialogHeader>
 
           {previewEvent && (
@@ -189,23 +191,27 @@ export function HighlightSelectionButton() {
 
           <div className="space-y-1.5">
             <label htmlFor="highlight-comment" className="text-sm font-medium">
-              Add a comment <span className="text-muted-foreground font-normal">(optional)</span>
+              <FormattedMessage
+                id="highlightSelection.commentLabel"
+                defaultMessage="Add a comment <muted>(optional)</muted>"
+                values={{ muted: (chunks) => <span className="text-muted-foreground font-normal">{chunks}</span> }}
+              />
             </label>
             <Textarea
               id="highlight-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Why is this worth highlighting?"
+              placeholder={intl.formatMessage({ id: 'highlightSelection.commentPlaceholder', defaultMessage: 'Why is this worth highlighting?' })}
               rows={3}
             />
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={closeDialog} disabled={isPending}>
-              Cancel
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
             </Button>
             <Button onClick={handleSubmit} disabled={isPending}>
-              {isPending ? 'Publishing...' : 'Highlight'}
+              {isPending ? <FormattedMessage id="highlightSelection.publishing" defaultMessage="Publishing..." /> : <FormattedMessage id="highlightSelection.highlight" defaultMessage="Highlight" />}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -244,7 +250,7 @@ function DockedBar({ onActivate }: { onActivate: () => void }) {
         }}
         className="pointer-events-auto inline-flex items-center justify-center rounded-full bg-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground opacity-95 shadow-xl ring-1 ring-black/10 backdrop-blur-md transition-all hover:bg-primary hover:opacity-100 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200"
       >
-        Highlight
+        <FormattedMessage id="highlightSelection.highlight" defaultMessage="Highlight" />
       </button>
     </div>
   );
@@ -284,7 +290,7 @@ function FloatingButton({ rect, onActivate }: { rect: DOMRect; onActivate: () =>
         'inline-flex items-center justify-center rounded-full bg-primary/90 px-4 py-1.5 text-sm font-medium text-primary-foreground opacity-95 shadow-lg ring-1 ring-black/10 backdrop-blur-md transition-all hover:scale-105 hover:bg-primary hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200',
       )}
     >
-      Highlight
+      <FormattedMessage id="highlightSelection.highlight" defaultMessage="Highlight" />
     </button>
   );
 }

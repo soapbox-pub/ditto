@@ -1,6 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Loader2, MessageCircle, Package } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 
 import { AppHandlerContent } from '@/components/AppHandlerContent';
@@ -41,6 +42,7 @@ function hasMatchingClientTag(event: NostrEvent, addr: string): boolean {
  * - **Comments** — NIP-22 (kind 1111) comments addressed to the handler event.
  */
 export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const [activeTab, setActiveTab] = useState<Tab>('feed');
 
   // The addressable coordinate for this handler: "31990:<pubkey>:<d>".
@@ -54,15 +56,15 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
   const clientTags = useMemo(() => getClientMetricsTags(event), [event]);
 
   return (
-    <PostDetailShell title="App">
+    <PostDetailShell title={intl.formatMessage({ id: 'appHandlerDetail.title', defaultMessage: 'App' })}>
       <div className="px-4">
         <EventActionHeader
           pubkey={event.pubkey}
           icon={Package}
           action={publishedAtAction(event, {
-            created: 'published an app',
-            updated: 'updated an app',
-            fallback: 'published an app',
+            created: intl.formatMessage({ id: 'appHandlerDetail.publishedApp', defaultMessage: 'published an app' }),
+            updated: intl.formatMessage({ id: 'appHandlerDetail.updatedApp', defaultMessage: 'updated an app' }),
+            fallback: intl.formatMessage({ id: 'appHandlerDetail.publishedApp', defaultMessage: 'published an app' }),
           })}
         />
         <AppHandlerContent event={event} />
@@ -76,12 +78,12 @@ export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
 
       {/* Tab bar */}
       <SubHeaderBar className="mt-4">
-        <TabButton label="Feed" active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
-        <TabButton label="Comments" active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
+        <TabButton label={intl.formatMessage({ id: 'appHandlerDetail.feedTab', defaultMessage: 'Feed' })} active={activeTab === 'feed'} onClick={() => setActiveTab('feed')} />
+        <TabButton label={intl.formatMessage({ id: 'appHandlerDetail.commentsTab', defaultMessage: 'Comments' })} active={activeTab === 'comments'} onClick={() => setActiveTab('comments')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 
-      <div className="pb-16 sidebar:pb-0">
+      <div>
         {activeTab === 'feed' ? (
           <AppHandlerFeedTab addr={addr} />
         ) : (
@@ -153,7 +155,7 @@ function AppHandlerFeedTab({ addr }: { addr: string }) {
       <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
         <Package className="size-8 text-muted-foreground/30" />
         <p className="text-sm text-muted-foreground max-w-sm">
-          No posts from this app yet. Content published through it will appear here.
+          <FormattedMessage id="appHandlerDetail.emptyFeed" defaultMessage="No posts from this app yet. Content published through it will appear here." />
         </p>
       </div>
     );
@@ -231,7 +233,7 @@ function AppHandlerCommentsTab({ event }: { event: NostrEvent }) {
         <div className="py-16 flex flex-col items-center gap-3 text-center px-8">
           <MessageCircle className="size-8 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">
-            No comments yet. Be the first to comment.
+            <FormattedMessage id="appHandlerDetail.emptyComments" defaultMessage="No comments yet. Be the first to comment." />
           </p>
         </div>
       )}

@@ -1,3 +1,5 @@
+import type { IntlShape, MessageDescriptor } from 'react-intl';
+
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 import type { TabFilter } from '@/contexts/AppContext';
@@ -10,16 +12,24 @@ type KindOption = {
   icon: React.ComponentType<{ className?: string }> | undefined;
 };
 
-/** Build the kind options from EXTRA_KINDS definitions. */
-export function buildKindOptions(): KindOption[] {
+/** "Photos (20)": a kind's label with its number. */
+function kindOptionLabel(intl: IntlShape, label: MessageDescriptor, kind: number): string {
+  return intl.formatMessage(
+    { id: 'feedFilter.kindOption', defaultMessage: '{label} ({kind})' },
+    { label: intl.formatMessage(label), kind: String(kind) },
+  );
+}
+
+/** Build the kind options from EXTRA_KINDS definitions, labeled in the current locale. */
+export function buildKindOptions(intl: IntlShape): KindOption[] {
   const options: KindOption[] = [];
   for (const def of EXTRA_KINDS) {
     if (def.subKinds) {
       for (const sub of def.subKinds) {
         options.push({
           value: String(sub.kind),
-          label: `${sub.label} (${sub.kind})`,
-          description: sub.description,
+          label: kindOptionLabel(intl, sub.label, sub.kind),
+          description: intl.formatMessage(sub.description),
           parentId: def.id,
           icon: CONTENT_KIND_ICONS[def.id],
         });
@@ -27,8 +37,8 @@ export function buildKindOptions(): KindOption[] {
     } else {
       options.push({
         value: String(def.kind),
-        label: `${def.label} (${def.kind})`,
-        description: def.description,
+        label: kindOptionLabel(intl, def.label, def.kind),
+        description: intl.formatMessage(def.description),
         parentId: def.id,
         icon: CONTENT_KIND_ICONS[def.id],
       });

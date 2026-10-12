@@ -95,7 +95,7 @@ export function TarotReadingCard({
         <div className="space-y-3">
           {cards.slice(0, POSITION_LABELS.length).map((card, index) => (
             <div
-              key={`${card.name}-${index}`}
+              key={`${card.id}-${index}`}
               ref={(el) => {
                 sectionRefs.current[index] = el;
               }}

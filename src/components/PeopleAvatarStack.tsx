@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -55,6 +56,7 @@ export function PeopleAvatarStack({
   size = 'md',
   className,
 }: PeopleAvatarStackProps) {
+  const intl = useIntl();
   const previewPubkeys = useMemo(() => pubkeys.slice(0, maxVisible), [pubkeys, maxVisible]);
   const { data: membersMap } = useAuthors(previewPubkeys);
 
@@ -68,7 +70,7 @@ export function PeopleAvatarStack({
         {previewPubkeys.map((pk) => {
           const member = membersMap?.get(pk);
           const displayName =
-            member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
+            member?.metadata?.name || member?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
           const shape = getAvatarShape(member?.metadata);
           return (
             <Tooltip key={pk}>
@@ -103,7 +105,7 @@ export function PeopleAvatarStack({
       </div>
       {overflow > 0 && (
         <span className="text-xs text-muted-foreground">
-          +{overflow} more
+          <FormattedMessage id="peopleAvatarStack.overflow" defaultMessage="+{count} more" values={{ count: overflow }} />
         </span>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { CalendarClock, Check, Copy, ExternalLink, HandHeart, MapPin, ShieldCheck, Target, Zap } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -59,6 +60,7 @@ interface CampaignContentProps {
  * fail parse and render `null`, letting the feed quietly skip them.
  */
 export function CampaignContent({ event, expanded = false, className }: CampaignContentProps) {
+  const intl = useIntl();
   const campaign = useMemo(() => parseCampaign(event), [event]);
   // Hook must run unconditionally; passes `undefined` (and short-circuits)
   // when the event didn't parse as a valid campaign.
@@ -67,8 +69,8 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
   if (!campaign) return null;
 
   const banner = sanitizeUrl(campaign.banner);
-  const deadline = formatCampaignDeadline(campaign.deadline);
-  const country = getCampaignCountryLabel(campaign);
+  const deadline = formatCampaignDeadline(campaign.deadline, intl);
+  const country = getCampaignCountryLabel(campaign, intl);
 
   const isSilentPaymentOnly = !campaign.wallets.onchain;
 
@@ -110,7 +112,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
         <div>
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-primary">
             <HandHeart className="size-3" />
-            Fundraiser
+            <FormattedMessage id="campaign.fundraiser" defaultMessage="Fundraiser" />
           </span>
         </div>
 
@@ -141,11 +143,11 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
           <div className="space-y-1 text-sm">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <ShieldCheck className="size-3.5" />
-              <span>Private campaign — totals are not public</span>
+              <span><FormattedMessage id="campaign.privateTotals" defaultMessage="Private campaign: totals are not public" /></span>
             </div>
             {campaign.goalUsd && campaign.goalUsd > 0 && (
               <div className="text-xs text-muted-foreground">
-                Target: {formatUsdGoal(campaign.goalUsd)}
+                <FormattedMessage id="campaign.target" defaultMessage="Target: {amount}" values={{ amount: formatUsdGoal(campaign.goalUsd, intl) }} />
               </div>
             )}
           </div>
@@ -256,6 +258,7 @@ interface DonateButtonProps {
  * extension), so splitting it into per-rail rows would only add noise.
  */
 function DonateButton({ event, wallets, title }: DonateButtonProps) {
+  const intl = useIntl();
   const bip21 = useMemo(() => buildBip21(wallets), [wallets]);
   const { toast } = useToast();
   const { user } = useCurrentUser();
@@ -270,27 +273,30 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
       await openUrl(bip21);
     } catch {
       toast({
-        title: 'Could not open wallet',
-        description: 'Scan the QR code or copy the address.',
+        title: intl.formatMessage({ id: 'campaign.openWalletFailed', defaultMessage: 'Could not open wallet' }),
+        description: intl.formatMessage({ id: 'campaign.openWalletFailedDescription', defaultMessage: 'Scan the QR code or copy the address.' }),
         variant: 'destructive',
       });
     }
-  }, [bip21, toast]);
+  }, [bip21, toast, intl]);
 
   const copy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(bip21);
       setCopied(true);
-      toast({ title: 'Copied', description: 'Payment address copied to clipboard' });
+      toast({
+        title: intl.formatMessage({ id: 'monero.setup.copied', defaultMessage: 'Copied' }),
+        description: intl.formatMessage({ id: 'campaign.addressCopied', defaultMessage: 'Payment address copied to clipboard' }),
+      });
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({
-        title: 'Copy failed',
-        description: 'Please copy manually.',
+        title: intl.formatMessage({ id: 'campaign.copyFailed', defaultMessage: 'Copy failed' }),
+        description: intl.formatMessage({ id: 'campaign.copyManually', defaultMessage: 'Please copy manually.' }),
         variant: 'destructive',
       });
     }
-  }, [bip21, toast]);
+  }, [bip21, toast, intl]);
 
   // The in-app Zap button only makes sense when the user is logged in
   // and has a PSBT-capable signer. Without one, the parent dialog's
@@ -312,22 +318,22 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
         <DialogTrigger asChild>
           <Button type="button" size="lg" className="w-full">
             <HandHeart className="size-4" />
-            Donate
+            <FormattedMessage id="campaign.donate" defaultMessage="Donate" />
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Donate to {title}</DialogTitle>
+            <DialogTitle><FormattedMessage id="campaign.donateTo" defaultMessage="Donate to {title}" values={{ title }} /></DialogTitle>
             <DialogDescription>
               {showZapButton
-                ? 'Zap from Ditto, open in a native wallet, or scan the QR.'
-                : 'Open in a native wallet or scan the QR.'}
+                ? <FormattedMessage id="campaign.donateDescriptionZap" defaultMessage="Zap from Ditto, open in a native wallet, or scan the QR." />
+                : <FormattedMessage id="campaign.donateDescription" defaultMessage="Open in a native wallet or scan the QR." />}
             </DialogDescription>
           </DialogHeader>
 
           {/* QR */}
           <div className="flex justify-center min-w-0">
-            <div className="bg-white p-3 rounded-xl" aria-label={`Bitcoin payment QR for ${title}`}>
+            <div className="bg-white p-3 rounded-xl" aria-label={intl.formatMessage({ id: 'campaign.qrLabel', defaultMessage: 'Bitcoin payment QR for {title}' }, { title })}>
               <QRCodeCanvas value={bip21} size={240} level="M" className="block" />
             </div>
           </div>
@@ -340,7 +346,7 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
             type="button"
             onClick={copy}
             className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="Copy payment address"
+            aria-label={intl.formatMessage({ id: 'campaign.copyAddress', defaultMessage: 'Copy payment address' })}
           >
             <span className="truncate min-w-0 flex-1 text-foreground">{bip21}</span>
             {copied ? (
@@ -353,7 +359,7 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
           {showZapButton && (
             <Button type="button" onClick={handleZapClick} className="w-full" size="lg">
               <Zap className="size-4" />
-              Zap
+              <FormattedMessage id="campaign.zap" defaultMessage="Zap" />
             </Button>
           )}
 
@@ -365,15 +371,14 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
             size="lg"
           >
             <ExternalLink className="size-4" />
-            Open native wallet
+            <FormattedMessage id="campaign.openNativeWallet" defaultMessage="Open native wallet" />
           </Button>
 
           {wallets.sp && (
             <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="size-3.5 shrink-0 mt-0.5" />
               <p>
-                Silent-payment donations are unlinkable by design and are not reflected in any
-                public donation total.
+                <FormattedMessage id="campaign.silentPaymentNote" defaultMessage="Silent-payment donations are unlinkable by design and are not reflected in any public donation total." />
               </p>
             </div>
           )}
@@ -406,6 +411,7 @@ function CampaignProgress({
   goalUsd?: number;
   btcPrice: number | undefined;
 }) {
+  const intl = useIntl();
   const hasGoal = !!goalUsd && goalUsd > 0;
   const raisedUsd = satsToUsdNumber(raisedSats, btcPrice);
   const pct = hasGoal && raisedUsd !== undefined
@@ -417,15 +423,15 @@ function CampaignProgress({
       {hasGoal && <Progress value={pct} className="h-2" />}
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-semibold">
-          {formatCampaignRaised(raisedSats, btcPrice)}
+          {formatCampaignRaised(raisedSats, btcPrice, intl)}
           {!hasGoal && (
-            <span className="ml-1 font-normal text-muted-foreground">raised</span>
+            <span className="ml-1 font-normal text-muted-foreground"><FormattedMessage id="campaign.raised" defaultMessage="raised" /></span>
           )}
         </span>
         {hasGoal && (
           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
             <Target className="size-3.5" />
-            of {formatUsdGoal(goalUsd!)} goal
+            <FormattedMessage id="campaign.ofGoal" defaultMessage="of {amount} goal" values={{ amount: formatUsdGoal(goalUsd!, intl) }} />
           </span>
         )}
       </div>

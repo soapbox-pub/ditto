@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { defineMessages, FormattedMessage } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 import { useMusicFeed } from '@/hooks/useMusicFeed';
 import { MusicPlaylistCard, MusicPlaylistCardSkeleton } from './MusicPlaylistCard';
@@ -8,6 +9,12 @@ import { parseMusicPlaylist } from '@/lib/musicHelpers';
 import { cn } from '@/lib/utils';
 
 type FilterMode = 'all' | 'playlists' | 'albums';
+
+const FILTER_LABELS = defineMessages({
+  all: { id: 'musicPlaylists.filter.all', defaultMessage: 'All' },
+  playlists: { id: 'musicPlaylists.filter.playlists', defaultMessage: 'Playlists' },
+  albums: { id: 'musicPlaylists.filter.albums', defaultMessage: 'Albums' },
+});
 
 /**
  * The "Playlists" tab — 2-column grid of playlist cards with sort, scope, and
@@ -106,7 +113,7 @@ export function MusicPlaylistsTab() {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {mode}
+                <FormattedMessage {...FILTER_LABELS[mode]} />
               </button>
             ))}
           </div>
@@ -116,7 +123,7 @@ export function MusicPlaylistsTab() {
       {/* Playlist grid */}
       {isError ? (
         <p className="px-4 py-12 text-sm text-muted-foreground text-center">
-          Failed to load playlists. Check your relay connections and try again.
+          <FormattedMessage id="musicPlaylists.loadFailed" defaultMessage="Failed to load playlists. Check your relay connections and try again." />
         </p>
       ) : showSkeleton ? (
         <div className="px-4 pt-2">
@@ -146,8 +153,12 @@ export function MusicPlaylistsTab() {
       ) : (
         <p className="px-4 py-12 text-sm text-muted-foreground text-center">
           {scope === 'following'
-            ? `No ${filter === 'albums' ? 'albums' : 'playlists'} from people you follow yet.`
-            : `No ${filter === 'albums' ? 'albums' : 'playlists'} yet. Check back soon!`}
+            ? filter === 'albums'
+              ? <FormattedMessage id="musicPlaylists.emptyFollowingAlbums" defaultMessage="No albums from people you follow yet." />
+              : <FormattedMessage id="musicPlaylists.emptyFollowingPlaylists" defaultMessage="No playlists from people you follow yet." />
+            : filter === 'albums'
+              ? <FormattedMessage id="musicPlaylists.emptyAlbums" defaultMessage="No albums yet. Check back soon!" />
+              : <FormattedMessage id="musicPlaylists.emptyPlaylists" defaultMessage="No playlists yet. Check back soon!" />}
         </p>
       )}
     </div>

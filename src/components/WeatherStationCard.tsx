@@ -9,6 +9,7 @@ import {
   Waves,
   Wind,
 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -40,6 +41,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
   const stationRef = parseWeatherStationRef(value);
   const { data, isPending } = useWeatherStation(value);
   const [units, setUnits] = useLocalStorage<WeatherUnitSystem>(getStorageKey(config.appId, 'weather-units'), 'normal');
+  const intl = useIntl();
 
   if (!stationRef) {
     return (
@@ -47,13 +49,17 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
         <CloudSun className="size-4 shrink-0 text-primary" />
         {compact ? (
           <>
-            <span className="text-sm text-muted-foreground">Weather</span>
-            <span className="text-sm truncate">Invalid station reference</span>
+            <span className="text-sm text-muted-foreground"><FormattedMessage id="weatherStation.weather" defaultMessage="Weather" /></span>
+            <span className="text-sm truncate">
+              <FormattedMessage id="weatherStation.invalid" defaultMessage="Invalid station reference" />
+            </span>
           </>
         ) : (
           <div>
-            <div className="font-semibold text-sm">Weather</div>
-            <p className="text-xs text-muted-foreground mt-1">Invalid station reference</p>
+            <div className="font-semibold text-sm"><FormattedMessage id="weatherStation.weather" defaultMessage="Weather" /></div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <FormattedMessage id="weatherStation.invalid" defaultMessage="Invalid station reference" />
+            </p>
           </div>
         )}
       </div>
@@ -66,13 +72,17 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
         <CloudSun className="size-4 shrink-0 text-primary" />
         {compact ? (
           <>
-            <span className="text-sm text-muted-foreground">Weather</span>
-            <span className="text-sm truncate">Loading latest reading...</span>
+            <span className="text-sm text-muted-foreground"><FormattedMessage id="weatherStation.weather" defaultMessage="Weather" /></span>
+            <span className="text-sm truncate">
+              <FormattedMessage id="weatherStation.loading" defaultMessage="Loading latest reading..." />
+            </span>
           </>
         ) : (
           <div>
-            <div className="font-semibold text-sm">Weather</div>
-            <p className="text-xs text-muted-foreground mt-1">Loading latest reading...</p>
+            <div className="font-semibold text-sm"><FormattedMessage id="weatherStation.weather" defaultMessage="Weather" /></div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <FormattedMessage id="weatherStation.loading" defaultMessage="Loading latest reading..." />
+            </p>
           </div>
         )}
       </div>
@@ -85,13 +95,17 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
         <CloudSun className="size-4 shrink-0 text-primary" />
         {compact ? (
           <>
-            <span className="text-sm text-muted-foreground">Weather</span>
-            <span className="text-sm truncate">No reading found yet</span>
+            <span className="text-sm text-muted-foreground"><FormattedMessage id="weatherStation.weather" defaultMessage="Weather" /></span>
+            <span className="text-sm truncate">
+              <FormattedMessage id="weatherStation.noReading" defaultMessage="No reading found yet" />
+            </span>
           </>
         ) : (
           <div>
-            <div className="font-semibold text-sm">Weather</div>
-            <p className="text-xs text-muted-foreground mt-1">No reading found yet</p>
+            <div className="font-semibold text-sm"><FormattedMessage id="weatherStation.weather" defaultMessage="Weather" /></div>
+            <p className="text-xs text-muted-foreground mt-1">
+              <FormattedMessage id="weatherStation.noReading" defaultMessage="No reading found yet" />
+            </p>
           </div>
         )}
       </div>
@@ -105,20 +119,28 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <CloudSun className="size-4 shrink-0 text-primary" />
-          <span className={compact ? 'text-sm text-muted-foreground truncate' : 'font-semibold text-sm truncate'}>{data.stationName || 'Weather'}</span>
+          <span className={compact ? 'text-sm text-muted-foreground truncate' : 'font-semibold text-sm truncate'}>{data.stationName || intl.formatMessage({ id: 'weatherStation.weather', defaultMessage: 'Weather' })}</span>
         </div>
         <Select value={units} onValueChange={(v) => setUnits(v as WeatherUnitSystem)}>
           <SelectTrigger className={compact ? 'h-7 w-[102px] rounded-full bg-background/80 text-[11px]' : 'h-7 w-[106px] rounded-full bg-background/80 text-[11px]'}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="hamburger">Hamburger</SelectItem>
+            <SelectItem value="normal">
+              <FormattedMessage id="weatherStation.units.normal" defaultMessage="Normal" />
+            </SelectItem>
+            <SelectItem value="hamburger">
+              <FormattedMessage id="weatherStation.units.hamburger" defaultMessage="Hamburger" />
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
       <p className={compact ? 'text-xs text-muted-foreground mt-0.5' : 'text-xs text-muted-foreground mt-1'}>
-        Updated {timeAgo(data.observedAt)} ago
+        <FormattedMessage
+          id="weatherStation.updated"
+          defaultMessage="Updated {time} ago"
+          values={{ time: timeAgo(data.observedAt, intl) }}
+        />
       </p>
 
       {sensors.length > 0 ? (
@@ -140,7 +162,7 @@ export function WeatherStationCard({ value, compact = false }: WeatherStationCar
         </div>
       ) : (
         <p className={compact ? 'text-sm truncate mt-0.5' : 'text-xs text-muted-foreground mt-2'}>
-          No sensor tags in latest reading
+          <FormattedMessage id="weatherStation.noSensors" defaultMessage="No sensor tags in latest reading" />
         </p>
       )}
     </div>

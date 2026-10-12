@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Server } from 'lucide-react';
 
@@ -108,7 +109,7 @@ export function RelayAvatarStack({
       </div>
       {overflow > 0 && (
         <span className="text-xs text-muted-foreground">
-          +{overflow} more
+          <FormattedMessage id="relayAvatarStack.more" defaultMessage="+{count} more" values={{ count: overflow }} />
         </span>
       )}
     </div>

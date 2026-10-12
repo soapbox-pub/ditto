@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume1, Volume2, VolumeX } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { AvatarShape } from '@/lib/avatarShape';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ export function AudioVisualizer({
   avatarShape,
   className,
 }: AudioVisualizerProps) {
+  const intl = useIntl();
   const decrypted = useDecryptedFile(originalSrc, encryption);
   const src = decrypted.src ?? '';
   // Once decrypted the object URL carries the plaintext type, which is what
@@ -408,7 +410,9 @@ export function AudioVisualizer({
               <button
                 onClick={togglePlay}
                 className="text-white hover:text-white/80 transition-colors"
-                aria-label={isPlaying ? 'Pause' : 'Play'}
+                aria-label={isPlaying
+                  ? intl.formatMessage({ id: 'audioVisualizer.pause', defaultMessage: 'Pause' })
+                  : intl.formatMessage({ id: 'audioVisualizer.play', defaultMessage: 'Play' })}
               >
                 {isPlaying
                   ? <Pause className="size-5" fill="white" />
@@ -420,7 +424,9 @@ export function AudioVisualizer({
                 <button
                   onClick={toggleMute}
                   className="text-white hover:text-white/80 transition-colors shrink-0"
-                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                  aria-label={isMuted
+                    ? intl.formatMessage({ id: 'audioVisualizer.unmute', defaultMessage: 'Unmute' })
+                    : intl.formatMessage({ id: 'audioVisualizer.mute', defaultMessage: 'Mute' })}
                 >
                   {isMuted || volume === 0
                     ? <VolumeX className="size-5" />
@@ -436,7 +442,7 @@ export function AudioVisualizer({
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
                   onClick={(e) => e.stopPropagation()}
-                  aria-label="Volume"
+                  aria-label={intl.formatMessage({ id: 'audioVisualizer.volume', defaultMessage: 'Volume' })}
                   className={cn(
                     'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100',
                     'transition-all duration-200 cursor-pointer accent-white h-1',

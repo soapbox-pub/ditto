@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
@@ -36,6 +37,7 @@ const INITIAL: PublishState = { status: 'idle', total: 0 };
  * what puts that history in the local store in the first place.
  */
 export function useAccountPublish() {
+  const intl = useIntl();
   const { store } = useNostrStorage();
   const { user } = useCurrentUser();
   const { relays, push, reset: resetRelays } = useRelayPush();
@@ -76,7 +78,7 @@ export function useAccountPublish() {
       try {
         events = await readLocalEvents(store, pubkey);
       } catch (error) {
-        setState({ status: 'error', total: 0, error: describeError(error) });
+        setState({ status: 'error', total: 0, error: describeError(error, intl) });
         return;
       }
 
@@ -94,7 +96,7 @@ export function useAccountPublish() {
       await push(pubkey, events, { full, signal });
       setState((prev) => ({ ...prev, status: signal.aborted ? 'idle' : 'done' }));
     },
-    [push, resetRelays, store, user],
+    [push, resetRelays, store, user, intl],
   );
 
   return { state, relays, start, cancel, reset };

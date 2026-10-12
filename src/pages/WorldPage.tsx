@@ -1,45 +1,47 @@
 import { useMemo, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Earth, Search } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/hooks/useAppContext';
-import { COUNTRIES } from '@/lib/countries';
-
-/** Pre-sorted list of country entries for stable rendering. */
-const COUNTRY_LIST = Object.entries(COUNTRIES)
-  .map(([code, { name, flag }]) => ({ code, name, flag }))
-  .sort((a, b) => a.name.localeCompare(b.name));
+import { COUNTRIES, countryName } from '@/lib/countries';
 
 export function WorldPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const [search, setSearch] = useState('');
 
   useSeoMeta({
-    title: `World | ${config.appName}`,
-    description: 'Browse countries and join the conversation',
+    title: intl.formatMessage({ id: 'world.seoTitle', defaultMessage: 'World | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'world.seoDescription', defaultMessage: 'Browse countries and join the conversation' }),
   });
 
+  /** Country entries with names in the active locale, sorted for stable rendering. */
+  const countryList = useMemo(() => Object.entries(COUNTRIES)
+    .map(([code, { flag }]) => ({ code, name: countryName(intl, code), flag }))
+    .sort((a, b) => a.name.localeCompare(b.name, intl.locale)), [intl]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return COUNTRY_LIST;
+    if (!search.trim()) return countryList;
     const q = search.trim().toLowerCase();
-    return COUNTRY_LIST.filter(
+    return countryList.filter(
       (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [search, countryList]);
 
   return (
     <main className="">
       {/* Header */}
-      <PageHeader title="World" icon={<Earth className="size-5" />} backTo="/" />
+      <PageHeader title={intl.formatMessage({ id: 'world.title', defaultMessage: 'World' })} icon={<Earth className="size-5" />} backTo="/" />
 
       {/* Search */}
       <div className="px-4 pb-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search countries..."
+            placeholder={intl.formatMessage({ id: 'world.searchPlaceholder', defaultMessage: 'Search countries...' })}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 rounded-full"
@@ -56,7 +58,7 @@ export function WorldPage() {
               to={`/i/iso3166:${c.code}`}
               className="group flex flex-col items-center gap-1.5 rounded-xl p-3 transition-colors hover:bg-secondary/60"
             >
-              <span className="text-4xl sm:text-5xl leading-none select-none transition-transform group-hover:scale-110" role="img" aria-label={`Flag of ${c.name}`}>
+              <span className="text-4xl sm:text-5xl leading-none select-none transition-transform group-hover:scale-110" role="img" aria-label={intl.formatMessage({ id: 'world.flagOf', defaultMessage: 'Flag of {country}' }, { country: c.name })}>
                 {c.flag}
               </span>
               <span className="text-xs text-center font-medium text-muted-foreground group-hover:text-foreground transition-colors line-clamp-2 leading-tight">
@@ -67,7 +69,9 @@ export function WorldPage() {
         </div>
       ) : (
         <div className="py-16 px-8 text-center">
-          <p className="text-muted-foreground">No countries match "{search}"</p>
+          <p className="text-muted-foreground">
+            <FormattedMessage id="world.noMatches" defaultMessage='No countries match "{search}"' values={{ search }} />
+          </p>
         </div>
       )}
     </main>

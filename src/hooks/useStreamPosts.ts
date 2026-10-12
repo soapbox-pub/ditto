@@ -8,6 +8,9 @@ import { isRepostKind } from '@/lib/feedUtils';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
+import { routeReadRelays } from '@/lib/reqRoutes';
+import { withoutBlockedRelays } from '@/lib/relayPolicy';
 import { nip19 } from 'nostr-tools';
 import { isNostrId } from '@/lib/nostrId';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
@@ -31,8 +34,8 @@ interface StreamPostsOptions {
    * Each entry accepts raw hex or npub-encoded pubkeys.
    */
   authorPubkeys?: string[];
-  /** NIP-50 sort preference. 'recent' (default) sends an explicit `sort:recent` term when a search string is present, since NIP-50 relays otherwise rank by relevance. */
-  sort?: 'recent' | 'hot' | 'trending';
+  /** NIP-50 sort preference. 'new' (default) sends an explicit `sort:new` term when a search string is present, since NIP-50 relays otherwise rank by relevance. */
+  sort?: 'new' | 'hot' | 'trending';
   /**
    * When set, limits results to events published with one of these `client`
    * tag values (NIP-89). Used by the "Only Ditto users" search filter.
@@ -52,6 +55,51 @@ function hasVideoImeta(event: NostrEvent): boolean {
   return event.tags.some(
     (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('video/')),
   );
+}
+
+/** Tags whose values count as searchable text alongside `content`. */
+const SEARCHABLE_TAGS = ['title', 'summary', 'subject', 'alt', 't'];
+
+/** `key:value` NIP-50 extensions (language:en, sort:new, …) — not text terms. */
+const SEARCH_OPERATOR = /^-?[a-z_]+:\S*$/i;
+
+/** Match `term` as a whole word (or phrase), not as a fragment of a longer word. */
+function wordPattern(term: string): RegExp {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'iu');
+}
+
+/**
+ * Approximate the relay's word-based NIP-50 match for a streamed event: every
+ * term (or "quoted phrase") must appear as a whole word, `-term` must not, and
+ * `key:value` operators are ignored. A raw substring check let "art" match
+ * "start" and "nostr" match every `nostr:npub…` mention, so the new-posts pill
+ * counted events the search never actually returns.
+ */
+function matchesSearchQuery(event: NostrEvent, searchQuery: string): boolean {
+  const include: RegExp[] = [];
+  const exclude: RegExp[] = [];
+  for (const [, phrase, word] of searchQuery.matchAll(/"([^"]+)"|(\S+)/g)) {
+    if (phrase !== undefined) {
+      if (phrase.trim()) include.push(wordPattern(phrase.trim()));
+      continue;
+    }
+    if (SEARCH_OPERATOR.test(word)) continue;
+    const negated = word.startsWith('-') && word.length > 1;
+    // Strip edge punctuation so "bitcoin," or "#bitcoin" still match the word.
+    const term = (negated ? word.slice(1) : word).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+    if (!term) continue;
+    (negated ? exclude : include).push(wordPattern(term));
+  }
+  if (include.length === 0 && exclude.length === 0) return true;
+
+  // Drop NIP-21 URIs so their `nostr:` scheme and bech32 noise can't match terms.
+  const text = [
+    event.content.replace(/nostr:[a-z0-9]+/gi, ' '),
+    ...event.tags.filter(([name]) => SEARCHABLE_TAGS.includes(name)).map(([, value]) => value ?? ''),
+  ].join('\n');
+
+  return include.every((re) => re.test(text)) && !exclude.some((re) => re.test(text));
 }
 
 /**
@@ -104,17 +152,7 @@ function filterEvent(
   // Client-side search — applied to all kinds for streamed events.
   // The initial batch uses relay-level NIP-50 search; streamed events have no
   // search filter at the relay, so we must enforce it here.
-  if (searchQuery.trim()) {
-    const lowerQuery = searchQuery.toLowerCase();
-    const lowerContent = event.content.toLowerCase();
-    // For non-text events also check the title/summary/subject tags
-    const searchableTags = ['title', 'summary', 'subject', 'alt'];
-    const tagText = searchableTags
-      .flatMap((name) => event.tags.filter(([t]) => t === name).map(([, v]) => v ?? ''))
-      .join(' ')
-      .toLowerCase();
-    if (!lowerContent.includes(lowerQuery) && !tagText.includes(lowerQuery)) return false;
-  }
+  if (!matchesSearchQuery(event, searchQuery)) return false;
 
   // Client-side media filtering (for streaming events only)
   if (options.mediaType !== 'all') {
@@ -140,6 +178,15 @@ function filterEvent(
   }
 
   return true;
+}
+
+/** Addressable events (30000-39999) dedupe by pubkey+kind+d; everything else by id. */
+function getDedupeKey(event: NostrEvent): string {
+  if (event.kind >= 30000 && event.kind < 40000) {
+    const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
+    return `${event.pubkey}:${event.kind}:${dTag}`;
+  }
+  return event.id;
 }
 
 /** Number of events to fetch per page. */
@@ -177,24 +224,56 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
   const isFetchingRef = useRef(false);
   const [hasNextPage, setHasNextPage] = useState(true);
-  const oldestTimestampRef = useRef<number | null>(null);
+  // Per-relay cursors, so a relay that reaches back further than another
+  // in a page doesn't page past what the other still holds.
+  const pageCursorRef = useRef<FeedCursor | undefined>(undefined);
+
+  /** Fetch a page of a search filter from the search relays. */
+  const fetchSearchPage = useCallback((filter: NostrFilter, cursor: FeedCursor | undefined, signal?: AbortSignal) => {
+    return fetchFeedPage({
+      relays: withoutBlockedRelays(routeReadRelays([filter], [])),
+      relay: (url) => nostr.relay(url),
+      filter: { ...filter, limit: PAGE_SIZE },
+      cursor,
+      signal,
+    });
+  }, [nostr]);
+
+  // Event map and known IDs — persist across initial fetch, stream, and
+  // pagination. `allEvents` is always rebuilt from the map.
+  const eventMapRef = useRef(new Map<string, NostrEvent>());
+  const knownIdsRef = useRef(new Set<string>());
+
+  /** Flush the event map into React state (sorted). Call once after a batch of mutations. */
+  const flushEventMap = useCallback(() => {
+    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
+  }, []);
+
+  /** Store an event in the map, keeping the newest version of addressable events. Returns true if stored. */
+  const storeEvent = useCallback((event: NostrEvent, dedupeKey: string): boolean => {
+    const existing = eventMapRef.current.get(dedupeKey);
+    if (existing && (event.kind < 30000 || event.kind >= 40000 || existing.created_at >= event.created_at)) return false;
+    eventMapRef.current.set(dedupeKey, event);
+    return true;
+  }, []);
 
   /** Merge buffered events into the main list and mark them as flushed. */
   const doFlush = useCallback(() => {
     if (streamBufferRef.current.length === 0) return;
     const ids = new Set(streamBufferRef.current.map((e) => e.id));
-    setAllEvents((prev) => {
-      const merged = [...prev, ...streamBufferRef.current];
-      merged.sort((a, b) => b.created_at - a.created_at);
-      return merged;
-    });
+    // Into the map, not just `allEvents` — the next flushEventMap rebuilds
+    // `allEvents` from the map, which would otherwise drop these again.
+    for (const event of streamBufferRef.current) {
+      storeEvent(event, getDedupeKey(event));
+    }
+    flushEventMap();
     streamBufferRef.current = [];
     setStreamBufferCount(0);
     // Show highlight briefly then clear
     setFlushedIds(ids);
     clearTimeout(flushedTimerRef.current);
     flushedTimerRef.current = setTimeout(() => setFlushedIds(new Set()), 1500);
-  }, []);
+  }, [storeEvent, flushEventMap]);
 
   // Clean up timer on unmount
   useEffect(() => () => clearTimeout(flushedTimerRef.current), []);
@@ -307,7 +386,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     } else if (options.sort === 'trending') {
       searchParts.push('sort:trending');
     } else if (searchParts.length > 0) {
-      searchParts.push('sort:recent');
+      searchParts.push('sort:new');
     }
 
     const searchFilter: NostrFilter = { ...streamFilter };
@@ -331,28 +410,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols via protocolsKey; kindsOverride via kindsOverrideKey; authorPubkeys via authorPubkeysKey
   }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, clientTagsKey, options.sort]);
 
-  // Shared ref for the event map and known IDs — persists across initial fetch + pagination
-  const eventMapRef = useRef(new Map<string, NostrEvent>());
-  const knownIdsRef = useRef(new Set<string>());
-
-  /** Flush the event map into React state (sorted). Call once after a batch of mutations. */
-  const flushEventMap = useCallback(() => {
-    setAllEvents(Array.from(eventMapRef.current.values()).sort((a, b) => b.created_at - a.created_at));
-  }, []);
-
   /** Ingest a single event into the event map / stream buffer. Returns true if the map was mutated. */
   const ingestEvent = useCallback((event: NostrEvent, isStreamed: boolean): boolean => {
     const now = Math.floor(Date.now() / 1000);
     if (event.created_at > now) return false;
 
-    // Dedupe key
-    let dedupeKey: string;
-    if (event.kind >= 30000 && event.kind < 40000) {
-      const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
-      dedupeKey = `${event.pubkey}:${event.kind}:${dTag}`;
-    } else {
-      dedupeKey = event.id;
-    }
+    const dedupeKey = getDedupeKey(event);
 
     // Buffer streamed events only when user is scrolled down to avoid scroll jumps.
     // The buffer count is committed to React state by the batched timer in
@@ -364,18 +427,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       return false;
     }
 
-    // Addressable events (30000-39999) dedupe by pubkey+kind+d
-    if (event.kind >= 30000 && event.kind < 40000) {
-      const existing = eventMapRef.current.get(dedupeKey);
-      if (existing && existing.created_at >= event.created_at) return false;
-      eventMapRef.current.set(dedupeKey, event);
-    } else {
-      if (eventMapRef.current.has(dedupeKey)) return false;
-      eventMapRef.current.set(dedupeKey, event);
-    }
+    if (!storeEvent(event, dedupeKey)) return false;
     knownIdsRef.current.add(dedupeKey);
     return true;
-  }, []);
+  }, [storeEvent]);
 
   // Batch streamed events into a single state commit per interval. Flushing
   // per event makes a busy relay re-sort the whole array and re-render the
@@ -408,7 +463,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     setIsLoading(true);
     setHasNextPage(true);
     isFetchingRef.current = false;
-    oldestTimestampRef.current = null;
+    pageCursorRef.current = undefined;
     initialLoadDoneRef.current = false;
     streamBufferRef.current = [];
     setStreamBufferCount(0);
@@ -427,31 +482,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const { searchFilter } = paginationFilter;
 
-    // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
+    // 1. Fetch the first page with the search filter.
     (async () => {
       try {
-        const events = await nostr.query(
-          [{ ...searchFilter, limit: PAGE_SIZE }],
-          { signal: ac.signal },
-        );
-        for (const event of events) {
+        const page = await fetchSearchPage(searchFilter, undefined, ac.signal);
+        if (!alive) return;
+        for (const event of page.events) {
           ingestEvent(event, false);
         }
         flushEventMap();
-        // Track oldest timestamp for pagination
-        if (events.length > 0) {
-          const oldest = Math.min(...events.map((e) => e.created_at));
-          oldestTimestampRef.current = oldest;
-        }
-        // Only stop when the relay returns no events at all. We can't use
-        // `events.length < PAGE_SIZE` here: NIP-50 search relays routinely
-        // return fewer than the requested limit per page even when older
-        // results exist, and many of these raw events get dropped by
-        // client-side filtering (mute/content/search/media), so the raw count
-        // is not a reliable signal that we've reached the end.
-        if (events.length === 0) {
-          setHasNextPage(false);
-        }
+        pageCursorRef.current = page.cursor;
+        if (!page.cursor) setHasNextPage(false);
       } catch {
         // abort expected
       }
@@ -519,37 +560,27 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   /** Fetch the next page of older results. */
   const fetchNextPage = useCallback(async () => {
-    if (isFetchingRef.current || !hasNextPage || oldestTimestampRef.current === null) return;
+    const cursor = pageCursorRef.current;
+    if (isFetchingRef.current || !hasNextPage || !cursor) return;
     isFetchingRef.current = true;
     setIsFetchingNextPage(true);
     try {
-      const { searchFilter } = paginationFilter;
-      const prevOldest = oldestTimestampRef.current;
-      const events = await nostr.query(
-        [{ ...searchFilter, until: prevOldest - 1, limit: PAGE_SIZE }],
-      );
-      for (const event of events) {
+      const page = await fetchSearchPage(paginationFilter.searchFilter, cursor);
+      // A new search started meanwhile; this page belongs to the old one.
+      if (pageCursorRef.current !== cursor) return;
+      for (const event of page.events) {
         ingestEvent(event, false);
       }
       flushEventMap();
-      if (events.length > 0) {
-        const oldest = Math.min(...events.map((e) => e.created_at));
-        oldestTimestampRef.current = oldest;
-      }
-      // Stop only when the relay returns nothing, or when the cursor can't
-      // advance past the previous oldest timestamp (the relay ignored `until`
-      // or returned the same tail) — otherwise we'd loop re-fetching the same
-      // page forever. We deliberately do NOT stop on `events.length < PAGE_SIZE`
-      // because search relays under-fill pages while older results remain.
-      if (events.length === 0 || oldestTimestampRef.current >= prevOldest) {
-        setHasNextPage(false);
-      }    } catch {
+      pageCursorRef.current = page.cursor;
+      if (!page.cursor) setHasNextPage(false);
+    } catch {
       // Transient failure — leave hasNextPage true so the user can retry
     } finally {
       isFetchingRef.current = false;
       setIsFetchingNextPage(false);
     }
-  }, [hasNextPage, paginationFilter, nostr, ingestEvent, flushEventMap]);
+  }, [hasNextPage, paginationFilter, fetchSearchPage, ingestEvent, flushEventMap]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;

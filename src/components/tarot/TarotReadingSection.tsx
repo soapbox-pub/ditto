@@ -4,7 +4,10 @@ import {
   type MessageDescriptor,
 } from "react-intl";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useTarotText } from "@/hooks/useTarotText";
 import type { TarotCardData } from "@/lib/tarot/cards";
+import { tarotCardName } from "@/lib/tarot/text";
 import { cn } from "@/lib/utils";
 import "./TarotReader.css";
 
@@ -31,10 +34,12 @@ export function TarotReadingSection({
   card: TarotCardData;
   highlighted?: boolean;
 }) {
-  const meaning = card.isReversed ? card.meaning_rev : card.meaning_up;
-  const fortune = card.isReversed
-    ? card.fortune_telling_rev[index]
-    : card.fortune_telling[index];
+  const tarotText = useTarotText();
+  const text = tarotText?.[card.id];
+  const meaning = text && (card.isReversed ? text.meaning_rev : text.meaning_up);
+  const fortune = text && (card.isReversed
+    ? text.fortune_telling_rev[index]
+    : text.fortune_telling[index]);
 
   return (
     <Card
@@ -75,13 +80,24 @@ export function TarotReadingSection({
             </span>
           </div>
           <h3 className="font-serif text-xl sm:text-2xl font-bold">
-            {card.name}
+            {tarotCardName(tarotText, card)}
           </h3>
-          <p className="italic text-muted-foreground">{meaning}</p>
-          <p className="text-base leading-relaxed text-muted-foreground">
-            {card.desc}
-          </p>
-          <p className="text-base leading-relaxed">{fortune}</p>
+          {text ? (
+            <>
+              <p className="italic text-muted-foreground">{meaning}</p>
+              <p className="text-base leading-relaxed text-muted-foreground">
+                {text.desc}
+              </p>
+              <p className="text-base leading-relaxed">{fortune}</p>
+            </>
+          ) : (
+            <div className="space-y-2 pt-1">
+              <Skeleton className="h-4 w-3/5" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+          )}
         </div>
       </div>
     </Card>

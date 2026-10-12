@@ -1,6 +1,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { BookMarked, Copy, Check, ExternalLink, Wand2 } from "lucide-react";
 import { useState } from "react";
+import { FormattedMessage } from "react-intl";
 import { Button } from "@/components/ui/button";
 import { GitSiteLinks } from "@/components/GitSiteLinks";
 import { openUrl } from "@/lib/downloadFile";
@@ -78,7 +79,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 					</span>
 					{isPersonalFork && (
 						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
-							Fork
+							<FormattedMessage id="gitRepo.fork" defaultMessage="Fork" />
 						</span>
 					)}
 				</div>
@@ -106,7 +107,11 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 						>
 							{copied ? <Check className="size-3" /> : <Copy className="size-3" />}
 							<span className="sr-only">
-								{copied ? "Copied" : "Copy"}
+								{copied ? (
+									<FormattedMessage id="gitRepo.copied" defaultMessage="Copied" />
+								) : (
+									<FormattedMessage id="gitRepo.copy" defaultMessage="Copy" />
+								)}
 							</span>
 						</Button>
 				</div>
@@ -123,7 +128,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							}}
 						>
 							<Wand2 className="size-3" />
-							Edit with Shakespeare
+							<FormattedMessage id="gitRepo.editWithShakespeare" defaultMessage="Edit with Shakespeare" />
 						</button>
 					)}
 					{isApp && (
@@ -136,7 +141,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 							}}
 						>
 							<ExternalLink className="size-3" />
-							Open App
+							<FormattedMessage id="gitRepo.openApp" defaultMessage="Open App" />
 						</button>
 					)}
 					<GitSiteLinks nip19={repoNaddr} />

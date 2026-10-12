@@ -710,11 +710,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
           )}
           <div className="flex items-center gap-1">
             {showDownload && (
-              <button onClick={handleDownload} disabled={downloading} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-wait" title="Download">
+              <button onClick={handleDownload} disabled={downloading} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-60 disabled:cursor-wait" title={intl.formatMessage({ id: 'fileMetadata.download', defaultMessage: 'Download' })}>
                 {downloading ? <Loader2 className="size-5 animate-spin" /> : <Download className="size-5" />}
               </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="Close (Esc)">
+            <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }} className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors" title={intl.formatMessage({ id: 'gallery.close', defaultMessage: 'Close (Esc)' })}>
               <X className="size-5" />
             </button>
           </div>
@@ -722,12 +722,12 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
         {/* Prev/next buttons (desktop) */}
         {canGoPrev && (
-          <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Previous">
+          <button onClick={(e) => { e.stopPropagation(); onPrev(); }} className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title={intl.formatMessage({ id: 'gallery.previous', defaultMessage: 'Previous' })}>
             <ChevronLeft className="size-6" />
           </button>
         )}
         {canGoNext && (
-          <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title="Next">
+          <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex" title={intl.formatMessage({ id: 'gallery.next', defaultMessage: 'Next' })}>
             <ChevronRight className="size-6" />
           </button>
         )}
@@ -1141,9 +1141,10 @@ function LightboxSlot({
   onSwipeBlocked?: () => void;
   onZoomChange?: (zoomed: boolean) => void;
 }) {
+  const intl = useIntl();
   const author = useAuthor(type === 'audio' ? meta?.pubkey : undefined);
   const authorMeta = author.data?.metadata;
-  const fallback = meta?.pubkey ? 'Anonymous' : '?';
+  const fallback = meta?.pubkey ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : '?';
 
   if (url === LOADING_SENTINEL) {
     return <div className="size-10 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />;

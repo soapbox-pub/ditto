@@ -4,7 +4,7 @@ import { Globe, Info, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { RelayAuthCard } from '@/components/RelayAuthPrompt';
@@ -68,6 +68,7 @@ function useRelayFeed(relayUrl: string | undefined, kinds: number[], pubkey: str
 }
 
 export function RelayPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { '*': rawParam } = useParams();
   const { feedSettings } = useFeedSettings();
@@ -130,8 +131,8 @@ export function RelayPage() {
       ? `${info.name} | ${config.appName}`
       : hostname
         ? `${hostname} | ${config.appName}`
-        : `Relay | ${config.appName}`,
-    description: info?.description ?? `Events from ${hostname}`,
+        : intl.formatMessage({ id: 'relayPage.seoTitle', defaultMessage: 'Relay | {appName}' }, { appName: config.appName }),
+    description: info?.description ?? intl.formatMessage({ id: 'relayPage.seoDescription', defaultMessage: 'Events from {hostname}' }, { hostname }),
   });
 
   useLayoutOptions({ hasSubHeader: true });
@@ -157,7 +158,7 @@ export function RelayPage() {
         <button
           onClick={() => setInfoOpen((o) => !o)}
           className={`p-2 rounded-full transition-colors ${infoOpen ? 'text-foreground bg-secondary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'}`}
-          aria-label="Toggle relay info"
+          aria-label={intl.formatMessage({ id: 'relayPage.toggleInfo', defaultMessage: 'Toggle relay info' })}
         >
           <Info className="size-4" />
         </button>
@@ -215,7 +216,7 @@ export function RelayPage() {
           filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
         ) : (
           <div className="py-16 text-center text-muted-foreground">
-            No events found on this relay.
+            <FormattedMessage id="relayPage.noEvents" defaultMessage="No events found on this relay." />
           </div>
         )}
       </div>
@@ -284,19 +285,19 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
               {info.limitation?.payment_required && (
                 <Badge variant="secondary" className="gap-1 text-xs">
                   <Zap className="size-3" />
-                  Paid
+                  <FormattedMessage id="relayList.paid" defaultMessage="Paid" />
                 </Badge>
               )}
               {info.limitation?.auth_required && (
                 <Badge variant="secondary" className="gap-1 text-xs">
                   <Shield className="size-3" />
-                  Auth required
+                  <FormattedMessage id="relayPage.authRequiredBadge" defaultMessage="Auth required" />
                 </Badge>
               )}
               {info.limitation?.restricted_writes && (
                 <Badge variant="secondary" className="gap-1 text-xs">
                   <Shield className="size-3" />
-                  Restricted writes
+                  <FormattedMessage id="relayPage.restrictedWrites" defaultMessage="Restricted writes" />
                 </Badge>
               )}
               {info.software && (
@@ -319,7 +320,7 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Hash className="size-3" />
-                  Supported NIPs
+                  <FormattedMessage id="relayPage.supportedNips" defaultMessage="Supported NIPs" />
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {info.supported_nips.sort((a, b) => a - b).map((nip) => (
@@ -342,17 +343,29 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Zap className="size-3" />
-                  Fees
+                  <FormattedMessage id="relayPage.fees" defaultMessage="Fees" />
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                   {info.fees.admission?.map((fee, i) => (
                     <span key={`admission-${i}`} className="bg-muted rounded-md px-2 py-0.5">
-                      Admission: {fee.amount / 1000} sats
+                      <FormattedMessage id="relayPage.admissionFee" defaultMessage="Admission: {amount} sats" values={{ amount: fee.amount / 1000 }} />
                     </span>
                   ))}
                   {info.fees.subscription?.map((fee, i) => (
                     <span key={`sub-${i}`} className="bg-muted rounded-md px-2 py-0.5">
-                      Subscription: {fee.amount / 1000} sats{fee.period ? ` / ${Math.round(fee.period / 86400)}d` : ''}
+                      {fee.period ? (
+                        <FormattedMessage
+                          id="relayPage.subscriptionFeePeriod"
+                          defaultMessage="Subscription: {amount} sats / {days}d"
+                          values={{ amount: fee.amount / 1000, days: Math.round(fee.period / 86400) }}
+                        />
+                      ) : (
+                        <FormattedMessage
+                          id="relayPage.subscriptionFee"
+                          defaultMessage="Subscription: {amount} sats"
+                          values={{ amount: fee.amount / 1000 }}
+                        />
+                      )}
                     </span>
                   ))}
                 </div>
@@ -363,7 +376,7 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
           <div className="p-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Globe className="size-4" />
-              <span>Could not load relay information.</span>
+              <span><FormattedMessage id="relayPage.infoError" defaultMessage="Could not load relay information." /></span>
             </div>
           </div>
         ) : null}

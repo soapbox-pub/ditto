@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { Gamepad2, ChevronRight, Copy, Download, Files, Loader2, Upload } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -135,7 +136,9 @@ function CardSlot({ index, event }: { index: number; event: NostrEvent | undefin
       )}
     >
       {filled && <div className="size-1.5 rounded-full bg-cyan-300/50" />}
-      <span className="sr-only">Slot {index}</span>
+      <span className="sr-only">
+        <FormattedMessage id="memoryCards.slot" defaultMessage="Slot {index}" values={{ index }} />
+      </span>
     </div>
   );
 }
@@ -203,12 +206,21 @@ function MemoryCardTile({ card }: { card: CardSummary }) {
   );
 }
 
-const GALLERY_EMPTY: Record<GalleryTab, string> = {
-  mine: 'You haven’t published any memory cards yet. Clone a card or copy a save block to make one.',
-  follows: 'None of the people you follow have shared a memory card yet. Try the Global tab.',
-  global:
-    'No memory cards found on your relays yet. Cards are published as kind 38192 events — check back soon, or point Ditto at a relay that carries them.',
-};
+const GALLERY_EMPTY: Record<GalleryTab, MessageDescriptor> = defineMessages({
+  mine: {
+    id: 'memoryCards.empty.mine',
+    defaultMessage: 'You haven’t published any memory cards yet. Clone a card or copy a save block to make one.',
+  },
+  follows: {
+    id: 'memoryCards.empty.follows',
+    defaultMessage: 'None of the people you follow have shared a memory card yet. Try the Global tab.',
+  },
+  global: {
+    id: 'memoryCards.empty.global',
+    defaultMessage:
+      'No memory cards found on your relays yet. Cards are published as kind 38192 events. Check back soon, or point Ditto at a relay that carries them.',
+  },
+});
 
 function GalleryView({ tab }: { tab: GalleryTab }) {
   const { data: cards, isLoading, isPending } = useMemoryCardGallery(tab);
@@ -223,7 +235,7 @@ function GalleryView({ tab }: { tab: GalleryTab }) {
     <div className="mb-4 flex justify-end">
       <Button size="sm" onClick={() => setUploadOpen(true)}>
         <Upload className="mr-1.5 size-4" />
-        Upload / update card
+        <FormattedMessage id="memoryCards.uploadButton" defaultMessage="Upload / update card" />
       </Button>
     </div>
   ) : null;
@@ -246,7 +258,7 @@ function GalleryView({ tab }: { tab: GalleryTab }) {
   } else if (!cards || cards.length === 0) {
     content = (
       <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
-        <p className="mx-auto max-w-sm text-muted-foreground">{GALLERY_EMPTY[tab]}</p>
+        <p className="mx-auto max-w-sm text-muted-foreground"><FormattedMessage {...GALLERY_EMPTY[tab]} /></p>
       </div>
     );
   } else {
@@ -254,14 +266,22 @@ function GalleryView({ tab }: { tab: GalleryTab }) {
     content = (
       <>
         <p className="mb-4 text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">{cards.length}</span>{' '}
-          card{cards.length === 1 ? '' : 's'}
-          {!isMine && (
-            <>
-              {' '}from{' '}
-              <span className="font-semibold text-foreground">{authorCount}</span>{' '}
-              author{authorCount === 1 ? '' : 's'}
-            </>
+          {isMine ? (
+            <FormattedMessage
+              id="memoryCards.cardCount"
+              defaultMessage="{count, plural, one {<b>#</b> card} other {<b>#</b> cards}}"
+              values={{ count: cards.length, b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span> }}
+            />
+          ) : (
+            <FormattedMessage
+              id="memoryCards.cardAuthorCount"
+              defaultMessage="{count, plural, one {<b>#</b> card} other {<b>#</b> cards}} from {authors, plural, one {<b>#</b> author} other {<b>#</b> authors}}"
+              values={{
+                count: cards.length,
+                authors: authorCount,
+                b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+              }}
+            />
           )}
         </p>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -301,6 +321,7 @@ function UploadCardDialog({
   uploadCard: (cardId: string, image: Uint8Array, name?: string) => Promise<number>;
   onClose: () => void;
 }) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -310,13 +331,16 @@ function UploadCardDialog({
 
   const submit = async () => {
     if (!file) {
-      toast({ title: 'Choose a memory card file first.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.upload.noFile', defaultMessage: 'Choose a memory card file first.' }),
+        variant: 'destructive',
+      });
       return;
     }
     const id = cardId.trim();
     const err = validateCardId(id);
     if (err) {
-      toast({ title: err, variant: 'destructive' });
+      toast({ title: intl.formatMessage(err), variant: 'destructive' });
       return;
     }
     setBusy(true);
@@ -324,14 +348,26 @@ function UploadCardDialog({
       const bytes = new Uint8Array(await file.arrayBuffer());
       const count = await uploadCard(id, bytes, name);
       toast({
-        title: existingIds.includes(id) ? 'Card updated' : 'Card published',
-        description: `Published ${count} block${count === 1 ? '' : 's'} to “${id}”.`,
+        title: existingIds.includes(id)
+          ? intl.formatMessage({ id: 'memoryCards.upload.updated', defaultMessage: 'Card updated' })
+          : intl.formatMessage({ id: 'memoryCards.upload.published', defaultMessage: 'Card published' }),
+        description: intl.formatMessage(
+          {
+            id: 'memoryCards.publishedBlocks',
+            defaultMessage: '{count, plural, one {Published # block to “{cardId}”.} other {Published # blocks to “{cardId}”.}}',
+          },
+          { count, cardId: id },
+        ),
       });
       const npub = tryNpubEncode(myPubkey ?? '');
       onClose();
       if (npub) navigate(`/memory-cards/${npub}/${encodeURIComponent(id)}`);
     } catch (e) {
-      toast({ title: 'Upload failed', description: String(e), variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.upload.failed', defaultMessage: 'Upload failed' }),
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }
@@ -341,16 +377,21 @@ function UploadCardDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload or update a memory card</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage id="memoryCards.upload.title" defaultMessage="Upload or update a memory card" />
+          </DialogTitle>
           <DialogDescription>
-            Pick a PlayStation 1 memory card image (128 KB `.mcd` / `.mcr` / `.bin`). Its header and
-            every occupied save block are published under your key. Your signer prompts once per
-            block. Choosing an existing card id updates that card.
+            <FormattedMessage
+              id="memoryCards.upload.description"
+              defaultMessage="Pick a PlayStation 1 memory card image (128 KB `.mcd` / `.mcr` / `.bin`). Its header and every occupied save block are published under your key. Your signer prompts once per block. Choosing an existing card id updates that card."
+            />
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="mc-upload-file">Memory card file</Label>
+            <Label htmlFor="mc-upload-file">
+              <FormattedMessage id="memoryCards.upload.file" defaultMessage="Memory card file" />
+            </Label>
             <input
               ref={fileRef}
               id="mc-upload-file"
@@ -361,12 +402,14 @@ function UploadCardDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="mc-upload-card">Card id</Label>
+            <Label htmlFor="mc-upload-card">
+              <FormattedMessage id="memoryCards.upload.cardId" defaultMessage="Card id" />
+            </Label>
             <Input
               id="mc-upload-card"
               value={cardId}
               onChange={(e) => setCardId(e.target.value)}
-              placeholder="e.g. main"
+              placeholder={intl.formatMessage({ id: 'memoryCards.cardIdPlaceholder', defaultMessage: 'e.g. main' })}
               autoComplete="off"
               list="mc-upload-card-ids"
             />
@@ -379,23 +422,29 @@ function UploadCardDialog({
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="mc-upload-name">Card name (optional)</Label>
+            <Label htmlFor="mc-upload-name">
+              <FormattedMessage id="memoryCards.upload.cardName" defaultMessage="Card name (optional)" />
+            </Label>
             <Input
               id="mc-upload-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. My PSX Card"
+              placeholder={intl.formatMessage({ id: 'memoryCards.upload.cardNamePlaceholder', defaultMessage: 'e.g. My PSX Card' })}
               autoComplete="off"
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button onClick={submit} disabled={busy || !file}>
             {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
-            {existingIds.includes(cardId.trim()) ? 'Update card' : 'Publish card'}
+            {existingIds.includes(cardId.trim()) ? (
+              <FormattedMessage id="memoryCards.upload.update" defaultMessage="Update card" />
+            ) : (
+              <FormattedMessage id="memoryCards.upload.publish" defaultMessage="Publish card" />
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -447,7 +496,7 @@ function BlockActions({
             onCopy(index, event);
           }}
         >
-          <Copy className="size-3" /> copy
+          <Copy className="size-3" /> <FormattedMessage id="memoryCards.block.copy" defaultMessage="copy" />
         </button>
       )}
     </div>
@@ -455,6 +504,7 @@ function BlockActions({
 }
 
 function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
+  const intl = useIntl();
   const visual = useMemo(() => {
     if (!event) return null;
     try {
@@ -469,7 +519,9 @@ function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
       <div className="relative flex min-h-[132px] flex-col items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground">
         <span className="absolute right-2.5 top-2 font-mono text-[11px] text-muted-foreground/70">#{index}</span>
         <span className="text-2xl opacity-40">+</span>
-        <span className="text-xs">free</span>
+        <span className="text-xs">
+          <FormattedMessage id="memoryCards.block.free" defaultMessage="free" />
+        </span>
       </div>
     );
   }
@@ -481,7 +533,9 @@ function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
     return (
       <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border bg-secondary/20 p-3">
         <span className="absolute right-2.5 top-2 font-mono text-[11px] text-muted-foreground/70">#{index}</span>
-        <p className="text-sm text-muted-foreground">↳ continuation</p>
+        <p className="text-sm text-muted-foreground">
+          ↳ <FormattedMessage id="memoryCards.block.continuation" defaultMessage="continuation" />
+        </p>
         {onDownload && <BlockActions index={index} event={event} onCopy={onCopy} onDownload={onDownload} />}
       </div>
     );
@@ -490,7 +544,8 @@ function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
   const filename = tagVal(event, 'filename');
   const region = tagVal(event, 'region');
   const flag = regionFlag(region, filename);
-  const title = visual.title || tagVal(event, 'title') || '(untitled save)';
+  const title = visual.title || tagVal(event, 'title')
+    || intl.formatMessage({ id: 'memoryCards.block.untitled', defaultMessage: '(untitled save)' });
 
   return (
     <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border bg-card p-3">
@@ -530,8 +585,18 @@ function CardViewer({ pubkey, cardId }: { pubkey: string; cardId: string | undef
     return (
       <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
         <p className="mx-auto max-w-sm text-muted-foreground">
-          No card found for this key{cardId ? ` under card “${cardId}”` : ''}. It may not be published to
-          your relays.
+          {cardId ? (
+            <FormattedMessage
+              id="memoryCards.notFoundNamed"
+              defaultMessage="No card found for this key under card “{cardId}”. It may not be published to your relays."
+              values={{ cardId }}
+            />
+          ) : (
+            <FormattedMessage
+              id="memoryCards.notFound"
+              defaultMessage="No card found for this key. It may not be published to your relays."
+            />
+          )}
         </p>
       </div>
     );
@@ -541,6 +606,7 @@ function CardViewer({ pubkey, cardId }: { pubkey: string; cardId: string | undef
 }
 
 function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
+  const intl = useIntl();
   const used = Object.keys(card.blocks).filter((n) => Number(n) >= 1).length;
   const hasHeader = !!card.blocks[0];
 
@@ -555,13 +621,23 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
     try {
       const { present, hasHeader: header } = await downloadCard(card.cardId, card.blocks);
       toast({
-        title: `Downloaded ${card.cardId}.mcd`,
+        title: intl.formatMessage(
+          { id: 'memoryCards.download.done', defaultMessage: 'Downloaded {filename}' },
+          { filename: `${card.cardId}.mcd` },
+        ),
         description: header
-          ? `${present}/16 blocks written.`
-          : `${present}/16 blocks — block 0 missing, so emulators may reject it.`,
+          ? intl.formatMessage({ id: 'memoryCards.download.written', defaultMessage: '{present}/16 blocks written.' }, { present })
+          : intl.formatMessage(
+            { id: 'memoryCards.download.noHeader', defaultMessage: '{present}/16 blocks. Block 0 missing, so emulators may reject it.' },
+            { present },
+          ),
       });
     } catch (e) {
-      toast({ title: 'Download failed', description: String(e), variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.download.failed', defaultMessage: 'Download failed' }),
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -569,7 +645,11 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
     try {
       await downloadBlock(card.cardId, index, event);
     } catch (e) {
-      toast({ title: 'Download failed', description: String(e), variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.download.failed', defaultMessage: 'Download failed' }),
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -585,7 +665,7 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
             <span className="font-mono">{card.cardId}</span>
             {mine && (
               <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-                your card
+                <FormattedMessage id="memoryCards.yourCard" defaultMessage="your card" />
               </span>
             )}
           </h2>
@@ -599,7 +679,9 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
                 style={{ width: `${(used / 15) * 100}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{used} of 15 save blocks used</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              <FormattedMessage id="memoryCards.blocksUsed" defaultMessage="{used} of 15 save blocks used" values={{ used }} />
+            </p>
           </div>
         </div>
       </div>
@@ -608,12 +690,16 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={handleDownloadCard}>
           <Download className="mr-1.5 size-4" />
-          Download .mcd
+          <FormattedMessage id="memoryCards.downloadMcd" defaultMessage="Download .mcd" />
         </Button>
         {canManage && (
           <Button variant="secondary" size="sm" onClick={() => setCloneOpen(true)}>
             <Files className="mr-1.5 size-4" />
-            {mine ? 'Duplicate card' : 'Clone to my card'}
+            {mine ? (
+              <FormattedMessage id="memoryCards.duplicateCard" defaultMessage="Duplicate card" />
+            ) : (
+              <FormattedMessage id="memoryCards.cloneToMine" defaultMessage="Clone to my card" />
+            )}
           </Button>
         )}
       </div>
@@ -621,7 +707,9 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
       {/* Other cards by this author */}
       {card.cardIds.length > 1 && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Other cards:</span>
+          <span className="text-muted-foreground">
+            <FormattedMessage id="memoryCards.otherCards" defaultMessage="Other cards:" />
+          </span>
           {card.cardIds
             .filter((id) => id !== card.cardId)
             .map((id) => {
@@ -643,8 +731,14 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
       <p className="text-sm text-muted-foreground">
         🗂️{' '}
         {hasHeader
-          ? 'System block 0: header and allocation table present.'
-          : 'System block 0 not published — emulators may reject a reconstructed image.'}
+          ? intl.formatMessage({
+            id: 'memoryCards.systemBlockPresent',
+            defaultMessage: 'System block 0: header and allocation table present.',
+          })
+          : intl.formatMessage({
+            id: 'memoryCards.systemBlockMissing',
+            defaultMessage: 'System block 0 not published. Emulators may reject a reconstructed image.',
+          })}
       </p>
 
       {/* 15 save slots — capped at 3 columns so titles stay readable inside
@@ -700,6 +794,7 @@ function CopyBlockDialog({
   publishBlock: (source: NostrEvent, cardId: string, block: number) => Promise<void>;
   onClose: () => void;
 }) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const [cardId, setCardId] = useState(defaultCardId);
   const [block, setBlock] = useState(String(defaultBlock));
@@ -709,18 +804,28 @@ function CopyBlockDialog({
     const id = cardId.trim();
     const err = validateCardId(id);
     if (err) {
-      toast({ title: err, variant: 'destructive' });
+      toast({ title: intl.formatMessage(err), variant: 'destructive' });
       return;
     }
     setBusy(true);
     try {
       await publishBlock(source, id, Number(block));
-      toast({ title: 'Block copied', description: `Published to “${id}” at block #${block}.` });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.copy.done', defaultMessage: 'Block copied' }),
+        description: intl.formatMessage(
+          { id: 'memoryCards.copy.doneDescription', defaultMessage: 'Published to “{cardId}” at block #{block}.' },
+          { cardId: id, block },
+        ),
+      });
       const npub = tryNpubEncode(myPubkey ?? '');
       onClose();
       if (npub) navigate(`/memory-cards/${npub}/${encodeURIComponent(id)}`);
     } catch (e) {
-      toast({ title: 'Copy failed', description: String(e), variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.copy.failed', defaultMessage: 'Copy failed' }),
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }
@@ -730,25 +835,33 @@ function CopyBlockDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Copy save block to your card</DialogTitle>
+          <DialogTitle>
+            <FormattedMessage id="memoryCards.copy.title" defaultMessage="Copy save block to your card" />
+          </DialogTitle>
           <DialogDescription>
-            Publishes this block under your key. The save bytes stay identical, so its integrity tag
-            remains valid.
+            <FormattedMessage
+              id="memoryCards.copy.description"
+              defaultMessage="Publishes this block under your key. The save bytes stay identical, so its integrity tag remains valid."
+            />
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <Label htmlFor="mc-copy-card">Write to card id</Label>
+            <Label htmlFor="mc-copy-card">
+              <FormattedMessage id="memoryCards.writeToCardId" defaultMessage="Write to card id" />
+            </Label>
             <Input
               id="mc-copy-card"
               value={cardId}
               onChange={(e) => setCardId(e.target.value)}
-              placeholder="e.g. main"
+              placeholder={intl.formatMessage({ id: 'memoryCards.cardIdPlaceholder', defaultMessage: 'e.g. main' })}
               autoComplete="off"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="mc-copy-block">Target block</Label>
+            <Label htmlFor="mc-copy-block">
+              <FormattedMessage id="memoryCards.copy.targetBlock" defaultMessage="Target block" />
+            </Label>
             <select
               id="mc-copy-block"
               value={block}
@@ -757,7 +870,7 @@ function CopyBlockDialog({
             >
               {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>
-                  Block #{n}
+                  {intl.formatMessage({ id: 'memoryCards.copy.blockOption', defaultMessage: 'Block #{n}' }, { n })}
                 </option>
               ))}
             </select>
@@ -765,11 +878,11 @@ function CopyBlockDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button onClick={submit} disabled={busy}>
             {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
-            Copy block
+            <FormattedMessage id="memoryCards.copy.submit" defaultMessage="Copy block" />
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -791,6 +904,7 @@ function CloneCardDialog({
   cloneCard: (blocks: Record<number, NostrEvent>, cardId: string) => Promise<number>;
   onClose: () => void;
 }) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const blockCount = Object.keys(card.blocks).length;
   const [cardId, setCardId] = useState(mine ? `${card.cardId}-copy` : card.cardId);
@@ -800,21 +914,31 @@ function CloneCardDialog({
     const id = cardId.trim();
     const err = validateCardId(id);
     if (err) {
-      toast({ title: err, variant: 'destructive' });
+      toast({ title: intl.formatMessage(err), variant: 'destructive' });
       return;
     }
     setBusy(true);
     try {
       const ok = await cloneCard(card.blocks, id);
       toast({
-        title: 'Card cloned',
-        description: `Published ${ok} block${ok === 1 ? '' : 's'} to “${id}”.`,
+        title: intl.formatMessage({ id: 'memoryCards.clone.done', defaultMessage: 'Card cloned' }),
+        description: intl.formatMessage(
+          {
+            id: 'memoryCards.publishedBlocks',
+            defaultMessage: '{count, plural, one {Published # block to “{cardId}”.} other {Published # blocks to “{cardId}”.}}',
+          },
+          { count: ok, cardId: id },
+        ),
       });
       const npub = tryNpubEncode(myPubkey ?? '');
       onClose();
       if (npub) navigate(`/memory-cards/${npub}/${encodeURIComponent(id)}`);
     } catch (e) {
-      toast({ title: 'Clone failed', description: String(e), variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'memoryCards.clone.failed', defaultMessage: 'Clone failed' }),
+        description: e instanceof Error ? e.message : String(e),
+        variant: 'destructive',
+      });
     } finally {
       setBusy(false);
     }
@@ -824,30 +948,44 @@ function CloneCardDialog({
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{mine ? 'Duplicate this card' : 'Clone to your card'}</DialogTitle>
+          <DialogTitle>
+            {mine ? (
+              <FormattedMessage id="memoryCards.clone.titleDuplicate" defaultMessage="Duplicate this card" />
+            ) : (
+              <FormattedMessage id="memoryCards.clone.title" defaultMessage="Clone to your card" />
+            )}
+          </DialogTitle>
           <DialogDescription>
-            Re-publishes all {blockCount} block{blockCount === 1 ? '' : 's'} under your key. Your
-            signer prompts once per block. Publishing to a card id you already use overwrites its
-            blocks.
+            <FormattedMessage
+              id="memoryCards.clone.description"
+              defaultMessage="{count, plural, one {Re-publishes all # block under your key.} other {Re-publishes all # blocks under your key.}} Your signer prompts once per block. Publishing to a card id you already use overwrites its blocks."
+              values={{ count: blockCount }}
+            />
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5 py-2">
-          <Label htmlFor="mc-clone-card">Write to card id</Label>
+          <Label htmlFor="mc-clone-card">
+            <FormattedMessage id="memoryCards.writeToCardId" defaultMessage="Write to card id" />
+          </Label>
           <Input
             id="mc-clone-card"
             value={cardId}
             onChange={(e) => setCardId(e.target.value)}
-            placeholder="e.g. main"
+            placeholder={intl.formatMessage({ id: 'memoryCards.cardIdPlaceholder', defaultMessage: 'e.g. main' })}
             autoComplete="off"
           />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button onClick={submit} disabled={busy}>
             {busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}
-            {`Publish ${blockCount} block${blockCount === 1 ? '' : 's'}`}
+            <FormattedMessage
+              id="memoryCards.clone.submit"
+              defaultMessage="{count, plural, one {Publish # block} other {Publish # blocks}}"
+              values={{ count: blockCount }}
+            />
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -867,6 +1005,7 @@ function CloneCardDialog({
  */
 export function MemoryCardsPage() {
   const { config } = useAppContext();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { npub, cardId: rawCardId } = useParams<{ npub?: string; cardId?: string }>();
 
@@ -883,8 +1022,8 @@ export function MemoryCardsPage() {
   const activeTab: GalleryTab = user ? storedTab : 'global';
 
   useSeoMeta({
-    title: `Memory Cards | ${config.appName}`,
-    description: 'PlayStation 1 memory cards shared over Nostr',
+    title: intl.formatMessage({ id: 'memoryCards.seoTitle', defaultMessage: 'Memory Cards | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'memoryCards.metaDescription', defaultMessage: 'PlayStation 1 memory cards shared over Nostr' }),
   });
 
   useLayoutOptions({ showFAB: false, hasSubHeader: !viewing });
@@ -892,7 +1031,7 @@ export function MemoryCardsPage() {
   return (
     <main className="flex-1 min-w-0">
       <PageHeader
-        title="Memory Cards"
+        title={intl.formatMessage({ id: 'memoryCards.title', defaultMessage: 'Memory Cards' })}
         icon={sidebarItemIcon('cards', 'size-5')}
         backTo={viewing ? '/memory-cards' : '/'}
         alwaysShowBack={viewing}
@@ -907,11 +1046,17 @@ export function MemoryCardsPage() {
           ) : (
             <div className="rounded-xl border border-dashed border-border py-12 px-8 text-center">
               <p className="mx-auto max-w-sm text-muted-foreground">
-                That doesn’t look like a valid npub.{' '}
-                <Link to="/memory-cards" className="text-primary hover:underline">
-                  Back to all cards
-                </Link>
-                .
+                <FormattedMessage
+                  id="memoryCards.invalidNpub"
+                  defaultMessage="That doesn’t look like a valid npub. <link>Back to all cards</link>."
+                  values={{
+                    link: (chunks) => (
+                      <Link to="/memory-cards" className="text-primary hover:underline">
+                        {chunks}
+                      </Link>
+                    ),
+                  }}
+                />
               </p>
             </div>
           )}
@@ -920,19 +1065,19 @@ export function MemoryCardsPage() {
         <>
           <SubHeaderBar>
             <TabButton
-              label="Mine"
+              label={intl.formatMessage({ id: 'memoryCards.tab.mine', defaultMessage: 'Mine' })}
               active={activeTab === 'mine'}
               onClick={() => setActiveTab('mine')}
               disabled={!user}
             />
             <TabButton
-              label="Follows"
+              label={intl.formatMessage({ id: 'memoryCards.tab.follows', defaultMessage: 'Follows' })}
               active={activeTab === 'follows'}
               onClick={() => setActiveTab('follows')}
               disabled={!user}
             />
             <TabButton
-              label="Global"
+              label={intl.formatMessage({ id: 'memoryCards.tab.global', defaultMessage: 'Global' })}
               active={activeTab === 'global'}
               onClick={() => setActiveTab('global')}
             />

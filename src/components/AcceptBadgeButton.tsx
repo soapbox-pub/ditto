@@ -1,5 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Award, Check, Loader2 } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { useAcceptBadge } from '@/hooks/useAcceptBadge';
@@ -45,7 +46,7 @@ export function AcceptBadgeButton({ awardEvent, prominent }: AcceptBadgeButtonPr
         )}
       >
         <Check className={prominent ? 'size-4' : 'size-3'} />
-        Accepted
+        <FormattedMessage id="acceptBadge.accepted" defaultMessage="Accepted" />
       </span>
     );
   }
@@ -66,7 +67,7 @@ export function AcceptBadgeButton({ awardEvent, prominent }: AcceptBadgeButtonPr
         ) : (
           <>
             <Award className="size-4" />
-            Accept Badge
+            <FormattedMessage id="acceptBadge.acceptBadge" defaultMessage="Accept Badge" />
           </>
         )}
       </Button>
@@ -89,7 +90,7 @@ export function AcceptBadgeButton({ awardEvent, prominent }: AcceptBadgeButtonPr
       ) : (
         <>
           <Award className="size-3" />
-          Accept
+          <FormattedMessage id="acceptBadge.accept" defaultMessage="Accept" />
         </>
       )}
     </Button>

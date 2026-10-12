@@ -1,6 +1,7 @@
 // src/blobbi/actions/components/InlineMusicPlayer.tsx
 
 import { useCallback, useEffect } from 'react';
+import { useIntl } from 'react-intl';
 import { Music, Play, Pause, RotateCcw, MoreHorizontal, Loader2, AlertCircle, X, Volume2, VolumeX } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { cn } from '@/lib/utils';
 
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
 import type { SelectedTrack } from './PlayMusicModal';
+import { formatTrackTitle } from '../lib/blobbi-track-catalog';
 
 // Re-export for external use
 export type { SelectedTrack } from './PlayMusicModal';
@@ -42,6 +44,7 @@ export function InlineMusicPlayer({
   isPublished,
   isPublishing,
 }: InlineMusicPlayerProps) {
+  const intl = useIntl();
   const {
     state: playbackState,
     error: playbackError,
@@ -106,7 +109,7 @@ export function InlineMusicPlayer({
   }, [playbackState, selection.url, load, toggle]);
   
   // Track info
-  const trackTitle = selection.track.title;
+  const trackTitle = formatTrackTitle(intl, selection.track);
   const trackArtist = selection.track.artist;
   
   const isLoading = playbackState === 'loading' || isPublishing;
@@ -142,7 +145,11 @@ export function InlineMusicPlayer({
             )}
             {!trackArtist && (
               <p className="text-xs text-muted-foreground">
-                {isPlaying ? 'Now playing...' : isPublishing ? 'Starting...' : 'Ready to play'}
+                {isPlaying
+                  ? intl.formatMessage({ id: 'inlineMusicPlayer.nowPlaying', defaultMessage: 'Now playing...' })
+                  : isPublishing
+                    ? intl.formatMessage({ id: 'inlineMusicPlayer.starting', defaultMessage: 'Starting...' })
+                    : intl.formatMessage({ id: 'inlineMusicPlayer.readyToPlay', defaultMessage: 'Ready to play' })}
               </p>
             )}
           </div>
@@ -175,7 +182,7 @@ export function InlineMusicPlayer({
                   restart();
                 }}
                 className="size-9 rounded-full"
-                title="Restart from beginning"
+                title={intl.formatMessage({ id: 'inlineMusicPlayer.restart', defaultMessage: 'Restart from beginning' })}
               >
                 <RotateCcw className="size-3.5" />
               </Button>
@@ -188,7 +195,9 @@ export function InlineMusicPlayer({
                   size="icon"
                   variant="ghost"
                   className="size-9 rounded-full"
-                  title={volume === 0 ? 'Unmute' : 'Volume'}
+                  title={volume === 0
+                    ? intl.formatMessage({ id: 'inlineMusicPlayer.unmute', defaultMessage: 'Unmute' })
+                    : intl.formatMessage({ id: 'inlineMusicPlayer.volume', defaultMessage: 'Volume' })}
                 >
                   {volume === 0 ? (
                     <VolumeX className="size-4" />

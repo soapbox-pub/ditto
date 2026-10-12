@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { IntlProvider } from 'react-intl';
 
 import {
   KIND_BLOBBI_STATE,
@@ -12,6 +13,10 @@ import {
 } from '@blobbi-kit/core/blobbi';
 
 import { BlobbiHatchingCeremony } from './BlobbiHatchingCeremony';
+
+function EnglishIntl({ children }: { children: React.ReactNode }) {
+  return <IntlProvider locale="en">{children}</IntlProvider>;
+}
 
 /**
  * Regression tests for the ceremony's silent setup step:
@@ -121,6 +126,7 @@ function renderCeremony(
       setStoredSelectedD={vi.fn()}
       {...extraProps}
     />,
+    { wrapper: EnglishIntl },
   );
   return { ...utils, updateProfileEvent };
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useIntl } from 'react-intl';
 
 import { useTheme } from '@/hooks/useTheme';
 import { getBackgroundThemeMode } from '@/lib/colorUtils';
@@ -18,6 +19,7 @@ interface TweetEmbedProps {
  * to auto-size the iframe to fit the tweet content.
  */
 export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
+  const intl = useIntl();
   useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -54,7 +56,7 @@ export function TweetEmbed({ tweetId, className }: TweetEmbedProps) {
       <iframe
         ref={iframeRef}
         src={`https://platform.twitter.com/embed/Tweet.html?${params}`}
-        title="Tweet"
+        title={intl.formatMessage({ id: 'tweetEmbed.title', defaultMessage: 'Tweet' })}
         className="w-full border-0"
         style={{ minHeight: 250 }}
         scrolling="no"

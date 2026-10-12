@@ -8,6 +8,7 @@ import {
 	GitMerge,
 } from "lucide-react";
 import type { ComponentType } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
@@ -23,6 +24,7 @@ import {
 	getGitRepoRef,
 	getGitRootRef,
 	getGitTicketSubject,
+	gitLabel,
 	gitStatusVerb,
 	gitTicketNoun,
 } from "@/lib/gitActivity";
@@ -70,7 +72,16 @@ function statusMeta(
 function TicketAuthorByline({ pubkey }: { pubkey: string }) {
 	const author = useAuthor(pubkey);
 	const name = getDisplayName(author.data?.metadata, pubkey);
-	return <span className="text-muted-foreground"> by {name}</span>;
+	return (
+		<span className="text-muted-foreground">
+			{" "}
+			<FormattedMessage
+				id="gitStatusCard.byline"
+				defaultMessage="by {name}"
+				values={{ name }}
+			/>
+		</span>
+	);
 }
 
 /**
@@ -80,6 +91,7 @@ function TicketAuthorByline({ pubkey }: { pubkey: string }) {
  * applied for patches, merged for PRs) and to show its subject and author.
  */
 export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
+	const intl = useIntl();
 	const rootRef = getGitRootRef(event);
 	const repoRef = getGitRepoRef(event);
 	const repoName = repoRef?.identifier ?? "";
@@ -144,11 +156,11 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize shrink-0 ${badgeClass}`}
 						>
 							<StatusIcon className="size-3" />
-							{verb}
+							{gitLabel(verb, intl)}
 						</span>
 						{noun && (
 							<span className="text-xs text-muted-foreground">
-								{noun}
+								{gitLabel(noun, intl)}
 								{root && <TicketAuthorByline pubkey={root.pubkey} />}
 							</span>
 						)}
@@ -191,7 +203,10 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 						<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
 							<GitMerge className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-[11px] text-muted-foreground">
-								Merge commit
+								<FormattedMessage
+									id="gitStatusCard.mergeCommit"
+									defaultMessage="Merge commit"
+								/>
 							</span>
 							<code className="ml-auto text-[11px] font-mono text-muted-foreground">
 								{mergeCommit.slice(0, 12)}
@@ -207,7 +222,10 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 								>
 									<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 									<span className="text-[11px] text-muted-foreground">
-										Applied as
+										<FormattedMessage
+											id="gitStatusCard.appliedAs"
+											defaultMessage="Applied as"
+										/>
 									</span>
 									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
 										{commit.slice(0, 12)}

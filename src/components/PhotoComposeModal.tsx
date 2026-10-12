@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { AlertTriangle, ImagePlus, Loader2, X } from 'lucide-react';
 import { encode as blurhashEncode } from 'blurhash';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import {
   Dialog,
@@ -88,6 +89,7 @@ interface PhotoComposeModalProps {
 }
 
 export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoComposeModalProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutateAsync: createEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -116,7 +118,11 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
   const handleFileUpload = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file', description: 'Only image files are allowed.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'photoCompose.invalidFile', defaultMessage: 'Invalid file' }),
+        description: intl.formatMessage({ id: 'photoCompose.imagesOnly', defaultMessage: 'Only image files are allowed.' }),
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -156,9 +162,13 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
         alt: '',
       }]);
     } catch {
-      toast({ title: 'Upload failed', description: 'Could not upload image.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'photoCompose.uploadFailed', defaultMessage: 'Upload failed' }),
+        description: intl.formatMessage({ id: 'photoCompose.uploadFailedDescription', defaultMessage: 'Could not upload image.' }),
+        variant: 'destructive',
+      });
     }
-  }, [uploadFile, toast, imageQuality]);
+  }, [uploadFile, toast, imageQuality, intl]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
@@ -251,12 +261,19 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
 
       queryClient.invalidateQueries({ queryKey: ['trending'] });
 
-      toast({ title: 'Photo published!', description: 'Your photo has been shared.' });
+      toast({
+        title: intl.formatMessage({ id: 'photoCompose.published', defaultMessage: 'Photo published!' }),
+        description: intl.formatMessage({ id: 'photoCompose.publishedDescription', defaultMessage: 'Your photo has been shared.' }),
+      });
       resetForm();
       onOpenChange(false);
       onSuccess?.();
     } catch {
-      toast({ title: 'Error', description: 'Failed to publish photo.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'photoCompose.error', defaultMessage: 'Error' }),
+        description: intl.formatMessage({ id: 'photoCompose.publishFailed', defaultMessage: 'Failed to publish photo.' }),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -268,7 +285,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12 shrink-0 border-b border-border/50">
           <DialogTitle className="text-base font-semibold">
-            New photo
+            <FormattedMessage id="photoCompose.title" defaultMessage="New photo" />
           </DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
@@ -297,7 +314,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                 {isUploading ? (
                   <>
                     <Loader2 className="size-8 text-primary animate-spin" />
-                    <p className="text-sm text-muted-foreground">Uploading...</p>
+                    <p className="text-sm text-muted-foreground"><FormattedMessage id="photoCompose.uploading" defaultMessage="Uploading..." /></p>
                   </>
                 ) : (
                   <>
@@ -305,8 +322,8 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                       <ImagePlus className="size-7 text-primary" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-foreground">Choose a photo</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">or paste from clipboard</p>
+                      <p className="text-sm font-medium text-foreground"><FormattedMessage id="photoCompose.choose" defaultMessage="Choose a photo" /></p>
+                      <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="photoCompose.orPaste" defaultMessage="or paste from clipboard" /></p>
                     </div>
                   </>
                 )}
@@ -322,7 +339,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                     <div key={img.url} className="relative group rounded-xl overflow-hidden bg-secondary/30">
                       <img
                         src={img.url}
-                        alt={img.alt || `Photo ${index + 1}`}
+                        alt={img.alt || intl.formatMessage({ id: 'photoCompose.photoAlt', defaultMessage: 'Photo {number}' }, { number: index + 1 })}
                         className="w-full aspect-square object-cover"
                         decoding="async"
                       />
@@ -341,7 +358,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                           dir="auto"
                           value={img.alt}
                           onChange={(e) => handleAltChange(index, e.target.value)}
-                          placeholder="Alt text (accessibility)"
+                          placeholder={intl.formatMessage({ id: 'photoCompose.altPlaceholder', defaultMessage: 'Alt text (accessibility)' })}
                           className="w-full bg-black/30 backdrop-blur-sm text-white placeholder:text-white/50 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-white/40"
                         />
                       </div>
@@ -361,7 +378,9 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                   ) : (
                     <ImagePlus className="size-4" />
                   )}
-                  {isUploading ? 'Uploading...' : 'Add more photos'}
+                  {isUploading
+                    ? <FormattedMessage id="photoCompose.uploading" defaultMessage="Uploading..." />
+                    : <FormattedMessage id="photoCompose.addMore" defaultMessage="Add more photos" />}
                 </button>
               </div>
             )}
@@ -385,14 +404,14 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
             {/* Title field */}
             <div className="space-y-1.5">
               <label htmlFor="photo-title" className="text-xs font-medium text-muted-foreground">
-                Title <span className="text-destructive">*</span>
+                <FormattedMessage id="photoCompose.titleLabel" defaultMessage="Title" /> <span className="text-destructive">*</span>
               </label>
               <Input
                 id="photo-title"
                 dir="auto"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Give your photo a title"
+                placeholder={intl.formatMessage({ id: 'photoCompose.titlePlaceholder', defaultMessage: 'Give your photo a title' })}
                 maxLength={200}
                 className="bg-secondary/40 border-0 rounded-lg focus-visible:ring-1 focus-visible:ring-primary/40"
               />
@@ -401,14 +420,14 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
             {/* Caption field */}
             <div className="space-y-1.5">
               <label htmlFor="photo-caption" className="text-xs font-medium text-muted-foreground">
-                Caption
+                <FormattedMessage id="photoCompose.captionLabel" defaultMessage="Caption" />
               </label>
               <textarea
                 id="photo-caption"
                 dir="auto"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                placeholder="Write a caption... (supports #hashtags)"
+                placeholder={intl.formatMessage({ id: 'photoCompose.captionPlaceholder', defaultMessage: 'Write a caption... (supports #hashtags)' })}
                 rows={3}
                 maxLength={MAX_CAPTION_CHARS}
                 className="w-full bg-secondary/40 rounded-lg px-3 py-2 text-sm outline-none resize-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground"
@@ -434,7 +453,9 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                 )}
               >
                 <AlertTriangle className="size-3.5" />
-                {cwEnabled ? 'Content warning enabled' : 'Add content warning'}
+                {cwEnabled
+                  ? <FormattedMessage id="photoCompose.cwEnabled" defaultMessage="Content warning enabled" />
+                  : <FormattedMessage id="photoCompose.addCw" defaultMessage="Add content warning" />}
               </button>
 
               {cwEnabled && (
@@ -442,7 +463,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
                   <Input
                     value={cwText}
                     onChange={(e) => setCwText(e.target.value)}
-                    placeholder="Content warning reason (optional)"
+                    placeholder={intl.formatMessage({ id: 'photoCompose.cwPlaceholder', defaultMessage: 'Content warning reason (optional)' })}
                     className="h-8 text-sm bg-secondary/40 border-0 rounded-lg"
                   />
                   <button
@@ -465,7 +486,7 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
             onClick={() => onOpenChange(false)}
             className="rounded-full"
           >
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button
             onClick={handleSubmit}
@@ -476,10 +497,10 @@ export function PhotoComposeModal({ open, onOpenChange, onSuccess }: PhotoCompos
             {isPublishing ? (
               <>
                 <Loader2 className="size-4 animate-spin mr-1.5" />
-                Publishing...
+                <FormattedMessage id="photoCompose.publishing" defaultMessage="Publishing..." />
               </>
             ) : (
-              'Publish'
+              <FormattedMessage id="photoCompose.publish" defaultMessage="Publish" />
             )}
           </Button>
         </div>

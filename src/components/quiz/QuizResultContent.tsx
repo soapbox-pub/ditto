@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ClipboardCheck } from 'lucide-react';
 
@@ -37,7 +38,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
   if (!result) {
     return (
       <p className={cn('mt-2 text-sm italic text-muted-foreground', className)}>
-        This quiz result could not be displayed.
+        <FormattedMessage id="quizResult.unavailable" defaultMessage="This quiz result could not be displayed." />
       </p>
     );
   }
@@ -65,7 +66,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
       <div className="rounded-2xl border bg-card p-4">
         <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <ClipboardCheck className="size-3" />
-          Quiz result
+          <FormattedMessage id="quizResult.label" defaultMessage="Quiz result" />
           {quiz && (
             <>
               <span aria-hidden>·</span>
@@ -132,7 +133,9 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
             className="mt-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <Link to={`/${naddr}`}>Take this quiz</Link>
+            <Link to={`/${naddr}`}>
+              <FormattedMessage id="quizResult.takeThisQuiz" defaultMessage="Take this quiz" />
+            </Link>
           </Button>
         )}
       </div>

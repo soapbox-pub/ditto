@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
 import { Egg, Moon, Sun, RefreshCw, Check, Plus, Camera, Footprints, Wrench, Theater, ExternalLink, Utensils, Gamepad2, Sparkles, Pill, Music, Mic, Loader2, Target, Droplets, Heart, Zap, Refrigerator, ShowerHead, Candy, TowelRack, X, Activity, Users } from 'lucide-react';
@@ -12,7 +12,13 @@ import { useProjectedBlobbiState } from '@blobbi-kit/react/hooks/useProjectedBlo
 import { useBlobbiInteractions } from '@blobbi-kit/react/hooks/useBlobbiInteractions';
 import { useBlobbiActivityHistory } from '@blobbi-kit/react/hooks/useBlobbiActivityHistory';
 import { useCanonicalSync } from '@blobbi-kit/react/hooks/useCanonicalSync';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { formatShopItemName, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import {
+  formatDailyMissionDescription,
+  formatDailyMissionTitle,
+  formatTaskDescription,
+  formatTaskName,
+} from '@/blobbi/actions/lib/blobbi-mission-text';
 import { timeAgo } from '@/lib/timeAgo';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -178,12 +184,13 @@ function companionNeedsCare(companion: BlobbiCompanion): boolean {
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export function BlobbiPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
   useSeoMeta({
-    title: `Blobbi | ${config.appName}`,
-    description: 'Care for your virtual pet companion on Nostr',
+    title: intl.formatMessage({ id: 'blobbi.seoTitle', defaultMessage: 'Blobbi | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'blobbi.seoDescription', defaultMessage: 'Care for your virtual pet companion on Nostr' }),
   });
 
   if (!user) {
@@ -206,7 +213,7 @@ function LoggedOutState() {
         </div>
         <h1 className="text-2xl font-bold">Blobbi</h1>
         <p className="text-muted-foreground">
-          Log in with your Nostr account to care for your virtual pet companion.
+          <FormattedMessage id="blobbi.loggedOut.description" defaultMessage="Log in with your Nostr account to care for your virtual pet companion." />
         </p>
         <LoginArea className="mt-2" />
       </div>
@@ -217,6 +224,7 @@ function LoggedOutState() {
 // ─── Main Content ─────────────────────────────────────────────────────────────
 
 function BlobbiContent() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
@@ -426,10 +434,12 @@ function BlobbiContent() {
       updateCompanionEvent(event);
 
       toast({
-        title: isCurrentlySleeping ? 'Woke up!' : 'Resting...',
+        title: isCurrentlySleeping
+          ? intl.formatMessage({ id: 'blobbi.rest.wokeUp.title', defaultMessage: 'Woke up!' })
+          : intl.formatMessage({ id: 'blobbi.rest.resting.title', defaultMessage: 'Resting...' }),
         description: isCurrentlySleeping
-          ? 'Your Blobbi is now awake and active!'
-          : 'Your Blobbi is taking a rest.',
+          ? intl.formatMessage({ id: 'blobbi.rest.wokeUp.description', defaultMessage: 'Your Blobbi is now awake and active!' })
+          : intl.formatMessage({ id: 'blobbi.rest.resting.description', defaultMessage: 'Your Blobbi is taking a rest.' }),
       });
 
       // Track daily mission progress for sleep action (only when putting to sleep)
@@ -439,14 +449,14 @@ function BlobbiContent() {
     } catch (error) {
       console.error('Failed to update state:', error);
       toast({
-        title: 'Failed to update',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        title: intl.formatMessage({ id: 'blobbi.updateFailed', defaultMessage: 'Failed to update' }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'blobbi.unknownError', defaultMessage: 'Unknown error' }),
         variant: 'destructive',
       });
     } finally {
       setActionInProgress(null);
     }
-  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+  }, [user?.pubkey, companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, intl]);
   
   // ─── Use Inventory Item Hook ───
   const { mutateAsync: executeUseItem, isPending: isUsingItem } = useBlobbiUseInventoryItem({
@@ -478,11 +488,11 @@ function BlobbiContent() {
       } catch (error) {
         return { 
           success: false, 
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : intl.formatMessage({ id: 'blobbi.unknownError', defaultMessage: 'Unknown error' }),
         };
       }
     };
-  }, [executeUseItem, companion, profile]);
+  }, [executeUseItem, companion, profile, intl]);
   
   // Register with the global BlobbiActionsContext
   useBlobbiActionsRegistration(useItemForContext, isUsingItem);
@@ -745,9 +755,9 @@ function BlobbiContent() {
             <div className="size-24 rounded-3xl bg-muted/50 flex items-center justify-center">
               <RefreshCw className="size-12 text-muted-foreground animate-spin" />
             </div>
-            <h1 className="text-2xl font-bold">Syncing your Blobbi...</h1>
+            <h1 className="text-2xl font-bold"><FormattedMessage id="blobbi.syncing.title" defaultMessage="Syncing your Blobbi..." /></h1>
             <p className="text-muted-foreground">
-              Fetching your pet data from relays...
+              <FormattedMessage id="blobbi.syncing.description" defaultMessage="Fetching your pet data from relays..." />
             </p>
           </div>
         </div>
@@ -766,10 +776,12 @@ function BlobbiContent() {
             <div className="size-24 rounded-3xl bg-amber-500/10 flex items-center justify-center">
               <RefreshCw className="size-12 text-amber-500" />
             </div>
-            <h1 className="text-2xl font-bold">Pet Data Not Found</h1>
+            <h1 className="text-2xl font-bold"><FormattedMessage id="blobbi.notFound.title" defaultMessage="Pet Data Not Found" /></h1>
             <p className="text-muted-foreground">
-              No Blobbi data could be loaded from relays.
-              This may be a sync issue - try refreshing the page.
+              <FormattedMessage
+                id="blobbi.notFound.description"
+                defaultMessage="No Blobbi data could be loaded from relays. This may be a sync issue - try refreshing the page."
+              />
             </p>
             <Button
               onClick={() => {
@@ -779,7 +791,7 @@ function BlobbiContent() {
               variant="outline"
             >
               <RefreshCw className="size-4 mr-2" />
-              Retry
+              <FormattedMessage id="blobbi.notFound.retry" defaultMessage="Retry" />
             </Button>
           </div>
         </div>
@@ -1034,22 +1046,24 @@ function BlobbiDashboard({
       updateCompanionEvent(event);
 
       toast({
-        title: open ? 'Social interactions enabled' : 'Social interactions disabled',
+        title: open
+          ? intl.formatMessage({ id: 'blobbi.social.enabled.title', defaultMessage: 'Social interactions enabled' })
+          : intl.formatMessage({ id: 'blobbi.social.disabled.title', defaultMessage: 'Social interactions disabled' }),
         description: open
-          ? 'Other people can now care for this Blobbi.'
-          : 'Only you can interact with this Blobbi.',
+          ? intl.formatMessage({ id: 'blobbi.social.enabled.description', defaultMessage: 'Other people can now care for this Blobbi.' })
+          : intl.formatMessage({ id: 'blobbi.social.disabled.description', defaultMessage: 'Only you can interact with this Blobbi.' }),
       });
     } catch (error) {
       console.error('Failed to toggle social permission:', error);
       toast({
-        title: 'Failed to update',
-        description: 'Could not change the social interaction setting. Please try again.',
+        title: intl.formatMessage({ id: 'blobbi.updateFailed', defaultMessage: 'Failed to update' }),
+        description: intl.formatMessage({ id: 'blobbi.social.failed.description', defaultMessage: 'Could not change the social interaction setting. Please try again.' }),
         variant: 'destructive',
       });
     } finally {
       setIsSocialToggling(false);
     }
-  }, [companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+  }, [companion, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, intl]);
 
   // ─── Room Layout (read-only, decorative) ───
   const parsedRoomLayouts = useMemo(() => parseRoomLayoutsContent(profile?.content), [profile?.content]);
@@ -1423,8 +1437,8 @@ function BlobbiDashboard({
     // Validate stage when setting (not when unsetting)
     if (!isCurrentCompanion && !canBeCompanion) {
       toast({
-        title: 'Cannot set as companion',
-        description: 'Only hatched Blobbis (baby or adult) can be set as your companion.',
+        title: intl.formatMessage({ id: 'blobbi.companion.cannotSet.title', defaultMessage: 'Cannot set as companion' }),
+        description: intl.formatMessage({ id: 'blobbi.companion.cannotSet.description', defaultMessage: 'Only hatched Blobbis (baby or adult) can be set as your companion.' }),
         variant: 'destructive',
       });
       return;
@@ -1463,22 +1477,24 @@ function BlobbiDashboard({
       invalidateProfile();
       
       toast({
-        title: isCurrentCompanion ? 'Companion unset' : 'Companion set!',
-        description: isCurrentCompanion 
-          ? `${companion.name} is no longer your companion`
-          : `${companion.name} is now your companion`,
+        title: isCurrentCompanion
+          ? intl.formatMessage({ id: 'blobbi.companion.unset.title', defaultMessage: 'Companion unset' })
+          : intl.formatMessage({ id: 'blobbi.companion.set.title', defaultMessage: 'Companion set!' }),
+        description: isCurrentCompanion
+          ? intl.formatMessage({ id: 'blobbi.companion.unset.description', defaultMessage: '{name} is no longer your companion' }, { name: companion.name })
+          : intl.formatMessage({ id: 'blobbi.companion.set.description', defaultMessage: '{name} is now your companion' }, { name: companion.name }),
       });
     } catch (error) {
       console.error('Failed to update companion:', error);
       toast({
-        title: 'Failed to update companion',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        title: intl.formatMessage({ id: 'blobbi.companion.failed.title', defaultMessage: 'Failed to update companion' }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'blobbi.unknownError', defaultMessage: 'Unknown error' }),
         variant: 'destructive',
       });
     } finally {
       setIsUpdatingCompanion(false);
     }
-  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile]);
+  }, [profile, isCurrentCompanion, canBeCompanion, companion.d, companion.name, ensureCanonicalBeforeAction, publishEvent, updateProfileEvent, invalidateProfile, intl]);
   
   // Handler for starting incubation with explicit mode from dialog
   const handleStartIncubation = async (mode: StartIncubationMode, stopOtherD?: string) => {
@@ -1622,7 +1638,10 @@ function BlobbiDashboard({
     if (!poops.some(p => p.id === id)) return;
     setPoops(prev => prev.filter(p => p.id !== id));
     pendingPoopXpRef.current += POOP_CLEANUP_XP;
-    toast({ title: `+${POOP_CLEANUP_XP} XP`, description: 'Cleaned up!' });
+    toast({
+      title: intl.formatMessage({ id: 'blobbi.xpGained', defaultMessage: '+{xp} XP' }, { xp: POOP_CLEANUP_XP }),
+      description: intl.formatMessage({ id: 'blobbi.poop.cleaned', defaultMessage: 'Cleaned up!' }),
+    });
 
     // Debounce: wait 1.5s after last pickup, then publish all accumulated XP
     if (poopXpTimerRef.current) clearTimeout(poopXpTimerRef.current);
@@ -1654,7 +1673,7 @@ function BlobbiDashboard({
         console.error('Failed to persist poop cleanup XP:', error);
       }
     }, 1500);
-  }, [poops, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent]);
+  }, [poops, ensureCanonicalBeforeAction, publishEvent, updateCompanionEvent, intl]);
 
   // Shared timer ref for temporary action-emotion cleanup.
   // Used across the current feeding/item interaction paths so older timers
@@ -2125,7 +2144,7 @@ function BlobbiDashboard({
   const kitchenItems = useMemo<CarouselEntry[]>(() => [
     ...foodItems,
     ...getLiveShopItems().filter(i => i.id === 'nrg_drink'),
-  ].map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })), [foodItems]);
+  ].map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i) })), [foodItems, intl]);
 
   const itemDragHandlers = useItemDragHandlers(roomDrag);
 
@@ -2296,7 +2315,10 @@ function BlobbiDashboard({
         }
         onChangeRoom={(room) => {
           if (isSleeping) {
-            toast({ title: 'Zzz...', description: `${companion.name} is sleeping. Wake up first!` });
+            toast({
+              title: intl.formatMessage({ id: 'blobbi.sleeping.title', defaultMessage: 'Zzz...' }),
+              description: intl.formatMessage({ id: 'blobbi.sleeping.description', defaultMessage: '{name} is sleeping. Wake up first!' }, { name: companion.name }),
+            });
             return;
           }
           setStoredRoom(room);
@@ -2333,7 +2355,7 @@ function BlobbiDashboard({
               <div className="relative flex items-center justify-center mb-4">
                 <div className="flex items-center gap-2">
                   <Refrigerator className="size-5 text-orange-500" />
-                  <h3 className="text-sm font-semibold">Fridge</h3>
+                  <h3 className="text-sm font-semibold"><FormattedMessage id="blobbi.fridge.title" defaultMessage="Fridge" /></h3>
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowFridge(false); }}
@@ -2360,7 +2382,7 @@ function BlobbiDashboard({
                     )}
                   >
                     <span className="text-4xl leading-none">{item.icon}</span>
-                    <span className="text-[11px] font-medium text-foreground/80">{item.name}</span>
+                    <span className="text-[11px] font-medium text-foreground/80">{formatShopItemName(intl, item)}</span>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                       {item.statChanges.map((change) => {
                         const Icon = STAT_ICON[change.stat];
@@ -2744,7 +2766,7 @@ function HomeBar(props: RoomBottomBarProps) {
   const intl = useIntl();
   const focus = useCarouselFocus(props);
   const items = useMemo<CarouselEntry[]>(() => [
-    ...getLiveShopItems().filter(i => i.type === 'toy').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name })),
+    ...getLiveShopItems().filter(i => i.type === 'toy').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i) })),
     ...HOME_ACTIONS.map(a => ({ ...a, label: intl.formatMessage(a.label) })),
   ], [intl]);
 
@@ -2814,9 +2836,9 @@ function CareBar(props: RoomBottomBarProps) {
   const intl = useIntl();
   const shop = useMemo(() => getLiveShopItems(), []);
   const items = useMemo<CarouselEntry[]>(() => [
-    ...shop.filter(i => i.type === 'hygiene' && i.id !== 'hyg_towel').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'hygiene' })),
-    ...shop.filter(i => i.type === 'medicine').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: i.name, meta: 'medicine' })),
-  ], [shop]);
+    ...shop.filter(i => i.type === 'hygiene' && i.id !== 'hyg_towel').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i), meta: 'hygiene' })),
+    ...shop.filter(i => i.type === 'medicine').map(i => ({ id: i.id, icon: <span>{i.icon}</span>, label: formatShopItemName(intl, i), meta: 'medicine' })),
+  ], [shop, intl]);
   const focus = useCarouselFocus(props);
   const focused = items.find(e => e.id === focus[0]) ?? items[0];
   const isHygieneFocused = (focused?.meta ?? 'hygiene') === 'hygiene';
@@ -2839,7 +2861,7 @@ function CareBar(props: RoomBottomBarProps) {
       ) : treat && (
         <RoomActionButton
           icon={<Candy />}
-          label={treat.name}
+          label={formatShopItemName(intl, treat)}
           color="text-pink-400"
           glowHex="#f472b6"
           onClick={() => applyItem(treat.id)}
@@ -2957,6 +2979,7 @@ function MissionsTabContent({
   const allCompleted = isIncubating ? hatchTasks.allCompleted : evolveTasks.allCompleted;
   const isLoading = isIncubating ? hatchTasks.isLoading : evolveTasks.isLoading;
   const navigate = useNavigate();
+  const intl = useIntl();
 
   const completedCount = tasks.filter(t => t.completed).length;
   const totalCount = tasks.length;
@@ -2980,7 +3003,7 @@ function MissionsTabContent({
             )}
           >
             <Egg className="size-3.5" />
-            Journey
+            <FormattedMessage id="blobbi.missions.journey" defaultMessage="Journey" />
             {hasActiveProcess && (
               <span className="text-[10px] tabular-nums text-muted-foreground">{completedCount}/{totalCount}</span>
             )}
@@ -2995,7 +3018,7 @@ function MissionsTabContent({
             )}
           >
             <Target className="size-3.5" />
-            Bounties
+            <FormattedMessage id="blobbi.missions.bounties" defaultMessage="Bounties" />
             {dailyTotal > 0 && (
               <span className="text-[10px] tabular-nums text-muted-foreground">{dailyCompleted}/{dailyTotal}</span>
             )}
@@ -3037,8 +3060,8 @@ function MissionsTabContent({
                 >
                   <QuestTaskIcon taskId={task.id} completed={task.completed} />
                   <div className="flex-1 min-w-0">
-                    <p className={cn('text-sm font-medium leading-tight', task.completed && 'text-muted-foreground line-through')}>{task.name}</p>
-                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">{task.description}</p>
+                    <p className={cn('text-sm font-medium leading-tight', task.completed && 'text-muted-foreground line-through')}>{formatTaskName(intl, task)}</p>
+                    <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 line-clamp-1">{formatTaskDescription(intl, task)}</p>
                   </div>
                   {task.required > 1 && !task.completed && (
                     <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{task.current}/{task.required}</span>
@@ -3068,7 +3091,15 @@ function MissionsTabContent({
                 ) : (
                   <span className="text-lg">{isIncubating ? '\uD83D\uDC23' : '\u2728'}</span>
                 )}
-                <span>{(isHatching || isEvolving) ? (isIncubating ? 'Hatching...' : 'Evolving...') : (isIncubating ? 'Hatch!' : 'Evolve!')}</span>
+                <span>
+                  {(isHatching || isEvolving)
+                    ? (isIncubating
+                      ? <FormattedMessage id="blobbi.missions.hatching" defaultMessage="Hatching..." />
+                      : <FormattedMessage id="blobbi.missions.evolving" defaultMessage="Evolving..." />)
+                    : (isIncubating
+                      ? <FormattedMessage id="blobbi.missions.hatch" defaultMessage="Hatch!" />
+                      : <FormattedMessage id="blobbi.missions.evolve" defaultMessage="Evolve!" />)}
+                </span>
               </button>
             )}
 
@@ -3079,7 +3110,11 @@ function MissionsTabContent({
                 disabled={isProcessBusy}
                 className="w-full text-center text-[11px] text-muted-foreground/40 hover:text-destructive/60 transition-colors pt-1"
               >
-                {(isStoppingIncubation || isStoppingEvolution) ? 'Stopping...' : `Stop ${isIncubating ? 'incubation' : 'evolution'}`}
+                {(isStoppingIncubation || isStoppingEvolution)
+                  ? <FormattedMessage id="blobbi.missions.stopping" defaultMessage="Stopping..." />
+                  : isIncubating
+                    ? <FormattedMessage id="blobbi.missions.stopIncubation" defaultMessage="Stop incubation" />
+                    : <FormattedMessage id="blobbi.missions.stopEvolution" defaultMessage="Stop evolution" />}
               </button>
             )}
 
@@ -3106,10 +3141,10 @@ function MissionsTabContent({
                     ) : (
                       <Sparkles className="size-5" />
                     )}
-                    <span>{canStartIncubation ? 'Begin Hatching' : 'Begin Evolution'}</span>
+                    <span>{canStartIncubation ? <FormattedMessage id="blobbi.missions.beginHatching" defaultMessage="Begin Hatching" /> : <FormattedMessage id="blobbi.missions.beginEvolution" defaultMessage="Begin Evolution" />}</span>
                   </button>
                 ) : (
-                  <p className="text-xs text-muted-foreground/50">No journey available right now</p>
+                  <p className="text-xs text-muted-foreground/50"><FormattedMessage id="blobbi.missions.noJourney" defaultMessage="No journey available right now" /></p>
                 )}
               </div>
             )}
@@ -3120,14 +3155,14 @@ function MissionsTabContent({
           <>
             {dailyMissions.isLoading && (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
-                <p className="text-xs text-muted-foreground/50">Loading daily bounties...</p>
+                <p className="text-xs text-muted-foreground/50"><FormattedMessage id="blobbi.missions.loadingBounties" defaultMessage="Loading daily bounties..." /></p>
               </div>
             )}
 
             {!dailyMissions.isLoading && dailyMissions.noMissionsAvailable && (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
                 <Egg className="size-6 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground">Hatch your Blobbi to unlock daily bounties</p>
+                <p className="text-xs text-muted-foreground"><FormattedMessage id="blobbi.missions.hatchToUnlock" defaultMessage="Hatch your Blobbi to unlock daily bounties" /></p>
               </div>
             )}
 
@@ -3141,14 +3176,14 @@ function MissionsTabContent({
               >
                 <DailyMissionIcon action={mission.action} complete={mission.complete} />
                 <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm font-medium leading-tight', mission.complete && 'text-muted-foreground')}>{mission.title}</p>
-                  <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{mission.description}</p>
+                  <p className={cn('text-sm font-medium leading-tight', mission.complete && 'text-muted-foreground')}>{formatDailyMissionTitle(intl, mission)}</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">{formatDailyMissionDescription(intl, mission)}</p>
                 </div>
                 {!mission.complete && (
                   <span className="text-[10px] tabular-nums font-medium text-muted-foreground shrink-0">{mission.progress}/{mission.target}</span>
                 )}
                 {mission.complete && (
-                  <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0">+{mission.xp} XP</span>
+                  <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0"><FormattedMessage id="blobbi.xpGained" defaultMessage="+{xp} XP" values={{ xp: mission.xp }} /></span>
                 )}
               </div>
             ))}
@@ -3160,17 +3195,17 @@ function MissionsTabContent({
                   <Sparkles className="size-4 text-violet-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium leading-tight">Daily Champion</p>
-                  <p className="text-[10px] text-muted-foreground">All missions complete!</p>
+                  <p className="text-sm font-medium leading-tight"><FormattedMessage id="blobbi.missions.dailyChampion" defaultMessage="Daily Champion" /></p>
+                  <p className="text-[10px] text-muted-foreground"><FormattedMessage id="blobbi.missions.allComplete" defaultMessage="All missions complete!" /></p>
                 </div>
-                <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400 shrink-0">+{dailyMissions.bonusXp} XP</span>
+                <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400 shrink-0"><FormattedMessage id="blobbi.xpGained" defaultMessage="+{xp} XP" values={{ xp: dailyMissions.bonusXp }} /></span>
               </div>
             )}
 
             {!dailyMissions.noMissionsAvailable && !dailyMissions.isLoading && dailyCompleted === dailyTotal && dailyTotal > 0 && dailyMissions.allComplete && (
               <div className="flex flex-col items-center gap-1 py-4 text-center">
                 <Sparkles className="size-5 text-primary/40" />
-                <p className="text-xs text-muted-foreground">All done for today — come back tomorrow!</p>
+                <p className="text-xs text-muted-foreground"><FormattedMessage id="blobbi.missions.allDone" defaultMessage="All done for today. Come back tomorrow!" /></p>
               </div>
             )}
           </>
@@ -3331,7 +3366,7 @@ function MoreTabContent({
           }}>
             <Plus className="size-6 text-muted-foreground/60" />
           </div>
-          <span className="text-[11px] font-medium text-muted-foreground/60">Adopt</span>
+          <span className="text-[11px] font-medium text-muted-foreground/60"><FormattedMessage id="blobbi.adopt" defaultMessage="Adopt" /></span>
         </button>
       </div>
 
@@ -3339,7 +3374,7 @@ function MoreTabContent({
       <div className="flex items-center justify-center gap-6 pt-1">
         <Link to={`/${blobbiNaddr}`} className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
           <ExternalLink className="size-5" />
-          <span className="text-[10px]">View</span>
+          <span className="text-[10px]"><FormattedMessage id="blobbi.more.view" defaultMessage="View" /></span>
         </Link>
         {/* DEV tools */}
         {isLocalhostDev() && (
@@ -3369,21 +3404,37 @@ function MoreTabContent({
 // ─── Needs Tab Content ────────────────────────────────────────────────────────
 
 /** Action label + emoji for display in the activity list */
-const INTERACTION_ACTION_DISPLAY: Record<string, { label: string; icon: string }> = {
-  feed: { label: 'Feed', icon: '🍎' },
-  play: { label: 'Play', icon: '⚽' },
-  clean: { label: 'Clean', icon: '🧼' },
-  medicate: { label: 'Medicine', icon: '💊' },
-  boost: { label: 'Boost', icon: '⚡' },
+const INTERACTION_ACTION_LABELS = defineMessages({
+  feed: { id: 'blobbi.activity.action.feed', defaultMessage: 'Feed' },
+  play: { id: 'blobbi.activity.action.play', defaultMessage: 'Play' },
+  clean: { id: 'blobbi.activity.action.clean', defaultMessage: 'Clean' },
+  medicate: { id: 'blobbi.activity.action.medicate', defaultMessage: 'Medicine' },
+  boost: { id: 'blobbi.activity.action.boost', defaultMessage: 'Boost' },
+});
+
+const INTERACTION_ACTION_DISPLAY: Record<string, { label: MessageDescriptor; icon: string }> = {
+  feed: { label: INTERACTION_ACTION_LABELS.feed, icon: '🍎' },
+  play: { label: INTERACTION_ACTION_LABELS.play, icon: '⚽' },
+  clean: { label: INTERACTION_ACTION_LABELS.clean, icon: '🧼' },
+  medicate: { label: INTERACTION_ACTION_LABELS.medicate, icon: '💊' },
+  boost: { label: INTERACTION_ACTION_LABELS.boost, icon: '⚡' },
 };
 
 /** Stat label + icon for the needs summary */
-const STAT_DISPLAY: Record<string, { label: string; icon: string }> = {
-  hunger: { label: 'Hungry', icon: '🍎' },
-  happiness: { label: 'Unhappy', icon: '⚽' },
-  hygiene: { label: 'Dirty', icon: '🧼' },
-  health: { label: 'Unwell', icon: '💊' },
-  energy: { label: 'Tired', icon: '⚡' },
+const STAT_LABELS = defineMessages({
+  hunger: { id: 'blobbi.activity.need.hunger', defaultMessage: 'Hungry' },
+  happiness: { id: 'blobbi.activity.need.happiness', defaultMessage: 'Unhappy' },
+  hygiene: { id: 'blobbi.activity.need.hygiene', defaultMessage: 'Dirty' },
+  health: { id: 'blobbi.activity.need.health', defaultMessage: 'Unwell' },
+  energy: { id: 'blobbi.activity.need.energy', defaultMessage: 'Tired' },
+});
+
+const STAT_DISPLAY: Record<string, { label: MessageDescriptor; icon: string }> = {
+  hunger: { label: STAT_LABELS.hunger, icon: '🍎' },
+  happiness: { label: STAT_LABELS.happiness, icon: '⚽' },
+  hygiene: { label: STAT_LABELS.hygiene, icon: '🧼' },
+  health: { label: STAT_LABELS.health, icon: '💊' },
+  energy: { label: STAT_LABELS.energy, icon: '⚡' },
 };
 
 interface ActivityTabContentProps {
@@ -3396,6 +3447,7 @@ interface ActivityTabContentProps {
 }
 
 function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSocial, isSocialToggling, isEgg }: ActivityTabContentProps) {
+  const intl = useIntl();
   // Fetch recent unconsolidated interactions for the "Recent help" section.
   const { interactions: recentHelp, isLoading } = useBlobbiActivityHistory(isEgg ? null : companion);
 
@@ -3411,16 +3463,16 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
         <div>
           {needs.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              All good! No needs right now.
+              <FormattedMessage id="blobbi.activity.noNeeds" defaultMessage="All good! No needs right now." />
             </p>
           ) : (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Needs now
+                <FormattedMessage id="blobbi.activity.needsNow" defaultMessage="Needs now" />
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {needs.map(({ stat, priority }) => {
-                  const info = STAT_DISPLAY[stat] ?? { label: stat, icon: '?' };
+                  const info = STAT_DISPLAY[stat];
                   return (
                     <span
                       key={stat}
@@ -3432,8 +3484,8 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
                         priority === 'low' && 'bg-muted text-muted-foreground',
                       )}
                     >
-                      <span>{info.icon}</span>
-                      <span>{info.label}</span>
+                      <span>{info?.icon ?? '?'}</span>
+                      <span>{info ? intl.formatMessage(info.label) : stat}</span>
                     </span>
                   );
                 })}
@@ -3448,7 +3500,7 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
         <div className="flex items-center gap-2.5 border-t border-border/50 pt-4">
           <Egg className="size-4 shrink-0 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Social care settings will unlock after your Blobbi hatches.
+            <FormattedMessage id="blobbi.activity.socialLocked" defaultMessage="Social care settings will unlock after your Blobbi hatches." />
           </p>
         </div>
       ) : (
@@ -3456,9 +3508,11 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
           <label htmlFor={socialToggleId} className="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
             <Users className="size-4 shrink-0 text-muted-foreground" />
             <div className="min-w-0">
-              <p className="text-sm font-medium leading-tight">Allow others to care for this Blobbi</p>
+              <p className="text-sm font-medium leading-tight"><FormattedMessage id="blobbi.activity.socialToggle" defaultMessage="Allow others to care for this Blobbi" /></p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {socialOpen ? 'Anyone can feed, play, and clean.' : 'Only you can interact.'}
+                {socialOpen
+                  ? <FormattedMessage id="blobbi.activity.socialOpen" defaultMessage="Anyone can feed, play, and clean." />
+                  : <FormattedMessage id="blobbi.activity.socialClosed" defaultMessage="Only you can interact." />}
               </p>
             </div>
           </label>
@@ -3467,7 +3521,7 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
             checked={socialOpen}
             onCheckedChange={onToggleSocial}
             disabled={isSocialToggling}
-            aria-label="Allow other people to care for this Blobbi"
+            aria-label={intl.formatMessage({ id: 'blobbi.activity.socialToggleAria', defaultMessage: 'Allow other people to care for this Blobbi' })}
           />
         </div>
       )}
@@ -3482,14 +3536,14 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
       ) : recentHelp.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
           <Heart className="size-6 mb-2 opacity-40" />
-          <p className="text-sm">No recent help</p>
+          <p className="text-sm"><FormattedMessage id="blobbi.activity.noRecentHelp" defaultMessage="No recent help" /></p>
         </div>
       ) : (
         <>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide border-t border-border/50 pt-4">Recent help</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide border-t border-border/50 pt-4"><FormattedMessage id="blobbi.activity.recentHelp" defaultMessage="Recent help" /></p>
           <div className="divide-y divide-border/40 max-h-60 overflow-y-auto">
             {recentHelp.map((ix) => {
-              const actionInfo = INTERACTION_ACTION_DISPLAY[ix.action] ?? { label: ix.action, icon: '?' };
+              const actionInfo = INTERACTION_ACTION_DISPLAY[ix.action];
               const item = ix.itemId ? getShopItemById(ix.itemId) : undefined;
 
               return (
@@ -3497,16 +3551,16 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
                   key={ix.event.id}
                   className="flex items-center gap-2 py-2 text-sm"
                 >
-                  <span className="text-base leading-none">{actionInfo.icon}</span>
-                  <span className="font-medium">{actionInfo.label}</span>
+                  <span className="text-base leading-none">{actionInfo?.icon ?? '?'}</span>
+                  <span className="font-medium">{actionInfo ? intl.formatMessage(actionInfo.label) : ix.action}</span>
                   {item && (
                     <span className="text-muted-foreground truncate max-w-[7rem]">
-                      {item.icon} {item.name}
+                      {item.icon} {formatShopItemName(intl, item)}
                     </span>
                   )}
                   <span className="ml-auto flex items-center gap-1.5 shrink-0 text-xs text-muted-foreground">
                     <CaretakerLink pubkey={ix.authorPubkey} />
-                    <span>{timeAgo(ix.createdAt)}</span>
+                    <span>{timeAgo(ix.createdAt, intl)}</span>
                   </span>
                 </div>
               );
@@ -3520,8 +3574,9 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
 
 /** Small inline component to resolve + link a caretaker's display name. */
 function CaretakerLink({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
-  const displayName = author.data?.metadata?.name ?? 'Anonymous';
+  const displayName = author.data?.metadata?.name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profilePath = getProfileUrl(pubkey, author.data?.metadata);
 
   return (
@@ -3553,8 +3608,8 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentC
         <div className="flex items-center gap-3">
           <Egg className="size-5 text-primary" />
           <div>
-            <h1 className="text-lg font-semibold">Choose Your Blobbi</h1>
-            <p className="text-xs text-muted-foreground">Select a companion to care for</p>
+            <h1 className="text-lg font-semibold"><FormattedMessage id="blobbi.selector.title" defaultMessage="Choose Your Blobbi" /></h1>
+            <p className="text-xs text-muted-foreground"><FormattedMessage id="blobbi.selector.description" defaultMessage="Select a companion to care for" /></p>
           </div>
         </div>
         {isLoading && <RefreshCw className="size-4 text-muted-foreground animate-spin" />}
@@ -3591,7 +3646,7 @@ function BlobbiSelectorPage({ companions, onSelect, isLoading, onAdopt, currentC
               }}>
                 <Plus className="size-6 text-muted-foreground/60" />
               </div>
-              <span className="text-xs font-medium text-muted-foreground/60">Adopt</span>
+              <span className="text-xs font-medium text-muted-foreground/60"><FormattedMessage id="blobbi.adopt" defaultMessage="Adopt" /></span>
             </button>
           )}
         </div>
@@ -3628,10 +3683,20 @@ function DashboardLoadingState() {
 // ─── Crumb Burst (chewing feedback particles) ────────────────────────────────
 
 /** Reward words — one is picked at random on each feed. */
-const REWARD_WORDS = [
-  'nhom!', 'nom nom!', 'yum!', 'yum yum!', 'mmm~',
-  'munch!', 'cronch!', 'tasty!', 'hehe!', '\u2661',
-] as const;
+const REWARD_WORDS: ReadonlyArray<MessageDescriptor | string> = [
+  ...Object.values(defineMessages({
+    nhom: { id: 'blobbi.reward.nhom', defaultMessage: 'nhom!' },
+    nomNom: { id: 'blobbi.reward.nomNom', defaultMessage: 'nom nom!' },
+    yum: { id: 'blobbi.reward.yum', defaultMessage: 'yum!' },
+    yumYum: { id: 'blobbi.reward.yumYum', defaultMessage: 'yum yum!' },
+    mmm: { id: 'blobbi.reward.mmm', defaultMessage: 'mmm~' },
+    munch: { id: 'blobbi.reward.munch', defaultMessage: 'munch!' },
+    cronch: { id: 'blobbi.reward.cronch', defaultMessage: 'cronch!' },
+    tasty: { id: 'blobbi.reward.tasty', defaultMessage: 'tasty!' },
+    hehe: { id: 'blobbi.reward.hehe', defaultMessage: 'hehe!' },
+  })),
+  '\u2661',
+];
 
 /**
  * Crumb particle configs — 12 small dots that spawn from a compact
@@ -3680,6 +3745,7 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
   crumbX: number; crumbY: number;
   rewardX: number; rewardY: number;
 }) {
+  const intl = useIntl();
   // Pick a stable random word for this burst instance.
   const [word] = useState(() => REWARD_WORDS[Math.floor(Math.random() * REWARD_WORDS.length)]);
 
@@ -3714,7 +3780,7 @@ function CrumbBurst({ crumbX, crumbY, rewardX, rewardY }: {
         style={{ left: rewardX, top: rewardY, transform: 'translate(-50%, 0)' }}
         aria-hidden="true"
       >
-        {word}
+        {typeof word === 'string' ? word : intl.formatMessage(word)}
       </span>
     </>
   );

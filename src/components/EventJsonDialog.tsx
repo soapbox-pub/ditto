@@ -26,12 +26,13 @@ interface EventJsonDialogProps {
 
 /** Small copy-to-clipboard icon button with a transient checkmark. */
 export function CopyButton({ text, label }: { text: string; label: string }) {
+  const intl = useIntl();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: `${label} copied to clipboard` });
+    toast({ title: intl.formatMessage({ id: 'eventJson.copied', defaultMessage: '{label} copied to clipboard' }, { label }) });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -191,24 +192,30 @@ export function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJso
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85dvh] flex flex-col gap-0 p-0 rounded-2xl overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 shrink-0">
-          <DialogTitle className="text-base font-semibold">Event Details</DialogTitle>
+          <DialogTitle className="text-base font-semibold">
+            <FormattedMessage id="eventJson.title" defaultMessage="Event Details" />
+          </DialogTitle>
         </DialogHeader>
 
         <div className="px-5 pb-3 shrink-0">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Event ID</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            <FormattedMessage id="unknownKind.eventId" defaultMessage="Event ID" />
+          </p>
           <div className="relative flex items-center bg-muted rounded-lg px-3 py-2">
             <p className="font-mono text-xs break-all text-foreground/80 flex-1 pr-2 select-all">
               {id}
             </p>
-            <CopyButton text={id} label="Event ID" />
+            <CopyButton text={id} label={intl.formatMessage({ id: 'unknownKind.eventId', defaultMessage: 'Event ID' })} />
           </div>
         </div>
 
         <div className="px-5 pb-5 flex flex-col flex-1 min-h-0">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Raw JSON</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1">
+            <FormattedMessage id="eventJson.rawJson" defaultMessage="Raw JSON" />
+          </p>
           <div className="relative flex-1 min-h-0 overflow-auto rounded-lg bg-muted border border-border">
             <div className="sticky top-2 right-2 float-right mr-2">
-              <CopyButton text={jsonText} label="Event JSON" />
+              <CopyButton text={jsonText} label={intl.formatMessage({ id: 'unknownKind.eventJson', defaultMessage: 'Event JSON' })} />
             </div>
             <pre className="p-4 text-xs font-mono text-foreground/80 whitespace-pre leading-relaxed">
               {jsonText}

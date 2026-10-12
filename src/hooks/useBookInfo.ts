@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { defineMessages, useIntl } from 'react-intl';
 import { z } from 'zod';
 
 const _OpenLibraryBookSchema = z.object({
@@ -26,7 +27,18 @@ const _OpenLibraryBookSchema = z.object({
 
 export type BookInfo = z.infer<typeof _OpenLibraryBookSchema>;
 
-async function fetchBookInfo(isbn: string, signal?: AbortSignal): Promise<BookInfo | null> {
+const fallbackMessages = defineMessages({
+  title: { id: 'books.unknownTitle', defaultMessage: 'Unknown Title' },
+  author: { id: 'books.unknownAuthor', defaultMessage: 'Unknown Author' },
+});
+
+/** Display text used when OpenLibrary omits a title or author name. */
+interface BookFallbacks {
+  title: string;
+  author: string;
+}
+
+async function fetchBookInfo(isbn: string, fallbacks: BookFallbacks, signal?: AbortSignal): Promise<BookInfo | null> {
   try {
     const response = await fetch(
       `https://openlibrary.org/isbn/${isbn}.json`,
@@ -51,11 +63,11 @@ async function fetchBookInfo(isbn: string, signal?: AbortSignal): Promise<BookIn
                 const res = await fetch(`https://openlibrary.org${a.key}.json`, { signal });
                 if (res.ok) {
                   const data = await res.json();
-                  return { name: data.name ?? 'Unknown Author' };
+                  return { name: data.name ?? fallbacks.author };
                 }
               } catch { /* ignore */ }
             }
-            return { name: 'Unknown Author' };
+            return { name: fallbacks.author };
           }),
         );
         authors = authorNames;
@@ -74,7 +86,7 @@ async function fetchBookInfo(isbn: string, signal?: AbortSignal): Promise<BookIn
     }
 
     return {
-      title: raw.title ?? 'Unknown Title',
+      title: raw.title ?? fallbacks.title,
       authors: authors ?? raw.authors,
       number_of_pages: raw.number_of_pages,
       publish_date: raw.publish_date,
@@ -90,9 +102,11 @@ async function fetchBookInfo(isbn: string, signal?: AbortSignal): Promise<BookIn
 
 /** Hook to fetch book information from OpenLibrary by ISBN. */
 export function useBookInfo(isbn: string | null) {
+  const intl = useIntl();
+  const fallbacks: BookFallbacks = { title: intl.formatMessage(fallbackMessages.title), author: intl.formatMessage(fallbackMessages.author) };
   return useQuery({
-    queryKey: ['book-info', isbn],
-    queryFn: ({ signal }) => fetchBookInfo(isbn!, signal),
+    queryKey: ['book-info', isbn, intl.locale],
+    queryFn: ({ signal }) => fetchBookInfo(isbn!, fallbacks, signal),
     enabled: !!isbn,
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 24 * 7, // 7 days

@@ -3,6 +3,7 @@ import { IntlProvider } from 'react-intl';
 
 import { useLanguage } from '@/hooks/useLanguage';
 import { hasCatalog, loadCatalog, peekCatalog } from '@/i18n/language';
+import { putPushWorkerLocale } from '@/lib/push/workerState';
 
 interface Catalog {
   locale: string;
@@ -53,6 +54,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   // Keep <html lang> in sync for screen readers and SEO.
   useEffect(() => {
     if (catalog) document.documentElement.lang = catalog.locale;
+  }, [catalog]);
+
+  // Hand the push service worker the language too, so notifications arrive in
+  // it. Without translations (English, or a chunk that failed) it words them in
+  // English, numbers included.
+  useEffect(() => {
+    if (!catalog || !('serviceWorker' in navigator)) return;
+    putPushWorkerLocale(catalog.messages ? catalog.locale : 'en', catalog.messages).catch(() => {});
   }, [catalog]);
 
   // Only reached on the very first paint of a translated locale — English and

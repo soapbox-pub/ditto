@@ -11,11 +11,11 @@ export function PrivacyPolicyPage() {
 
   useSeoMeta({
     title: `Privacy Policy | ${config.appName}`,
-    description: `Privacy policy for ${config.appName} — how your data is handled on the Nostr network`,
+    description: `Privacy policy for ${config.appName}: how your data is handled on the Nostr network`,
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       {/* Page header */}
       <PageHeader title="Privacy Policy" icon={<Shield className="size-5" />} backTo="/" />
 

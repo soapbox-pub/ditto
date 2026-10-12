@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -28,6 +29,18 @@ import { StationeryPreview } from './StationeryBackground';
 
 const PAGE_SIZE = 24;
 const PRESET_ENTRIES = Object.entries(STATIONERY_PRESETS);
+
+const TAB_LABELS = defineMessages({
+  presets: { id: 'stationery.tab.presets', defaultMessage: 'presets' },
+  colors: { id: 'stationery.tab.moments', defaultMessage: 'moments' },
+  themes: { id: 'stationery.tab.themes', defaultMessage: 'themes' },
+});
+
+const SCOPE_LABELS = defineMessages({
+  everyone: { id: 'stationery.scope.everyone', defaultMessage: 'everyone' },
+  friends: { id: 'stationery.scope.friends', defaultMessage: 'friends' },
+  mine: { id: 'stationery.scope.mine', defaultMessage: 'mine' },
+});
 
 // ---------------------------------------------------------------------------
 // Paginated color moments grid with infinite scroll
@@ -92,7 +105,7 @@ function ColorMomentsGrid({
   }
 
   if (initialized && allItems.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted-foreground">none found — try presets</p>;
+    return <p className="py-6 text-center text-sm text-muted-foreground"><FormattedMessage id="stationery.noneFound" defaultMessage="none found, try presets" /></p>;
   }
 
   return (
@@ -192,7 +205,7 @@ function ThemesGrid({
   }
 
   if (initialized && allItems.length === 0) {
-    return <p className="py-6 text-center text-sm text-muted-foreground">none found — try presets</p>;
+    return <p className="py-6 text-center text-sm text-muted-foreground"><FormattedMessage id="stationery.noneFound" defaultMessage="none found, try presets" /></p>;
   }
 
   return (
@@ -241,6 +254,7 @@ interface StationeryPickerProps {
 type Tab = 'presets' | 'colors' | 'themes';
 
 export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) {
+  const intl = useIntl();
   const [tab, setTab] = useState<Tab>('presets');
   const [scope, setScope] = useState<'everyone' | 'friends' | 'mine'>('everyone');
   const [infoOpen, setInfoOpen] = useState(false);
@@ -293,10 +307,10 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
     onSelect({ ...selected, emojiMode: emojiMode === 'tile' ? 'emblem' : 'tile' });
   };
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'presets', label: 'presets' },
-    { id: 'colors',  label: 'moments' },
-    { id: 'themes',  label: 'themes' },
+  const tabs: { id: Tab; label: MessageDescriptor }[] = [
+    { id: 'presets', label: TAB_LABELS.presets },
+    { id: 'colors',  label: TAB_LABELS.colors },
+    { id: 'themes',  label: TAB_LABELS.themes },
   ];
 
   const isMomentsTab = tab === 'colors';
@@ -316,7 +330,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                 : 'bg-secondary text-muted-foreground hover:text-foreground border-secondary'
             }`}
           >
-            {t.label}
+            <FormattedMessage {...t.label} />
           </button>
         ))}
         {showInfoButton && (
@@ -324,7 +338,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
             onClick={() => setInfoOpen(true)}
             className="ml-auto opacity-70 hover:opacity-100 transition-opacity text-xs text-muted-foreground font-medium px-2 py-1 rounded-full bg-secondary"
           >
-            {isMomentsTab ? 'about' : 'about'}
+            <FormattedMessage id="stationery.about" defaultMessage="about" />
           </button>
         )}
       </div>
@@ -341,7 +355,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                   : 'bg-secondary text-muted-foreground hover:text-foreground border-secondary'
               }`}
             >
-              {s}
+              <FormattedMessage {...SCOPE_LABELS[s]} />
             </button>
           ))}
         </div>
@@ -357,7 +371,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                   <button
                     key={key}
                     onClick={() => onSelect(presetToStationery(key) ?? stationery)}
-                    title={preset.name}
+                    title={intl.formatMessage(preset.name)}
                     className="relative aspect-square rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95"
                   >
                     <StationeryPreview
@@ -381,13 +395,13 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
           {hasEmoji && !isTheme && (
             <label className="flex items-center gap-1.5">
               <Switch checked={emojiMode === 'emblem'} onCheckedChange={toggleEmojiMode} />
-              <span className="text-sm text-muted-foreground font-medium">emblem</span>
+              <span className="text-sm text-muted-foreground font-medium"><FormattedMessage id="stationery.emblem" defaultMessage="emblem" /></span>
             </label>
           )}
           {(isColorMoment || isFlatMode) && (
             <label className="flex items-center gap-1.5">
               <Switch checked={isFlatMode} onCheckedChange={toggleSingleColor} />
-              <span className="text-sm text-muted-foreground font-medium">flat</span>
+              <span className="text-sm text-muted-foreground font-medium"><FormattedMessage id="stationery.flat" defaultMessage="flat" /></span>
             </label>
           )}
         </div>
@@ -398,11 +412,11 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
           {isMomentsTab && (
             <>
               <DialogHeader>
-                <DialogTitle>Color moments</DialogTitle>
+                <DialogTitle><FormattedMessage id="stationery.colorMoments" defaultMessage="Color moments" /></DialogTitle>
               </DialogHeader>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  Color moments are beautiful color combinations created and shared by the community. Each one gives your letter a unique palette and mood.
+                  <FormattedMessage id="stationery.colorMomentsAbout" defaultMessage="Color moments are beautiful color combinations created and shared by the community. Each one gives your letter a unique palette and mood." />
                 </p>
                 <p>
                   <Link
@@ -410,7 +424,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                     onClick={() => setInfoOpen(false)}
                     className="text-foreground font-medium underline underline-offset-2 hover:no-underline"
                   >
-                    Discover and create color moments
+                    <FormattedMessage id="stationery.discoverMoments" defaultMessage="Discover and create color moments" />
                   </Link>
                 </p>
               </div>
@@ -419,11 +433,17 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
           {isThemesTab && (
             <>
               <DialogHeader>
-                <DialogTitle>{config.appName} themes</DialogTitle>
+                <DialogTitle>
+                  <FormattedMessage id="stationery.themesTitle" defaultMessage="{appName} themes" values={{ appName: config.appName }} />
+                </DialogTitle>
               </DialogHeader>
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>
-                  {config.appName} themes are UI themes shared by the community. Letters borrows their colors and fonts to style your letter.
+                  <FormattedMessage
+                    id="stationery.themesAbout"
+                    defaultMessage="{appName} themes are UI themes shared by the community. Letters borrows their colors and fonts to style your letter."
+                    values={{ appName: config.appName }}
+                  />
                 </p>
                 <p>
                   <Link
@@ -431,7 +451,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                     onClick={() => setInfoOpen(false)}
                     className="text-foreground font-medium underline underline-offset-2 hover:no-underline"
                   >
-                    Browse and create themes
+                    <FormattedMessage id="stationery.browseThemes" defaultMessage="Browse and create themes" />
                   </Link>
                 </p>
               </div>

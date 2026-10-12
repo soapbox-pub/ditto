@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { nip19 } from "nostr-tools";
 import type { NostrEvent } from "@nostrify/nostrify";
 import { CalendarClock, ExternalLink, Users, Video } from "lucide-react";
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,19 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
+const statusMessages = defineMessages({
+  live: { id: "interactiveRoom.status.live", defaultMessage: "LIVE" },
+  open: { id: "interactiveRoom.status.open", defaultMessage: "OPEN" },
+  planned: { id: "interactiveRoom.status.planned", defaultMessage: "PLANNED" },
+  private: { id: "interactiveRoom.status.private", defaultMessage: "PRIVATE" },
+  closed: { id: "interactiveRoom.status.closed", defaultMessage: "CLOSED" },
+  ended: { id: "interactiveRoom.status.ended", defaultMessage: "ENDED" },
+  unknown: { id: "interactiveRoom.status.unknown", defaultMessage: "UNKNOWN" },
+});
+
 interface RoomStatusConfig {
-  label: string;
+  /** A translatable label for known statuses, or the raw status for unknown ones. */
+  label: MessageDescriptor | string;
   className: string;
   /** Whether to show a pulsing dot (in-progress states). */
   pulse: boolean;
@@ -34,18 +46,18 @@ interface RoomStatusConfig {
 function getRoomStatusConfig(status: string): RoomStatusConfig {
   switch (status) {
     case "live":
-      return { label: "LIVE", className: "bg-red-600/90 text-white border-red-600", pulse: true };
+      return { label: statusMessages.live, className: "bg-red-600/90 text-white border-red-600", pulse: true };
     case "open":
-      return { label: "OPEN", className: "bg-green-600/90 text-white border-green-600", pulse: true };
+      return { label: statusMessages.open, className: "bg-green-600/90 text-white border-green-600", pulse: true };
     case "planned":
-      return { label: "PLANNED", className: "bg-blue-600/90 text-white border-blue-600", pulse: false };
+      return { label: statusMessages.planned, className: "bg-blue-600/90 text-white border-blue-600", pulse: false };
     case "private":
-      return { label: "PRIVATE", className: "bg-amber-500/90 text-white border-amber-500", pulse: false };
+      return { label: statusMessages.private, className: "bg-amber-500/90 text-white border-amber-500", pulse: false };
     case "closed":
     case "ended":
-      return { label: status.toUpperCase(), className: "bg-muted text-muted-foreground border-border", pulse: false };
+      return { label: statusMessages[status], className: "bg-muted text-muted-foreground border-border", pulse: false };
     default:
-      return { label: status.toUpperCase() || "UNKNOWN", className: "bg-muted text-muted-foreground border-border", pulse: false };
+      return { label: status.toUpperCase() || statusMessages.unknown, className: "bg-muted text-muted-foreground border-border", pulse: false };
   }
 }
 
@@ -61,15 +73,21 @@ function getRoomStatusConfig(status: string): RoomStatusConfig {
  * expose a `service` URL.
  */
 export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent; expanded?: boolean }) {
+  const intl = useIntl();
   const isSpace = event.kind === MEETING_SPACE_KIND;
 
   const title = getTag(event.tags, "title") || getTag(event.tags, "room") ||
-    (isSpace ? "Untitled Room" : "Untitled Meeting");
+    (isSpace
+      ? intl.formatMessage({ id: "interactiveRoom.untitledRoom", defaultMessage: "Untitled Room" })
+      : intl.formatMessage({ id: "interactiveRoom.untitledMeeting", defaultMessage: "Untitled Meeting" }));
   const summary = getTag(event.tags, "summary");
   const imageUrl = sanitizeUrl(getTag(event.tags, "image"));
   const serviceUrl = sanitizeUrl(getTag(event.tags, "service"));
   const status = getEffectiveStreamStatus(event);
   const statusConfig = getRoomStatusConfig(status);
+  const statusLabel = typeof statusConfig.label === "string"
+    ? statusConfig.label
+    : intl.formatMessage(statusConfig.label);
   const currentParticipants = getTag(event.tags, "current_participants");
 
   const startsTag = getTag(event.tags, "starts");
@@ -116,7 +134,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
                 {statusConfig.pulse && (
                   <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />
                 )}
-                {statusConfig.label}
+                {statusLabel}
               </Badge>
             </div>
             {currentParticipants && (
@@ -133,7 +151,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
               {statusConfig.pulse && (
                 <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />
               )}
-              {statusConfig.label}
+              {statusLabel}
             </Badge>
             {currentParticipants && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -167,7 +185,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
           {showStartsAt && (
             <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
               <CalendarClock className="size-3 shrink-0" />
-              {startsAt!.toLocaleString(undefined, {
+              {intl.formatDate(startsAt!, {
                 dateStyle: "medium",
                 timeStyle: "short",
               })}
@@ -187,7 +205,11 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
           }}
         >
           <ExternalLink className="size-4 mr-1.5" />
-          Join {isSpace ? "room" : "meeting"}
+          {isSpace ? (
+            <FormattedMessage id="interactiveRoom.joinRoom" defaultMessage="Join room" />
+          ) : (
+            <FormattedMessage id="interactiveRoom.joinMeeting" defaultMessage="Join meeting" />
+          )}
         </Button>
       )}
     </div>

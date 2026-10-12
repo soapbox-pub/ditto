@@ -1,3 +1,4 @@
+import type { IntlShape } from 'react-intl';
 import { embedLabel } from '@/lib/linkEmbed';
 import { getCountryInfo } from '@/lib/countries';
 
@@ -80,7 +81,7 @@ function slugTitle(url: string): string | null {
 }
 
 /** Get a short label for the content type. */
-export function headerLabel(content: ExternalContent): string {
+export function headerLabel(content: ExternalContent, intl: IntlShape): string {
   switch (content.type) {
     case 'url': {
       // Prefer a human-readable slug from the URL path
@@ -92,51 +93,53 @@ export function headerLabel(content: ExternalContent): string {
       try {
         return new URL(content.value).hostname.replace(/^www\./, '');
       } catch {
-        return 'Web Page';
+        return intl.formatMessage({ id: 'externalContent.webPage', defaultMessage: 'Web Page' });
       }
     }
     case 'isbn':
-      return 'Books';
+      return intl.formatMessage({ id: 'books.title', defaultMessage: 'Books' });
     case 'iso3166': {
-      const info = getCountryInfo(content.code);
-      return info?.subdivisionName ?? info?.name ?? 'Country';
+      const info = getCountryInfo(content.code, intl);
+      return info?.subdivisionName ?? info?.name ?? intl.formatMessage({ id: 'externalContent.country', defaultMessage: 'Country' });
     }
     case 'bitcoin-tx':
-      return 'Bitcoin Transaction';
+      return intl.formatMessage({ id: 'bitcoin.preview.transaction', defaultMessage: 'Bitcoin Transaction' });
     case 'bitcoin-address':
-      return 'Bitcoin Address';
+      return intl.formatMessage({ id: 'bitcoin.address.title', defaultMessage: 'Bitcoin Address' });
     default:
-      return 'External Content';
+      return intl.formatMessage({ id: 'externalContentPage.title', defaultMessage: 'External Content' });
   }
 }
 
 /** Get a page title for SEO. */
-export function seoTitle(content: ExternalContent, appName: string): string {
+export function seoTitle(content: ExternalContent, appName: string, intl: IntlShape): string {
   switch (content.type) {
     case 'url':
       try {
         return `${new URL(content.value).hostname.replace(/^www\./, '')} | ${appName}`;
       } catch {
-        return `Web Page | ${appName}`;
+        return intl.formatMessage({ id: 'externalContent.seo.webPage', defaultMessage: 'Web Page | {appName}' }, { appName });
       }
     case 'isbn': {
       const isbn = content.value.replace('isbn:', '');
-      return `Book (ISBN ${isbn}) | ${appName}`;
+      return intl.formatMessage({ id: 'externalContent.seo.book', defaultMessage: 'Book (ISBN {isbn}) | {appName}' }, { isbn, appName });
     }
     case 'iso3166': {
-      const seoInfo = getCountryInfo(content.code);
+      const seoInfo = getCountryInfo(content.code, intl);
       const seoName = seoInfo?.subdivisionName ?? seoInfo?.name;
-      return seoName ? `${seoName} | ${appName}` : `Country | ${appName}`;
+      return seoName
+        ? `${seoName} | ${appName}`
+        : intl.formatMessage({ id: 'externalContent.seo.country', defaultMessage: 'Country | {appName}' }, { appName });
     }
     case 'bitcoin-tx': {
       const shortTxid = `${content.txid.slice(0, 8)}...${content.txid.slice(-8)}`;
-      return `Bitcoin TX ${shortTxid} | ${appName}`;
+      return intl.formatMessage({ id: 'externalContent.seo.bitcoinTx', defaultMessage: 'Bitcoin TX {txid} | {appName}' }, { txid: shortTxid, appName });
     }
     case 'bitcoin-address': {
       const shortAddr = `${content.address.slice(0, 8)}...${content.address.slice(-6)}`;
-      return `Bitcoin Address ${shortAddr} | ${appName}`;
+      return intl.formatMessage({ id: 'externalContent.seo.bitcoinAddress', defaultMessage: 'Bitcoin Address {address} | {appName}' }, { address: shortAddr, appName });
     }
     default:
-      return `External Content | ${appName}`;
+      return intl.formatMessage({ id: 'externalContentPage.seoTitle', defaultMessage: 'External Content | {appName}' }, { appName });
   }
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { BookOpen, MessageCircle, MessageSquare, MoreHorizontal, Star, Zap, AlertTriangle } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -50,6 +51,7 @@ function encodeEventId(event: NostrEvent): string {
 }
 
 export function BookFeedItem({ event, className }: BookFeedItemProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -163,25 +165,25 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                 {isReview && (
                   <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0 shrink-0 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                     <Star className="size-3" />
-                    reviewed
+                    <FormattedMessage id="bookFeedItem.reviewed" defaultMessage="reviewed" />
                   </Badge>
                 )}
                 {isComment && (
                   <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0 shrink-0 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
                     <MessageSquare className="size-3" />
-                    commented
+                    <FormattedMessage id="bookFeedItem.commented" defaultMessage="commented" />
                   </Badge>
                 )}
                 {!isReview && !isComment && isbn && (
                   <Badge variant="secondary" className="gap-1 text-[10px] px-1.5 py-0 shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
                     <BookOpen className="size-3" />
-                    posted
+                    <FormattedMessage id="bookFeedItem.posted" defaultMessage="posted" />
                   </Badge>
                 )}
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <span className="shrink-0 hover:underline whitespace-nowrap">
-                  {timeAgo(event.created_at)}
+                  {timeAgo(event.created_at, intl)}
                 </span>
               </div>
             </div>
@@ -225,7 +227,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
           <div className="flex items-center gap-5 mt-3 -ml-2">
             <button
               className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
+              title={intl.formatMessage({ id: 'bookFeedItem.reply', defaultMessage: 'Reply' })}
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-5" />
@@ -236,7 +238,9 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
               {(isReposted: boolean) => (
                 <button
                   className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
-                  title={isReposted ? 'Undo repost' : 'Repost'}
+                  title={isReposted
+                    ? intl.formatMessage({ id: 'bookFeedItem.undoRepost', defaultMessage: 'Undo repost' })
+                    : intl.formatMessage({ id: 'bookFeedItem.repost', defaultMessage: 'Repost' })}
                 >
                   <RepostIcon className="size-5" />
                   {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span> : null}
@@ -259,7 +263,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                     'flex items-center gap-1.5 p-2 rounded-full transition-colors',
                     'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
                   )}
-                  title="Zap"
+                  title={intl.formatMessage({ id: 'bookFeedItem.zap', defaultMessage: 'Zap' })}
                 >
                   <Zap className="size-5" fill="none" />
                   {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span> : null}
@@ -269,7 +273,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
 
             <button
               className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
+              title={intl.formatMessage({ id: 'bookFeedItem.more', defaultMessage: 'More' })}
               onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
             >
               <MoreHorizontal className="size-5" />
@@ -315,7 +319,9 @@ function TruncatedContent({ event, content, isReview }: { event: NostrEvent; con
   // For reviews with no written text, show a placeholder
   if (content !== undefined && !content) {
     return (
-      <p className="mt-2 text-sm text-muted-foreground italic">Rating only, no written review</p>
+      <p className="mt-2 text-sm text-muted-foreground italic">
+        <FormattedMessage id="bookFeedItem.ratingOnly" defaultMessage="Rating only, no written review" />
+      </p>
     );
   }
 
@@ -336,7 +342,9 @@ function TruncatedContent({ event, content, isReview }: { event: NostrEvent; con
           className="mt-1 text-sm text-primary hover:underline"
           onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
         >
-          {expanded ? 'Show less' : 'Read more'}
+          {expanded
+            ? <FormattedMessage id="bookFeedItem.showLess" defaultMessage="Show less" />
+            : <FormattedMessage id="bookFeedItem.readMore" defaultMessage="Read more" />}
         </button>
       )}
     </div>
@@ -352,7 +360,7 @@ function SpoilerGuard({ warning, children }: { warning: string; children: React.
       <div>
         <Badge variant="outline" className="text-orange-600 border-orange-200 dark:border-orange-800 mb-2 mt-2">
           <AlertTriangle className="size-3 mr-1" />
-          Contains Spoilers
+          <FormattedMessage id="bookFeedItem.containsSpoilers" defaultMessage="Contains Spoilers" />
         </Badge>
         {children}
       </div>
@@ -363,7 +371,9 @@ function SpoilerGuard({ warning, children }: { warning: string; children: React.
     <div className="mt-2 py-4 text-center space-y-2" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-center gap-2 text-orange-600">
         <AlertTriangle className="size-4" />
-        <span className="text-sm font-medium">Spoiler Warning</span>
+        <span className="text-sm font-medium">
+          <FormattedMessage id="bookFeedItem.spoilerWarning" defaultMessage="Spoiler Warning" />
+        </span>
       </div>
       <p className="text-xs text-muted-foreground">{warning}</p>
       <Button
@@ -371,7 +381,7 @@ function SpoilerGuard({ warning, children }: { warning: string; children: React.
         size="sm"
         onClick={() => setRevealed(true)}
       >
-        Show Review
+        <FormattedMessage id="bookFeedItem.showReview" defaultMessage="Show Review" />
       </Button>
     </div>
   );
@@ -379,6 +389,7 @@ function SpoilerGuard({ warning, children }: { warning: string; children: React.
 
 /** Compact inline book card that shows cover, title, author, and year. */
 function InlineBookCard({ isbn }: { isbn: string }) {
+  const intl = useIntl();
   const { data: book, isLoading } = useBookSummary(isbn);
 
   if (isLoading) {
@@ -404,7 +415,9 @@ function InlineBookCard({ isbn }: { isbn: string }) {
           <BookOpen className="size-5 text-muted-foreground/40" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-muted-foreground">ISBN {isbn}</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            <FormattedMessage id="bookFeedItem.isbn" defaultMessage="ISBN {isbn}" values={{ isbn }} />
+          </p>
         </div>
       </Link>
     );
@@ -419,7 +432,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
       {book.coverUrl ? (
         <img
           src={book.coverUrl}
-          alt={`Cover of ${book.title}`}
+          alt={intl.formatMessage({ id: 'bookFeedItem.coverAlt', defaultMessage: 'Cover of {title}' }, { title: book.title })}
           className="w-10 h-14 rounded object-cover shrink-0 shadow-sm group-hover/book:shadow-md transition-shadow"
           loading="lazy"
           onError={(e) => {

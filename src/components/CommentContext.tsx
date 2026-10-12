@@ -1,7 +1,7 @@
 import type React from 'react';
 import { type ReactNode, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { FormattedMessage } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import {
   Award, BarChart3, Bird, Bitcoin, Bookmark, BookOpen, Box, CalendarClock, Camera, CircleCheck, CircleDashed, CircleDot, CircleX, Clapperboard, ClipboardCheck, ClipboardList, Crown, Egg, FileText, Film,
@@ -111,102 +111,186 @@ function parseCommentRoot(event: NostrEvent): CommentRoot | undefined {
   return undefined;
 }
 
+/** Singular kind nouns, shared by kinds that read the same (e.g. both repost kinds). */
+const KIND_LABEL = defineMessages({
+  profile: { id: 'commentContext.kind.profile', defaultMessage: 'a profile' },
+  post: { id: 'commentContext.kind.post', defaultMessage: 'a post' },
+  followList: { id: 'commentContext.kind.followList', defaultMessage: 'a follow list' },
+  encryptedMessage: { id: 'commentContext.kind.encryptedMessage', defaultMessage: 'an encrypted message' },
+  repost: { id: 'commentContext.kind.repost', defaultMessage: 'a repost' },
+  reaction: { id: 'commentContext.kind.reaction', defaultMessage: 'a reaction' },
+  badgeAward: { id: 'commentContext.kind.badgeAward', defaultMessage: 'a badge award' },
+  relayList: { id: 'commentContext.kind.relayList', defaultMessage: 'a relay list' },
+  linkedAccounts: { id: 'commentContext.kind.linkedAccounts', defaultMessage: 'linked accounts' },
+  photo: { id: 'commentContext.kind.photo', defaultMessage: 'a photo' },
+  video: { id: 'commentContext.kind.video', defaultMessage: 'a video' },
+  shortVideo: { id: 'commentContext.kind.shortVideo', defaultMessage: 'a short video' },
+  requestToVanish: { id: 'commentContext.kind.requestToVanish', defaultMessage: 'a request to vanish' },
+  file: { id: 'commentContext.kind.file', defaultMessage: 'a file' },
+  vote: { id: 'commentContext.kind.vote', defaultMessage: 'a vote' },
+  poll: { id: 'commentContext.kind.poll', defaultMessage: 'a poll' },
+  comment: { id: 'commentContext.kind.comment', defaultMessage: 'a comment' },
+  voiceMessage: { id: 'commentContext.kind.voiceMessage', defaultMessage: 'a voice message' },
+  liveChatMessage: { id: 'commentContext.kind.liveChatMessage', defaultMessage: 'a live chat message' },
+  letter: { id: 'commentContext.kind.letter', defaultMessage: 'a letter' },
+  loveList: { id: 'commentContext.kind.loveList', defaultMessage: 'a Love List' },
+  top8: { id: 'commentContext.kind.top8', defaultMessage: 'a Top 8' },
+  patch: { id: 'commentContext.kind.patch', defaultMessage: 'a patch' },
+  pullRequest: { id: 'commentContext.kind.pullRequest', defaultMessage: 'a pull request' },
+  pullRequestUpdate: { id: 'commentContext.kind.pullRequestUpdate', defaultMessage: 'a pull request update' },
+  issue: { id: 'commentContext.kind.issue', defaultMessage: 'an issue' },
+  statusUpdate: { id: 'commentContext.kind.statusUpdate', defaultMessage: 'a status update' },
+  birdDetection: { id: 'commentContext.kind.birdDetection', defaultMessage: 'a bird detection' },
+  birdex: { id: 'commentContext.kind.birdex', defaultMessage: 'a Birdex' },
+  colorMoment: { id: 'commentContext.kind.colorMoment', defaultMessage: 'a color moment' },
+  foundLog: { id: 'commentContext.kind.foundLog', defaultMessage: 'a found log' },
+  nsiteSnapshot: { id: 'commentContext.kind.nsiteSnapshot', defaultMessage: 'an nsite snapshot' },
+  nsite: { id: 'commentContext.kind.nsite', defaultMessage: 'an nsite' },
+  theme: { id: 'commentContext.kind.theme', defaultMessage: 'a theme' },
+  profileBadges: { id: 'commentContext.kind.profileBadges', defaultMessage: 'profile badges' },
+  badgeSet: { id: 'commentContext.kind.badgeSet', defaultMessage: 'a badge set' },
+  badge: { id: 'commentContext.kind.badge', defaultMessage: 'a badge' },
+  article: { id: 'commentContext.kind.article', defaultMessage: 'an article' },
+  ebook: { id: 'commentContext.kind.ebook', defaultMessage: 'an ebook' },
+  magazine: { id: 'commentContext.kind.magazine', defaultMessage: 'a magazine' },
+  magazineIssue: { id: 'commentContext.kind.magazineIssue', defaultMessage: 'a magazine issue' },
+  emojiPack: { id: 'commentContext.kind.emojiPack', defaultMessage: 'an emoji pack' },
+  podcastEpisode: { id: 'commentContext.kind.podcastEpisode', defaultMessage: 'a podcast episode' },
+  podcastTrailer: { id: 'commentContext.kind.podcastTrailer', defaultMessage: 'a podcast trailer' },
+  softwareAsset: { id: 'commentContext.kind.softwareAsset', defaultMessage: 'a software asset' },
+  softwareRelease: { id: 'commentContext.kind.softwareRelease', defaultMessage: 'a software release' },
+  stream: { id: 'commentContext.kind.stream', defaultMessage: 'a stream' },
+  room: { id: 'commentContext.kind.room', defaultMessage: 'a room' },
+  meeting: { id: 'commentContext.kind.meeting', defaultMessage: 'a meeting' },
+  status: { id: 'commentContext.kind.status', defaultMessage: 'a status' },
+  listing: { id: 'commentContext.kind.listing', defaultMessage: 'a listing' },
+  repository: { id: 'commentContext.kind.repository', defaultMessage: 'a repository' },
+  repositoryUpdate: { id: 'commentContext.kind.repositoryUpdate', defaultMessage: 'a repository update' },
+  customNIP: { id: 'commentContext.kind.customNIP', defaultMessage: 'a custom NIP' },
+  calendarEvent: { id: 'commentContext.kind.calendarEvent', defaultMessage: 'a calendar event' },
+  app: { id: 'commentContext.kind.app', defaultMessage: 'an app' },
+  softwareApp: { id: 'commentContext.kind.softwareApp', defaultMessage: 'a software app' },
+  playlist: { id: 'commentContext.kind.playlist', defaultMessage: 'a playlist' },
+  community: { id: 'commentContext.kind.community', defaultMessage: 'a community' },
+  track: { id: 'commentContext.kind.track', defaultMessage: 'a track' },
+  magicDeck: { id: 'commentContext.kind.magicDeck', defaultMessage: 'a Magic deck' },
+  treasure: { id: 'commentContext.kind.treasure', defaultMessage: 'a treasure' },
+  followSet: { id: 'commentContext.kind.followSet', defaultMessage: 'a follow set' },
+  constellation: { id: 'commentContext.kind.constellation', defaultMessage: 'a constellation' },
+  followPack: { id: 'commentContext.kind.followPack', defaultMessage: 'a follow pack' },
+  zap: { id: 'commentContext.kind.zap', defaultMessage: 'a zap' },
+  highlight: { id: 'commentContext.kind.highlight', defaultMessage: 'a highlight' },
+  torrent: { id: 'commentContext.kind.torrent', defaultMessage: 'a torrent' },
+  tarotReading: { id: 'commentContext.kind.tarotReading', defaultMessage: 'a tarot reading' },
+  webBookmark: { id: 'commentContext.kind.webBookmark', defaultMessage: 'a web bookmark' },
+  blobbi: { id: 'commentContext.kind.blobbi', defaultMessage: 'a Blobbi' },
+  report: { id: 'commentContext.kind.report', defaultMessage: 'a report' },
+  attestation: { id: 'commentContext.kind.attestation', defaultMessage: 'an attestation' },
+  fundraiser: { id: 'commentContext.kind.fundraiser', defaultMessage: 'a fundraiser' },
+  quiz: { id: 'commentContext.kind.quiz', defaultMessage: 'a quiz' },
+  quizResult: { id: 'commentContext.kind.quizResult', defaultMessage: 'a quiz result' },
+  threeDObject: { id: 'commentContext.kind.threeDObject', defaultMessage: 'a 3D object' },
+  unsupportedEvent: { id: 'commentContext.kind.unsupportedEvent', defaultMessage: 'an unsupported event' },
+  link: { id: 'commentContext.kind.link', defaultMessage: 'a link' },
+  hashtag: { id: 'commentContext.kind.hashtag', defaultMessage: 'a hashtag' },
+});
+
 /**
  * Singular comment-context labels for every supported kind.
  * Must use singular form with article ("a post", "an article") since these
  * appear as "Commenting on {label}". EXTRA_KINDS labels are plural/categorical
  * ("Requests to Vanish", "User Statuses") and must NOT be used directly.
  */
-const KIND_LABELS: Record<number, string> = {
-  0: 'a profile',
-  1: 'a post',
-  3: 'a follow list',
-  4: 'an encrypted message',
-  6: 'a repost',
-  7: 'a reaction',
-  8: 'a badge award',
-  16: 'a repost',
-  10002: 'a relay list',
-  10011: 'linked accounts',
-  20: 'a photo',
-  21: 'a video',
-  22: 'a short video',
-  34235: 'a video',
-  62: 'a request to vanish',
-  1063: 'a file',
-  1018: 'a vote',
-  1068: 'a poll',
-  1111: 'a comment',
-  1222: 'a voice message',
-  1311: 'a live chat message',
-  8211: 'a letter',
-  15683: 'a Love List',
-  18678: 'a Top 8',
-  1617: 'a patch',
-  1618: 'a pull request',
-  1619: 'a pull request update',
-  1621: 'an issue',
-  1630: 'a status update',
-  1631: 'a status update',
-  1632: 'a status update',
-  1633: 'a status update',
-  2473: 'a bird detection',
-  12473: 'a Birdex',
-  3367: 'a color moment',
-  7516: 'a found log',
-  5128: 'an nsite snapshot',
-  15128: 'an nsite',
-  16767: 'a theme',
-  10008: 'profile badges',
+const KIND_LABELS: Record<number, MessageDescriptor> = {
+  0: KIND_LABEL.profile,
+  1: KIND_LABEL.post,
+  3: KIND_LABEL.followList,
+  4: KIND_LABEL.encryptedMessage,
+  6: KIND_LABEL.repost,
+  7: KIND_LABEL.reaction,
+  8: KIND_LABEL.badgeAward,
+  16: KIND_LABEL.repost,
+  10002: KIND_LABEL.relayList,
+  10011: KIND_LABEL.linkedAccounts,
+  20: KIND_LABEL.photo,
+  21: KIND_LABEL.video,
+  22: KIND_LABEL.shortVideo,
+  34235: KIND_LABEL.video,
+  62: KIND_LABEL.requestToVanish,
+  1063: KIND_LABEL.file,
+  1018: KIND_LABEL.vote,
+  1068: KIND_LABEL.poll,
+  1111: KIND_LABEL.comment,
+  1222: KIND_LABEL.voiceMessage,
+  1311: KIND_LABEL.liveChatMessage,
+  8211: KIND_LABEL.letter,
+  15683: KIND_LABEL.loveList,
+  18678: KIND_LABEL.top8,
+  1617: KIND_LABEL.patch,
+  1618: KIND_LABEL.pullRequest,
+  1619: KIND_LABEL.pullRequestUpdate,
+  1621: KIND_LABEL.issue,
+  1630: KIND_LABEL.statusUpdate,
+  1631: KIND_LABEL.statusUpdate,
+  1632: KIND_LABEL.statusUpdate,
+  1633: KIND_LABEL.statusUpdate,
+  2473: KIND_LABEL.birdDetection,
+  12473: KIND_LABEL.birdex,
+  3367: KIND_LABEL.colorMoment,
+  7516: KIND_LABEL.foundLog,
+  5128: KIND_LABEL.nsiteSnapshot,
+  15128: KIND_LABEL.nsite,
+  16767: KIND_LABEL.theme,
+  10008: KIND_LABEL.profileBadges,
   // Kind 30008 = NIP-51 badge set (legacy `d=profile_badges` is routed
   // through ProfileBadgesCommentContext before reaching this map).
-  30008: 'a badge set',
-  30009: 'a badge',
-  30023: 'an article',
-  33953: 'an ebook',
-  34609: 'a magazine',
-  39731: 'a magazine issue',
-  30030: 'an emoji pack',
-  30054: 'a podcast episode',
-  30055: 'a podcast trailer',
-  3063: 'a software asset',
-  30063: 'a software release',
-  30311: 'a stream',
-  30312: 'a room',
-  30313: 'a meeting',
-  30315: 'a status',
-  30402: 'a listing',
-  30617: 'a repository',
-  30618: 'a repository update',
-  30817: 'a custom NIP',
-  31922: 'a calendar event',
-  31923: 'a calendar event',
-  31990: 'an app',
-  32267: 'a software app',
-  34139: 'a playlist',
-  34236: 'a short video',
-  34550: 'a community',
-  35128: 'an nsite',
-  36767: 'a theme',
-  36787: 'a track',
-  37381: 'a Magic deck',
-  37516: 'a treasure',
-  30000: 'a follow set',
-  30621: 'a constellation',
-  39089: 'a follow pack',
-  9735: 'a zap',
-  9802: 'a highlight',
-  2003: 'a torrent',
-  2256: 'a tarot reading',
-  39701: 'a web bookmark',
-  8333: 'a zap',
-  31124: 'a Blobbi',
-  1984: 'a report',
-  31871: 'an attestation',
-  33863: 'a fundraiser',
-  37849: 'a quiz',
-  7849: 'a quiz result',
-  33331: 'a 3D object',
+  30008: KIND_LABEL.badgeSet,
+  30009: KIND_LABEL.badge,
+  30023: KIND_LABEL.article,
+  33953: KIND_LABEL.ebook,
+  34609: KIND_LABEL.magazine,
+  39731: KIND_LABEL.magazineIssue,
+  30030: KIND_LABEL.emojiPack,
+  30054: KIND_LABEL.podcastEpisode,
+  30055: KIND_LABEL.podcastTrailer,
+  3063: KIND_LABEL.softwareAsset,
+  30063: KIND_LABEL.softwareRelease,
+  30311: KIND_LABEL.stream,
+  30312: KIND_LABEL.room,
+  30313: KIND_LABEL.meeting,
+  30315: KIND_LABEL.status,
+  30402: KIND_LABEL.listing,
+  30617: KIND_LABEL.repository,
+  30618: KIND_LABEL.repositoryUpdate,
+  30817: KIND_LABEL.customNIP,
+  31922: KIND_LABEL.calendarEvent,
+  31923: KIND_LABEL.calendarEvent,
+  31990: KIND_LABEL.app,
+  32267: KIND_LABEL.softwareApp,
+  34139: KIND_LABEL.playlist,
+  34236: KIND_LABEL.shortVideo,
+  34550: KIND_LABEL.community,
+  35128: KIND_LABEL.nsite,
+  36767: KIND_LABEL.theme,
+  36787: KIND_LABEL.track,
+  37381: KIND_LABEL.magicDeck,
+  37516: KIND_LABEL.treasure,
+  30000: KIND_LABEL.followSet,
+  30621: KIND_LABEL.constellation,
+  39089: KIND_LABEL.followPack,
+  9735: KIND_LABEL.zap,
+  9802: KIND_LABEL.highlight,
+  2003: KIND_LABEL.torrent,
+  2256: KIND_LABEL.tarotReading,
+  39701: KIND_LABEL.webBookmark,
+  8333: KIND_LABEL.zap,
+  31124: KIND_LABEL.blobbi,
+  1984: KIND_LABEL.report,
+  31871: KIND_LABEL.attestation,
+  33863: KIND_LABEL.fundraiser,
+  37849: KIND_LABEL.quiz,
+  7849: KIND_LABEL.quizResult,
+  33331: KIND_LABEL.threeDObject,
 };
 
 /** Kind-specific icons — matches sidebar and NoteCard icons. */
@@ -299,67 +383,93 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
  * Unknown kinds render as "an unsupported event" — never as "a post", which
  * would misrepresent arbitrary event kinds as text notes.
  */
-function getKindLabel(kind: number): string {
-  return KIND_LABELS[kind] ?? 'an unsupported event';
+function getKindLabel(intl: IntlShape, kind: number): string {
+  return intl.formatMessage(KIND_LABELS[kind] ?? KIND_LABEL.unsupportedEvent);
 }
 
 /** Parse a rootKind string into a label, handling both numeric and external content kinds. */
-function getRootKindLabel(rootKind: string | undefined): string {
-  if (!rootKind) return 'a post';
+function getRootKindLabel(intl: IntlShape, rootKind: string | undefined): string {
+  if (!rootKind) return intl.formatMessage(KIND_LABEL.post);
 
   const kindNum = parseInt(rootKind, 10);
   if (isNaN(kindNum)) {
-    if (rootKind === 'web' || rootKind === 'https' || rootKind === 'http') return 'a link';
-    if (rootKind === '#') return 'a hashtag';
+    if (rootKind === 'web' || rootKind === 'https' || rootKind === 'http') return intl.formatMessage(KIND_LABEL.link);
+    if (rootKind === '#') return intl.formatMessage(KIND_LABEL.hashtag);
     return rootKind;
   }
 
-  return getKindLabel(kindNum);
+  return getKindLabel(intl, kindNum);
 }
 
 /** Suffix that describes the kind, appended after a title (e.g. "Wet Dry World theme"). */
-const KIND_SUFFIXES: Partial<Record<number, string>> = {
-  30009: 'badge',
+const TITLED = defineMessages({
+  badge: { id: 'commentContext.titled.badge', defaultMessage: '{title} badge' },
+  badges: { id: 'commentContext.titled.badges', defaultMessage: '{title} badges' },
+  emojiPack: { id: 'commentContext.titled.emojiPack', defaultMessage: '{title} emoji pack' },
+  theme: { id: 'commentContext.titled.theme', defaultMessage: '{title} theme' },
+  followSet: { id: 'commentContext.titled.followSet', defaultMessage: '{title} follow set' },
+  followPack: { id: 'commentContext.titled.followPack', defaultMessage: '{title} follow pack' },
+  deck: { id: 'commentContext.titled.deck', defaultMessage: '{title} deck' },
+  treasure: { id: 'commentContext.titled.treasure', defaultMessage: '{title} treasure' },
+  constellation: { id: 'commentContext.titled.constellation', defaultMessage: '{title} constellation' },
+  community: { id: 'commentContext.titled.community', defaultMessage: '{title} community' },
+  episode: { id: 'commentContext.titled.episode', defaultMessage: '{title} episode' },
+  trailer: { id: 'commentContext.titled.trailer', defaultMessage: '{title} trailer' },
+  playlist: { id: 'commentContext.titled.playlist', defaultMessage: '{title} playlist' },
+  bookmark: { id: 'commentContext.titled.bookmark', defaultMessage: '{title} bookmark' },
+  threeDObject: { id: 'commentContext.titled.threeDObject', defaultMessage: '{title} 3D object' },
+  app: { id: 'commentContext.titled.app', defaultMessage: '{title} app' },
+  softwareRelease: { id: 'commentContext.titled.softwareRelease', defaultMessage: '{title} software release' },
+  softwareAsset: { id: 'commentContext.titled.softwareAsset', defaultMessage: '{title} software asset' },
+  nsite: { id: 'commentContext.titled.nsite', defaultMessage: '{title} nsite' },
+  nsiteSnapshot: { id: 'commentContext.titled.nsiteSnapshot', defaultMessage: '{title} nsite snapshot' },
+});
+
+const KIND_SUFFIXES: Partial<Record<number, MessageDescriptor>> = {
+  30009: TITLED.badge,
   // Kind 30008 = NIP-51 badge set (legacy profile-badges variant is routed
   // separately by AddrCommentContext via the `profile_badges` d-tag check
   // before reaching this map).
-  30008: 'badges',
-  30030: 'emoji pack',
-  36767: 'theme',
-  16767: 'theme',
-  30000: 'follow set',
-  39089: 'follow pack',
-  37381: 'deck',
-  37516: 'treasure',
-  30621: 'constellation',
-  34550: 'community',
-  30054: 'episode',
-  30055: 'trailer',
-  34139: 'playlist',
-  39701: 'bookmark',
-  33331: '3D object',
+  30008: TITLED.badges,
+  30030: TITLED.emojiPack,
+  36767: TITLED.theme,
+  16767: TITLED.theme,
+  30000: TITLED.followSet,
+  39089: TITLED.followPack,
+  37381: TITLED.deck,
+  37516: TITLED.treasure,
+  30621: TITLED.constellation,
+  34550: TITLED.community,
+  30054: TITLED.episode,
+  30055: TITLED.trailer,
+  34139: TITLED.playlist,
+  39701: TITLED.bookmark,
+  33331: TITLED.threeDObject,
 };
 
 /** Postfix that replaces the default pattern (e.g. "npanel app" instead of "npanel software app"). */
-const KIND_POSTFIXES: Partial<Record<number, string>> = {
-  32267: 'app',
-  30063: 'software release',
-  3063: 'software asset',
+const KIND_POSTFIXES: Partial<Record<number, MessageDescriptor>> = {
+  32267: TITLED.app,
+  30063: TITLED.softwareRelease,
+  3063: TITLED.softwareAsset,
 };
 
 /** Get a display name for an event based on its kind and tags. */
-function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
+function getEventDisplayName(intl: IntlShape, event: NostrEvent): { text: string; icon?: React.ComponentType<{ className?: string }> } {
   const icon = KIND_ICONS[event.kind];
 
   // Nsite deployments: "{siteName} nsite" with rocket icon. Snapshots read
   // as "{siteName} nsite snapshot" so the version is distinguishable from the
   // living site it was taken from.
   if (isNsiteKind(event.kind)) {
-    const noun = event.kind === NSITE_SNAPSHOT_KIND ? 'nsite snapshot' : 'nsite';
+    const snapshot = event.kind === NSITE_SNAPSHOT_KIND;
     const title = event.tags.find(([name]) => name === 'title')?.[1];
     const dTag = event.tags.find(([name]) => name === 'd')?.[1];
     const siteName = title || dTag;
-    return { text: siteName ? `${siteName} ${noun}` : `an ${noun}`, icon };
+    const text = siteName
+      ? intl.formatMessage(snapshot ? TITLED.nsiteSnapshot : TITLED.nsite, { title: siteName })
+      : intl.formatMessage(snapshot ? KIND_LABEL.nsiteSnapshot : KIND_LABEL.nsite);
+    return { text, icon };
   }
 
   // NIP-89 apps: name lives in JSON content, not in tags
@@ -367,9 +477,9 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
     try {
       const meta = JSON.parse(event.content);
       const appName = meta?.name || event.tags.find(([n]) => n === 'name')?.[1];
-      if (appName) return { text: `${appName} app`, icon };
+      if (appName) return { text: intl.formatMessage(TITLED.app, { title: appName }), icon };
     } catch { /* fall through */ }
-    return { text: 'an app', icon };
+    return { text: intl.formatMessage(KIND_LABEL.app), icon };
   }
 
   // Extract a title-like string from tags
@@ -382,13 +492,13 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
   // Kinds with a custom postfix (e.g. "npanel app")
   const postfix = KIND_POSTFIXES[event.kind];
   if (postfix && displayTitle) {
-    return { text: `${displayTitle} ${postfix}`, icon };
+    return { text: intl.formatMessage(postfix, { title: displayTitle }), icon };
   }
 
   // Kinds with a suffix (e.g. "Beagle Owner badge", "Wet Dry World theme")
   const suffix = KIND_SUFFIXES[event.kind];
   if (suffix && displayTitle) {
-    return { text: `${displayTitle} ${suffix}`, icon };
+    return { text: intl.formatMessage(suffix, { title: displayTitle }), icon };
   }
 
   // Known kinds: use the conventional title/name/d tag if available.
@@ -402,7 +512,7 @@ function getEventDisplayName(event: NostrEvent): { text: string; icon?: React.Co
   if (alt) return { text: alt, icon };
 
   // Fall back to kind label ("an unsupported event" for unknown kinds).
-  return { text: getKindLabel(event.kind), icon };
+  return { text: getKindLabel(intl, event.kind), icon };
 }
 
 /** Build a navigation link for the root event. */
@@ -419,7 +529,8 @@ function getRootLink(event: NostrEvent): string {
 // ─── Shared wrapper ────────────────────────────────────────────
 
 interface CommentContextRowProps {
-  prefix: string;
+  /** Lead-in text. Defaults to "Commenting on". */
+  prefix?: ReactNode;
   className?: string;
   loading?: boolean;
   children?: ReactNode;
@@ -429,7 +540,9 @@ interface CommentContextRowProps {
 function CommentContextRow({ prefix, className, loading, children }: CommentContextRowProps) {
   return (
     <div className={className || ROW_CLASS}>
-      <span className="shrink-0">{prefix}</span>
+      <span className="shrink-0">
+        {prefix ?? <FormattedMessage id="commentContext.commentingOn" defaultMessage="Commenting on" />}
+      </span>
       {loading ? <Skeleton className="h-3.5 w-24 inline-block" /> : children}
     </div>
   );
@@ -622,7 +735,7 @@ function AddrCommentContext({ root, className }: { root: CommentRoot; className?
         pubkey={root.addr.pubkey}
         kind={3}
         icon={UserCheck}
-        noun="follow list"
+        noun={<FormattedMessage id="commentContext.followListNoun" defaultMessage="follow list" />}
         className={className}
       />
     );
@@ -677,9 +790,10 @@ function AuthorListCommentContext({ pubkey, kind, icon: Icon, noun, className }:
   noun: React.ReactNode;
   className?: string;
 }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const listLink = useMemo(
     () => `/${nip19.naddrEncode({ kind, pubkey, identifier: '' })}`,
@@ -687,14 +801,18 @@ function AuthorListCommentContext({ pubkey, kind, icon: Icon, noun, className }:
   );
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+    <CommentContextRow className={className} loading={author.isLoading}>
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link
           to={`/${npubEncoded}`}
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s
+          <FormattedMessage
+            id="commentContext.possessive"
+            defaultMessage="@{name}'s"
+            values={{ name: <EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText> }}
+          />
         </Link>
       </ProfileHoverCard>
       <Link
@@ -711,13 +829,14 @@ function AuthorListCommentContext({ pubkey, kind, icon: Icon, noun, className }:
 
 /** Comment context for kind 0 (profile) roots — shows "Commenting on @Name". */
 function ProfileCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+    <CommentContextRow className={className} loading={author.isLoading}>
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link
           to={`/${npubEncoded}`}
@@ -733,10 +852,11 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
 
 /** Comment context for kind 10008/30008 (profile badges) roots — shows "Commenting on profile badges by @User". */
 function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  const intl = useIntl();
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   // Build naddr link for the profile badges event
@@ -754,20 +874,20 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
   ) : undefined;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+    <CommentContextRow className={className} loading={author.isLoading}>
       {link && hoverContent ? (
         <EventHoverLink
-          display={{ text: 'profile badges', icon: Award }}
+          display={{ text: intl.formatMessage(KIND_LABEL.profileBadges), icon: Award }}
           link={link}
           hoverContent={hoverContent}
         />
       ) : (
         <span className="inline-flex items-center gap-1 truncate">
           <Award className="size-3.5 shrink-0" />
-          profile badges
+          <FormattedMessage {...KIND_LABEL.profileBadges} />
         </span>
       )}
-      <span className="shrink-0">by</span>
+      <span className="shrink-0"><FormattedMessage id="commentContext.by" defaultMessage="by" /></span>
       <ProfileHoverCard pubkey={pubkey} asChild>
         <Link
           to={`/${npubEncoded}`}
@@ -783,12 +903,15 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
 
 /** Comment context for non-profile addressable event roots (A tag). */
 function GenericAddrCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  const intl = useIntl();
   const { data: event, isLoading } = useAddrEvent(root.addr, root.relayHint ? [root.relayHint] : undefined);
 
   const isCommunity = root.rootKind === '34550' || root.addr?.kind === 34550;
-  const prefix = isCommunity ? 'Posted in' : 'Commenting on';
+  const prefix = isCommunity
+    ? <FormattedMessage id="commentContext.postedIn" defaultMessage="Posted in" />
+    : undefined;
 
-  const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
+  const display = event ? getEventDisplayName(intl, event) : { text: getRootKindLabel(intl, root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
   // Build hover card content for addressable events
@@ -821,6 +944,7 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
 
 /** Comment context for regular event roots (E tag). */
 function EventCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  const intl = useIntl();
   const { data: event, isLoading } = useEvent(
     root.eventId,
     root.relayHint ? [root.relayHint] : undefined,
@@ -853,7 +977,7 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
     return <HighlightCommentContext event={event} className={className} />;
   }
 
-  const display = event ? getEventDisplayName(event) : { text: getRootKindLabel(root.rootKind) };
+  const display = event ? getEventDisplayName(intl, event) : { text: getRootKindLabel(intl, root.rootKind) };
   const link = event ? getRootLink(event) : undefined;
 
   const hoverContent = root.eventId ? (
@@ -867,7 +991,7 @@ function EventCommentContext({ root, className }: { root: CommentRoot; className
   ) : undefined;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+    <CommentContextRow className={className} loading={isLoading}>
       {link && hoverContent ? (
         <EventHoverLink display={display} link={link} hoverContent={hoverContent} />
       ) : (
@@ -886,7 +1010,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
   const profileLink = `/${nip19.npubEncode(event.pubkey)}`;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       <Link
         to={reactionLink}
         className="text-primary hover:underline shrink-0 cursor-pointer"
@@ -894,7 +1018,7 @@ function ReactionCommentContext({ event, className }: { event: NostrEvent; class
       >
         <ReactionEmoji content={event.content} tags={event.tags} pubkey={event.pubkey} className="inline-block h-[1.2em] w-[1.2em] align-text-bottom object-contain" />
       </Link>
-      <span className="shrink-0">by</span>
+      <span className="shrink-0"><FormattedMessage id="commentContext.by" defaultMessage="by" /></span>
       {author.isLoading ? (
         <Skeleton className="h-3.5 w-16 inline-block" />
       ) : (
@@ -947,16 +1071,20 @@ function ZapCommentContext({ event, className }: { event: NostrEvent; className?
       onClick={(e) => e.stopPropagation()}
     >
       <Zap className="size-3.5 shrink-0 text-amber-500" />
-      <span>{sats > 0 ? `${formatMoney(sats)} zap` : 'zap'}</span>
+      <span>
+        {sats > 0
+          ? <FormattedMessage id="commentContext.zapAmount" defaultMessage="{amount} zap" values={{ amount: formatMoney(sats) }} />
+          : <FormattedMessage id="commentContext.zap" defaultMessage="zap" />}
+      </span>
     </Link>
   );
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       {amountNode}
       {profileLink && (
         <>
-          <span className="shrink-0">by</span>
+          <span className="shrink-0"><FormattedMessage id="commentContext.by" defaultMessage="by" /></span>
           {author.isLoading ? (
             <Skeleton className="h-3.5 w-16 inline-block" />
           ) : (
@@ -983,6 +1111,7 @@ function ZapCommentContext({ event, className }: { event: NostrEvent; className?
  * hover-card preview of the excerpt (via EmbeddedNote → EmbeddedHighlightCard).
  */
 function HighlightCommentContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -999,18 +1128,22 @@ function HighlightCommentContext({ event, className }: { event: NostrEvent; clas
   );
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+    <CommentContextRow className={className} loading={author.isLoading}>
       <ProfileHoverCard pubkey={event.pubkey} asChild>
         <Link
           to={profileLink}
           className="text-primary hover:underline truncate"
           onClick={(e) => e.stopPropagation()}
         >
-          @<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s
+          <FormattedMessage
+            id="commentContext.possessive"
+            defaultMessage="@{name}'s"
+            values={{ name: <EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText> }}
+          />
         </Link>
       </ProfileHoverCard>
       <EventHoverLink
-        display={{ text: 'highlight' }}
+        display={{ text: intl.formatMessage({ id: 'commentContext.highlightNoun', defaultMessage: 'highlight' }) }}
         link={highlightLink}
         hoverContent={hoverContent}
       />
@@ -1026,6 +1159,7 @@ function HighlightCommentContext({ event, className }: { event: NostrEvent; clas
  * EmbeddedCampaignCard).
  */
 function CampaignCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  const intl = useIntl();
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
@@ -1053,7 +1187,7 @@ function CampaignCommentContext({ root, className }: { root: CommentRoot; classN
   ) : undefined;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={author.isLoading}>
+    <CommentContextRow className={className} loading={author.isLoading}>
       {profileLink ? (
         <ProfileHoverCard pubkey={pubkey} asChild>
           <Link
@@ -1065,18 +1199,24 @@ function CampaignCommentContext({ root, className }: { root: CommentRoot; classN
         </Link>
         </ProfileHoverCard>
       ) : (
-        <span className="truncate">@<EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText>'s</span>
+        <span className="truncate">
+          <FormattedMessage
+            id="commentContext.possessive"
+            defaultMessage="@{name}'s"
+            values={{ name: <EmojifiedText tags={author.data?.event?.tags ?? []}>{displayName}</EmojifiedText> }}
+          />
+        </span>
       )}
       {campaignLink && hoverContent ? (
         <EventHoverLink
-          display={{ text: 'fundraiser', icon: HandHeart }}
+          display={{ text: intl.formatMessage({ id: 'commentContext.fundraiserNoun', defaultMessage: 'fundraiser' }), icon: HandHeart }}
           link={campaignLink}
           hoverContent={hoverContent}
         />
       ) : (
         <span className="inline-flex items-center gap-1 truncate">
           <HandHeart className="size-3.5 shrink-0" />
-          fundraiser
+          <FormattedMessage id="commentContext.fundraiserNoun" defaultMessage="fundraiser" />
         </span>
       )}
     </CommentContextRow>
@@ -1094,7 +1234,7 @@ function PollVoteCommentContext({ event, className }: { event: NostrEvent; class
   const voteLabel = usePollVoteLabel(event);
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       {author.isLoading ? (
         <Skeleton className="h-3.5 w-16 inline-block" />
       ) : (
@@ -1114,7 +1254,9 @@ function PollVoteCommentContext({ event, className }: { event: NostrEvent; class
         onClick={(e) => e.stopPropagation()}
       >
         <Vote className="size-3.5 shrink-0" />
-        {voteLabel ? `vote for ${voteLabel}` : 'vote'}
+        {voteLabel
+          ? <FormattedMessage id="commentContext.voteFor" defaultMessage="vote for {option}" values={{ option: voteLabel }} />
+          : <FormattedMessage id="commentContext.vote" defaultMessage="vote" />}
       </Link>
     </CommentContextRow>
   );
@@ -1159,7 +1301,7 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
   const link = `/i/${encodeURIComponent(identifier)}`;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       <Link
         to={link}
         className="text-primary hover:underline truncate"
@@ -1186,7 +1328,7 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
   const title = preview?.title;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+    <CommentContextRow className={className} loading={isLoading}>
       <ExternalFavicon url={url} size={14} className="shrink-0" />
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
@@ -1214,8 +1356,9 @@ function UrlCommentContext({ url, className }: { url: string; className?: string
 
 /** Comment context for ISO 3166 country/subdivision identifiers — shows flag and name with hover preview. */
 function CountryCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const intl = useIntl();
   const code = identifier.slice('iso3166:'.length);
-  const info = getCountryInfo(code);
+  const info = getCountryInfo(code, intl);
   const link = `/i/${encodeURIComponent(identifier)}`;
 
   const displayText = info
@@ -1225,7 +1368,7 @@ function CountryCommentContext({ identifier, className }: { identifier: string; 
     : identifier;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
           <Link
@@ -1244,13 +1387,17 @@ function CountryCommentContext({ identifier, className }: { identifier: string; 
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-3 px-4 py-3">
-            <span className="text-2xl leading-none shrink-0" role="img" aria-label={info ? `Flag of ${info.name}` : code}>
+            <span className="text-2xl leading-none shrink-0" role="img" aria-label={info ? intl.formatMessage({ id: 'commentContext.flagOf', defaultMessage: 'Flag of {country}' }, { country: info.name }) : code}>
               {info?.flag ?? '🌍'}
             </span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <MapPin className="size-3 shrink-0" />
-                <span>{info?.subdivisionName ? 'Region' : 'Country'}</span>
+                <span>
+                  {info?.subdivisionName
+                    ? <FormattedMessage id="commentContext.region" defaultMessage="Region" />
+                    : <FormattedMessage id="commentContext.country" defaultMessage="Country" />}
+                </span>
               </div>
               <p className="text-sm font-medium truncate mt-0.5">
                 {info?.subdivisionName ?? info?.name ?? code}
@@ -1270,6 +1417,7 @@ function CountryCommentContext({ identifier, className }: { identifier: string; 
 
 /** Comment context for ISBN identifiers — fetches and displays the book title with hover preview. */
 function IsbnCommentContext({ identifier, className }: { identifier: string; className?: string }) {
+  const intl = useIntl();
   const isbn = identifier.slice('isbn:'.length);
   const { data: bookInfo, isLoading } = useBookInfo(isbn);
   const link = `/i/${encodeURIComponent(identifier)}`;
@@ -1278,7 +1426,7 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
   const authors = bookInfo?.authors?.map((a) => a.name).join(', ');
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+    <CommentContextRow className={className} loading={isLoading}>
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
           <Link
@@ -1301,7 +1449,7 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
             {coverUrl ? (
               <img
                 src={coverUrl}
-                alt={bookInfo?.title || 'Book cover'}
+                alt={bookInfo?.title || intl.formatMessage({ id: 'commentContext.bookCover', defaultMessage: 'Book cover' })}
                 className="w-9 h-12 rounded object-cover shrink-0"
                 loading="lazy"
                 decoding="async"
@@ -1314,14 +1462,14 @@ function IsbnCommentContext({ identifier, className }: { identifier: string; cla
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <BookOpen className="size-3 shrink-0" />
-                <span>Book</span>
+                <span><FormattedMessage id="commentContext.book" defaultMessage="Book" /></span>
               </div>
               <p className="text-sm font-medium truncate mt-0.5">
                 {bookInfo?.title || `ISBN ${isbn}`}
               </p>
               {authors && (
                 <p className="text-xs text-muted-foreground truncate">
-                  by {authors}
+                  <FormattedMessage id="commentContext.byAuthors" defaultMessage="by {authors}" values={{ authors }} />
                 </p>
               )}
             </div>
@@ -1351,14 +1499,15 @@ function GathererCardCommentContext({
       ? { kind: 'multiverse' as const, multiverseId: card.multiverseId }
       : { kind: 'set' as const, set: card.set, number: card.number, lang: card.lang }
   ), [card]);
+  const intl = useIntl();
   const { data: scryCard, isLoading } = useScryfallCard(lookup);
   const link = `/i/${encodeURIComponent(url)}`;
 
-  const displayText = scryCard?.name ?? 'Magic card';
+  const displayText = scryCard?.name ?? intl.formatMessage({ id: 'commentContext.magicCardFallback', defaultMessage: 'Magic card' });
   const coverUrl = scryCard ? cardPrimaryImage(scryCard, 'small') : undefined;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className} loading={isLoading}>
+    <CommentContextRow className={className} loading={isLoading}>
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
           <Link
@@ -1381,7 +1530,7 @@ function GathererCardCommentContext({
             {coverUrl ? (
               <img
                 src={coverUrl}
-                alt={scryCard?.name ?? 'Magic card'}
+                alt={displayText}
                 className="w-9 h-12 rounded object-cover shrink-0"
                 loading="lazy"
                 decoding="async"
@@ -1394,10 +1543,10 @@ function GathererCardCommentContext({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CardsIcon className="size-3 shrink-0" />
-                <span>Magic Card</span>
+                <span><FormattedMessage id="commentContext.magicCardLabel" defaultMessage="Magic Card" /></span>
               </div>
               <p className="text-sm font-medium truncate mt-0.5">
-                {scryCard?.name ?? 'Unknown card'}
+                {scryCard?.name ?? <FormattedMessage id="commentContext.unknownCard" defaultMessage="Unknown card" />}
               </p>
               {scryCard?.set_name && (
                 <p className="text-xs text-muted-foreground truncate">
@@ -1419,7 +1568,7 @@ function BitcoinTxCommentContext({ identifier, className }: { identifier: string
   const truncated = txid.length > 19 ? `${txid.slice(0, 8)}…${txid.slice(-8)}` : txid;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       <Bitcoin className="size-3.5 shrink-0 text-orange-500" />
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
@@ -1428,7 +1577,11 @@ function BitcoinTxCommentContext({ identifier, className }: { identifier: string
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            transaction <span className="font-mono text-xs">{truncated}</span>
+            <FormattedMessage
+              id="commentContext.bitcoinTx"
+              defaultMessage="transaction {txid}"
+              values={{ txid: <span className="font-mono text-xs">{truncated}</span> }}
+            />
           </Link>
         </HoverCardTrigger>
         <HoverCardContent
@@ -1452,7 +1605,7 @@ function BitcoinAddressCommentContext({ identifier, className }: { identifier: s
   const truncated = address.length > 19 ? `${address.slice(0, 8)}…${address.slice(-8)}` : address;
 
   return (
-    <CommentContextRow prefix="Commenting on" className={className}>
+    <CommentContextRow className={className}>
       <Bitcoin className="size-3.5 shrink-0 text-orange-500" />
       <HoverCard openDelay={300} closeDelay={150}>
         <HoverCardTrigger asChild>
@@ -1461,7 +1614,11 @@ function BitcoinAddressCommentContext({ identifier, className }: { identifier: s
             className="text-primary hover:underline truncate cursor-pointer"
             onClick={(e) => e.stopPropagation()}
           >
-            address <span className="font-mono text-xs">{truncated}</span>
+            <FormattedMessage
+              id="commentContext.bitcoinAddress"
+              defaultMessage="address {address}"
+              values={{ address: <span className="font-mono text-xs">{truncated}</span> }}
+            />
           </Link>
         </HoverCardTrigger>
         <HoverCardContent

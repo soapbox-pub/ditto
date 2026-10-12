@@ -1,6 +1,7 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -169,6 +170,7 @@ interface ProfileMoreMenuProps {
 }
 
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile, authorEvent, isFollowing, onLoved }: ProfileMoreMenuProps) {
+  const intl = useIntl();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const navigate = useNavigate();
@@ -211,14 +213,14 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
   const handleCopyPubkey = () => {
     navigator.clipboard.writeText(npubEncoded);
-    toast({ title: 'Public key copied to clipboard' });
+    toast({ title: intl.formatMessage({ id: 'profile.menu.pubkeyCopied', defaultMessage: 'Public key copied to clipboard' }) });
     close();
   };
 
   const handleCopyLink = () => {
     const url = `${shareOrigin}/${npubEncoded}`;
     navigator.clipboard.writeText(url);
-    toast({ title: 'Profile link copied to clipboard' });
+    toast({ title: intl.formatMessage({ id: 'profile.menu.linkCopied', defaultMessage: 'Profile link copied to clipboard' }) });
     close();
   };
 
@@ -227,10 +229,19 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     const mutation = userMuted ? removeMute : addMute;
     mutation.mutate(muteItem, {
       onSuccess: () => {
-        toast({ title: userMuted ? `Unmuted @${displayName}` : `Muted @${displayName}` });
+        toast({
+          title: userMuted
+            ? intl.formatMessage({ id: 'profile.menu.unmuted', defaultMessage: 'Unmuted @{name}' }, { name: displayName })
+            : intl.formatMessage({ id: 'profile.menu.muted', defaultMessage: 'Muted @{name}' }, { name: displayName }),
+        });
       },
       onError: () => {
-        toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
+        toast({
+          title: userMuted
+            ? intl.formatMessage({ id: 'profile.menu.unmuteFailed', defaultMessage: 'Failed to unmute user' })
+            : intl.formatMessage({ id: 'profile.menu.muteFailed', defaultMessage: 'Failed to mute user' }),
+          variant: 'destructive',
+        });
       },
     });
     close();
@@ -242,19 +253,21 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const handleToggleTop8 = () => {
     if (inTop8) {
       removeFromTop8.mutate(pubkey, {
-        onSuccess: () => toast({ title: `Removed @${displayName} from your Top 8` }),
-        onError: () => toast({ title: 'Failed to update your Top 8', variant: 'destructive' }),
+        onSuccess: () => toast({ title: intl.formatMessage({ id: 'profile.menu.top8Removed', defaultMessage: 'Removed @{name} from your Top 8' }, { name: displayName }) }),
+        onError: () => toast({ title: intl.formatMessage({ id: 'profile.menu.top8Failed', defaultMessage: 'Failed to update your Top 8' }), variant: 'destructive' }),
       });
     } else {
       addToTop8.mutate(pubkey, {
         onSuccess: () => toast({
-          title: `@${displayName} is in your Top 8`,
-          description: 'Drag to rank them on the Top 8 page.',
+          title: intl.formatMessage({ id: 'profile.menu.top8Added', defaultMessage: '@{name} is in your Top 8' }, { name: displayName }),
+          description: intl.formatMessage({ id: 'profile.menu.top8AddedDescription', defaultMessage: 'Drag to rank them on the Top 8 page.' }),
         }),
         onError: (error) => toast({
-          title: top8IsFull ? 'Your Top 8 is full' : 'Failed to update your Top 8',
+          title: top8IsFull
+            ? intl.formatMessage({ id: 'top8.edit.fullTitle', defaultMessage: 'Your Top 8 is full' })
+            : intl.formatMessage({ id: 'profile.menu.top8Failed', defaultMessage: 'Failed to update your Top 8' }),
           description: top8IsFull
-            ? 'Remove someone on the Top 8 page to make room.'
+            ? intl.formatMessage({ id: 'profile.menu.top8FullDescription', defaultMessage: 'Remove someone on the Top 8 page to make room.' })
             : error instanceof Error ? error.message : undefined,
           variant: 'destructive',
         }),
@@ -270,11 +283,15 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
       onSuccess: () => {
         if (!loved) onLoved?.();
         toast({
-          title: loved ? `Removed @${displayName} from your Love List` : `@${displayName} is on your Love List ❤️`,
-          description: loved ? undefined : 'Find their posts in the Loved tab of your feed.',
+          title: loved
+            ? intl.formatMessage({ id: 'profile.menu.loveRemoved', defaultMessage: 'Removed @{name} from your Love List' }, { name: displayName })
+            : intl.formatMessage({ id: 'profile.menu.loveAdded', defaultMessage: '@{name} is on your Love List ❤️' }, { name: displayName }),
+          description: loved
+            ? undefined
+            : intl.formatMessage({ id: 'profile.menu.loveAddedDescription', defaultMessage: 'Find their posts in the Loved tab of your feed.' }),
         });
       },
-      onError: () => toast({ title: 'Failed to update Love List', variant: 'destructive' }),
+      onError: () => toast({ title: intl.formatMessage({ id: 'profile.menu.loveFailed', defaultMessage: 'Failed to update Love List' }), variant: 'destructive' }),
     });
     close();
   };
@@ -284,10 +301,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   const handleToggleSidebar = () => {
     if (isInSidebar) {
       removeFromSidebar(sidebarId);
-      toast({ title: 'Removed from sidebar' });
+      toast({ title: intl.formatMessage({ id: 'profile.menu.sidebarRemoved', defaultMessage: 'Removed from sidebar' }) });
     } else {
       addToSidebar(sidebarId);
-      toast({ title: 'Added to sidebar' });
+      toast({ title: intl.formatMessage({ id: 'profile.menu.sidebarAdded', defaultMessage: 'Added to sidebar' }) });
     }
     close();
   };
@@ -308,22 +325,24 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
-        <DialogTitle className="sr-only">Profile options</DialogTitle>
+        <DialogTitle className="sr-only">
+          <FormattedMessage id="profile.menu.title" defaultMessage="Profile options" />
+        </DialogTitle>
 
         <div className="py-1">
           <MenuRow
             icon={<ClipboardCopy className="size-5" />}
-            label="Copy public key"
+            label={intl.formatMessage({ id: 'profile.menu.copyPubkey', defaultMessage: 'Copy public key' })}
             onClick={handleCopyPubkey}
           />
           <MenuRow
             icon={<ClipboardCopy className="size-5" />}
-            label="Copy profile link"
+            label={intl.formatMessage({ id: 'profile.menu.copyLink', defaultMessage: 'Copy profile link' })}
             onClick={handleCopyLink}
           />
           <MenuRow
             icon={<ListPlus className="size-5" />}
-            label="Add to list"
+            label={intl.formatMessage({ id: 'profile.menu.addToList', defaultMessage: 'Add to list' })}
             onClick={handleAddToList}
           />
           {/* Top 8 (kind 18678). Shown even when the Top 8 is full — hiding the
@@ -332,7 +351,9 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
           {user && !isOwnProfile && (
             <MenuRow
               icon={<Crown className="size-5" />}
-              label={inTop8 ? 'Remove from Top 8' : 'Add to Top 8'}
+              label={inTop8
+                ? intl.formatMessage({ id: 'profile.menu.removeFromTop8', defaultMessage: 'Remove from Top 8' })
+                : intl.formatMessage({ id: 'profile.menu.addToTop8', defaultMessage: 'Add to Top 8' })}
               onClick={handleToggleTop8}
             />
           )}
@@ -340,13 +361,17 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
           {showLove && (
             <MenuRow
               icon={loved ? <HeartMinus className="size-5" /> : <HeartPlus className="size-5" />}
-              label={loved ? 'Remove from Love List' : 'Add to Love List'}
+              label={loved
+                ? intl.formatMessage({ id: 'profile.menu.removeFromLoveList', defaultMessage: 'Remove from Love List' })
+                : intl.formatMessage({ id: 'profile.menu.addToLoveList', defaultMessage: 'Add to Love List' })}
               onClick={handleToggleLove}
             />
           )}
           <MenuRow
             icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
-            label={isInSidebar ? 'Remove from sidebar' : 'Add to sidebar'}
+            label={isInSidebar
+              ? intl.formatMessage({ id: 'profile.menu.removeFromSidebar', defaultMessage: 'Remove from sidebar' })
+              : intl.formatMessage({ id: 'profile.menu.addToSidebar', defaultMessage: 'Add to sidebar' })}
             onClick={handleToggleSidebar}
           />
         </div>
@@ -358,12 +383,12 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <div className="py-1">
               <MenuRow
                 icon={<QrCode className="size-5" />}
-                label="Share follow link"
+                label={intl.formatMessage({ id: 'profile.shareFollowLink', defaultMessage: 'Share follow link' })}
                 onClick={handleFollowQR}
               />
               <MenuRow
                 icon={<RotateCcw className="size-5" />}
-                label="Profile recovery"
+                label={intl.formatMessage({ id: 'profile.menu.recovery', defaultMessage: 'Profile recovery' })}
                 onClick={handleRecovery}
               />
             </div>
@@ -378,32 +403,34 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
               {showZap && (
                 <MenuRow
                   icon={<Zap className="size-5" />}
-                  label="Zap"
+                  label={intl.formatMessage({ id: 'profile.menu.zap', defaultMessage: 'Zap' })}
                   onClick={handleZap}
                 />
               )}
               {user && (
                 <MenuRow
                   icon={<Award className="size-5" />}
-                  label="Award badge"
+                  label={intl.formatMessage({ id: 'profile.menu.awardBadge', defaultMessage: 'Award badge' })}
                   onClick={handleGiveBadge}
                 />
               )}
               {user && (
                 <MenuRow
                   icon={<Mail className="size-5" />}
-                  label="Write a letter"
+                  label={intl.formatMessage({ id: 'letters.write', defaultMessage: 'Write a letter' })}
                   onClick={handleWriteLetter}
                 />
               )}
               <MenuRow
                 icon={<VolumeX className="size-5" />}
-                label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
+                label={userMuted
+                  ? intl.formatMessage({ id: 'profile.menu.unmute', defaultMessage: 'Unmute @{name}' }, { name: displayName })
+                  : intl.formatMessage({ id: 'profile.menu.mute', defaultMessage: 'Mute @{name}' }, { name: displayName })}
                 onClick={handleMuteUser}
               />
               <MenuRow
                 icon={<Flag className="size-5" />}
-                label={`Report @${displayName}`}
+                label={intl.formatMessage({ id: 'profile.menu.report', defaultMessage: 'Report @{name}' }, { name: displayName })}
                 onClick={handleReport}
                 destructive
               />
@@ -418,7 +445,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <div className="py-1">
               <MenuRow
                 icon={<FileJson className="size-5" />}
-                label="View Event JSON"
+                label={intl.formatMessage({ id: 'profile.menu.viewJson', defaultMessage: 'View Event JSON' })}
                 onClick={handleViewEventJson}
               />
             </div>
@@ -433,7 +460,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
             onClick={close}
           >
-            Close
+            <FormattedMessage id="widgets.common.close" defaultMessage="Close" />
           </Button>
         </div>
       </DialogContent>
@@ -507,10 +534,11 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
 // ----- Following User Row -----
 
 function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?: () => void }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -565,6 +593,7 @@ function SortableTabChip({
   onRemove: () => void;
   onEdit?: () => void;
 }) {
+  const intl = useIntl();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
   const chipRef = useRef<HTMLDivElement>(null);
   useActiveTabIndicator(active, chipRef);
@@ -587,7 +616,7 @@ function SortableTabChip({
       <span
         {...listeners}
         className="shrink-0 flex items-center cursor-grab active:cursor-grabbing touch-none pr-1"
-        aria-label="Drag to reorder"
+        aria-label={intl.formatMessage({ id: 'profile.tabs.dragToReorder', defaultMessage: 'Drag to reorder' })}
       >
         <GripVertical className="size-4 text-muted-foreground/40" />
       </span>
@@ -598,7 +627,7 @@ function SortableTabChip({
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="py-3.5 pr-1"
       >
-        {tab.label}
+        {tabDisplayLabel(intl, tab.label)}
       </button>
 
       {/* Edit — only rendered for active custom (non-core) tabs */}
@@ -607,7 +636,7 @@ function SortableTabChip({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="shrink-0 flex items-center justify-center py-3.5 px-1.5 text-muted-foreground/50 hover:text-primary transition-colors"
-          aria-label={`Edit ${tab.label}`}
+          aria-label={intl.formatMessage({ id: 'profile.tabs.edit', defaultMessage: 'Edit {tab}' }, { tab: tabDisplayLabel(intl, tab.label) })}
         >
           <Pencil className="size-3.5" />
         </button>
@@ -619,7 +648,7 @@ function SortableTabChip({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="shrink-0 flex items-center justify-center text-xl leading-none font-bold py-3.5 pl-1 pr-1 text-muted-foreground/50 hover:text-destructive transition-colors"
-          aria-label={`Remove ${tab.label}`}
+          aria-label={intl.formatMessage({ id: 'profile.tabs.remove', defaultMessage: 'Remove {tab}' }, { tab: tabDisplayLabel(intl, tab.label) })}
         >
           ×
         </button>
@@ -635,6 +664,7 @@ function SortableTabChip({
 // ----- Bitcoin QR Modal (mobile) -----
 
 function BitcoinQRModal({ address }: { address: string }) {
+  const intl = useIntl();
   const [qrUrl, setQrUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
@@ -650,7 +680,10 @@ function BitcoinQRModal({ address }: { address: string }) {
   const handleCopy = async () => {
     await navigator.clipboard.writeText(address);
     setCopied(true);
-    toast({ title: 'Copied', description: 'Bitcoin address copied to clipboard' });
+    toast({
+      title: intl.formatMessage({ id: 'profile.bitcoin.copied', defaultMessage: 'Copied' }),
+      description: intl.formatMessage({ id: 'profile.bitcoin.copiedDescription', defaultMessage: 'Bitcoin address copied to clipboard' }),
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -669,7 +702,7 @@ function BitcoinQRModal({ address }: { address: string }) {
         <div className="flex justify-center my-5">
           <div className="bg-white p-3 rounded-xl">
             {qrUrl ? (
-              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" decoding="async" />
+              <img src={qrUrl} alt={intl.formatMessage({ id: 'profile.bitcoin.qrAlt', defaultMessage: 'Bitcoin QR' })} className="size-[220px]" decoding="async" />
             ) : (
               <div className="size-[220px] bg-muted animate-pulse rounded" />
             )}
@@ -733,6 +766,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   const [copied, setCopied] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const { toast } = useToast();
+  const intl = useIntl();
   const isBtc = field.label === '$BTC';
   const safeUrl = sanitizeUrl(field.value);
   const isUrl = !!safeUrl;
@@ -740,7 +774,10 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   const handleCopy = async () => {
     await navigator.clipboard.writeText(field.value);
     setCopied(true);
-    toast({ title: 'Copied', description: 'Bitcoin address copied to clipboard' });
+    toast({
+      title: intl.formatMessage({ id: 'profile.bitcoin.copied', defaultMessage: 'Copied' }),
+      description: intl.formatMessage({ id: 'profile.bitcoin.copiedDescription', defaultMessage: 'Bitcoin address copied to clipboard' }),
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -756,13 +793,13 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
           <button
             onClick={handleCopy}
             className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
-            title="Copy address"
+            title={intl.formatMessage({ id: 'profile.bitcoin.copyAddress', defaultMessage: 'Copy address' })}
           >
             {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
           </button>
           <Dialog open={qrOpen} onOpenChange={setQrOpen}>
             <DialogTrigger asChild>
-              <button className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary" title="Show QR code">
+              <button className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary" title={intl.formatMessage({ id: 'profile.bitcoin.showQr', defaultMessage: 'Show QR code' })}>
                 <QrCode className="size-4" />
               </button>
             </DialogTrigger>
@@ -776,7 +813,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
             target="_blank"
             rel="noopener noreferrer"
             className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
-            title="View on mempool.space"
+            title={intl.formatMessage({ id: 'profile.bitcoin.viewOnMempool', defaultMessage: 'View on mempool.space' })}
           >
             <ExternalLink className="size-4" />
           </a>
@@ -838,7 +875,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
         <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="block">
           <img
             src={safeUrl}
-            alt={field.label || 'Profile image'}
+            alt={field.label || intl.formatMessage({ id: 'profile.field.imageAlt', defaultMessage: 'Profile image' })}
             className="w-full max-w-sm rounded-lg object-cover"
             loading="lazy"
             decoding="async"
@@ -898,8 +935,8 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
         onClick={(e) => { e.stopPropagation(); onUnpin(); }}
       >
         <Pin className="size-3 rotate-45" />
-        <span className="group-hover:hidden">Pinned</span>
-        <span className="hidden group-hover:inline">Unpin?</span>
+        <span className="group-hover:hidden"><FormattedMessage id="profile.pinned" defaultMessage="Pinned" /></span>
+        <span className="hidden group-hover:inline"><FormattedMessage id="profile.unpin" defaultMessage="Unpin?" /></span>
       </button>
     );
   }
@@ -907,7 +944,7 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
   return (
     <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0">
       <Pin className="size-3 rotate-45" />
-      <span>Pinned</span>
+      <span><FormattedMessage id="profile.pinned" defaultMessage="Pinned" /></span>
     </div>
   );
 }
@@ -915,6 +952,7 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
 // ----- Profile Image Lightbox -----
 
 function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; imeta?: ImetaEntry; onClose: () => void }) {
+  const intl = useIntl();
   const [isLoaded, setIsLoaded] = useState(false);
   // Same source as the avatar/banner it was opened from: declared fallbacks,
   // and an encrypted image decrypted (shared, so usually already done).
@@ -1045,14 +1083,14 @@ function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; 
             <button
               onClick={handleDownload}
               className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-              title="Open original"
+              title={intl.formatMessage({ id: 'profile.lightbox.openOriginal', defaultMessage: 'Open original' })}
             >
               <Download className="size-5" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
               className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-              title="Close (Esc)"
+              title={intl.formatMessage({ id: 'gallery.close', defaultMessage: 'Close (Esc)' })}
             >
               <X className="size-5" />
             </button>
@@ -1108,37 +1146,49 @@ interface FollowersListModalProps {
  * to its tag feed. Tags are pre-validated by useProfileSupplementary.
  */
 function SharedInterests({ tags }: { tags: string[] }) {
+  const intl = useIntl();
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? tags : tags.slice(0, 3);
   const hidden = tags.length - shown.length;
+
+  const links = shown.map((tag) => (
+    <Link
+      key={tag}
+      to={`/t/${encodeURIComponent(tag)}`}
+      className="font-medium text-foreground hover:text-primary hover:underline"
+    >
+      {tag}
+    </Link>
+  ));
 
   return (
     <div className="flex items-start gap-1.5 mt-2 text-sm text-muted-foreground">
       <HeartHandshake className="size-3.5 shrink-0 mt-0.5 text-primary" aria-hidden="true" />
       <p className="min-w-0 break-words">
-        You both like{' '}
-        {shown.map((tag, i) => (
-          <Fragment key={tag}>
-            {i > 0 && (i === shown.length - 1 && hidden === 0 ? ' and ' : ', ')}
-            <Link
-              to={`/t/${encodeURIComponent(tag)}`}
-              className="font-medium text-foreground hover:text-primary hover:underline"
-            >
-              {tag}
-            </Link>
-          </Fragment>
-        ))}
-        {hidden > 0 && (
-          <>
-            {' '}and{' '}
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="font-medium underline decoration-dotted underline-offset-2 hover:text-foreground transition-colors"
-            >
-              {hidden} more
-            </button>
-          </>
+        {hidden > 0 ? (
+          <FormattedMessage
+            id="profile.sharedInterests.more"
+            defaultMessage="You both like {interests} and <more>{count} more</more>"
+            values={{
+              interests: intl.formatList(links, { type: 'unit' }),
+              count: hidden,
+              more: (chunks) => (
+                <button
+                  type="button"
+                  onClick={() => setExpanded(true)}
+                  className="font-medium underline decoration-dotted underline-offset-2 hover:text-foreground transition-colors"
+                >
+                  {chunks}
+                </button>
+              ),
+            }}
+          />
+        ) : (
+          <FormattedMessage
+            id="profile.sharedInterests"
+            defaultMessage="You both like {interests}"
+            values={{ interests: intl.formatList(links, { type: 'conjunction' }) }}
+          />
         )}
       </p>
     </div>
@@ -1148,6 +1198,7 @@ function SharedInterests({ tags }: { tags: string[] }) {
 function FollowersListModal({ pubkey, open, onOpenChange, displayName }: FollowersListModalProps) {
   const handleNavigate = useCallback(() => onOpenChange(false), [onOpenChange]);
   const { nostr } = useNostr();
+  const intl = useIntl();
 
   const {
     data,
@@ -1228,12 +1279,15 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <DialogTitle className="text-base font-bold">{displayName}'s followers</DialogTitle>
+          <DialogTitle className="text-base font-bold">
+            <FormattedMessage id="profile.followers.title" defaultMessage="{name}'s followers" values={{ name: displayName }} />
+          </DialogTitle>
           <Button
             variant="ghost"
             size="icon"
             className="rounded-full size-8"
             onClick={() => onOpenChange(false)}
+            aria-label={intl.formatMessage({ id: 'widgets.common.close', defaultMessage: 'Close' })}
           >
             <X className="size-4" />
           </Button>
@@ -1245,7 +1299,7 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
             </div>
           ) : allFollowers.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              No followers found.
+              <FormattedMessage id="profile.followers.empty" defaultMessage="No followers found." />
             </div>
           ) : (
             <>
@@ -1267,6 +1321,30 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
 
 const CORE_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Badges', 'Likes', 'Wall'];
 const DEFAULT_TAB_LABELS = ['Feed', 'Posts & replies', 'Media', 'Articles', 'Likes', 'Wall'];
+
+// Display names for the core tabs. The canonical English labels above are
+// stored in kind 16769 events and used as keys, so only the rendering is localized.
+const CORE_TAB_MESSAGES = defineMessages({
+  'Feed': { id: 'profile.tab.feed', defaultMessage: 'Feed' },
+  'Posts & replies': { id: 'profile.tab.postsAndReplies', defaultMessage: 'Posts & replies' },
+  'Media': { id: 'profile.tab.media', defaultMessage: 'Media' },
+  'Articles': { id: 'profile.tab.articles', defaultMessage: 'Articles' },
+  'Badges': { id: 'profile.tab.badges', defaultMessage: 'Badges' },
+  'Likes': { id: 'profile.tab.likes', defaultMessage: 'Likes' },
+  'Wall': { id: 'profile.tab.wall', defaultMessage: 'Wall' },
+});
+
+const THEME_COLOR_MESSAGES = defineMessages({
+  primary: { id: 'profile.theme.color.primary', defaultMessage: 'Primary' },
+  text: { id: 'profile.theme.color.text', defaultMessage: 'Text' },
+  background: { id: 'profile.theme.color.background', defaultMessage: 'Background' },
+});
+
+/** Localized display label for a profile tab (core tabs are translated, custom tabs shown as-is). */
+function tabDisplayLabel(intl: IntlShape, label: string): string {
+  const message = CORE_TAB_MESSAGES[label as keyof typeof CORE_TAB_MESSAGES];
+  return message ? intl.formatMessage(message) : label;
+}
 
 // Stable empty vars list for core tabs rendered through ProfileSavedFeedContent.
 const NO_TAB_VARS: TabVarDef[] = [];
@@ -1330,6 +1408,7 @@ export function ProfilePage() {
 }
 
 function ProfilePageInner() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
@@ -1622,7 +1701,7 @@ function ProfilePageInner() {
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
   const bannerImeta = author.data?.imeta?.banner;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   // NIP-24 birthday — parse from the raw kind 0 content and celebrate all day
   // when the profile's month/day match today (year is optional and unused).
@@ -1660,7 +1739,7 @@ function ProfilePageInner() {
 
   useSeoMeta({
     title: `${displayName} | ${config.appName}`,
-    description: metadata?.about || 'Nostr profile',
+    description: metadata?.about || intl.formatMessage({ id: 'profile.metaDescription', defaultMessage: 'Nostr profile' }),
   });
 
   // Profile media — dedicated search query via relay.ditto.pub (video:true image:true)
@@ -1989,10 +2068,14 @@ function ProfilePageInner() {
         await follow(pubkey);
       }
       impactMedium();
-      toast({ title: isFollowing ? `Unfollowed @${displayName}` : `Followed @${displayName}` });
+      toast({
+        title: isFollowing
+          ? intl.formatMessage({ id: 'profile.unfollowed', defaultMessage: 'Unfollowed @{name}' }, { name: displayName })
+          : intl.formatMessage({ id: 'profile.followed', defaultMessage: 'Followed @{name}' }, { name: displayName }),
+      });
     } catch (err) {
       console.error('Follow toggle failed:', err);
-      toast({ title: 'Failed to update follow list', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'profile.followFailed', defaultMessage: 'Failed to update follow list' }), variant: 'destructive' });
     }
   };
 
@@ -2213,8 +2296,12 @@ function ProfilePageInner() {
       return (
         <main className="flex-1 min-w-0">
           <div className="p-8 text-center text-muted-foreground">
-            <p>User not found: {npub}</p>
-            <p className="text-xs mt-2">Could not resolve this NIP-05 identifier.</p>
+            <p>
+              <FormattedMessage id="profile.notFoundWithId" defaultMessage="User not found: {id}" values={{ id: npub }} />
+            </p>
+            <p className="text-xs mt-2">
+              <FormattedMessage id="profile.nip05Unresolved" defaultMessage="Could not resolve this NIP-05 identifier." />
+            </p>
           </div>
         </main>
       );
@@ -2222,7 +2309,13 @@ function ProfilePageInner() {
     return (
       <main className="flex-1 min-w-0">
         <div className="p-8 text-center text-muted-foreground">
-          <p>User not found{npub ? `: ${npub}` : ''}</p>
+          <p>
+            {npub ? (
+              <FormattedMessage id="profile.notFoundWithId" defaultMessage="User not found: {id}" values={{ id: npub }} />
+            ) : (
+              <FormattedMessage id="profile.notFound" defaultMessage="User not found" />
+            )}
+          </p>
         </div>
       </main>
     );
@@ -2326,7 +2419,11 @@ function ProfilePageInner() {
                     ) : (
                       <Eye className="size-4 mr-2" />
                     )}
-                    {showCustomProfileThemes ? 'Hide Theme' : 'Show Theme'}
+                    {showCustomProfileThemes ? (
+                      <FormattedMessage id="profile.theme.hide" defaultMessage="Hide Theme" />
+                    ) : (
+                      <FormattedMessage id="profile.theme.show" defaultMessage="Show Theme" />
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
@@ -2338,7 +2435,7 @@ function ProfilePageInner() {
                     className="cursor-pointer"
                   >
                     <Copy className="size-4 mr-2" />
-                    Copy Theme
+                    <FormattedMessage id="profile.theme.copy" defaultMessage="Copy Theme" />
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -2365,7 +2462,7 @@ function ProfilePageInner() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  Apply your theme to your profile
+                  <FormattedMessage id="profile.theme.applyHint" defaultMessage="Apply your theme to your profile" />
                 </TooltipContent>
               </Tooltip>
             )}
@@ -2395,21 +2492,21 @@ function ProfilePageInner() {
                     className="cursor-pointer"
                   >
                     <RefreshCw className="size-4 mr-2" />
-                    Update Profile Theme
+                    <FormattedMessage id="profile.theme.update" defaultMessage="Update Profile Theme" />
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setEditProfileThemeOpen(true)}
                     className="cursor-pointer"
                   >
                     <Pencil className="size-4 mr-2" />
-                    Edit Profile Theme
+                    <FormattedMessage id="profile.theme.edit" defaultMessage="Edit Profile Theme" />
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setRemoveThemeOpen(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
                     <Trash2 className="size-4 mr-2" />
-                    Delete Profile Theme
+                    <FormattedMessage id="profile.theme.delete" defaultMessage="Delete Profile Theme" />
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -2431,14 +2528,14 @@ function ProfilePageInner() {
                     className="cursor-pointer"
                   >
                     <Pencil className="size-4 mr-2" />
-                    Edit Profile Theme
+                    <FormattedMessage id="profile.theme.edit" defaultMessage="Edit Profile Theme" />
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setRemoveThemeOpen(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
                     <Trash2 className="size-4 mr-2" />
-                    Delete Profile Theme
+                    <FormattedMessage id="profile.theme.delete" defaultMessage="Delete Profile Theme" />
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -2451,11 +2548,13 @@ function ProfilePageInner() {
                 className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
                 onClick={() => setBirthdayComposeOpen(true)}
                 disabled={!user}
-                title={user ? undefined : 'Log in to wish a happy birthday'}
-                aria-label={`Wish ${displayName} a Happy Birthday!`}
+                title={user ? undefined : intl.formatMessage({ id: 'profile.birthday.loginHint', defaultMessage: 'Log in to wish a happy birthday' })}
+                aria-label={intl.formatMessage({ id: 'profile.birthday.wish', defaultMessage: 'Wish {name} a Happy Birthday!' }, { name: displayName })}
               >
                 <Cake className="size-4 mr-2 shrink-0" aria-hidden="true" />
-                <span className="truncate">Wish {displayName} a Happy Birthday!</span>
+                <span className="truncate">
+                  <FormattedMessage id="profile.birthday.wish" defaultMessage="Wish {name} a Happy Birthday!" values={{ name: displayName }} />
+                </span>
               </Button>
             )}
           </div>
@@ -2531,7 +2630,7 @@ function ProfilePageInner() {
                     size="icon"
                     className="rounded-full size-10"
                     onClick={() => setMoreMenuOpen(true)}
-                    title="More options"
+                    title={intl.formatMessage({ id: 'profile.moreOptions', defaultMessage: 'More options' })}
                   >
                     <MoreHorizontal className="size-5" />
                   </Button>
@@ -2543,7 +2642,7 @@ function ProfilePageInner() {
                       variant="outline"
                       size="icon"
                       className="rounded-full size-10"
-                      title="Share follow link"
+                      title={intl.formatMessage({ id: 'profile.shareFollowLink', defaultMessage: 'Share follow link' })}
                       onClick={() => setFollowQROpen(true)}
                     >
                       <QrCode className="size-5" />
@@ -2552,7 +2651,7 @@ function ProfilePageInner() {
                   {isOwnProfile ? (
                     <Link to="/settings/profile">
                       <Button variant="outline" className="rounded-full font-bold">
-                        Edit profile
+                        <FormattedMessage id="profile.editProfile" defaultMessage="Edit profile" />
                       </Button>
                     </Link>
                   ) : (
@@ -2565,7 +2664,11 @@ function ProfilePageInner() {
                       onClick={handleToggleFollow}
                       disabled={followPending || !user}
                     >
-                      {followPending ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
+                      {followPending ? '...' : isFollowing ? (
+                        <FormattedMessage id="profile.unfollow" defaultMessage="Unfollow" />
+                      ) : (
+                        <FormattedMessage id="profile.follow" defaultMessage="Follow" />
+                      )}
                     </Button>
                   )}
                 </div>
@@ -2583,11 +2686,11 @@ function ProfilePageInner() {
                 {lovesYou ? (
                   <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-600 dark:text-pink-400">
                     <Heart className="size-3 fill-current" aria-hidden="true" />
-                    Loves you
+                    <FormattedMessage id="profile.lovesYou" defaultMessage="Loves you" />
                   </span>
                 ) : !isOwnProfile && profileFollowsMe ? (
                   <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    Follows you
+                    <FormattedMessage id="profile.followsYou" defaultMessage="Follows you" />
                   </span>
                 ) : null}
               </div>
@@ -2609,30 +2712,36 @@ function ProfilePageInner() {
                   <button
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                     onClick={() => setFollowersModalOpen(true)}
-                    title={`${followersCount} followers`}
+                    title={intl.formatMessage({ id: 'profile.stats.followersTitle', defaultMessage: '{count} followers' }, { count: followersCount })}
                   >
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(followersCount)}</span>
-                    <span className="text-sm text-muted-foreground">followers</span>
+                    <span className="text-sm text-muted-foreground">
+                      <FormattedMessage id="profile.stats.followers" defaultMessage="followers" />
+                    </span>
                   </button>
                 )}
                 {profileFollowing && profileFollowing.count > 0 && pubkey && (
                   <Link
                     to={`/${nip19.naddrEncode({ kind: 3, pubkey, identifier: '' })}`}
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                    title={`${profileFollowing.count} following`}
+                    title={intl.formatMessage({ id: 'profile.stats.followingTitle', defaultMessage: '{count} following' }, { count: profileFollowing.count })}
                   >
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(profileFollowing.count)}</span>
-                    <span className="text-sm text-muted-foreground">following</span>
+                    <span className="text-sm text-muted-foreground">
+                      <FormattedMessage id="profile.stats.following" defaultMessage="following" />
+                    </span>
                   </Link>
                 )}
                 {lovedCount > 0 && pubkey && (
                   <Link
                     to={`/${nip19.naddrEncode({ kind: LOVE_LIST_KIND, pubkey, identifier: '' })}`}
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                    title={`${lovedCount} loved`}
+                    title={intl.formatMessage({ id: 'profile.stats.lovedTitle', defaultMessage: '{count} loved' }, { count: lovedCount })}
                   >
                     <span className="text-sm font-bold tabular-nums text-primary">{formatNumber(lovedCount)}</span>
-                    <span className="text-sm text-muted-foreground">loved</span>
+                    <span className="text-sm text-muted-foreground">
+                      <FormattedMessage id="profile.stats.loved" defaultMessage="loved" />
+                    </span>
                   </Link>
                 )}
                 {/* Top 8 (kind 18678). The grid itself lives in the right
@@ -2642,10 +2751,12 @@ function ProfilePageInner() {
                   <Link
                     to={`/${nip19.naddrEncode({ kind: TOP8_KIND, pubkey, identifier: '' })}`}
                     className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                    title="Top 8"
+                    title={intl.formatMessage({ id: 'top8.card.title', defaultMessage: 'Top 8' })}
                   >
                     <Crown className="size-3.5 text-primary" aria-hidden />
-                    <span className="text-sm text-muted-foreground">Top 8</span>
+                    <span className="text-sm text-muted-foreground">
+                      <FormattedMessage id="top8.card.title" defaultMessage="Top 8" />
+                    </span>
                   </Link>
                 )}
                 {/* Posting streak (kind 13473), seeded by useProfileSupplementary */}
@@ -2692,7 +2803,7 @@ function ProfilePageInner() {
                 <section className="mt-4 lg:hidden">
                   <h2 className="flex items-center gap-1.5 text-sm font-bold mb-2">
                     <Crown className="size-4 text-primary" aria-hidden />
-                    Top 8
+                    <FormattedMessage id="top8.card.title" defaultMessage="Top 8" />
                   </h2>
                   <Top8Grid pubkeys={profileTop8} columns={4} size="sm" />
                 </section>
@@ -2718,17 +2829,19 @@ function ProfilePageInner() {
         {isBirthday && birthday?.month !== undefined && birthday?.day !== undefined && (
           <div
             className="flex flex-col items-center px-4 pb-6 pt-2 text-center"
-            title={isOwnProfile ? 'Happy birthday!' : `It's ${displayName}'s birthday today!`}
+            title={isOwnProfile
+              ? intl.formatMessage({ id: 'profile.birthday.own', defaultMessage: 'Happy birthday!' })
+              : intl.formatMessage({ id: 'profile.birthday.other', defaultMessage: "It's {name}'s birthday today!" }, { name: displayName })}
           >
             <span
               className="text-2xl leading-relaxed text-amber-700 dark:text-amber-400"
               style={{ fontFamily: "'Pacifico', cursive" }}
             >
-              Birthday today
+              <FormattedMessage id="profile.birthday.today" defaultMessage="Birthday today" />
             </span>
             <span className="my-3 h-px w-12 bg-border" aria-hidden="true" />
             <span className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
-              {new Date(2000, birthday.month - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+              {intl.formatDate(new Date(2000, birthday.month - 1, 1), { month: 'long' })}
             </span>
             <span className="mt-1 text-5xl font-extrabold leading-none tabular-nums">
               {birthday.day}
@@ -2738,8 +2851,12 @@ function ProfilePageInner() {
               size="icon"
               className="mt-3 size-8 rounded-full text-muted-foreground hover:text-foreground"
               onClick={() => setJingleMuted((m) => !m)}
-              aria-label={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
-              title={jingleMuted ? 'Play birthday music' : 'Mute birthday music'}
+              aria-label={jingleMuted
+                ? intl.formatMessage({ id: 'profile.birthday.playMusic', defaultMessage: 'Play birthday music' })
+                : intl.formatMessage({ id: 'profile.birthday.muteMusic', defaultMessage: 'Mute birthday music' })}
+              title={jingleMuted
+                ? intl.formatMessage({ id: 'profile.birthday.playMusic', defaultMessage: 'Play birthday music' })
+                : intl.formatMessage({ id: 'profile.birthday.muteMusic', defaultMessage: 'Mute birthday music' })}
             >
               {jingleMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
             </Button>
@@ -2762,7 +2879,7 @@ function ProfilePageInner() {
             return (
               <TabButton
                 key={tab.label}
-                label={tab.label}
+                label={tabDisplayLabel(intl, tab.label)}
                 active={activeTab === tabId}
                 onClick={() => {
                   selectTab(tabId);
@@ -2778,7 +2895,9 @@ function ProfilePageInner() {
             <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleTabDragEnd}>
               <SortableContext items={localTabs.map((t) => t.label)} strategy={horizontalListSortingStrategy}>
                   {localTabs.length === 0 ? (
-                    <span className="px-4 text-sm text-muted-foreground italic">No custom tabs — use + to add one</span>
+                    <span className="px-4 text-sm text-muted-foreground italic">
+                      <FormattedMessage id="profile.tabs.empty" defaultMessage="No custom tabs. Use + to add one" />
+                    </span>
                   ) : (
                     localTabs.map((tab) => {
                       const tabId = CORE_TAB_IDS[tab.label] ?? tab.label;
@@ -2810,7 +2929,7 @@ function ProfilePageInner() {
                   <DropdownMenuTrigger asChild>
                     <button
                       className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                      aria-label="More tabs"
+                      aria-label={intl.formatMessage({ id: 'profile.tabs.more', defaultMessage: 'More tabs' })}
                     >
                       <MoreHorizontal className="size-4" />
                     </button>
@@ -2820,7 +2939,7 @@ function ProfilePageInner() {
                       const tabId = CORE_TAB_IDS[label] ?? label;
                       return (
                         <DropdownMenuItem key={label} onClick={() => selectTab(tabId)}>
-                          {label}
+                          {tabDisplayLabel(intl, label)}
                         </DropdownMenuItem>
                       );
                     })}
@@ -2844,7 +2963,7 @@ function ProfilePageInner() {
                   <DropdownMenuTrigger asChild>
                     <button
                       className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
-                      aria-label="Add tab"
+                      aria-label={intl.formatMessage({ id: 'profile.tabs.add', defaultMessage: 'Add tab' })}
                     >
                       <Plus className="size-4" strokeWidth={4} />
                     </button>
@@ -2862,14 +2981,14 @@ function ProfilePageInner() {
                           {present
                             ? <Check className="size-3.5 mr-2 opacity-60" strokeWidth={4} />
                             : <Plus className="size-3.5 mr-2" strokeWidth={4} />}
-                          {name}
+                          {tabDisplayLabel(intl, name)}
                         </DropdownMenuItem>
                       );
                     })}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleOpenAddCustomTab}>
                       <Plus className="size-3.5 mr-2" strokeWidth={4} />
-                      Add custom tab
+                      <FormattedMessage id="profile.tabs.addCustom" defaultMessage="Add custom tab" />
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -2880,7 +2999,9 @@ function ProfilePageInner() {
                 onClick={tabEditMode ? handleSaveTabEdit : enterTabEditMode}
                 disabled={tabEditMode && isPublishingTabs}
                 className="px-2.5 py-3.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors disabled:opacity-50"
-                aria-label={tabEditMode ? 'Save tab order' : 'Edit tabs'}
+                aria-label={tabEditMode
+                  ? intl.formatMessage({ id: 'profile.tabs.saveOrder', defaultMessage: 'Save tab order' })
+                  : intl.formatMessage({ id: 'profile.tabs.editAll', defaultMessage: 'Edit tabs' })}
               >
                 {isPublishingTabs
                   ? <Loader2 className="size-4 animate-spin" />
@@ -2953,7 +3074,7 @@ function ProfilePageInner() {
                 key={wallComposeKey}
                 compact
                 replyTo={wallReplyTarget}
-                placeholder={`Write on ${displayName}'s wall`}
+                placeholder={intl.formatMessage({ id: 'profile.wall.placeholder', defaultMessage: "Write on {name}'s wall" }, { name: displayName })}
               />
             )}
 
@@ -2963,7 +3084,7 @@ function ProfilePageInner() {
                 event={wallReplyTarget}
                 open={wallComposeOpen}
                 onOpenChange={setWallComposeOpen}
-                placeholder={`Write on ${displayName}'s wall`}
+                placeholder={intl.formatMessage({ id: 'profile.wall.placeholder', defaultMessage: "Write on {name}'s wall" }, { name: displayName })}
                 onSuccess={() => setWallComposeKey((k) => k + 1)}
               />
             )}
@@ -2971,8 +3092,16 @@ function ProfilePageInner() {
             {!wallFollowList || wallFollowList.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-sm">
                 <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium mb-2">No wall posts yet</p>
-                <p>{displayName} doesn't follow anyone yet, so there are no wall posts to show.</p>
+                <p className="text-lg font-medium mb-2">
+                  <FormattedMessage id="profile.wall.empty" defaultMessage="No wall posts yet" />
+                </p>
+                <p>
+                  <FormattedMessage
+                    id="profile.wall.noFollows"
+                    defaultMessage="{name} doesn't follow anyone yet, so there are no wall posts to show."
+                    values={{ name: displayName }}
+                  />
+                </p>
               </div>
             ) : wallPending ? (
               <div className="divide-y divide-border">
@@ -3010,13 +3139,25 @@ function ProfilePageInner() {
             ) : (
               <div className="py-12 text-center text-muted-foreground text-sm">
                 <MessageSquare className="size-12 mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-medium mb-2">No wall posts yet</p>
+                <p className="text-lg font-medium mb-2">
+                  <FormattedMessage id="profile.wall.empty" defaultMessage="No wall posts yet" />
+                </p>
                 {profileFollowsMe ? (
-                  <p>Be the first to write on {displayName}'s wall!</p>
+                  <p>
+                    <FormattedMessage id="profile.wall.beFirst" defaultMessage="Be the first to write on {name}'s wall!" values={{ name: displayName }} />
+                  </p>
                 ) : user ? (
-                  <p>{displayName} must follow you before you can post on their wall.</p>
+                  <p>
+                    <FormattedMessage
+                      id="profile.wall.mustFollow"
+                      defaultMessage="{name} must follow you before you can post on their wall."
+                      values={{ name: displayName }}
+                    />
+                  </p>
                 ) : (
-                  <p>Log in to write on {displayName}'s wall.</p>
+                  <p>
+                    <FormattedMessage id="profile.wall.logIn" defaultMessage="Log in to write on {name}'s wall." values={{ name: displayName }} />
+                  </p>
                 )}
               </div>
             )}
@@ -3043,7 +3184,9 @@ function ProfilePageInner() {
                 )}
               </>
             ) : (
-              <div className="py-12 text-center text-muted-foreground">No media posts yet.</div>
+              <div className="py-12 text-center text-muted-foreground">
+                <FormattedMessage id="profile.media.empty" defaultMessage="No media posts yet." />
+              </div>
             )}
           </div>
         )}
@@ -3059,7 +3202,7 @@ function ProfilePageInner() {
             feed={articlesFeed}
             vars={NO_TAB_VARS}
             ownerPubkey={pubkey}
-            emptyMessage="No articles yet."
+            emptyMessage={intl.formatMessage({ id: 'profile.articles.empty', defaultMessage: 'No articles yet.' })}
           />
         )}
 
@@ -3116,9 +3259,9 @@ function ProfilePageInner() {
             </div>
           ) : (
             <div className="py-12 text-center text-muted-foreground">
-              {activeTab === 'posts' && 'No posts yet.'}
-              {activeTab === 'replies' && 'No posts or replies yet.'}
-              {activeTab === 'likes' && 'No likes yet.'}
+              {activeTab === 'posts' && <FormattedMessage id="profile.posts.empty" defaultMessage="No posts yet." />}
+              {activeTab === 'replies' && <FormattedMessage id="profile.replies.empty" defaultMessage="No posts or replies yet." />}
+              {activeTab === 'likes' && <FormattedMessage id="profile.likes.empty" defaultMessage="No likes yet." />}
             </div>
           )}
         </div>
@@ -3148,9 +3291,12 @@ function ProfilePageInner() {
           <ReplyComposeModal
             open={birthdayComposeOpen}
             onOpenChange={setBirthdayComposeOpen}
-            initialContent={`Happy birthday, nostr:${birthdayNpub}! 🎂🎉`}
-            title="Wish a happy birthday"
-            placeholder={`Wish ${displayName} a happy birthday...`}
+            initialContent={intl.formatMessage(
+              { id: 'profile.birthday.initialContent', defaultMessage: 'Happy birthday, {mention}! 🎂🎉' },
+              { mention: `nostr:${birthdayNpub}` },
+            )}
+            title={intl.formatMessage({ id: 'profile.birthday.composeTitle', defaultMessage: 'Wish a happy birthday' })}
+            placeholder={intl.formatMessage({ id: 'profile.birthday.composePlaceholder', defaultMessage: 'Wish {name} a happy birthday...' }, { name: displayName })}
           />
         )}
 
@@ -3177,16 +3323,29 @@ function ProfilePageInner() {
         <Dialog open={themeInfoOpen} onOpenChange={setThemeInfoOpen}>
           <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle className="text-lg">Custom Profile Theme</DialogTitle>
+              <DialogTitle className="text-lg">
+                <FormattedMessage id="profile.themeInfo.title" defaultMessage="Custom Profile Theme" />
+              </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                You're viewing <span className="font-semibold text-foreground">{displayName}</span>'s profile with their own custom theme applied. The colors you see are part of their personal style.
+                <FormattedMessage
+                  id="profile.themeInfo.description"
+                  defaultMessage="You're viewing <b>{name}</b>'s profile with their own custom theme applied. The colors you see are part of their personal style."
+                  values={{
+                    name: displayName,
+                    b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+                  }}
+                />
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5 flex-1">
-                  <span className="text-sm font-medium">Show custom profile themes</span>
-                  <p className="text-xs text-muted-foreground">See other users' themes when visiting their profiles</p>
+                  <span className="text-sm font-medium">
+                    <FormattedMessage id="settings.content.showCustomThemes" defaultMessage="Show custom profile themes" />
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    <FormattedMessage id="profile.themeInfo.toggleDescription" defaultMessage="See other users' themes when visiting their profiles" />
+                  </p>
                 </div>
                 <Switch
                   checked={showCustomProfileThemes}
@@ -3200,10 +3359,17 @@ function ProfilePageInner() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                You can change this anytime in{' '}
-                <Link to="/settings/personalize" className="text-primary hover:underline" onClick={() => setThemeInfoOpen(false)}>
-                  Personalize settings
-                </Link>.
+                <FormattedMessage
+                  id="profile.themeInfo.changeLater"
+                  defaultMessage="You can change this anytime in <link>Personalize settings</link>."
+                  values={{
+                    link: (chunks) => (
+                      <Link to="/settings/personalize" className="text-primary hover:underline" onClick={() => setThemeInfoOpen(false)}>
+                        {chunks}
+                      </Link>
+                    ),
+                  }}
+                />
               </p>
             </div>
           </DialogContent>
@@ -3218,11 +3384,25 @@ function ProfilePageInner() {
             ) : undefined}
           >
             <DialogHeader>
-              <DialogTitle className="text-lg">{profileThemeDiffers ? 'Update Your Profile Theme' : 'Share Your Theme'}</DialogTitle>
+              <DialogTitle className="text-lg">
+                {profileThemeDiffers ? (
+                  <FormattedMessage id="profile.shareTheme.updateTitle" defaultMessage="Update Your Profile Theme" />
+                ) : (
+                  <FormattedMessage id="profile.shareTheme.title" defaultMessage="Share Your Theme" />
+                )}
+              </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                {profileThemeDiffers
-                  ? 'Your app theme has changed since you last published it. Would you like to update your profile theme to match?'
-                  : 'You have a custom theme, but it\'s not visible on your profile yet. Would you like to apply it so others can see it when they visit?'}
+                {profileThemeDiffers ? (
+                  <FormattedMessage
+                    id="profile.shareTheme.updateDescription"
+                    defaultMessage="Your app theme has changed since you last published it. Would you like to update your profile theme to match?"
+                  />
+                ) : (
+                  <FormattedMessage
+                    id="profile.shareTheme.description"
+                    defaultMessage="You have a custom theme, but it's not visible on your profile yet. Would you like to apply it so others can see it when they visit?"
+                  />
+                )}
               </DialogDescription>
             </DialogHeader>
 
@@ -3235,7 +3415,9 @@ function ProfilePageInner() {
                       className="size-10 rounded-full border border-border/50 shadow-sm"
                       style={{ backgroundColor: `hsl(${ownCustomTheme.colors[key]})` }}
                     />
-                    <span className="text-[10px] text-muted-foreground capitalize">{key}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      <FormattedMessage {...THEME_COLOR_MESSAGES[key]} />
+                    </span>
                   </div>
                 ))}
               </div>
@@ -3257,7 +3439,11 @@ function ProfilePageInner() {
                 {isPublishingTheme ? (
                   <Loader2 className="size-4 animate-spin mr-2" />
                 ) : null}
-                {profileThemeDiffers ? 'Yes, update my theme' : 'Yes, apply my theme'}
+                {profileThemeDiffers ? (
+                  <FormattedMessage id="profile.shareTheme.confirmUpdate" defaultMessage="Yes, update my theme" />
+                ) : (
+                  <FormattedMessage id="profile.shareTheme.confirmApply" defaultMessage="Yes, apply my theme" />
+                )}
               </Button>
               <Button
                 variant="ghost"
@@ -3266,7 +3452,7 @@ function ProfilePageInner() {
                   setShareThemeOpen(false);
                 }}
               >
-                No thanks
+                <FormattedMessage id="profile.shareTheme.dismiss" defaultMessage="No thanks" />
               </Button>
             </div>
            </DialogContent>
@@ -3276,9 +3462,14 @@ function ProfilePageInner() {
         <Dialog open={removeThemeOpen} onOpenChange={setRemoveThemeOpen}>
           <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle className="text-lg">Remove Profile Theme</DialogTitle>
+              <DialogTitle className="text-lg">
+                <FormattedMessage id="profile.removeTheme.title" defaultMessage="Remove Profile Theme" />
+              </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                This will remove your custom theme from your profile. Visitors will no longer see it when they visit.
+                <FormattedMessage
+                  id="profile.removeTheme.description"
+                  defaultMessage="This will remove your custom theme from your profile. Visitors will no longer see it when they visit."
+                />
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-2 pt-2">
@@ -3297,13 +3488,13 @@ function ProfilePageInner() {
                 {isPublishingTheme ? (
                   <Loader2 className="size-4 animate-spin mr-2" />
                 ) : null}
-                Yes, remove it
+                <FormattedMessage id="profile.removeTheme.confirm" defaultMessage="Yes, remove it" />
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => setRemoveThemeOpen(false)}
               >
-                Keep it
+                <FormattedMessage id="profile.removeTheme.keep" defaultMessage="Keep it" />
               </Button>
             </div>
           </DialogContent>
@@ -3315,9 +3506,11 @@ function ProfilePageInner() {
             <PortalContainerProvider value={editThemePortalContainer}>
             <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
-              <DialogTitle style={localProfileTitleFont?.family ? { fontFamily: `"${resolveCssFamily(localProfileTitleFont.family)}", inherit` } : undefined}>Edit Profile Theme</DialogTitle>
+              <DialogTitle style={localProfileTitleFont?.family ? { fontFamily: `"${resolveCssFamily(localProfileTitleFont.family)}", inherit` } : undefined}>
+                <FormattedMessage id="profile.theme.edit" defaultMessage="Edit Profile Theme" />
+              </DialogTitle>
               <DialogDescription>
-                Customize the theme visitors see on your profile
+                <FormattedMessage id="profile.editTheme.description" defaultMessage="Customize the theme visitors see on your profile" />
               </DialogDescription>
             </DialogHeader>
 
@@ -3327,7 +3520,7 @@ function ProfilePageInner() {
                 {(['primary', 'text', 'background'] as const).map((key) => (
                   <ColorPicker
                     key={key}
-                    label={key.charAt(0).toUpperCase() + key.slice(1)}
+                    label={intl.formatMessage(THEME_COLOR_MESSAGES[key])}
                     value={hslStringToHex(localProfileColors[key])}
                     onChange={(hex) => {
                       setLocalProfileColors((prev) => ({
@@ -3377,7 +3570,7 @@ function ProfilePageInner() {
                 {isPublishingTheme ? (
                   <Loader2 className="size-4 animate-spin mr-2" />
                 ) : null}
-                Save Profile Theme
+                <FormattedMessage id="profile.editTheme.save" defaultMessage="Save Profile Theme" />
               </Button>
             </DialogFooter>
             </div>
@@ -3494,8 +3687,12 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
     return (
       <div className="py-12 text-center text-muted-foreground">
         <Award className="size-12 mx-auto mb-4 opacity-30" />
-        <p className="text-lg font-medium mb-2">No badges yet</p>
-        <p className="text-sm">{displayName} hasn't accepted any badges.</p>
+        <p className="text-lg font-medium mb-2">
+          <FormattedMessage id="profile.badges.empty" defaultMessage="No badges yet" />
+        </p>
+        <p className="text-sm">
+          <FormattedMessage id="profile.badges.emptyDescription" defaultMessage="{name} hasn't accepted any badges." values={{ name: displayName }} />
+        </p>
       </div>
     );
   }
@@ -3609,7 +3806,9 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey, emptyMessage }: {
   if (items.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground text-sm">
-        {emptyMessage ?? `No posts found for "${feed.label}".`}
+        {emptyMessage ?? (
+          <FormattedMessage id="profile.savedFeed.empty" defaultMessage='No posts found for "{label}".' values={{ label: feed.label }} />
+        )}
       </div>
     );
   }

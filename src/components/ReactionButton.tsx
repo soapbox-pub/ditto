@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Heart } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 
@@ -73,6 +74,7 @@ export function ReactionButton({
   const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -179,7 +181,7 @@ export function ReactionButton({
           className,
           hasReacted && 'text-pink-500',
         )}
-        title="React"
+        title={intl.formatMessage({ id: 'reactionButton.react', defaultMessage: 'React' })}
         onClick={(e) => {
           e.stopPropagation();
           if (!user) return;

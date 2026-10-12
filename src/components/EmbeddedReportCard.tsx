@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { nip19 } from 'nostr-tools';
 import { Flag } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
@@ -41,7 +42,7 @@ export function EmbeddedReportCard({
     >
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <Flag className="size-3" aria-hidden="true" />
-        Report
+        <FormattedMessage id="embeddedReport.label" defaultMessage="Report" />
       </div>
 
       {report ? (
@@ -54,7 +55,9 @@ export function EmbeddedReportCard({
           )}
         </>
       ) : (
-        <p className="text-xs italic text-muted-foreground">Malformed report</p>
+        <p className="text-xs italic text-muted-foreground">
+          <FormattedMessage id="embeddedReport.malformed" defaultMessage="Malformed report" />
+        </p>
       )}
     </EmbeddedCardShell>
   );

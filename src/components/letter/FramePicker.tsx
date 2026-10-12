@@ -1,6 +1,7 @@
 import { FRAME_PRESETS, type FrameStyle } from '@/lib/letterTypes';
 import { NoneFramePreview, EmojiFramePreview } from './FramePreviews';
 import { Switch } from '@/components/ui/switch';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 interface FramePickerProps {
   frame: FrameStyle;
@@ -10,6 +11,7 @@ interface FramePickerProps {
 }
 
 export function FramePicker({ frame, frameTint, onFrameSelect, onFrameTintChange }: FramePickerProps) {
+  const intl = useIntl();
   const hasFrame = frame !== 'none';
 
   return (
@@ -21,7 +23,7 @@ export function FramePicker({ frame, frameTint, onFrameSelect, onFrameTintChange
             <button
               key={fp.id}
               onClick={() => onFrameSelect(fp.id)}
-              title={fp.name}
+              title={intl.formatMessage(fp.name)}
               className={`aspect-square rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95 ${
                 isSelected ? 'scale-105 shadow-md' : 'opacity-70 hover:opacity-100'
               }`}
@@ -38,7 +40,9 @@ export function FramePicker({ frame, frameTint, onFrameSelect, onFrameTintChange
 
       {hasFrame && (
         <div className="flex items-center justify-between px-1 pt-1">
-          <span className="text-sm text-muted-foreground font-medium">match stationery color</span>
+          <span className="text-sm text-muted-foreground font-medium">
+            <FormattedMessage id="framePicker.matchColor" defaultMessage="match stationery color" />
+          </span>
           <Switch checked={frameTint} onCheckedChange={onFrameTintChange} />
         </div>
       )}

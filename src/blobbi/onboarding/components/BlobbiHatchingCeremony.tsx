@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { defineMessage, defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 
@@ -56,12 +57,17 @@ import { buildRevealGradient } from '../lib/ceremony-colors';
 
 // ─── Dialog Lines ─────────────────────────────────────────────────────────────
 
-const BIRTH_DIALOG: string[] = [
-  'Something stirs...',
-  'A tiny life has chosen you. It knows only warmth, and your presence.',
-];
+const birthDialogMessages = defineMessages({
+  stirs: { id: 'blobbiHatching.dialog.stirs', defaultMessage: 'Something stirs...' },
+  chosen: { id: 'blobbiHatching.dialog.chosen', defaultMessage: 'A tiny life has chosen you. It knows only warmth, and your presence.' },
+});
 
-const NAMING_DIALOG = 'Every life deserves a name.\nWhat will you call this one?';
+const BIRTH_DIALOG = [birthDialogMessages.stirs, birthDialogMessages.chosen];
+
+const NAMING_DIALOG = defineMessage({
+  id: 'blobbiHatching.dialog.naming',
+  defaultMessage: 'Every life deserves a name.\nWhat will you call this one?',
+});
 
 // ─── Phase Machine ────────────────────────────────────────────────────────────
 
@@ -137,6 +143,7 @@ export function BlobbiHatchingCeremony({
   const { data: authorData } = useAuthor(user?.pubkey);
 
   // ── Core state ──
+  const intl = useIntl();
   const [phase, setPhase] = useState<CeremonyPhase>('loading');
   const [preview, setPreview] = useState<BlobbiEggPreview | null>(null);
   const [name, setName] = useState(existingCompanion?.name ?? '');
@@ -190,10 +197,11 @@ export function BlobbiHatchingCeremony({
   const revealBg = useMemo(() => buildRevealGradient(eggColor), [eggColor]);
 
   // ── Typewriter for current dialog line ──
-  const currentDialogText = phase === 'dialog' ? (BIRTH_DIALOG[dialogLineIndex] ?? '') : '';
+  const currentDialogLine = phase === 'dialog' ? BIRTH_DIALOG[dialogLineIndex] : undefined;
+  const currentDialogText = currentDialogLine ? intl.formatMessage(currentDialogLine) : '';
   const dialogTypewriter = useTypewriter(currentDialogText, dialogActive);
 
-  const namingTypewriter = useTypewriter(NAMING_DIALOG, namingVisible);
+  const namingTypewriter = useTypewriter(intl.formatMessage(NAMING_DIALOG), namingVisible);
 
   // ── Fast-path setup for existing eggs (no publishing needed) ──
   useEffect(() => {
@@ -400,8 +408,8 @@ export function BlobbiHatchingCeremony({
       } catch (error) {
         console.error('[HatchingCeremony] Setup failed:', error);
         toast({
-          title: 'Something went wrong',
-          description: 'Failed to set up your Blobbi. Please try again.',
+          title: intl.formatMessage({ id: 'blobbiHatching.setupFailed.title', defaultMessage: 'Something went wrong' }),
+          description: intl.formatMessage({ id: 'blobbiHatching.setupFailed.description', defaultMessage: 'Failed to set up your Blobbi. Please try again.' }),
           variant: 'destructive',
         });
       } finally {
@@ -676,8 +684,8 @@ export function BlobbiHatchingCeremony({
     } catch (error) {
       console.error('[HatchingCeremony] Naming failed:', error);
       toast({
-        title: 'Failed to save name',
-        description: 'Your Blobbi was created, but the name could not be saved.',
+        title: intl.formatMessage({ id: 'blobbiHatching.nameFailed.title', defaultMessage: 'Failed to save name' }),
+        description: intl.formatMessage({ id: 'blobbiHatching.nameFailed.description', defaultMessage: 'Your Blobbi was created, but the name could not be saved.' }),
         variant: 'destructive',
       });
       setFadeOut(true);
@@ -688,7 +696,7 @@ export function BlobbiHatchingCeremony({
     } finally {
       setIsNaming(false);
     }
-  }, [name, isNaming, completeCeremony, onComplete]);
+  }, [name, isNaming, completeCeremony, onComplete, intl]);
 
   // ── Tour visual state for EggGraphic crack rendering ──
   const tourVisualState = useMemo(() => {
@@ -1091,7 +1099,7 @@ export function BlobbiHatchingCeremony({
                       )}
                       variant="ghost"
                     >
-                      That&apos;s the one.
+                      <FormattedMessage id="blobbiHatching.confirmName" defaultMessage="That's the one." />
                     </Button>
                   )}
                 </div>

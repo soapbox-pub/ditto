@@ -1,6 +1,7 @@
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { BookMarked, Loader2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { defineMessage, FormattedMessage, useIntl } from "react-intl";
 import { useNavigate } from "react-router-dom";
 import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { BookFeedItem, BookFeedItemSkeleton } from "@/components/BookFeedItem";
@@ -8,6 +9,7 @@ import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { Input } from "@/components/ui/input";
@@ -29,17 +31,22 @@ type FeedTab = "follows" | "global";
 const booksDef: ExtraKindDef = {
   kind: 31985,
   id: "books",
-  label: "Books",
-  description: "Book reviews and discussions",
+  label: defineMessage({ id: "books.title", defaultMessage: "Books" }),
+  description: defineMessage({ id: "books.description", defaultMessage: "Book reviews and discussions" }),
   addressable: true,
   section: "social",
-  blurb:
-    "Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.",
+  blurb: defineMessage({
+    id: "books.blurb",
+    defaultMessage: "Discover book reviews, ratings, and discussions from the Nostr community. Track your reading and share your thoughts using the Bookstr protocol.",
+  }),
   sites: [{ url: "https://bookstr.xyz/", name: "Bookstr" }],
 };
 
 export function BooksPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
+  const booksLabel = intl.formatMessage({ id: "books.title", defaultMessage: "Books" });
+
   const { user } = useCurrentUser();
 
   const [activeTab, setActiveTab] = useFeedTab<FeedTab>("books", [
@@ -48,9 +55,11 @@ export function BooksPage() {
   ]);
 
   useSeoMeta({
-    title: `Books | ${config.appName}`,
-    description:
-      "Book reviews, ratings, and discussions from the Nostr community",
+    title: `${booksLabel} | ${config.appName}`,
+    description: intl.formatMessage({
+      id: "books.seoDescription",
+      defaultMessage: "Book reviews, ratings, and discussions from the Nostr community",
+    }),
   });
 
   useLayoutOptions({ hasSubHeader: !!user });
@@ -83,11 +92,11 @@ export function BooksPage() {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      <PageHeader title="Books" icon={<BookMarked className="size-5" />}>
+    <main>
+      <PageHeader title={booksLabel} icon={<BookMarked className="size-5" />}>
         <KindInfoButton
           kindDef={booksDef}
-          icon={<BookMarked className="size-10" />}
+          icon={<BookMarked className="size-5" />}
         />
       </PageHeader>
 
@@ -95,17 +104,20 @@ export function BooksPage() {
       {user && (
         <SubHeaderBar>
           <TabButton
-            label="Follows"
+            label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
             active={activeTab === "follows"}
             onClick={() => setActiveTab("follows")}
           />
           <TabButton
-            label="Global"
+            label={intl.formatMessage({ id: "books.tab.global", defaultMessage: "Global" })}
             active={activeTab === "global"}
             onClick={() => setActiveTab("global")}
           />
         </SubHeaderBar>
       )}
+
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
 
       {/* Book search bar */}
       <BookSearchBar />
@@ -139,8 +151,11 @@ export function BooksPage() {
           <FeedEmptyState
             message={
               activeTab === "follows"
-                ? "No book posts from people you follow yet."
-                : "No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here."
+                ? intl.formatMessage({ id: "books.emptyFollows", defaultMessage: "No book posts from people you follow yet." })
+                : intl.formatMessage({
+                  id: "books.emptyGlobal",
+                  defaultMessage: "No book posts or reviews found. Book-related posts tagged with #bookstr or referencing ISBNs will appear here.",
+                })
             }
             onSwitchToGlobal={
               activeTab === "follows" ? () => setActiveTab("global") : undefined
@@ -157,6 +172,7 @@ export function BooksPage() {
 // ---------------------------------------------------------------------------
 
 function BookSearchBar() {
+  const intl = useIntl();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -249,7 +265,7 @@ function BookSearchBar() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search books by title, author..."
+          placeholder={intl.formatMessage({ id: "books.searchPlaceholder", defaultMessage: "Search books by title, author..." })}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => {
@@ -296,7 +312,7 @@ function BookSearchBar() {
             </div>
           ) : (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No books found for &ldquo;{debouncedQuery}&rdquo;
+              <FormattedMessage id="books.noResults" defaultMessage="No books found for “{query}”" values={{ query: debouncedQuery }} />
             </div>
           )}
         </div>

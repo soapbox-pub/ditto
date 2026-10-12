@@ -306,7 +306,7 @@ export function formatNsiteRecord(record: NsiteRecordInfo, intl: IntlShape): str
     case 'appData':
       return intl.formatMessage(messages.appData, { dTag: record.dTag ?? '' });
     case 'kind':
-      return getKindLabel(record.kind);
+      return getKindLabel(intl, record.kind);
   }
 }
 
@@ -325,7 +325,7 @@ export function getPermissionLabel(
       if (kind === 30078 && dTag !== null) {
         return intl.formatMessage(messages.write, { label: formatNsiteRecord(describeNsiteRecord(kind, dTag, appId), intl) });
       }
-      return intl.formatMessage(messages.signKind, { label: getKindLabel(kind) });
+      return intl.formatMessage(messages.signKind, { label: getKindLabel(intl, kind) });
     }
     case 'nip04.encrypt':
       return intl.formatMessage(messages.nip04Encrypt);

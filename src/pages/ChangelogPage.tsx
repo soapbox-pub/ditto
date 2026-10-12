@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bug, FlaskConical, Minus, Package, Plus, RefreshCw, ScrollText, ShieldAlert } from 'lucide-react';
+import { defineMessage, FormattedMessage, type MessageDescriptor, useIntl, type IntlShape } from 'react-intl';
 
 import { PageHeader } from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,21 +13,21 @@ import type { ChangelogCategory, ChangelogEntry } from '@/lib/changelog';
 
 const GITLAB_REPO = 'https://gitlab.com/soapbox-pub/ditto';
 
-/** Per-category icon + color used as inline list bullets. */
-const CATEGORY_STYLES: Record<ChangelogCategory, { icon: typeof Plus; colorClass: string }> = {
-  Added:      { icon: Plus,        colorClass: 'text-emerald-600 dark:text-emerald-400' },
-  Changed:    { icon: RefreshCw,   colorClass: 'text-blue-600 dark:text-blue-400' },
-  Deprecated: { icon: Package,     colorClass: 'text-orange-600 dark:text-orange-400' },
-  Removed:    { icon: Minus,       colorClass: 'text-red-600 dark:text-red-400' },
-  Fixed:      { icon: Bug,         colorClass: 'text-amber-600 dark:text-amber-400' },
-  Security:   { icon: ShieldAlert, colorClass: 'text-purple-600 dark:text-purple-400' },
+/** Per-category icon, color, and tooltip label used as inline list bullets. */
+const CATEGORY_STYLES: Record<ChangelogCategory, { icon: typeof Plus; colorClass: string; label: MessageDescriptor }> = {
+  Added:      { icon: Plus,        colorClass: 'text-emerald-600 dark:text-emerald-400', label: defineMessage({ id: 'changelog.category.added', defaultMessage: 'Added' }) },
+  Changed:    { icon: RefreshCw,   colorClass: 'text-blue-600 dark:text-blue-400', label: defineMessage({ id: 'changelog.category.changed', defaultMessage: 'Changed' }) },
+  Deprecated: { icon: Package,     colorClass: 'text-orange-600 dark:text-orange-400', label: defineMessage({ id: 'changelog.category.deprecated', defaultMessage: 'Deprecated' }) },
+  Removed:    { icon: Minus,       colorClass: 'text-red-600 dark:text-red-400', label: defineMessage({ id: 'changelog.category.removed', defaultMessage: 'Removed' }) },
+  Fixed:      { icon: Bug,         colorClass: 'text-amber-600 dark:text-amber-400', label: defineMessage({ id: 'changelog.category.fixed', defaultMessage: 'Fixed' }) },
+  Security:   { icon: ShieldAlert, colorClass: 'text-purple-600 dark:text-purple-400', label: defineMessage({ id: 'changelog.category.security', defaultMessage: 'Security' }) },
 };
 
 /** Format "2026-03-26" as a readable date string. */
-function formatDate(raw: string): string {
+function formatDate(raw: string, intl: IntlShape): string {
   const date = new Date(raw + 'T00:00:00');
   if (isNaN(date.getTime())) return raw;
-  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  return intl.formatDate(date, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 const commitSha = import.meta.env.COMMIT_SHA;
@@ -35,6 +36,7 @@ const buildDate = import.meta.env.BUILD_DATE;
 const isPreRelease = !commitTag;
 
 export function ChangelogPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -42,8 +44,8 @@ export function ChangelogPage() {
   useLayoutOptions({});
 
   useSeoMeta({
-    title: `Changelog | ${config.appName}`,
-    description: `What's new in ${config.appName}`,
+    title: intl.formatMessage({ id: 'changelog.seoTitle', defaultMessage: 'Changelog | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'changelog.seoDescription', defaultMessage: "What's new in {appName}" }, { appName: config.appName }),
   });
 
   useEffect(() => {
@@ -60,16 +62,20 @@ export function ChangelogPage() {
   const latestVersion = entries[0]?.version;
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
-      <PageHeader title="Changelog" icon={<ScrollText className="size-5" />} backTo="/settings" />
+    <main className="min-h-screen">
+      <PageHeader title={intl.formatMessage({ id: 'changelog.title', defaultMessage: 'Changelog' })} icon={<ScrollText className="size-5" />} backTo="/settings" />
 
       <div className="px-4 pt-3 pb-8 space-y-4">
         {error ? (
-          <p className="text-sm text-muted-foreground pt-4">Failed to load changelog.</p>
+          <p className="text-sm text-muted-foreground pt-4">
+            <FormattedMessage id="changelog.loadFailed" defaultMessage="Failed to load changelog." />
+          </p>
         ) : content === null ? (
           <ChangelogSkeleton />
         ) : entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground pt-4">No releases yet.</p>
+          <p className="text-sm text-muted-foreground pt-4">
+            <FormattedMessage id="changelog.empty" defaultMessage="No releases yet." />
+          </p>
         ) : (
           <>
             {isPreRelease && latestVersion && <PreReleaseBanner latestVersion={latestVersion} />}
@@ -80,7 +86,9 @@ export function ChangelogPage() {
               <>
                 <div className="flex items-center gap-3 pt-4 pb-1">
                   <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Past releases</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <FormattedMessage id="changelog.pastReleases" defaultMessage="Past releases" />
+                  </span>
                   <div className="h-px flex-1 bg-border" />
                 </div>
 
@@ -98,6 +106,7 @@ export function ChangelogPage() {
 
 /** Hero treatment for the most recent release — no card, centered version + date. */
 function LatestRelease({ entry }: { entry: ChangelogEntry }) {
+  const intl = useIntl();
   const contentRef = useRef<HTMLUListElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -130,7 +139,7 @@ function LatestRelease({ entry }: { entry: ChangelogEntry }) {
         rel="noopener noreferrer"
         className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mt-1"
       >
-        {formatDate(entry.date)}
+        {formatDate(entry.date, intl)}
       </a>
 
       {/* Items */}
@@ -155,7 +164,9 @@ function LatestRelease({ entry }: { entry: ChangelogEntry }) {
                   <TooltipTrigger asChild>
                     <Icon className={`size-4 shrink-0 mt-1 cursor-default ${style.colorClass}`} />
                   </TooltipTrigger>
-                  <TooltipContent side="left">{section.category}</TooltipContent>
+                  <TooltipContent side="left">
+                    <FormattedMessage {...style.label} />
+                  </TooltipContent>
                 </Tooltip>
                 <span>{item}</span>
               </li>
@@ -172,7 +183,9 @@ function LatestRelease({ entry }: { entry: ChangelogEntry }) {
           className="w-full text-sm text-primary hover:underline mt-1"
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? 'Show less' : 'Read more'}
+          {expanded
+            ? <FormattedMessage id="changelog.showLess" defaultMessage="Show less" />
+            : <FormattedMessage id="changelog.readMore" defaultMessage="Read more" />}
         </button>
       )}
 
@@ -184,6 +197,7 @@ const ENTRY_MAX_HEIGHT = 240; // px — entries taller than this get a "Read mor
 
 /** A single changelog release card with truncation for long entries. */
 function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
+  const intl = useIntl();
   const contentRef = useRef<HTMLUListElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -217,7 +231,7 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
         >
-          <span>{formatDate(entry.date)}</span>
+          <span>{formatDate(entry.date, intl)}</span>
         </a>
       </div>
 
@@ -243,7 +257,9 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
                   <TooltipTrigger asChild>
                     <Icon className={`size-3.5 shrink-0 mt-[3px] cursor-default ${style.colorClass}`} />
                   </TooltipTrigger>
-                  <TooltipContent side="left">{section.category}</TooltipContent>
+                  <TooltipContent side="left">
+                    <FormattedMessage {...style.label} />
+                  </TooltipContent>
                 </Tooltip>
                 <span>{item}</span>
               </li>
@@ -260,7 +276,9 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
            className="w-full text-sm text-primary hover:underline py-2"
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? 'Show less' : 'Read more'}
+          {expanded
+            ? <FormattedMessage id="changelog.showLess" defaultMessage="Show less" />
+            : <FormattedMessage id="changelog.readMore" defaultMessage="Read more" />}
         </button>
       )}
     </div>
@@ -269,11 +287,14 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
 
 /** Banner shown at the top of the changelog for untagged (pre-release) builds. */
 function PreReleaseBanner({ latestVersion }: { latestVersion: string }) {
+  const intl = useIntl();
   return (
     <div className="rounded-2xl border border-dashed border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3 space-y-1.5">
       <div className="flex items-center gap-2">
         <FlaskConical className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-        <span className="text-sm font-medium text-amber-800 dark:text-amber-300">Pre-release build</span>
+        <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+          <FormattedMessage id="changelog.preRelease" defaultMessage="Pre-release build" />
+        </span>
         {commitSha && buildDate && (
           <a
             href={`${GITLAB_REPO}/-/commit/${commitSha}`}
@@ -281,19 +302,19 @@ function PreReleaseBanner({ latestVersion }: { latestVersion: string }) {
             rel="noopener noreferrer"
             className="ml-auto text-[11px] text-amber-600/70 dark:text-amber-400/70 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
           >
-            {formatDate(buildDate.split('T')[0])}
+            {formatDate(buildDate.split('T')[0], intl)}
           </a>
         )}
       </div>
       <p className="text-xs text-amber-700/80 dark:text-amber-400/70">
-        This build contains changes not yet included in a release.{' '}
+        <FormattedMessage id="changelog.preReleaseDescription" defaultMessage="This build contains changes not yet included in a release." />{' '}
         <a
           href={`${GITLAB_REPO}/-/compare/v${latestVersion}...${commitSha || 'main'}`}
           target="_blank"
           rel="noopener noreferrer"
           className="underline underline-offset-2 hover:text-amber-900 dark:hover:text-amber-200 transition-colors"
         >
-          View unreleased changes
+          <FormattedMessage id="changelog.viewUnreleased" defaultMessage="View unreleased changes" />
         </a>
       </p>
     </div>

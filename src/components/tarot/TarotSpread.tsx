@@ -46,7 +46,7 @@ export function TarotSpread({
       {cards.map((card, index) => {
         const isRevealed = revealed ? !!revealed[index] : true;
         return (
-          <div key={`${card.name}-${index}`} className="w-[30%] max-w-[180px]">
+          <div key={`${card.id}-${index}`} className="w-[30%] max-w-[180px]">
             <h3 className="text-center text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-muted-foreground mb-3">
               {POSITION_LABELS[index]
                 ? <FormattedMessage {...POSITION_LABELS[index]} />

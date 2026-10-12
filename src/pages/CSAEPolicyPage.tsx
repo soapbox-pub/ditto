@@ -11,11 +11,11 @@ export function CSAEPolicyPage() {
 
   useSeoMeta({
     title: `Child Safety Policy | ${config.appName}`,
-    description: `${config.appName}'s policy on child sexual abuse and exploitation (CSAE) — our commitment to child safety on the Nostr network`,
+    description: `${config.appName}'s policy on child sexual abuse and exploitation (CSAE) and our commitment to child safety on the Nostr network`,
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       {/* Page header */}
       <PageHeader title="Child Safety Policy" icon={<ShieldAlert className="size-5" />} backTo="/" />
 

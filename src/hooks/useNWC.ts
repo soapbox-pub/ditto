@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useIntl } from 'react-intl';
 import { useSecureLocalStorage } from '@/hooks/useSecureLocalStorage';
 import { useToast } from '@/hooks/useToast';
 import { LN, nwc } from '@getalby/sdk';
@@ -33,6 +34,7 @@ export interface NWCInfo {
 }
 
 export function useNWCInternal(userPubkey?: string) {
+  const intl = useIntl();
   const { toast } = useToast();
   // Scope wallet connections per user so switching accounts doesn't leak wallets.
   // When no user is logged in, use a 'global' fallback key (connections won't
@@ -66,8 +68,8 @@ export function useNWCInternal(userPubkey?: string) {
     const parsed = parseNWCUri(uri);
     if (!parsed) {
       toast({
-        title: 'Invalid NWC URI',
-        description: 'Please check the connection string and try again.',
+        title: intl.formatMessage({ id: 'nwc.toast.invalidUriTitle', defaultMessage: 'Invalid NWC URI' }),
+        description: intl.formatMessage({ id: 'nwc.toast.invalidUri', defaultMessage: 'Please check the connection string and try again.' }),
         variant: 'destructive',
       });
       return false;
@@ -76,8 +78,8 @@ export function useNWCInternal(userPubkey?: string) {
     const existingConnection = connections.find(c => c.connectionString === parsed.connectionString);
     if (existingConnection) {
       toast({
-        title: 'Connection already exists',
-        description: 'This wallet is already connected.',
+        title: intl.formatMessage({ id: 'nwc.toast.duplicateTitle', defaultMessage: 'Connection already exists' }),
+        description: intl.formatMessage({ id: 'nwc.toast.duplicate', defaultMessage: 'This wallet is already connected.' }),
         variant: 'destructive',
       });
       return false;
@@ -94,7 +96,10 @@ export function useNWCInternal(userPubkey?: string) {
         }
       });
       const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Connection test timeout')), 10000);
+        timeoutId = setTimeout(
+          () => reject(new Error(intl.formatMessage({ id: 'nwc.error.connectionTimeout', defaultMessage: 'Connection test timeout' }))),
+          10000,
+        );
       });
 
       try {
@@ -126,18 +131,26 @@ export function useNWCInternal(userPubkey?: string) {
         setActiveConnection(parsed.connectionString);
 
       toast({
-        title: 'Wallet connected',
-        description: `Successfully connected to ${connection.alias}.`,
+        title: intl.formatMessage({ id: 'nwc.toast.connectedTitle', defaultMessage: 'Wallet connected' }),
+        description: intl.formatMessage(
+          { id: 'nwc.toast.connected', defaultMessage: 'Successfully connected to {alias}.' },
+          { alias: connection.alias },
+        ),
       });
 
       return true;
     } catch (error) {
       console.error('NWC connection failed:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error
+        ? error.message
+        : intl.formatMessage({ id: 'nwc.error.unknownOccurred', defaultMessage: 'Unknown error occurred' });
 
       toast({
-        title: 'Connection failed',
-        description: `Could not connect to the wallet: ${errorMessage}`,
+        title: intl.formatMessage({ id: 'nwc.toast.connectFailedTitle', defaultMessage: 'Connection failed' }),
+        description: intl.formatMessage(
+          { id: 'nwc.toast.connectFailed', defaultMessage: 'Could not connect to the wallet: {error}' },
+          { error: errorMessage },
+        ),
         variant: 'destructive',
       });
       return false;
@@ -161,8 +174,8 @@ export function useNWCInternal(userPubkey?: string) {
     });
 
     toast({
-      title: 'Wallet disconnected',
-      description: 'The wallet connection has been removed.',
+      title: intl.formatMessage({ id: 'nwc.toast.disconnectedTitle', defaultMessage: 'Wallet disconnected' }),
+      description: intl.formatMessage({ id: 'nwc.toast.disconnected', defaultMessage: 'The wallet connection has been removed.' }),
     });
   };
 
@@ -202,7 +215,10 @@ export function useNWCInternal(userPubkey?: string) {
       client = new LN(connection.connectionString);
     } catch (error) {
       console.error('Failed to create NWC client:', error);
-      throw new Error(`Failed to create NWC client: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(intl.formatMessage(
+        { id: 'nwc.error.createClient', defaultMessage: 'Failed to create NWC client: {error}' },
+        { error: error instanceof Error ? error.message : intl.formatMessage({ id: 'zaps.error.unknown', defaultMessage: 'Unknown error' }) },
+      ));
     }
 
     // No timeout of our own: the SDK gives up on publishing after 5 s and on
@@ -222,21 +238,24 @@ export function useNWCInternal(userPubkey?: string) {
 
       if (error instanceof Error) {
         if (error.message.includes('timeout')) {
-          throw new Error('Payment timed out. Please try again.');
+          throw new Error(intl.formatMessage({ id: 'nwc.error.timeout', defaultMessage: 'Payment timed out. Please try again.' }));
         } else if (error.message.includes('insufficient')) {
-          throw new Error('Insufficient balance in connected wallet.');
+          throw new Error(intl.formatMessage({ id: 'nwc.error.insufficient', defaultMessage: 'Insufficient balance in connected wallet.' }));
         } else if (error.message.includes('invalid')) {
-          throw new Error('Invalid invoice or connection. Please check your wallet.');
+          throw new Error(intl.formatMessage({ id: 'nwc.error.invalid', defaultMessage: 'Invalid invoice or connection. Please check your wallet.' }));
         } else {
-          throw new Error(`Payment failed: ${error.message}`);
+          throw new Error(intl.formatMessage(
+            { id: 'nwc.error.paymentFailed', defaultMessage: 'Payment failed: {error}' },
+            { error: error.message },
+          ));
         }
       }
 
-      throw new Error('Payment failed with unknown error');
+      throw new Error(intl.formatMessage({ id: 'nwc.error.paymentFailedUnknown', defaultMessage: 'Payment failed with unknown error' }));
     } finally {
       client.close();
     }
-  }, []);
+  }, [intl]);
 
   return {
     connections,

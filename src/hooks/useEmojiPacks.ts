@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useIntl, type IntlShape } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import {
   useMutation,
@@ -98,6 +99,7 @@ async function readEmojiListForWrite(
   store: NIndexedDB,
   queryClient: QueryClient,
   pubkey: string,
+  intl: IntlShape,
 ): Promise<NostrEvent | null> {
   const prev = await fetchFreshEvent(nostr, { kinds: [KIND_USER_EMOJIS], authors: [pubkey] }, { store });
   if (prev) return prev;
@@ -106,7 +108,10 @@ async function readEmojiListForWrite(
   const seenEmojis = queryClient.getQueryData<unknown[]>(['custom-emojis', pubkey]);
   const seenPacks = queryClient.getQueryData<unknown[]>(['my-emoji-packs', pubkey]);
   if (seenList || (seenEmojis?.length ?? 0) > 0 || (seenPacks?.length ?? 0) > 0 || hasDurableEmojis(pubkey)) {
-    throw new Error("Couldn't load your current emoji list. Try again in a moment.");
+    throw new Error(intl.formatMessage({
+      id: 'emojiPacks.error.loadListFailed',
+      defaultMessage: "Couldn't load your current emoji list. Try again in a moment.",
+    }));
   }
   return null;
 }
@@ -138,14 +143,15 @@ export function useAddEmojiPack(): UseMutationResult<
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
 
   return useMutation({
     mutationFn: async ({ pubkey, identifier }) => {
-      if (!user) throw new Error('Sign in to add an emoji pack.');
+      if (!user) throw new Error(intl.formatMessage({ id: 'emojiPacks.error.signInToAdd', defaultMessage: 'Sign in to add an emoji pack.' }));
 
       const coord = emojiPackCoord(pubkey, identifier);
 
-      const prev = await readEmojiListForWrite(nostr, store, queryClient, user.pubkey);
+      const prev = await readEmojiListForWrite(nostr, store, queryClient, user.pubkey, intl);
 
       // Preserve inline emojis and every other referenced pack.
       const existing = prev?.tags.filter(([n]) => n === 'emoji' || n === 'a') ?? [];
@@ -274,12 +280,13 @@ export function useRemoveEmojiPack(): UseMutationResult<void, Error, { coord: st
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
 
   return useMutation({
     mutationFn: async ({ coord }) => {
-      if (!user) throw new Error('Sign in to manage emoji packs.');
+      if (!user) throw new Error(intl.formatMessage({ id: 'emojiPacks.error.signInToManage', defaultMessage: 'Sign in to manage emoji packs.' }));
 
-      const prev = await readEmojiListForWrite(nostr, store, queryClient, user.pubkey);
+      const prev = await readEmojiListForWrite(nostr, store, queryClient, user.pubkey, intl);
       if (!prev) return; // nothing to remove
       if (!prev.tags.some(([n, v]) => n === 'a' && v === coord)) return; // not referenced
 

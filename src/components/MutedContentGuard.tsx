@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { VolumeX, Eye } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { cn } from '@/lib/utils';
@@ -37,9 +38,9 @@ export function MutedContentGuard({ event, children, className }: MutedContentGu
           <VolumeX className="size-5 text-muted-foreground" />
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">Muted Content</p>
+          <p className="text-sm font-medium text-foreground"><FormattedMessage id="mutedContentGuard.title" defaultMessage="Muted Content" /></p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            This post is from a user or conversation you've muted.
+            <FormattedMessage id="mutedContentGuard.description" defaultMessage="This post is from a user or conversation you've muted." />
           </p>
         </div>
         <Button
@@ -49,7 +50,7 @@ export function MutedContentGuard({ event, children, className }: MutedContentGu
           onClick={() => setRevealed(true)}
         >
           <Eye className="size-3.5" />
-          Show Anyway
+          <FormattedMessage id="mutedContentGuard.showAnyway" defaultMessage="Show Anyway" />
         </Button>
       </div>
     </div>

@@ -4,6 +4,7 @@
  * worker.
  */
 
+import { createIntl, defineMessage, type IntlShape, type MessageDescriptor } from '@formatjs/intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { matchFilters } from 'nostr-tools/filter';
 import { decode as nip19Decode, neventEncode } from 'nostr-tools/nip19';
@@ -11,7 +12,7 @@ import { decode as nip19Decode, neventEncode } from 'nostr-tools/nip19';
 import { BADGE_DEFINITION_KIND, parseBadgeATag } from '@/lib/badgeUtils';
 import { isNostrId } from '@/lib/nostrId';
 import { getReferencedETag } from '@/lib/notificationTarget';
-import type { PushWorkerState } from '@/lib/push/workerState';
+import type { PushWorkerLocale, PushWorkerState } from '@/lib/push/workerState';
 import { tryNaddrEncode, tryNeventEncode } from '@/lib/safeNip19';
 import { zapReceiptAmountMsat } from '@/lib/zapReceipt';
 
@@ -19,11 +20,13 @@ import { zapReceiptAmountMsat } from '@/lib/zapReceipt';
 const LETTER_KIND = 8211;
 
 export interface NotificationTemplate {
-  /** `%s` is the author's name, `%a` a zap's amount. */
-  title: string;
-  /** `'content'` for the event's own text, otherwise literal. */
-  body: string;
+  /** `{name}` is the author's name; a zap's also has `{amount}`. */
+  title: MessageDescriptor;
+  /** `'content'` for the event's own text, otherwise fixed copy or none. */
+  body: 'content' | MessageDescriptor | null;
 }
+
+const REPOSTED = defineMessage({ id: 'pushNotification.reposted', defaultMessage: '{name} reposted your post' });
 
 /**
  * Notification copy per kind, one entry for every kind in `NOTIFICATION_TYPES`
@@ -31,26 +34,60 @@ export interface NotificationTemplate {
  * `render.test.ts` fails when the two drift. The native apps render the same
  * kinds in `NostrPoller.java` and `NostrPoller.swift`.
  *
- * English only, as the native notifications are; the in-app notification list
- * is localized.
+ * Worded in the app's language: the page hands the worker its locale and these
+ * ids' translations (`putPushWorkerLocale()`), since the worker can't load the
+ * catalogs itself.
  */
-export const TEMPLATES: ReadonlyMap<number, NotificationTemplate> = new Map([
-  [7, { title: '%s reacted to your post', body: 'content' }],
+export const TEMPLATES: ReadonlyMap<number, NotificationTemplate> = new Map<number, NotificationTemplate>([
+  [7, {
+    title: defineMessage({ id: 'pushNotification.reacted', defaultMessage: '{name} reacted to your post' }),
+    body: 'content',
+  }],
   // Kind 6 content is the reposted event's raw JSON — never show it.
-  [6, { title: '%s reposted your post', body: '' }],
-  [16, { title: '%s reposted your post', body: '' }],
-  [9735, { title: '%s zapped you %a sats!', body: '' }],
+  [6, { title: REPOSTED, body: null }],
+  [16, { title: REPOSTED, body: null }],
+  [9735, {
+    title: defineMessage({ id: 'pushNotification.zapped', defaultMessage: '{name} zapped you {amount, number} sats!' }),
+    body: null,
+  }],
   // The amount is self-reported until checked on-chain, so it isn't shown.
-  [8333, { title: '%s sent you an on-chain zap', body: '' }],
-  [1, { title: '%s mentioned you', body: 'content' }],
-  [1111, { title: '%s commented on your post', body: 'content' }],
+  [8333, {
+    title: defineMessage({ id: 'pushNotification.onchainZap', defaultMessage: '{name} sent you an on-chain zap' }),
+    body: null,
+  }],
+  [1, {
+    title: defineMessage({ id: 'pushNotification.mentioned', defaultMessage: '{name} mentioned you' }),
+    body: 'content',
+  }],
+  [1111, {
+    title: defineMessage({ id: 'pushNotification.commented', defaultMessage: '{name} commented on your post' }),
+    body: 'content',
+  }],
   // Voice content is an audio URL, not words.
-  [1222, { title: '%s sent you a voice message', body: '' }],
-  [1244, { title: '%s replied with a voice message', body: '' }],
-  [8, { title: '%s awarded you a badge!', body: 'You received a new badge.' }],
-  [LETTER_KIND, { title: '%s sent you a letter!', body: 'You have a new letter waiting for you.' }],
-  [9802, { title: '%s highlighted your post', body: 'content' }],
-  [7849, { title: '%s took your quiz', body: 'content' }],
+  [1222, {
+    title: defineMessage({ id: 'pushNotification.voiceMessage', defaultMessage: '{name} sent you a voice message' }),
+    body: null,
+  }],
+  [1244, {
+    title: defineMessage({ id: 'pushNotification.voiceReply', defaultMessage: '{name} replied with a voice message' }),
+    body: null,
+  }],
+  [8, {
+    title: defineMessage({ id: 'pushNotification.badge', defaultMessage: '{name} awarded you a badge!' }),
+    body: defineMessage({ id: 'pushNotification.badgeBody', defaultMessage: 'You received a new badge.' }),
+  }],
+  [LETTER_KIND, {
+    title: defineMessage({ id: 'pushNotification.letter', defaultMessage: '{name} sent you a letter!' }),
+    body: defineMessage({ id: 'pushNotification.letterBody', defaultMessage: 'You have a new letter waiting for you.' }),
+  }],
+  [9802, {
+    title: defineMessage({ id: 'pushNotification.highlighted', defaultMessage: '{name} highlighted your post' }),
+    body: 'content',
+  }],
+  [7849, {
+    title: defineMessage({ id: 'pushNotification.quiz', defaultMessage: '{name} took your quiz' }),
+    body: 'content',
+  }],
 ]);
 
 /**
@@ -59,8 +96,17 @@ export const TEMPLATES: ReadonlyMap<number, NotificationTemplate> = new Map([
  * own title and no body. Any other content is an emoji reaction and falls
  * through to the generic kind 7 template.
  */
-const LIKE_TEMPLATE: NotificationTemplate = { title: '%s liked your post', body: '' };
-const DISLIKE_TEMPLATE: NotificationTemplate = { title: '%s disliked your post', body: '' };
+const LIKE_TEMPLATE: NotificationTemplate = {
+  title: defineMessage({ id: 'pushNotification.liked', defaultMessage: '{name} liked your post' }),
+  body: null,
+};
+const DISLIKE_TEMPLATE: NotificationTemplate = {
+  title: defineMessage({ id: 'pushNotification.disliked', defaultMessage: '{name} disliked your post' }),
+  body: null,
+};
+
+/** A zap whose amount couldn't be read. */
+const ZAPPED_SOME = defineMessage({ id: 'pushNotification.zappedSome', defaultMessage: '{name} zapped you some sats!' });
 
 export function templateFor(event: NostrEvent): NotificationTemplate | undefined {
   if (event.kind === 7) {
@@ -72,8 +118,42 @@ export function templateFor(event: NostrEvent): NotificationTemplate | undefined
 }
 
 /** Stand-in when the author's profile can't be resolved in time. */
-const ANONYMOUS_NAME = 'Someone';
+const ANONYMOUS_NAME = defineMessage({ id: 'pushNotification.someone', defaultMessage: 'Someone' });
 const MAX_BODY_LENGTH = 140;
+
+/** Whether `value` is a well-formed BCP 47 tag, which `Intl` would accept. */
+function isLocale(value: unknown): value is string {
+  if (typeof value !== 'string' || !value) return false;
+  try {
+    return Intl.getCanonicalLocales(value).length === 1;
+  } catch {
+    return false;
+  }
+}
+
+/** What notifications are worded with when the page never said otherwise. */
+const ENGLISH = createNotificationIntl(null);
+
+/**
+ * An `IntlShape` for the locale and translations the page handed over (see
+ * `putPushWorkerLocale()`). English, the inline defaults, without them: with
+ * no translations to go on, a locale would only reformat the numbers inside
+ * English sentences.
+ */
+export function createNotificationIntl(record: Partial<PushWorkerLocale> | null): IntlShape {
+  const locale = record?.locale;
+  const messages = record?.messages;
+  const usable = isLocale(locale) && !!messages && typeof messages === 'object';
+  return createIntl({
+    locale: usable ? locale : 'en',
+    defaultLocale: 'en',
+    messages: usable ? messages : undefined,
+    // A missing translation falls back to the English defaultMessage, as in the page.
+    onError: (err) => {
+      if (err.code !== 'MISSING_TRANSLATION') console.error(err);
+    },
+  });
+}
 
 function firstTag(event: NostrEvent, name: string): string | undefined {
   return event.tags.find(([n]) => n === name)?.[1];
@@ -167,16 +247,19 @@ export function renderText(
   template: NotificationTemplate,
   name: string | null,
   mentionNames: ReadonlyMap<string, string> = new Map(),
+  intl: IntlShape = ENGLISH,
 ): { title: string; body: string } {
   const sats = event.kind === 9735 ? zapSats(event) : null;
-  // Function replacements, so a display name containing `$&` or `$'` lands as
-  // written instead of as a substitution pattern.
-  const title = template.title
-    .replace('%s', () => name ?? ANONYMOUS_NAME)
-    .replace('%a', () => (sats === null ? 'some' : sats.toLocaleString('en-US')));
-  const body = template.body === 'content'
-    ? truncateBody(resolveMentions(event.content, mentionNames))
-    : template.body;
+  const title = intl.formatMessage(event.kind === 9735 && sats === null ? ZAPPED_SOME : template.title, {
+    name: name ?? intl.formatMessage(ANONYMOUS_NAME),
+    amount: sats ?? 0,
+  });
+  let body = '';
+  if (template.body === 'content') {
+    body = truncateBody(resolveMentions(event.content, mentionNames));
+  } else if (template.body) {
+    body = intl.formatMessage(template.body);
+  }
   return { title, body };
 }
 
@@ -221,8 +304,8 @@ export const REPLY_ACTION = 'reply';
 /** Dismisses the notification. The in-app read cursor lives in encrypted, signed settings the worker can't write. */
 export const MARK_READ_ACTION = 'mark-read';
 
-const MARK_READ: NotificationButton = { action: MARK_READ_ACTION, title: 'Mark read' };
-const REPLY: NotificationButton = { action: REPLY_ACTION, title: 'Reply' };
+const MARK_READ = defineMessage({ id: 'pushNotification.markRead', defaultMessage: 'Mark read' });
+const REPLY = defineMessage({ id: 'pushNotification.reply', defaultMessage: 'Reply' });
 
 /** Notifications that are something said to the user, and so can be answered. */
 const REPLYABLE_KINDS = new Set([1, 1111, 1222, 1244, 9802]);
@@ -232,8 +315,11 @@ const REPLYABLE_KINDS = new Set([1, 1111, 1222, 1244, 9802]);
  * something to reply to, Mark read on all. Chromium shows up to two; Safari
  * and Firefox show none, and the notification is still tappable.
  */
-export function notificationActions(event: NostrEvent | null): NotificationButton[] {
-  return event && REPLYABLE_KINDS.has(event.kind) ? [REPLY, MARK_READ] : [MARK_READ];
+export function notificationActions(event: NostrEvent | null, intl: IntlShape = ENGLISH): NotificationButton[] {
+  const markRead = { action: MARK_READ_ACTION, title: intl.formatMessage(MARK_READ) };
+  return event && REPLYABLE_KINDS.has(event.kind)
+    ? [{ action: REPLY_ACTION, title: intl.formatMessage(REPLY) }, markRead]
+    : [markRead];
 }
 
 // --- Where a tap goes ---

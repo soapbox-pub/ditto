@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Tag } from 'lucide-react';
@@ -23,6 +24,7 @@ interface EmbeddedClassifiedListingCardProps {
  * returns `null` for them.
  */
 export function EmbeddedClassifiedListingCard({ event, className, disableHoverCards }: EmbeddedClassifiedListingCardProps) {
+  const intl = useIntl();
   const listing = useMemo(() => parseClassifiedListing(event), [event]);
 
   const naddrId = useMemo(() => {
@@ -35,7 +37,7 @@ export function EmbeddedClassifiedListingCard({ event, className, disableHoverCa
   const { title, images, price, status } = listing;
   const cover = images[0];
   const isSold = status === 'sold';
-  const priceLabel = price ? formatListingPrice(price) : undefined;
+  const priceLabel = price ? formatListingPrice(price, intl.locale) : undefined;
 
   return (
     <EmbeddedCardShell

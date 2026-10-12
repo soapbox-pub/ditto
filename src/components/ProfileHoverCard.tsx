@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { AnchoredPopover } from '@/components/AnchoredPopover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -34,11 +35,12 @@ interface ProfileHoverCardProps {
  * Triggers a background refetch of the author's profile on mount.
  */
 function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
   const nip05 = metadata?.nip05;
   const nip05Domain = getNip05Domain(nip05);
@@ -105,7 +107,12 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
         )}
 
         {metadata?.bot && (
-          <span className="text-xs text-primary mt-1 inline-block" title="Bot account">Bot</span>
+          <span
+            className="text-xs text-primary mt-1 inline-block"
+            title={intl.formatMessage({ id: 'profileHoverCard.botAccount', defaultMessage: 'Bot account' })}
+          >
+            <FormattedMessage id="profileHoverCard.bot" defaultMessage="Bot" />
+          </span>
         )}
 
         <StreakBadge pubkey={pubkey} tooltip={false} className="flex mt-1" />

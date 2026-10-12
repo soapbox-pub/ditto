@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { ExternalLink, Copy, Check, Lock, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,12 +32,13 @@ const VECTOR_MINT_TEXT = 'text-[#147a52] dark:text-[#33DB98]';
  * per instance to avoid clashes when several cards render at once.
  */
 function VectorMark({ className }: { className?: string }) {
+  const intl = useIntl();
   const raw = useId();
   const uid = raw.replace(/[^a-zA-Z0-9]/g, '');
   const grad = `vec-grad-${uid}`;
   const glow = `vec-glow-${uid}`;
   return (
-    <svg viewBox="46 14 120 150" fill="none" role="img" aria-label="Vector" className={className}>
+    <svg viewBox="46 14 120 150" fill="none" role="img" aria-label={intl.formatMessage({ id: 'vectorInvite.brand', defaultMessage: 'Vector' })} className={className}>
       <defs>
         <linearGradient
           id={grad}
@@ -93,6 +95,7 @@ function VectorIconTile({
   sizeClass: string;
   markClass: string;
 }) {
+  const intl = useIntl();
   const iconUrl = useArmadaImage(preview?.icon);
   return (
     <div
@@ -102,18 +105,12 @@ function VectorIconTile({
       )}
     >
       {iconUrl ? (
-        <img src={iconUrl} alt={preview?.name || 'Community icon'} className="size-full object-cover" decoding="async" />
+        <img src={iconUrl} alt={preview?.name || intl.formatMessage({ id: 'vectorInvite.communityIcon', defaultMessage: 'Community icon' })} className="size-full object-cover" decoding="async" />
       ) : (
         <VectorMark className={markClass} />
       )}
     </div>
   );
-}
-
-/** Localized "N channels" (or "no channels" / "1 channel"). */
-function channelsLabel(count: number): string {
-  if (count <= 0) return 'No channels';
-  return `${count} ${count === 1 ? 'channel' : 'channels'}`;
 }
 
 /** The mint header eyebrow: Vector "V" mark + wordmark + subtitle. */
@@ -122,10 +119,10 @@ function VectorEyebrow({ markClass, textClass }: { markClass: string; textClass:
     <div className="flex items-center gap-1.5">
       <VectorMark className={markClass} />
       <span className={cn('font-semibold uppercase tracking-wider', VECTOR_MINT_TEXT, textClass)}>
-        Vector
+        <FormattedMessage id="vectorInvite.brand" defaultMessage="Vector" />
       </span>
       <span className={cn('font-medium uppercase tracking-wider text-muted-foreground', textClass)}>
-        · Community invite
+        · <FormattedMessage id="vectorInvite.communityInvite" defaultMessage="Community invite" />
       </span>
     </div>
   );
@@ -142,6 +139,7 @@ function VectorEyebrow({ markClass, textClass }: { markClass: string; textClass:
  * invitation. Ditto can't open encrypted communities itself.
  */
 export function VectorInviteEmbed({ invite, className, variant = 'embed' }: VectorInviteEmbedProps) {
+  const intl = useIntl();
   const vectorUrl = sanitizeUrl(invite.vectorUrl);
   const armadaUrl = sanitizeUrl(invite.armadaUrl);
   const [copied, setCopied] = useState(false);
@@ -180,7 +178,7 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
         openInArmada();
       }}
     >
-      Open in Armada instead
+      <FormattedMessage id="vectorInvite.openInArmada" defaultMessage="Open in Armada instead" />
     </button>
   );
 
@@ -210,39 +208,56 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
               <Skeleton className="mx-auto h-6 w-40" />
             ) : (
               <h2 className="text-lg font-bold leading-tight">
-                {communityName || 'Encrypted community'}
+                {communityName || <FormattedMessage id="vectorInvite.encryptedCommunity" defaultMessage="Encrypted community" />}
               </h2>
             )}
             <div className="flex items-center justify-center gap-3 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Lock className="size-3.5 shrink-0" />
-                {invite.missingSecret ? 'Missing secret' : 'Encrypted'}
+                {invite.missingSecret
+                  ? <FormattedMessage id="vectorInvite.missingSecret" defaultMessage="Missing secret" />
+                  : <FormattedMessage id="vectorInvite.encrypted" defaultMessage="Encrypted" />}
               </span>
               {preview && preview.channelCount > 0 && (
                 <span className="inline-flex items-center gap-1.5">
                   <Hash className="size-3.5 shrink-0" />
-                  {channelsLabel(preview.channelCount)}
+                  <FormattedMessage
+                    id="vectorInvite.channels"
+                    defaultMessage="{count, plural, =0 {No channels} one {# channel} other {# channels}}"
+                    values={{ count: preview.channelCount }}
+                  />
                 </span>
               )}
             </div>
             <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-              {invite.missingSecret
-                ? "Ask whoever shared it for a fresh link — the secret can't be recovered."
-                : preview?.expired
-                  ? 'This invite has expired. Ask for a fresh link to join.'
-                  : "Ditto can't open encrypted communities. Open this invite in Vector to view and join."}
+              {invite.missingSecret ? (
+                <FormattedMessage
+                  id="vectorInvite.missingSecretHelp"
+                  defaultMessage="Ask whoever shared it for a fresh link. The secret can't be recovered."
+                />
+              ) : preview?.expired ? (
+                <FormattedMessage
+                  id="vectorInvite.expired"
+                  defaultMessage="This invite has expired. Ask for a fresh link to join."
+                />
+              ) : (
+                <FormattedMessage
+                  id="vectorInvite.cantOpen"
+                  defaultMessage="Ditto can't open encrypted communities. Open this invite in Vector to view and join."
+                />
+              )}
             </p>
           </div>
 
           <div className="flex w-full max-w-xs flex-col gap-2 pt-1">
             {invite.missingSecret ? (
               <Button variant="secondary" disabled>
-                Invite incomplete
+                <FormattedMessage id="vectorInvite.incomplete" defaultMessage="Invite incomplete" />
               </Button>
             ) : (
               <Button className={mintButton} style={mintButtonStyle} disabled={!vectorUrl} onClick={openInVector}>
                 <ExternalLink className="size-4" />
-                Open in Vector
+                <FormattedMessage id="vectorInvite.openInVector" defaultMessage="Open in Vector" />
               </Button>
             )}
             <Button
@@ -252,7 +267,9 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
               onClick={handleCopy}
             >
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-              {copied ? 'Copied' : 'Copy invite link'}
+              {copied
+                ? <FormattedMessage id="vectorInvite.copied" defaultMessage="Copied" />
+                : <FormattedMessage id="vectorInvite.copyLink" defaultMessage="Copy invite link" />}
             </Button>
             {armadaFallback && <div className="pt-0.5">{armadaFallback}</div>}
           </div>
@@ -289,13 +306,15 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
               <Skeleton className="h-4 w-28" />
             ) : (
               <p className="font-semibold leading-tight truncate">
-                {communityName || 'Encrypted community'}
+                {communityName || <FormattedMessage id="vectorInvite.encryptedCommunity" defaultMessage="Encrypted community" />}
               </p>
             )}
             <p className="mt-0.5 flex items-center gap-2.5 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <Lock className="size-3 shrink-0" />
-                {invite.missingSecret ? 'Missing secret' : 'Encrypted'}
+                {invite.missingSecret
+                  ? <FormattedMessage id="vectorInvite.missingSecret" defaultMessage="Missing secret" />
+                  : <FormattedMessage id="vectorInvite.encrypted" defaultMessage="Encrypted" />}
               </span>
               {preview && preview.channelCount > 0 && (
                 <span className="inline-flex items-center gap-1">
@@ -310,7 +329,7 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
         <div className="flex items-center gap-2">
           {invite.missingSecret ? (
             <Button variant="secondary" className="flex-1" disabled>
-              Invite incomplete
+              <FormattedMessage id="vectorInvite.incomplete" defaultMessage="Invite incomplete" />
             </Button>
           ) : (
             <Button
@@ -324,7 +343,7 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
               }}
             >
               <ExternalLink className="size-4" />
-              Open in Vector
+              <FormattedMessage id="vectorInvite.openInVector" defaultMessage="Open in Vector" />
             </Button>
           )}
           <Button
@@ -332,7 +351,9 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
             variant="secondary"
             size="icon"
             className="shrink-0"
-            aria-label={copied ? 'Link copied' : 'Copy invite link'}
+            aria-label={copied
+              ? intl.formatMessage({ id: 'vectorInvite.linkCopied', defaultMessage: 'Link copied' })
+              : intl.formatMessage({ id: 'vectorInvite.copyLink', defaultMessage: 'Copy invite link' })}
             disabled={!vectorUrl}
             onClick={(e) => {
               e.preventDefault();

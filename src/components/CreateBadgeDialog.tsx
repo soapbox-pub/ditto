@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { Award, Upload, Loader2, Check, Copy, Users } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 
@@ -42,6 +43,7 @@ interface CreateBadgeDialogProps {
 }
 
 export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
@@ -113,7 +115,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
 
   const handleFileSelect = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file', description: 'Please select an image file.', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.invalidFile', defaultMessage: 'Invalid file' }), description: intl.formatMessage({ id: 'createBadge.invalidFileDescription', defaultMessage: 'Please select an image file.' }), variant: 'destructive' });
       return;
     }
     const reader = new FileReader();
@@ -122,12 +124,12 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
     try {
       const [[, url]] = await uploadFile(file);
       setImageUrl(url);
-      toast({ title: 'Image uploaded' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.imageUploaded', defaultMessage: 'Image uploaded' }) });
     } catch {
       setImagePreview('');
-      toast({ title: 'Upload failed', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.uploadFailed', defaultMessage: 'Upload failed' }), description: intl.formatMessage({ id: 'createBadge.tryAgain', defaultMessage: 'Please try again.' }), variant: 'destructive' });
     }
-  }, [uploadFile, toast]);
+  }, [uploadFile, toast, intl]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -145,11 +147,11 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
         imageUrl: imageUrl || undefined,
       });
       setCreatedBadge(event);
-      toast({ title: 'Badge created!' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.created', defaultMessage: 'Badge created!' }) });
     } catch {
-      toast({ title: 'Failed to create badge', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.createFailed', defaultMessage: 'Failed to create badge' }), description: intl.formatMessage({ id: 'createBadge.tryAgain', defaultMessage: 'Please try again.' }), variant: 'destructive' });
     }
-  }, [name, effectiveIdentifier, description, imageUrl, createBadge, toast]);
+  }, [name, effectiveIdentifier, description, imageUrl, createBadge, toast, intl]);
 
   const handleSelfAward = useCallback(async () => {
     if (!user || !createdBadge || !badgeATag) return;
@@ -163,11 +165,11 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
         awardEventId: awardEvent.id,
       });
       setSelfAwarded(true);
-      toast({ title: 'Badge awarded to yourself!' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.selfAwarded', defaultMessage: 'Badge awarded to yourself!' }) });
     } catch {
-      toast({ title: 'Failed to self-award', description: 'Please try again.', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'createBadge.selfAwardFailed', defaultMessage: 'Failed to self-award' }), description: intl.formatMessage({ id: 'createBadge.tryAgain', defaultMessage: 'Please try again.' }), variant: 'destructive' });
     }
-  }, [user, createdBadge, badgeATag, awardBadge, acceptBadge, toast]);
+  }, [user, createdBadge, badgeATag, awardBadge, acceptBadge, toast, intl]);
 
   const handleCopyLink = useCallback(() => {
     if (!createdBadge) return;
@@ -179,9 +181,9 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
     });
     navigator.clipboard.writeText(`${shareOrigin}/${naddr}`);
     setCopied(true);
-    toast({ title: 'Link copied to clipboard!' });
+    toast({ title: intl.formatMessage({ id: 'createBadge.linkCopied', defaultMessage: 'Link copied to clipboard!' }) });
     setTimeout(() => setCopied(false), 2000);
-  }, [createdBadge, toast, shareOrigin]);
+  }, [createdBadge, toast, shareOrigin, intl]);
 
   if (!user) return null;
 
@@ -198,9 +200,9 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                 </div>
 
                 <div className="space-y-1">
-                  <h2 className="text-lg font-bold">Badge Created!</h2>
+                  <h2 className="text-lg font-bold"><FormattedMessage id="createBadge.successTitle" defaultMessage="Badge Created!" /></h2>
                   <p className="text-sm text-muted-foreground">
-                    "{badgeName}" is ready to be awarded.
+                    <FormattedMessage id="createBadge.readyToAward" defaultMessage='"{name}" is ready to be awarded.' values={{ name: badgeName }} />
                   </p>
                 </div>
 
@@ -219,26 +221,26 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                     size="sm"
                   >
                     {isAwardingSelf ? (
-                      <><Loader2 className="size-4 animate-spin" /> Awarding...</>
+                      <><Loader2 className="size-4 animate-spin" /> <FormattedMessage id="createBadge.awarding" defaultMessage="Awarding..." /></>
                     ) : selfAwarded ? (
-                      <><Check className="size-4" /> Awarded to Yourself</>
+                      <><Check className="size-4" /> <FormattedMessage id="createBadge.awardedToYourself" defaultMessage="Awarded to Yourself" /></>
                     ) : (
-                      <><Award className="size-4" /> Award to Yourself</>
+                      <><Award className="size-4" /> <FormattedMessage id="createBadge.awardToYourself" defaultMessage="Award to Yourself" /></>
                     )}
                   </Button>
 
                   <Button variant="outline" size="sm" onClick={() => setAwardDialogOpen(true)} className="gap-2">
                     <Users className="size-4" />
-                    Award to Others
+                    <FormattedMessage id="createBadge.awardToOthers" defaultMessage="Award to Others" />
                   </Button>
 
                   <Button variant="outline" size="sm" onClick={handleCopyLink} className="gap-2">
                     {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                    {copied ? 'Copied!' : 'Share Link'}
+                    {copied ? <FormattedMessage id="createBadge.copied" defaultMessage="Copied!" /> : <FormattedMessage id="createBadge.shareLink" defaultMessage="Share Link" />}
                   </Button>
 
                   <Button variant="ghost" size="sm" onClick={resetForm} className="gap-2 text-muted-foreground">
-                    Create Another
+                    <FormattedMessage id="createBadge.createAnother" defaultMessage="Create Another" />
                   </Button>
                 </div>
               </div>
@@ -249,10 +251,10 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
               <DialogHeader className="px-5 pt-5 pb-3">
                 <DialogTitle className="flex items-center gap-2">
                   <Award className="size-5 text-primary" />
-                  Create a Badge
+                  <FormattedMessage id="createBadge.title" defaultMessage="Create a Badge" />
                 </DialogTitle>
                 <DialogDescription>
-                  Design a NIP-58 badge to award to users.
+                  <FormattedMessage id="createBadge.description" defaultMessage="Design a NIP-58 badge to award to users." />
                 </DialogDescription>
               </DialogHeader>
 
@@ -260,7 +262,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                 <div className="px-5 pb-5 space-y-4">
                   {/* Image upload */}
                   <div className="space-y-1.5">
-                    <Label>Badge Image</Label>
+                    <Label><FormattedMessage id="createBadge.imageLabel" defaultMessage="Badge Image" /></Label>
                     <div
                       role="button"
                       tabIndex={0}
@@ -271,16 +273,16 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                       className="relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-xl bg-secondary/5 hover:bg-secondary/10 transition-colors cursor-pointer overflow-hidden"
                     >
                       {imagePreview ? (
-                        <img src={imagePreview} alt="Badge preview" className="w-full h-full object-contain" decoding="async" />
+                        <img src={imagePreview} alt={intl.formatMessage({ id: 'createBadge.imagePreviewAlt', defaultMessage: 'Badge preview' })} className="w-full h-full object-contain" decoding="async" />
                       ) : isUploading ? (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Loader2 className="size-6 animate-spin" />
-                          <span className="text-xs">Uploading...</span>
+                          <span className="text-xs"><FormattedMessage id="createBadge.uploading" defaultMessage="Uploading..." /></span>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Upload className="size-6 opacity-40" />
-                          <span className="text-xs">Drop an image or click to upload</span>
+                          <span className="text-xs"><FormattedMessage id="createBadge.dropImage" defaultMessage="Drop an image or click to upload" /></span>
                         </div>
                       )}
                       <input
@@ -295,16 +297,16 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Recommended aspect ratio is 1:1 (max 1024x1024 px).
+                      <FormattedMessage id="createBadge.imageHint" defaultMessage="Recommended aspect ratio is 1:1 (max 1024x1024 px)." />
                     </p>
                   </div>
 
                   {/* Badge name */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="badge-name">Badge Name *</Label>
+                    <Label htmlFor="badge-name"><FormattedMessage id="createBadge.nameLabel" defaultMessage="Badge Name *" /></Label>
                     <Input
                       id="badge-name"
-                      placeholder="e.g. Early Adopter"
+                      placeholder={intl.formatMessage({ id: 'createBadge.namePlaceholder', defaultMessage: 'e.g. Early Adopter' })}
                       value={name}
                       onChange={(e) => handleNameChange(e.target.value)}
                     />
@@ -312,25 +314,25 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
 
                   {/* Identifier / d-tag */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="badge-identifier">Identifier (d-tag)</Label>
+                    <Label htmlFor="badge-identifier"><FormattedMessage id="createBadge.identifierLabel" defaultMessage="Identifier (d-tag)" /></Label>
                     <Input
                       id="badge-identifier"
-                      placeholder="auto-generated-slug"
+                      placeholder={intl.formatMessage({ id: 'createBadge.identifierPlaceholder', defaultMessage: 'auto-generated-slug' })}
                       value={identifierTouched ? identifier : effectiveIdentifier}
                       onChange={(e) => handleIdentifierChange(e.target.value)}
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      URL-safe identifier. Auto-generated from the name.
+                      <FormattedMessage id="createBadge.identifierHint" defaultMessage="URL-safe identifier. Auto-generated from the name." />
                     </p>
                   </div>
 
                   {/* Description */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="badge-description">Description</Label>
+                    <Label htmlFor="badge-description"><FormattedMessage id="createBadge.descriptionLabel" defaultMessage="Description" /></Label>
                     <Textarea
                       id="badge-description"
-                      placeholder="What is this badge awarded for?"
+                      placeholder={intl.formatMessage({ id: 'createBadge.descriptionPlaceholder', defaultMessage: 'What is this badge awarded for?' })}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       rows={2}
@@ -344,9 +346,9 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
                     className="w-full gap-2"
                   >
                     {isCreating ? (
-                      <><Loader2 className="size-4 animate-spin" /> Creating...</>
+                      <><Loader2 className="size-4 animate-spin" /> <FormattedMessage id="createBadge.creating" defaultMessage="Creating..." /></>
                     ) : (
-                      <><Award className="size-4" /> Create Badge</>
+                      <><Award className="size-4" /> <FormattedMessage id="createBadge.create" defaultMessage="Create Badge" /></>
                     )}
                   </Button>
                 </div>

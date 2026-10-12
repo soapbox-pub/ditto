@@ -7,6 +7,7 @@ import {
 	Wand2,
 } from "lucide-react";
 import { useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ export function PullRequestCard({
 	event,
 	preview = true,
 }: PullRequestCardProps) {
+	const intl = useIntl();
 	const subject = event.tags.find(([n]) => n === "subject")?.[1];
 	const branchName = event.tags.find(([n]) => n === "branch-name")?.[1];
 	const repoTag = event.tags.find(([n]) => n === "a")?.[1];
@@ -46,7 +48,8 @@ export function PullRequestCard({
 		.filter((t) => t !== "shakespeare");
 
 	const title =
-		subject || event.content.split("\n")[0]?.trim() || "Pull Request";
+		subject || event.content.split("\n")[0]?.trim() ||
+		intl.formatMessage({ id: "pullRequestCard.fallbackTitle", defaultMessage: "Pull Request" });
 	const hasDescription = event.content.trim().length > 0;
 
 	const [copied, setCopied] = useState(false);
@@ -115,7 +118,11 @@ export function PullRequestCard({
 								))}
 							{preview && labels.length > 6 && (
 								<span className="text-[11px] text-muted-foreground/50">
-									+{labels.length - 6} more
+									<FormattedMessage
+										id="pullRequestCard.moreLabels"
+										defaultMessage="+{count} more"
+										values={{ count: labels.length - 6 }}
+									/>
 								</span>
 							)}
 						</div>
@@ -138,7 +145,9 @@ export function PullRequestCard({
 							>
 								<Copy className="size-3" />
 								<span className="sr-only">
-									{copied ? "Copied" : "Copy"}
+									{copied
+										? <FormattedMessage id="pullRequestCard.copied" defaultMessage="Copied" />
+										: <FormattedMessage id="pullRequestCard.copy" defaultMessage="Copy" />}
 								</span>
 							</Button>
 						</div>
@@ -156,7 +165,7 @@ export function PullRequestCard({
 								}}
 							>
 								<Wand2 className="size-3" />
-								Edit with Shakespeare
+								<FormattedMessage id="pullRequestCard.editWithShakespeare" defaultMessage="Edit with Shakespeare" />
 							</button>
 						)}
 						<GitSiteLinks nip19={nevent} />
@@ -173,7 +182,7 @@ export function PullRequestCard({
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<GitBranch className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-muted-foreground text-xs">
-								Branch
+								<FormattedMessage id="pullRequestCard.branch" defaultMessage="Branch" />
 							</span>
 							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{branchName}
@@ -184,7 +193,7 @@ export function PullRequestCard({
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-muted-foreground text-xs">
-								Tip
+								<FormattedMessage id="pullRequestCard.tip" defaultMessage="Tip" />
 							</span>
 							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{commitTip.slice(0, 12)}
@@ -195,7 +204,7 @@ export function PullRequestCard({
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-muted-foreground text-xs">
-								Base
+								<FormattedMessage id="pullRequestCard.base" defaultMessage="Base" />
 							</span>
 							<code className="ml-auto text-xs font-mono text-muted-foreground">
 								{mergeBase.slice(0, 12)}

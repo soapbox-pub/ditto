@@ -9,6 +9,7 @@
  */
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Search, Loader2, Plus, UserPlus, Users, Check, X } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -33,6 +34,7 @@ interface EditMembersDialogProps {
 }
 
 export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000, listPubkeys }: EditMembersDialogProps) {
+  const intl = useIntl();
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [pendingPubkeys, setPendingPubkeys] = useState<Set<string>>(new Set());
@@ -43,7 +45,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
   const { addToList, removeFromList } = useUserLists();
   const { addToPack, removeFromPack } = useFollowPackActions();
   const isPack = listKind === 39089;
-  const noun = isPack ? 'pack' : 'list';
+  const listType = isPack ? 'pack' : 'list';
 
   // Metadata for the current members (shared cache with the detail page).
   const { data: membersMap } = useAuthors(listPubkeys);
@@ -73,7 +75,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
   const handleToggle = useCallback(async (pubkey: string, metadata: NostrMetadata | undefined) => {
     if (pendingPubkeys.has(pubkey)) return;
     const isMember = existingMembers.has(pubkey);
-    const name = metadata?.name || metadata?.display_name || 'Anonymous';
+    const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
     setPendingPubkeys((prev) => new Set(prev).add(pubkey));
     try {
       if (isMember) {
@@ -82,18 +84,30 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
         } else {
           await removeFromList.mutateAsync({ listId, pubkey });
         }
-        toast({ title: `Removed ${name} from ${noun}` });
+        toast({
+          title: intl.formatMessage(
+            { id: 'editMembers.removed', defaultMessage: 'Removed {name} from {listType, select, pack {pack} other {list}}' },
+            { name, listType },
+          ),
+        });
       } else {
         if (isPack) {
           await addToPack.mutateAsync({ packId: listId, pubkey });
         } else {
           await addToList.mutateAsync({ listId, pubkey });
         }
-        toast({ title: `Added ${name} to ${noun}` });
+        toast({
+          title: intl.formatMessage(
+            { id: 'editMembers.added', defaultMessage: 'Added {name} to {listType, select, pack {pack} other {list}}' },
+            { name, listType },
+          ),
+        });
       }
     } catch {
       toast({
-        title: isMember ? 'Failed to remove member' : 'Failed to add member',
+        title: isMember
+          ? intl.formatMessage({ id: 'editMembers.removeFailed', defaultMessage: 'Failed to remove member' })
+          : intl.formatMessage({ id: 'editMembers.addFailed', defaultMessage: 'Failed to add member' }),
         variant: 'destructive',
       });
     } finally {
@@ -103,7 +117,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
         return next;
       });
     }
-  }, [pendingPubkeys, existingMembers, isPack, noun, listId, addToList, removeFromList, addToPack, removeFromPack]);
+  }, [pendingPubkeys, existingMembers, isPack, listType, listId, intl, addToList, removeFromList, addToPack, removeFromPack]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isSearching || !searchResults) return;
@@ -134,7 +148,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
       <DialogContent className="max-w-md max-h-[70dvh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden flex flex-col">
         <div className="px-4 py-3 border-b border-border shrink-0">
           <DialogHeader className="p-0 space-y-0 mb-3">
-            <DialogTitle className="text-base font-bold">Edit Members</DialogTitle>
+            <DialogTitle className="text-base font-bold"><FormattedMessage id="editMembers.title" defaultMessage="Edit Members" /></DialogTitle>
           </DialogHeader>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -143,7 +157,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search to add people…"
+              placeholder={intl.formatMessage({ id: 'editMembers.searchPlaceholder', defaultMessage: 'Search to add people…' })}
               className="pl-9 pr-8 rounded-full"
             />
             {isFetching && (
@@ -158,13 +172,13 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
             listPubkeys.length === 0 ? (
               <div className="py-12 text-center text-muted-foreground text-sm px-6">
                 <UserPlus className="size-8 mx-auto mb-2 opacity-50" />
-                No members yet. Search above to add people.
+                <FormattedMessage id="editMembers.empty" defaultMessage="No members yet. Search above to add people." />
               </div>
             ) : (
               <>
                 <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Users className="size-3.5" />
-                  Members ({listPubkeys.length})
+                  <FormattedMessage id="editMembers.count" defaultMessage="Members ({count})" values={{ count: listPubkeys.length }} />
                 </p>
                 {listPubkeys.map((pk) => (
                   <MemberRow
@@ -185,7 +199,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
             </div>
           ) : !searchResults || searchResults.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
-              No profiles found.
+              <FormattedMessage id="editMembers.noProfiles" defaultMessage="No profiles found." />
             </div>
           ) : (
             // ── Search results — add new people, remove existing ones ──────
@@ -223,7 +237,8 @@ interface MemberRowProps {
 }
 
 function MemberRow({ pubkey, metadata, pictureImeta, isMember, isPending, isSelected, onMouseEnter, onToggle }: MemberRowProps) {
-  const name = metadata?.name || metadata?.display_name || 'Anonymous';
+  const intl = useIntl();
+  const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   return (
     <div
@@ -245,7 +260,7 @@ function MemberRow({ pubkey, metadata, pictureImeta, isMember, isPending, isSele
         <div className="text-sm font-medium truncate flex items-center gap-1.5">
           <span className="truncate">{name}</span>
           {isMember && (
-            <Check className="size-3.5 text-green-600 dark:text-green-400 shrink-0" aria-label="Already a member" />
+            <Check className="size-3.5 text-green-600 dark:text-green-400 shrink-0" aria-label={intl.formatMessage({ id: 'editMembers.alreadyMember', defaultMessage: 'Already a member' })} />
           )}
         </div>
         {metadata?.nip05 && (
@@ -264,9 +279,9 @@ function MemberRow({ pubkey, metadata, pictureImeta, isMember, isPending, isSele
         {isPending ? (
           <Loader2 className="size-3 animate-spin" />
         ) : isMember ? (
-          <><X className="size-3" /> Remove</>
+          <><X className="size-3" /> <FormattedMessage id="editMembers.remove" defaultMessage="Remove" /></>
         ) : (
-          <><Plus className="size-3" /> Add</>
+          <><Plus className="size-3" /> <FormattedMessage id="common.add" defaultMessage="Add" /></>
         )}
       </Button>
     </div>

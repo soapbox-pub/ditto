@@ -251,13 +251,17 @@ const defaultConfig: AppConfig = {
   feedSettings: { ...hardcodedConfig.feedSettings, ...dittoConfig.feedSettings },
 };
 
-export function App() {
+/** Runs the nsec paste guard inside `I18nProvider` so its toast is translated. */
+function NsecPasteGuard() {
   useNsecPasteGuard();
+  return null;
+}
 
-
+export function App() {
   return (
     <AppProvider storageKey={APP_CONFIG_STORAGE_KEY} defaultConfig={defaultConfig}>
       <I18nProvider>
+        <NsecPasteGuard />
         <SentryProvider>
           <PlausibleProvider>
             <QueryClientProvider client={queryClient}>

@@ -2,12 +2,14 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { CalendarDays, Loader2 } from "lucide-react";
 import { useMemo } from "react";
+import { useIntl } from "react-intl";
 import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +37,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 
 export function EventsFeedPage() {
   const { config } = useAppContext();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
 
@@ -43,7 +46,9 @@ export function EventsFeedPage() {
     "global",
   ]);
 
-  useSeoMeta({ title: `Events | ${config.appName}` });
+  const pageTitle = intl.formatMessage({ id: "eventsFeed.title", defaultMessage: "Events" });
+
+  useSeoMeta({ title: `${pageTitle} | ${config.appName}` });
   useLayoutOptions({ showFAB: true, fabKind: 31923, hasSubHeader: !!user });
 
   // Calendar events feed
@@ -100,8 +105,8 @@ export function EventsFeedPage() {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="max-w-2xl mx-auto">
-      <PageHeader title="Events" icon={<CalendarDays className="size-5" />}>
+    <main>
+      <PageHeader title={pageTitle} icon={<CalendarDays className="size-5" />}>
         <KindInfoButton
           kindDef={eventsDef}
           icon={sidebarItemIcon("events", "size-5")}
@@ -112,17 +117,20 @@ export function EventsFeedPage() {
       {user && (
         <SubHeaderBar>
           <TabButton
-            label="Follows"
+            label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
             active={activeTab === "follows"}
             onClick={() => setActiveTab("follows")}
           />
           <TabButton
-            label="Global"
+            label={intl.formatMessage({ id: "eventsFeed.tab.global", defaultMessage: "Global" })}
             active={activeTab === "global"}
             onClick={() => setActiveTab("global")}
           />
         </SubHeaderBar>
       )}
+
+      {/* Arc overhang spacer (matches Feed.tsx) */}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
 
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (
@@ -153,8 +161,8 @@ export function EventsFeedPage() {
           <FeedEmptyState
             message={
               activeTab === "follows"
-                ? "No events from people you follow yet."
-                : "No calendar events found. Check your relay connections or try again later."
+                ? intl.formatMessage({ id: "eventsFeed.empty.follows", defaultMessage: "No events from people you follow yet." })
+                : intl.formatMessage({ id: "eventsFeed.empty.global", defaultMessage: "No calendar events found. Check your relay connections or try again later." })
             }
             onSwitchToGlobal={
               activeTab === "follows" ? () => setActiveTab("global") : undefined

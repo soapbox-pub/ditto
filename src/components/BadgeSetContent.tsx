@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Award } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import { FallbackImage } from '@/components/FallbackImage';
 import { nip19 } from 'nostr-tools';
@@ -88,7 +89,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
         <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-transparent to-primary/5 px-5 py-6">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             <Award className="size-3.5" />
-            Badge set
+            <FormattedMessage id="badgeSet.label" defaultMessage="Badge set" />
           </div>
           <h3 className="text-xl font-bold mt-1.5 leading-tight break-words">{title}</h3>
           {description && (
@@ -154,11 +155,15 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
         </div>
       ) : badges.length > 0 ? (
         <div className="rounded-xl border border-border bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
-          {badges.length} badge{badges.length !== 1 ? 's' : ''} referenced but definitions could not be loaded.
+          <FormattedMessage
+            id="badgeSet.definitionsFailed"
+            defaultMessage="{count, plural, one {# badge} other {# badges}} referenced but definitions could not be loaded."
+            values={{ count: badges.length }}
+          />
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-4 text-center text-sm text-muted-foreground">
-          This badge set doesn't reference any badges yet.
+          <FormattedMessage id="badgeSet.empty" defaultMessage="This badge set doesn't reference any badges yet." />
         </div>
       )}
     </div>

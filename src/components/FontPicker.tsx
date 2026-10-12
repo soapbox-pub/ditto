@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Check, ChevronsUpDown, Type, Upload, Loader2, X } from 'lucide-react';
+import { FormattedMessage, defineMessage, useIntl, type MessageDescriptor } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
@@ -17,12 +18,12 @@ import type { ThemeFont } from '@/themes';
 const FONT_ACCEPT = '.woff2,.woff,.ttf,.otf';
 
 /** Category labels for UI display */
-const CATEGORY_LABELS: Record<FontCategory, string> = {
-  sans: 'Sans Serif',
-  serif: 'Serif',
-  mono: 'Monospace',
-  display: 'Display',
-  handwriting: 'Handwriting',
+const CATEGORY_LABELS: Record<FontCategory, MessageDescriptor> = {
+  sans: defineMessage({ id: 'fontPicker.category.sans', defaultMessage: 'Sans Serif' }),
+  serif: defineMessage({ id: 'fontPicker.category.serif', defaultMessage: 'Serif' }),
+  mono: defineMessage({ id: 'fontPicker.category.mono', defaultMessage: 'Monospace' }),
+  display: defineMessage({ id: 'fontPicker.category.display', defaultMessage: 'Display' }),
+  handwriting: defineMessage({ id: 'fontPicker.category.handwriting', defaultMessage: 'Handwriting' }),
 };
 
 /** Category display order */
@@ -74,7 +75,7 @@ function familyFromFilename(filename: string): string {
  *
  * Also supports uploading a custom font file via Blossom.
  */
-export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', placeholderFont }: {
+export function FontPicker({ value, onChange, placeholder, placeholderFont }: {
   /** Controlled value — overrides useTheme() when provided. */
   value?: ThemeFont | undefined;
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
@@ -84,6 +85,7 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
   /** Font to render the placeholder text in (when no value is selected). */
   placeholderFont?: ThemeFont | undefined;
 } = {}) {
+  const intl = useIntl();
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -94,6 +96,8 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
   const controlled = onChange !== undefined;
 
   usePreloadFonts(open);
+
+  const placeholderText = placeholder ?? intl.formatMessage({ id: 'fontPicker.defaultInter', defaultMessage: 'Default (Inter)' });
 
   const currentFont: ThemeFont | undefined = controlled
     ? value
@@ -146,7 +150,11 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
     const validExtensions = ['.woff2', '.woff', '.ttf', '.otf'];
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (!validExtensions.includes(ext)) {
-      toast({ title: 'Invalid file', description: 'Please select a .woff2, .woff, .ttf, or .otf font file.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'fontPicker.toast.invalidFile', defaultMessage: 'Invalid file' }),
+        description: intl.formatMessage({ id: 'fontPicker.toast.invalidFileDescription', defaultMessage: 'Please select a .woff2, .woff, .ttf, or .otf font file.' }),
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -162,10 +170,17 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
       setOpen(false);
       setSearch('');
 
-      toast({ title: 'Font uploaded', description: `"${family}" is now active.` });
+      toast({
+        title: intl.formatMessage({ id: 'fontPicker.toast.uploaded', defaultMessage: 'Font uploaded' }),
+        description: intl.formatMessage({ id: 'fontPicker.toast.uploadedDescription', defaultMessage: '"{family}" is now active.' }, { family }),
+      });
     } catch (error) {
       console.error('Failed to upload font:', error);
-      toast({ title: 'Upload failed', description: 'Could not upload the font file.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'fontPicker.toast.uploadFailed', defaultMessage: 'Upload failed' }),
+        description: intl.formatMessage({ id: 'fontPicker.toast.uploadFailedDescription', defaultMessage: 'Could not upload the font file.' }),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -191,9 +206,11 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
             }
           >
             <span className="truncate">
-              {currentFont?.family ?? placeholder}
+              {currentFont?.family ?? placeholderText}
               {isCustomUpload && (
-                <span className="ml-1.5 text-muted-foreground text-xs">(uploaded)</span>
+                <span className="ml-1.5 text-muted-foreground text-xs">
+                  <FormattedMessage id="fontPicker.uploadedSuffix" defaultMessage="(uploaded)" />
+                </span>
               )}
             </span>
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
@@ -202,18 +219,20 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0 overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
           <Command shouldFilter={true}>
             <CommandInput
-              placeholder="Search fonts..."
+              placeholder={intl.formatMessage({ id: 'fontPicker.searchPlaceholder', defaultMessage: 'Search fonts...' })}
               value={search}
               onValueChange={setSearch}
             />
             <CommandList>
               <CommandEmpty>
-                <span className="text-muted-foreground">No matching fonts</span>
+                <span className="text-muted-foreground">
+                  <FormattedMessage id="fontPicker.noMatches" defaultMessage="No matching fonts" />
+                </span>
               </CommandEmpty>
 
               {/* Custom uploaded font (shown at top when active) */}
               {isCustomUpload && currentFont && (
-                <CommandGroup heading="Custom">
+                <CommandGroup heading={intl.formatMessage({ id: 'fontPicker.customHeading', defaultMessage: 'Custom' })}>
                   <CommandItem
                     value={currentFont.family}
                     onSelect={() => handleSelect(currentFont.family)}
@@ -228,7 +247,7 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
                         setOpen(false);
                       }}
                       className="ml-2 p-0.5 rounded-sm text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Remove custom font"
+                      aria-label={intl.formatMessage({ id: 'fontPicker.removeCustom', defaultMessage: 'Remove custom font' })}
                     >
                       <X className="size-3.5" />
                     </button>
@@ -237,7 +256,7 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
               )}
 
               {fontsByCategory.map((group) => (
-                <CommandGroup key={group.category} heading={group.label}>
+                <CommandGroup key={group.category} heading={intl.formatMessage(group.label)}>
                   {group.fonts.map((font) => (
                     <CommandItem
                       key={font.family}
@@ -273,7 +292,11 @@ export function FontPicker({ value, onChange, placeholder = 'Default (Inter)', p
                       ) : (
                         <Upload className="mr-2 size-4" />
                       )}
-                      {isUploading ? 'Uploading...' : 'Upload custom font...'}
+                      {isUploading ? (
+                        <FormattedMessage id="fontPicker.uploading" defaultMessage="Uploading..." />
+                      ) : (
+                        <FormattedMessage id="fontPicker.uploadCustom" defaultMessage="Upload custom font..." />
+                      )}
                     </CommandItem>
                   </CommandGroup>
                 </>
@@ -307,23 +330,29 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
   titleFont?: ThemeFont | undefined;
   onTitleFontChange?: (font: ThemeFont | undefined) => void;
 }) {
+  const intl = useIntl();
+
   return (
     <div className="space-y-3">
       <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
         <Type className="size-3.5" />
-        Fonts
+        <FormattedMessage id="fontPicker.fonts" defaultMessage="Fonts" />
       </span>
 
       {/* Two-row picker layout */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground w-10 shrink-0">Title</span>
+          <span className="text-xs text-muted-foreground w-10 shrink-0">
+            <FormattedMessage id="fontPicker.title" defaultMessage="Title" />
+          </span>
           <div className="flex-1">
-            <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder={bodyFont?.family ?? 'Default (Inter)'} placeholderFont={bodyFont} />
+            <FontPicker value={titleFont} onChange={onTitleFontChange} placeholder={bodyFont?.family ?? intl.formatMessage({ id: 'fontPicker.defaultInter', defaultMessage: 'Default (Inter)' })} placeholderFont={bodyFont} />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground w-10 shrink-0">Body</span>
+          <span className="text-xs text-muted-foreground w-10 shrink-0">
+            <FormattedMessage id="fontPicker.body" defaultMessage="Body" />
+          </span>
           <div className="flex-1">
             <FontPicker value={bodyFont} onChange={onBodyFontChange} />
           </div>

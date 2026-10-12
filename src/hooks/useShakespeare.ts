@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { defineMessage, useIntl, type IntlShape } from 'react-intl';
 import { useCurrentUser } from './useCurrentUser';
 import type { NUser } from '@nostrify/react/login';
 
@@ -14,6 +15,19 @@ export class RateLimitError extends Error {
     this.retryAfter = retryAfter;
   }
 }
+
+/** Thrown when the Shakespeare account has no credits left. */
+class OutOfCreditsError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OutOfCreditsError';
+  }
+}
+
+const outOfCreditsMessage = defineMessage({
+  id: 'shakespeare.error.outOfCredits',
+  defaultMessage: "You've run out of credits. Add more on shakespeare.diy to keep chatting.",
+});
 
 // Types for Shakespeare API (compatible with OpenAI ChatCompletionMessageParam)
 export interface ChatMessage {
@@ -166,23 +180,23 @@ function parseRetryAfter(response: Response): number {
 }
 
 /** Handle API errors with user-friendly messages. */
-async function handleAPIError(response: Response) {
+async function handleAPIError(response: Response, intl: IntlShape) {
   if (response.status === 429) {
     // Shakespeare returns 429 with code "insufficient_quota" when credits run out
     try {
       const body = await response.json();
       if (body.error?.code === 'insufficient_quota' || body.code === 'insufficient_quota') {
-        throw new Error('You\'ve run out of credits. Add more on shakespeare.diy to keep chatting.');
+        throw new OutOfCreditsError(intl.formatMessage(outOfCreditsMessage));
       }
     } catch (err) {
-      if (err instanceof Error && err.message.includes('run out of credits')) throw err;
+      if (err instanceof OutOfCreditsError) throw err;
       // JSON parse failed or different shape — treat as a normal rate limit
     }
     throw new RateLimitError(parseRetryAfter(response));
   } else if (response.status === 401) {
-    throw new Error('Authentication failed. Please make sure you are logged in with a Nostr account.');
+    throw new Error(intl.formatMessage({ id: 'shakespeare.error.authFailed', defaultMessage: 'Authentication failed. Please make sure you are logged in with a Nostr account.' }));
   } else if (response.status === 402) {
-    throw new Error('You\'ve run out of credits. Add more on shakespeare.diy to keep chatting.');
+    throw new OutOfCreditsError(intl.formatMessage(outOfCreditsMessage));
   } else if (response.status === 400) {
     let parsed: Record<string, unknown> | undefined;
     try {
@@ -194,26 +208,36 @@ async function handleAPIError(response: Response) {
       const err = parsed.error as Record<string, unknown> | undefined;
       if (err?.type === 'invalid_request_error') {
         if (err.code === 'minimum_amount_not_met') {
-          throw new Error(`Minimum credit amount is $${err.minimum_amount}. Please increase your payment amount.`);
+          throw new Error(intl.formatMessage({ id: 'shakespeare.error.minimumAmount', defaultMessage: 'Minimum credit amount is ${amount}. Please increase your payment amount.' }, { amount: String(err.minimum_amount) }));
         } else if (err.code === 'unsupported_method') {
-          throw new Error('Payment method not supported. Please use "stripe" or "lightning".');
+          throw new Error(intl.formatMessage({ id: 'shakespeare.error.unsupportedMethod', defaultMessage: 'Payment method not supported. Please use "stripe" or "lightning".' }));
         } else if (err.code === 'invalid_url') {
-          throw new Error('Invalid redirect URL provided for Stripe payment.');
+          throw new Error(intl.formatMessage({ id: 'shakespeare.error.invalidUrl', defaultMessage: 'Invalid redirect URL provided for Stripe payment.' }));
         }
       }
-      throw new Error(`Invalid request: ${err?.message || (parsed as Record<string, unknown>).details || err || 'Please check your request parameters.'}`);
+      const detail = String(
+        err?.message
+          || (parsed as Record<string, unknown>).details
+          || err
+          || intl.formatMessage({ id: 'shakespeare.error.checkParams', defaultMessage: 'Please check your request parameters.' }),
+      );
+      throw new Error(intl.formatMessage({ id: 'shakespeare.error.invalidRequestDetail', defaultMessage: 'Invalid request: {detail}' }, { detail }));
     }
-    throw new Error('Invalid request. Please check your parameters and try again.');
+    throw new Error(intl.formatMessage({ id: 'shakespeare.error.invalidRequest', defaultMessage: 'Invalid request. Please check your parameters and try again.' }));
   } else if (response.status === 404) {
-    throw new Error('Resource not found. Please check the payment ID or try again.');
+    throw new Error(intl.formatMessage({ id: 'shakespeare.error.notFound', defaultMessage: 'Resource not found. Please check the payment ID or try again.' }));
   } else if (response.status >= 500) {
-    throw new Error('Server error. Please try again in a few moments.');
+    throw new Error(intl.formatMessage({ id: 'shakespeare.error.server', defaultMessage: 'Server error. Please try again in a few moments.' }));
   } else if (!response.ok) {
     try {
       const errorData = await response.json();
-      throw new Error(`API error: ${errorData.error?.message || errorData.details || errorData.error || response.statusText}`);
+      const detail = String(errorData.error?.message || errorData.details || errorData.error || response.statusText);
+      throw new Error(intl.formatMessage({ id: 'shakespeare.error.api', defaultMessage: 'API error: {detail}' }, { detail }));
     } catch {
-      throw new Error(`Network error: ${response.statusText}. Please check your connection and try again.`);
+      throw new Error(intl.formatMessage(
+        { id: 'shakespeare.error.network', defaultMessage: 'Network error: {status}. Please check your connection and try again.' },
+        { status: response.statusText },
+      ));
     }
   }
 }
@@ -226,15 +250,15 @@ function parseProviderModel(fullId: string): { provider: string; model: string }
 }
 
 /** Format an error for display. */
-function formatError(err: unknown): string {
-  let msg = 'An unexpected error occurred';
+function formatError(err: unknown, intl: IntlShape): string {
+  let msg = intl.formatMessage({ id: 'shakespeare.error.unexpected', defaultMessage: 'An unexpected error occurred' });
   if (err instanceof Error) msg = err.message;
   else if (typeof err === 'string') msg = err;
 
   if (msg.includes('Failed to fetch') || msg.includes('Network')) {
-    return 'Network error: Please check your internet connection and try again.';
+    return intl.formatMessage({ id: 'shakespeare.error.networkGeneric', defaultMessage: 'Network error: Please check your internet connection and try again.' });
   } else if (msg.includes('signer')) {
-    return 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.';
+    return intl.formatMessage({ id: 'shakespeare.error.authSigner', defaultMessage: 'Authentication error: Please make sure you are logged in with a Nostr account that supports signing.' });
   }
   return msg;
 }
@@ -242,6 +266,7 @@ function formatError(err: unknown): string {
 // ─── Hook ───
 
 export function useShakespeare() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +334,7 @@ export function useShakespeare() {
         body: JSON.stringify(requestBody),
       });
 
-      await handleAPIError(response);
+      await handleAPIError(response, intl);
       return await response.json();
     } catch (err) {
       if (err instanceof RateLimitError) {
@@ -317,13 +342,13 @@ export function useShakespeare() {
         setError(err.message);
         throw err;
       }
-      const msg = formatError(err);
+      const msg = formatError(err, intl);
       setError(msg);
       throw new Error(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, intl]);
 
   // ─── Chat completions (streaming) ───
 
@@ -365,10 +390,10 @@ export function useShakespeare() {
         body: JSON.stringify(requestBody),
       });
 
-      await handleAPIError(response);
+      await handleAPIError(response, intl);
 
       if (!response.body) {
-        throw new Error('No response body');
+        throw new Error(intl.formatMessage({ id: 'shakespeare.error.noResponseBody', defaultMessage: 'No response body' }));
       }
 
       const reader = response.body.getReader();
@@ -408,13 +433,13 @@ export function useShakespeare() {
         setError(err.message);
         throw err;
       }
-      const msg = formatError(err);
+      const msg = formatError(err, intl);
       setError(msg);
       throw new Error(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, intl]);
 
   // ─── Credit balance (Shakespeare AI only) ───
 
@@ -436,12 +461,12 @@ export function useShakespeare() {
         headers: { 'Authorization': `Nostr ${token}` },
       });
 
-      await handleAPIError(response);
+      await handleAPIError(response, intl);
       return await response.json();
     } catch (err) {
-      throw new Error(formatError(err));
+      throw new Error(formatError(err, intl));
     }
-  }, [user]);
+  }, [user, intl]);
 
   // ─── Available models (merged from both providers) ───
 
@@ -464,7 +489,7 @@ export function useShakespeare() {
         method: 'GET',
         headers: { 'Authorization': `Nostr ${token}` },
       });
-      await handleAPIError(response);
+      await handleAPIError(response, intl);
       const result = (await response.json()) as ModelsResponse;
 
       const models: Model[] = result.data.map((m) => ({
@@ -475,18 +500,20 @@ export function useShakespeare() {
 
       return { object: 'list', data: models };
     } catch (err) {
-      const msg = formatError(err);
+      const msg = formatError(err, intl);
       setError(msg);
       throw new Error(msg);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, intl]);
 
   return {
     // State
     isLoading,
     error,
+    /** Whether `error` is the out-of-credits message. */
+    isOutOfCredits: error !== null && error === intl.formatMessage(outOfCreditsMessage),
     /** Unix-ms timestamp until which the client is rate-limited, or null. */
     retryAfter,
     isAuthenticated: !!user,

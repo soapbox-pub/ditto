@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { FileCode, Wand2 } from "lucide-react";
+import { FormattedMessage } from "react-intl";
 import { openUrl } from "@/lib/downloadFile";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
@@ -102,12 +103,12 @@ export function CustomNipCard({ event, preview = true }: CustomNipCardProps) {
 										key={k}
 										className="text-[11px] font-mono text-muted-foreground"
 									>
-										Kind {k}
+										<FormattedMessage id="customNip.kind" defaultMessage="Kind {kind}" values={{ kind: k }} />
 									</span>
 								))}
 							{preview && relatedKinds.length > 6 && (
 								<span className="text-[11px] text-muted-foreground/50">
-									+{relatedKinds.length - 6} more
+									<FormattedMessage id="customNip.moreKinds" defaultMessage="+{count} more" values={{ count: relatedKinds.length - 6 }} />
 								</span>
 							)}
 						</div>
@@ -124,7 +125,7 @@ export function CustomNipCard({ event, preview = true }: CustomNipCardProps) {
 							}}
 						>
 							<Wand2 className="size-3" />
-							Edit with Shakespeare
+							<FormattedMessage id="customNip.editWithShakespeare" defaultMessage="Edit with Shakespeare" />
 						</button>
 					)}
 				</div>

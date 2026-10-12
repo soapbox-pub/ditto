@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Plus, Check, Loader2 } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, type InfiniteData, type QueryKey } from '@tanstack/react-query';
@@ -137,7 +138,7 @@ export function TagFeedPage({
     <main className="">
       <PageHeader
         title={title}
-        icon={icon ? <span className="text-muted-foreground shrink-0">{icon}</span> : undefined}
+        icon={icon}
       >
         {followable && user && tag && (
           <Button
@@ -150,9 +151,9 @@ export function TagFeedPage({
             {interestPending ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : isFollowing ? (
-              <><Check className="size-3.5" /> Following</>
+              <><Check className="size-3.5" /> <FormattedMessage id="tagFeed.following" defaultMessage="Following" /></>
             ) : (
-              <><Plus className="size-3.5" /> Follow</>
+              <><Plus className="size-3.5" /> <FormattedMessage id="tagFeed.follow" defaultMessage="Follow" /></>
             )}
           </Button>
         )}

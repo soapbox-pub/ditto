@@ -1,6 +1,7 @@
 // src/blobbi/actions/components/InlineSingCard.tsx
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { 
   Mic, 
   Play, 
@@ -18,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { useAudioPlayback } from '../hooks/useAudioPlayback';
-import { getRandomLyrics, type LyricsEntry } from '../lib/blobbi-random-lyrics';
+import { formatLyrics, getRandomLyrics, type LyricsEntry } from '../lib/blobbi-random-lyrics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,8 @@ export function InlineSingCard({
   onRecordingStop,
   isPublishing,
 }: InlineSingCardProps) {
+  const intl = useIntl();
+
   // Recording state
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [recordingError, setRecordingError] = useState<string | null>(null);
@@ -168,7 +171,7 @@ export function InlineSingCard({
   // Start recording
   const startRecording = useCallback(async () => {
     if (!checkRecordingSupport()) {
-      setRecordingError('Audio recording is not supported in this browser.');
+      setRecordingError(intl.formatMessage({ id: 'inlineSing.error.unsupported', defaultMessage: 'Audio recording is not supported in this browser.' }));
       setRecordingState('error');
       return;
     }
@@ -222,7 +225,7 @@ export function InlineSingCard({
       };
       
       mediaRecorder.onerror = () => {
-        setRecordingError('Recording failed. Please try again.');
+        setRecordingError(intl.formatMessage({ id: 'inlineSing.error.failed', defaultMessage: 'Recording failed. Please try again.' }));
         setRecordingState('error');
       };
       
@@ -240,18 +243,18 @@ export function InlineSingCard({
     } catch (err) {
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          setRecordingError('Microphone access was denied.');
+          setRecordingError(intl.formatMessage({ id: 'inlineSing.error.denied', defaultMessage: 'Microphone access was denied.' }));
         } else if (err.name === 'NotFoundError') {
-          setRecordingError('No microphone found.');
+          setRecordingError(intl.formatMessage({ id: 'inlineSing.error.noMic', defaultMessage: 'No microphone found.' }));
         } else {
           setRecordingError(err.message);
         }
       } else {
-        setRecordingError('Failed to access microphone.');
+        setRecordingError(intl.formatMessage({ id: 'inlineSing.error.access', defaultMessage: 'Failed to access microphone.' }));
       }
       setRecordingState('error');
     }
-  }, [onRecordingStart]);
+  }, [intl, onRecordingStart]);
   
   // Stop recording
   const stopRecording = useCallback(() => {
@@ -329,7 +332,7 @@ export function InlineSingCard({
         {showLyrics && currentLyrics && (
           <div className="px-3 pt-3 pb-2 border-b border-border/50">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">{currentLyrics.title}</span>
+              <span className="text-sm font-medium"><FormattedMessage {...currentLyrics.title} /></span>
               <Button
                 size="icon"
                 variant="ghost"
@@ -340,7 +343,7 @@ export function InlineSingCard({
               </Button>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 text-sm leading-relaxed whitespace-pre-line max-h-32 overflow-y-auto">
-              {currentLyrics.lines.join('\n')}
+              {formatLyrics(intl, currentLyrics)}
             </div>
           </div>
         )}
@@ -355,7 +358,7 @@ export function InlineSingCard({
                   <span className="text-sm font-mono font-medium text-red-500">
                     {formatDuration(recordingDuration)}
                   </span>
-                  <span className="text-xs text-muted-foreground">Recording...</span>
+                  <span className="text-xs text-muted-foreground"><FormattedMessage id="inlineSing.recording" defaultMessage="Recording..." /></span>
                 </>
               )}
               {hasRecording && !isRecording && (
@@ -364,7 +367,7 @@ export function InlineSingCard({
                   <span className="text-sm font-mono font-medium text-purple-500">
                     {formatDuration(recordingDuration)}
                   </span>
-                  <span className="text-xs text-muted-foreground">Recorded</span>
+                  <span className="text-xs text-muted-foreground"><FormattedMessage id="inlineSing.recorded" defaultMessage="Recorded" /></span>
                 </>
               )}
             </div>
@@ -402,7 +405,7 @@ export function InlineSingCard({
                 className="rounded-full px-6 bg-purple-500 hover:bg-purple-600"
               >
                 <Mic className="size-4 mr-2" />
-                Sing
+                <FormattedMessage id="blobbiRoom.dock.sing" defaultMessage="Sing" />
               </Button>
             )}
             
@@ -413,7 +416,7 @@ export function InlineSingCard({
                 className="rounded-full px-6"
               >
                 <Square className="size-4 mr-2" />
-                Stop
+                <FormattedMessage id="inlineSing.stop" defaultMessage="Stop" />
               </Button>
             )}
             
@@ -438,7 +441,9 @@ export function InlineSingCard({
                   ) : (
                     <Check className="size-4 mr-2" />
                   )}
-                  {isPublishing ? 'Singing...' : 'Sing for Blobbi'}
+                  {isPublishing
+                    ? <FormattedMessage id="inlineSing.singing" defaultMessage="Singing..." />
+                    : <FormattedMessage id="inlineSing.singForBlobbi" defaultMessage="Sing for Blobbi" />}
                 </Button>
               </>
             )}
@@ -483,7 +488,7 @@ export function InlineSingCard({
               className="text-muted-foreground hover:text-foreground"
             >
               <X className="size-3 mr-1" />
-              Cancel
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
             </Button>
           </div>
         )}

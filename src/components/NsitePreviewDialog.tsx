@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useIntl } from 'react-intl';
 import { Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -146,6 +147,7 @@ interface NsitePreviewDialogProps {
  * and uses `position: fixed` to fill the viewport column area.
  */
 export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenChange }: NsitePreviewDialogProps) {
+  const intl = useIntl();
   const centerColumn = useCenterColumn();
   const columnRect = useElementRect(open ? centerColumn : null);
   const { config } = useAppContext();
@@ -279,7 +281,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
             size="sm"
             className="h-7 w-7 p-0 shrink-0"
             onClick={() => onOpenChange(false)}
-            title="Close"
+            title={intl.formatMessage({ id: 'nsitePreview.close', defaultMessage: 'Close' })}
           >
             <X className="size-3.5" />
           </Button>
@@ -295,7 +297,7 @@ export function NsitePreviewDialog({ event, appName, appPicture, open, onOpenCha
           onRpc={user ? signerRpc.onRpc : undefined}
           injectedScripts={injectedScripts}
           className="w-full h-full border-0"
-          title={`${appName} preview`}
+          title={intl.formatMessage({ id: 'nsitePreview.frameTitle', defaultMessage: '{appName} preview' }, { appName })}
         />
 
         {/* Permission prompt overlay */}

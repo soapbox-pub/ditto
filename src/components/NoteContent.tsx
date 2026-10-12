@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -775,11 +776,12 @@ export function NoteContent({
 
   // Only fetch author data when there are media embeds that need it (video artist, audio avatar)
   const hasMedia = tokens.some((t) => t.type === 'media-embed');
+  const intl = useIntl();
   const author = useAuthor(hasMedia ? event.pubkey : undefined);
   const authorMetadata = author.data?.metadata;
   const authorDisplayName = useMemo(
-    () => getDisplayName(authorMetadata, event.pubkey) ?? 'Anonymous',
-    [authorMetadata, event.pubkey],
+    () => getDisplayName(authorMetadata, event.pubkey) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }),
+    [authorMetadata, event.pubkey, intl],
   );
 
   // Group consecutive image-embed tokens (≥2) into image-gallery tokens
@@ -1302,7 +1304,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarImeta, avatarFallback
       className="inline-flex items-center gap-2 my-2 px-3 py-2 rounded-lg border bg-muted/40 hover:bg-muted text-primary break-all"
       onClick={(e) => e.stopPropagation()}
     >
-      <span className="font-medium">Blossom file</span>
+      <span className="font-medium"><FormattedMessage id="noteContent.blossomFile" defaultMessage="Blossom file" /></span>
       <span className="text-muted-foreground text-sm">
         {uri.sha256.slice(0, 8)}…{uri.ext ? `.${uri.ext}` : ''}
         {typeof uri.size === 'number' ? ` · ${formatBytes(uri.size)}` : ''}

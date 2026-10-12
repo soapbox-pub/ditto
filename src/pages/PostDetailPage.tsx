@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { useGoBack } from "@/hooks/useGoBack";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
@@ -190,28 +190,28 @@ const VANISH_KIND = 62;
  * "Badge Collection") are kept here. Everything else falls through to the
  * central kind label registry.
  */
-function shellTitleForKind(kind?: number): string {
-  if (!kind) return "Loading...";
+function shellTitleForKind(intl: IntlShape, kind?: number): string {
+  if (!kind) return intl.formatMessage({ id: 'postDetail.title.loading', defaultMessage: 'Loading...' });
   // Group-based overrides
-  if (kind === 34139) return "Playlist Details";
-  if (MUSIC_KINDS.has(kind)) return "Track Details";
-  if (PODCAST_KINDS.has(kind)) return "Episode Details";
-  if (CALENDAR_EVENT_KINDS.has(kind)) return "Event Details";
-  if (kind === LIVE_STREAM_KIND) return "Live Stream";
-  if (kind === MAGAZINE_KIND) return "Magazine";
-  if (kind === MAGAZINE_ISSUE_KIND) return "Magazine Issue";
-  if (kind === EBOOK_KIND) return "Ebook";
+  if (kind === 34139) return intl.formatMessage({ id: 'postDetail.title.playlist', defaultMessage: 'Playlist Details' });
+  if (MUSIC_KINDS.has(kind)) return intl.formatMessage({ id: 'postDetail.title.track', defaultMessage: 'Track Details' });
+  if (PODCAST_KINDS.has(kind)) return intl.formatMessage({ id: 'postDetail.title.episode', defaultMessage: 'Episode Details' });
+  if (CALENDAR_EVENT_KINDS.has(kind)) return intl.formatMessage({ id: 'postDetail.title.event', defaultMessage: 'Event Details' });
+  if (kind === LIVE_STREAM_KIND) return intl.formatMessage({ id: 'postDetail.title.liveStream', defaultMessage: 'Live Stream' });
+  if (kind === MAGAZINE_KIND) return intl.formatMessage({ id: 'publicationCard.magazine', defaultMessage: 'Magazine' });
+  if (kind === MAGAZINE_ISSUE_KIND) return intl.formatMessage({ id: 'publicationCard.magazineIssue', defaultMessage: 'Magazine Issue' });
+  if (kind === EBOOK_KIND) return intl.formatMessage({ id: 'publicationCard.ebook', defaultMessage: 'Ebook' });
   // Composite labels that differ from the raw kind name
-  if (kind === BADGE_DEFINITION_KIND) return "Badge Details";
+  if (kind === BADGE_DEFINITION_KIND) return intl.formatMessage({ id: 'postDetail.title.badgeDetails', defaultMessage: 'Badge Details' });
   // Kind 10008 is unambiguously profile badges (NIP-51 standard list).
   // Kind 30008 falls through to the central registry ("Badge set") because
   // it could be either a legacy profile badges event or a NIP-51 badge set
   // and the loading-state shell title runs before we have the event/d-tag.
-  if (kind === BADGE_PROFILE_KIND_NEW) return "Badge Collection";
+  if (kind === BADGE_PROFILE_KIND_NEW) return intl.formatMessage({ id: 'postDetail.title.badgeCollection', defaultMessage: 'Badge Collection' });
   // Fall back to the central registry
   const label = KIND_LABELS[kind];
-  if (label) return label;
-  return "Post Details";
+  if (label) return intl.formatMessage(label);
+  return intl.formatMessage({ id: 'postDetail.title.default', defaultMessage: 'Post Details' });
 }
 
 import { CommentContext } from "@/components/CommentContext";
@@ -287,15 +287,13 @@ function parseImeta(tags: string[][]): {
 }
 
 /** Formats a timestamp into a full date string like "Feb 16, 2026, 2:53 PM". */
-function formatFullDate(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString("en-US", {
+function formatFullDate(timestamp: number, intl: IntlShape): string {
+  return intl.formatDate(timestamp * 1000, {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    hour12: true,
   });
 }
 
@@ -323,6 +321,7 @@ export function PostDetailPage({
   relays,
   authorHint,
 }: PostDetailPageProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const {
@@ -345,16 +344,16 @@ export function PostDetailPage({
   useSeoMeta({
     title:
       event || retryEvent
-        ? `Post Details - ${config.appName}`
-        : `Loading... - ${config.appName}`,
+        ? intl.formatMessage({ id: 'postDetail.seoTitle', defaultMessage: 'Post Details - {appName}' }, { appName: config.appName })
+        : intl.formatMessage({ id: 'postDetail.seoTitleLoading', defaultMessage: 'Loading... - {appName}' }, { appName: config.appName }),
   });
 
   const resolvedEvent = event || retryEvent;
-  const detailTitle = shellTitleForKind(resolvedEvent?.kind);
+  const detailTitle = shellTitleForKind(intl, resolvedEvent?.kind);
 
   if (isLoading) {
     return (
-      <PostDetailShell title="Loading...">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.loading', defaultMessage: 'Loading...' })}>
         <PostDetailSkeleton />
       </PostDetailShell>
     );
@@ -392,7 +391,7 @@ export function PostDetailPage({
   // NIP-58 badge definitions get a detail view with issuer info and awardees
   if (resolvedEvent.kind === BADGE_DEFINITION_KIND) {
     return (
-      <PostDetailShell title="Badge Details">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.badgeDetails', defaultMessage: 'Badge Details' })}>
         <MutedContentGuard event={resolvedEvent}>
           <BadgeDetailContent event={resolvedEvent} />
         </MutedContentGuard>
@@ -403,7 +402,7 @@ export function PostDetailPage({
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
   if (isProfileBadgesEvent(resolvedEvent)) {
     return (
-      <PostDetailShell title="Badge Collection">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.badgeCollection', defaultMessage: 'Badge Collection' })}>
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -415,7 +414,7 @@ export function PostDetailPage({
   // the same NoteCard + comments layout but with a set-aware title.
   if (isBadgeSetEvent(resolvedEvent)) {
     return (
-      <PostDetailShell title="Badge Set">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.badgeSet', defaultMessage: 'Badge Set' })}>
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -445,6 +444,7 @@ export function PostDetailPage({
 
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
 export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { data: event, isLoading, isError, refetch, isFetching } = useAddrEvent(addr, relays);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
@@ -452,7 +452,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   const resolvedEvent = event || retryEvent;
 
   // We know the kind from the addr before the event loads — use it for the shell title
-  const loadingTitle = shellTitleForKind(addr.kind);
+  const loadingTitle = shellTitleForKind(intl, addr.kind);
 
   useSeoMeta({
     title: resolvedEvent
@@ -477,7 +477,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       missingSecret: true,
     };
     return (
-      <PostDetailShell title="Community invite">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.communityInvite', defaultMessage: 'Community invite' })}>
         <div className="px-4 pb-8">
           <ArmadaInviteEmbed invite={invite} variant="detail" />
         </div>
@@ -557,7 +557,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // NIP-58 badge definitions get a detail view with issuer info and awardees
   if (resolvedEvent.kind === BADGE_DEFINITION_KIND) {
     return (
-      <PostDetailShell title="Badge Details">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.badgeDetails', defaultMessage: 'Badge Details' })}>
         <MutedContentGuard event={resolvedEvent}>
           <BadgeDetailContent event={resolvedEvent} />
         </MutedContentGuard>
@@ -568,7 +568,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // NIP-58 profile badges get a NoteCard view (same as the feed) + comments
   if (isProfileBadgesEvent(resolvedEvent)) {
     return (
-      <PostDetailShell title="Badge Collection">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.badgeCollection', defaultMessage: 'Badge Collection' })}>
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -579,7 +579,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // NIP-51 badge set — same layout as profile badges with a different title.
   if (isBadgeSetEvent(resolvedEvent)) {
     return (
-      <PostDetailShell title="Badge Set">
+      <PostDetailShell title={intl.formatMessage({ id: 'postDetail.title.badgeSet', defaultMessage: 'Badge Set' })}>
         <MutedContentGuard event={resolvedEvent}>
           <ProfileBadgesDetailView event={resolvedEvent} />
         </MutedContentGuard>
@@ -626,7 +626,7 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
   return (
     <div>
       <NoteCard event={event} />
-      <div className="pb-16 sidebar:pb-0">
+      <div>
         {commentsLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -637,7 +637,7 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
           <FlatThreadedReplyList replies={orderedReplies} />
         ) : (
           <div className="py-12 text-center text-muted-foreground text-sm">
-            No replies yet. Be the first to reply!
+            <FormattedMessage id="postDetail.noReplies" defaultMessage="No replies yet. Be the first to reply!" />
           </div>
         )}
       </div>
@@ -647,11 +647,12 @@ function ProfileBadgesDetailView({ event }: { event: NostrEvent }) {
 
 export function PostDetailShell({
   children,
-  title = "Post Details",
+  title,
 }: {
   children: React.ReactNode;
   title?: string;
 }) {
+  const intl = useIntl();
   const goBack = useGoBack();
 
   return (
@@ -660,11 +661,11 @@ export function PostDetailShell({
         <button
           onClick={goBack}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
-          aria-label="Go back"
+          aria-label={intl.formatMessage({ id: 'postDetail.goBack', defaultMessage: 'Go back' })}
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold">{title}</h1>
+        <h1 className="text-xl font-bold">{title ?? intl.formatMessage({ id: 'postDetail.title.default', defaultMessage: 'Post Details' })}</h1>
       </div>
 
       {children}
@@ -679,6 +680,7 @@ type EventNotFoundContext =
 
 /** Copiable hex value — shows full ID truncated at the end, with a copy button. */
 function CopyableHex({ value }: { value: string }) {
+  const intl = useIntl();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -692,7 +694,7 @@ function CopyableHex({ value }: { value: string }) {
     <button
       onClick={handleCopy}
       className="group flex items-center gap-1.5 min-w-0 text-left"
-      title="Click to copy"
+      title={intl.formatMessage({ id: 'postDetail.clickToCopy', defaultMessage: 'Click to copy' })}
     >
       <span className="font-mono text-xs truncate">{value}</span>
       <span className="shrink-0 text-muted-foreground group-hover:text-foreground transition-colors">
@@ -713,7 +715,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
   return (
     <div className="flex items-center gap-2.5 pt-1">
       <span className="text-muted-foreground shrink-0 w-14 text-sm">
-        Author
+        <FormattedMessage id="postDetail.author" defaultMessage="Author" />
       </span>
       <Link to={profileUrl} className="flex items-center gap-2 min-w-0 group">
         {author.isLoading ? (
@@ -756,10 +758,12 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
 }
 
 /** Human noun for a deleted event's kind, suitable mid-sentence ("this short text note"). */
-function deletedKindNoun(kind: number | undefined): string {
-  if (kind === undefined) return "event";
-  const label = getKindLabel(kind);
-  // Lowercase the first letter unless the label starts with an acronym ("DM relay list").
+function deletedKindNoun(kind: number | undefined, intl: IntlShape): string {
+  if (kind === undefined) return intl.formatMessage({ id: 'postDetail.eventNoun', defaultMessage: 'event' });
+  const label = getKindLabel(intl, kind);
+  // English labels are sentence-case nouns, so lowercase the first letter
+  // unless it starts an acronym ("DM relay list"). German nouns stay capitalized.
+  if (!intl.locale.startsWith('en')) return label;
   return /^[A-Z][a-z]/.test(label)
     ? label.charAt(0).toLowerCase() + label.slice(1)
     : label;
@@ -870,6 +874,7 @@ function EventNotFound({
   onRetry?: () => void;
   isRetrying?: boolean;
 }) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const [relayUrl, setRelayUrl] = useState("");
   const [isRetrying, setIsRetrying] = useState(false);
@@ -925,15 +930,15 @@ function EventNotFound({
         if (events.length > 0) {
           onEventFound(events[0]);
         } else {
-          setRetryError(`Event not found on ${url}`);
+          setRetryError(intl.formatMessage({ id: 'postDetail.retry.notFoundOn', defaultMessage: 'Event not found on {url}' }, { url }));
         }
       } catch {
-        setRetryError(`Failed to connect to ${url}`);
+        setRetryError(intl.formatMessage({ id: 'postDetail.retry.connectFailed', defaultMessage: 'Failed to connect to {url}' }, { url }));
       } finally {
         setIsRetrying(false);
       }
     },
-    [nostr, context, onEventFound],
+    [nostr, context, onEventFound, intl],
   );
 
   return (
@@ -960,14 +965,24 @@ function EventNotFound({
               )}
             </div>
             <h2 className="text-xl font-bold">
-              {deletionInfo ? "Event deleted" : "Event not found"}
+              {deletionInfo ? (
+                <FormattedMessage id="postDetail.eventDeleted" defaultMessage="Event deleted" />
+              ) : (
+                <FormattedMessage id="postDetail.eventNotFound" defaultMessage="Event not found" />
+              )}
             </h2>
             {deletionInfo ? (
               <>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {deletionInfo.verified
-                    ? `This ${deletedKindNoun(deletionInfo.deletedKind)} was deleted by its author on ${formatFullDate(deletionInfo.deletion.created_at)}.`
-                    : `A deletion request for this ${deletedKindNoun(deletionInfo.deletedKind)} was published on ${formatFullDate(deletionInfo.deletion.created_at)}, so it was likely removed by its author.`}
+                    ? intl.formatMessage(
+                      { id: 'postDetail.deletedVerified', defaultMessage: 'This {kind} was deleted by its author on {date}.' },
+                      { kind: deletedKindNoun(deletionInfo.deletedKind, intl), date: formatFullDate(deletionInfo.deletion.created_at, intl) },
+                    )
+                    : intl.formatMessage(
+                      { id: 'postDetail.deletedUnverified', defaultMessage: 'A deletion request for this {kind} was published on {date}, so it was likely removed by its author.' },
+                      { kind: deletedKindNoun(deletionInfo.deletedKind, intl), date: formatFullDate(deletionInfo.deletion.created_at, intl) },
+                    )}
                 </p>
                 {deletionInfo.reason && (
                   <p className="text-sm text-muted-foreground italic break-words">
@@ -978,8 +993,8 @@ function EventNotFound({
             ) : (
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {authorPubkey
-                  ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
-                  : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
+                  ? intl.formatMessage({ id: 'postDetail.notFoundWithAuthor', defaultMessage: "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to." })
+                  : intl.formatMessage({ id: 'postDetail.notFoundNoAuthor', defaultMessage: "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to." })}
               </p>
             )}
           </div>
@@ -1000,19 +1015,21 @@ function EventNotFound({
             ) : (
               <RefreshCw className="size-4" />
             )}
-            Try again
+            <FormattedMessage id="postDetail.tryAgain" defaultMessage="Try again" />
           </Button>
         )}
 
         {/* Context details */}
         <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-sm">
           <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            Event details
+            <FormattedMessage id="postDetail.eventDetails" defaultMessage="Event details" />
           </p>
           {context.type === "event" ? (
             <div className="space-y-1.5">
               <div className="flex items-start gap-2 min-w-0">
-                <span className="text-muted-foreground shrink-0 w-14">ID</span>
+                <span className="text-muted-foreground shrink-0 w-14">
+                  <FormattedMessage id="postDetail.field.id" defaultMessage="ID" />
+                </span>
                 <CopyableHex value={context.eventId} />
               </div>
             </div>
@@ -1020,20 +1037,20 @@ function EventNotFound({
             <div className="space-y-1.5">
               <div className="flex items-start gap-2">
                 <span className="text-muted-foreground shrink-0 w-14">
-                  Kind
+                  <FormattedMessage id="postDetail.field.kind" defaultMessage="Kind" />
                 </span>
                 <span className="font-mono text-xs">{context.addr.kind}</span>
               </div>
               <div className="flex items-start gap-2 min-w-0">
                 <span className="text-muted-foreground shrink-0 w-14">
-                  Pubkey
+                  <FormattedMessage id="postDetail.field.pubkey" defaultMessage="Pubkey" />
                 </span>
                 <CopyableHex value={context.addr.pubkey} />
               </div>
               {context.addr.identifier && (
                 <div className="flex items-start gap-2 min-w-0">
                   <span className="text-muted-foreground shrink-0 w-14">
-                    d-tag
+                    <FormattedMessage id="postDetail.field.dTag" defaultMessage="d-tag" />
                   </span>
                   <CopyableHex value={context.addr.identifier} />
                 </div>
@@ -1042,7 +1059,9 @@ function EventNotFound({
           )}
           {context.relays && context.relays.length > 0 && (
             <div className="flex items-start gap-2 pt-1">
-              <span className="text-muted-foreground shrink-0 w-14">Hints</span>
+              <span className="text-muted-foreground shrink-0 w-14">
+                <FormattedMessage id="postDetail.field.hints" defaultMessage="Hints" />
+              </span>
               <span className="font-mono text-xs break-all">
                 {context.relays.join(", ")}
               </span>
@@ -1062,7 +1081,7 @@ function EventNotFound({
                 <ChevronRight
                   className={`size-4 transition-transform duration-200 ${retryOpen ? "rotate-90" : ""}`}
                 />
-                <span>Try another relay</span>
+                <span><FormattedMessage id="postDetail.tryAnotherRelay" defaultMessage="Try another relay" /></span>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3 space-y-3">
@@ -1088,7 +1107,7 @@ function EventNotFound({
                   ) : (
                     <Radio className="size-4" />
                   )}
-                  <span className="ml-1.5">Try</span>
+                  <span className="ml-1.5"><FormattedMessage id="postDetail.try" defaultMessage="Try" /></span>
                 </Button>
               </div>
 
@@ -1224,7 +1243,17 @@ function BookReviewRating({ event }: { event: NostrEvent }) {
 }
 
 
+/** Linked noun inside a translated action header, e.g. the "nsite" in "deployed an nsite". */
+function ActionNounLink({ to, children }: { to: string; children: React.ReactNode }) {
+  return (
+    <Link to={to} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+      {children}
+    </Link>
+  );
+}
+
 function PostDetailContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const { isMuted } = useMuteFilter();
   const { floodIds } = useReplyFlood();
   const queryClient = useQueryClient();
@@ -1310,8 +1339,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const handleShare = useCallback(async () => {
     const url = `${shareOrigin}/${encodedEventId}`;
     const result = await shareOrCopy(url);
-    if (result === "copied") toast({ title: "Link copied to clipboard" });
-  }, [encodedEventId, shareOrigin]);
+    if (result === "copied") toast({ title: intl.formatMessage({ id: 'postDetail.linkCopied', defaultMessage: 'Link copied to clipboard' }) });
+  }, [encodedEventId, shareOrigin, intl]);
 
   // Kind detection — mirrors NoteCard
   const isVine = event.kind === 34236;
@@ -1943,10 +1972,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           onClick={() => openInteractions("reposts")}
           className="shrink-0 whitespace-nowrap hover:underline transition-colors"
         >
-          <span className="font-bold text-foreground">
-            {formatNumber(stats.reposts)}
-          </span>{" "}
-          Repost{stats.reposts !== 1 ? "s" : ""}
+          <FormattedMessage
+            id="postDetail.stats.reposts"
+            defaultMessage="{count, plural, one {<b>{formatted}</b> Repost} other {<b>{formatted}</b> Reposts}}"
+            values={{
+              count: stats.reposts,
+              formatted: formatNumber(stats.reposts),
+              b: (chunks) => <span className="font-bold text-foreground">{chunks}</span>,
+            }}
+          />
         </button>
       ) : null}
       {quoteCount ? (
@@ -1954,10 +1988,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           onClick={() => openInteractions("quotes")}
           className="shrink-0 whitespace-nowrap hover:underline transition-colors"
         >
-          <span className="font-bold text-foreground">
-            {formatNumber(quoteCount)}
-          </span>{" "}
-          Quote{quoteCount !== 1 ? "s" : ""}
+          <FormattedMessage
+            id="postDetail.stats.quotes"
+            defaultMessage="{count, plural, one {<b>{formatted}</b> Quote} other {<b>{formatted}</b> Quotes}}"
+            values={{
+              count: quoteCount,
+              formatted: formatNumber(quoteCount),
+              b: (chunks) => <span className="font-bold text-foreground">{chunks}</span>,
+            }}
+          />
         </button>
       ) : null}
       {stats?.reactions ? (
@@ -1979,7 +2018,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               ))}
             </span>
           ) : (
-            `Like${stats.reactions !== 1 ? "s" : ""}`
+            intl.formatMessage({ id: 'postDetail.stats.likes', defaultMessage: '{count, plural, one {Like} other {Likes}}' }, { count: stats.reactions })
           )}
         </button>
       ) : null}
@@ -1988,10 +2027,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           onClick={() => openInteractions("zaps")}
           className="shrink-0 whitespace-nowrap hover:underline transition-colors"
         >
-          <span className="font-bold text-foreground">
-            {formatNumber(stats.zapCount)}
-          </span>{" "}
-          Zap{stats.zapCount !== 1 ? "s" : ""}
+          <FormattedMessage
+            id="postDetail.stats.zaps"
+            defaultMessage="{count, plural, one {<b>{formatted}</b> Zap} other {<b>{formatted}</b> Zaps}}"
+            values={{
+              count: stats.zapCount,
+              formatted: formatNumber(stats.zapCount),
+              b: (chunks) => <span className="font-bold text-foreground">{chunks}</span>,
+            }}
+          />
         </button>
       ) : null}
       <span className="ml-auto min-w-0 flex items-center gap-1.5">
@@ -2007,7 +2051,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <span className="shrink-0">·</span>
           </>
         )}
-        <span className="shrink-0">{formatFullDate(event.created_at)}</span>
+        <span className="shrink-0">{formatFullDate(event.created_at, intl)}</span>
       </span>
     </div>
   ) : (
@@ -2024,7 +2068,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           <span className="shrink-0">·</span>
         </>
       )}
-      <span className="shrink-0">{formatFullDate(event.created_at)}</span>
+      <span className="shrink-0">{formatFullDate(event.created_at, intl)}</span>
     </div>
   );
 
@@ -2111,7 +2155,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                       )}
                     </Link>
                   </ProfileHoverCard>
-                  <span className="text-sm text-muted-foreground">reacted</span>
+                  <span className="text-sm text-muted-foreground">
+                    <FormattedMessage id="postDetail.activity.reacted" defaultMessage="reacted" />
+                  </span>
                 </>
               )}
             </div>
@@ -2208,7 +2254,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                       )}
                     </Link>
                   </ProfileHoverCard>
-                  <span className="text-sm text-muted-foreground">reposted</span>
+                  <span className="text-sm text-muted-foreground">
+                    <FormattedMessage id="postDetail.activity.reposted" defaultMessage="reposted" />
+                  </span>
                 </>
               )}
             </div>
@@ -2285,7 +2333,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                         </Link>
                       </ProfileHoverCard>
                     )}
-                    <span className="text-sm text-muted-foreground">zapped</span>
+                    <span className="text-sm text-muted-foreground">
+                      <FormattedMessage id="postDetail.activity.zapped" defaultMessage="zapped" />
+                    </span>
                     {zapAmountSats > 0 && (
                       <span className="text-sm font-semibold text-amber-500 shrink-0">
                         {formatMoney(zapAmountSats)}
@@ -2361,8 +2411,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   </Link>
                 </ProfileHoverCard>
                 <span className="text-sm text-muted-foreground">
-                  zapped
-                  {isMultiRecipient && ` ${recipientPubkeys.length} people`}
+                  {isMultiRecipient ? (
+                    <FormattedMessage
+                      id="postDetail.activity.zappedPeople"
+                      defaultMessage="zapped {count, plural, one {# person} other {# people}}"
+                      values={{ count: recipientPubkeys.length }}
+                    />
+                  ) : (
+                    <FormattedMessage id="postDetail.activity.zapped" defaultMessage="zapped" />
+                  )}
                 </span>
                 {amountSats > 0 && (
                   <span className="text-sm font-semibold text-amber-500 shrink-0">
@@ -2370,9 +2427,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   </span>
                 )}
                 {failedVerification ? (
-                  <span className="text-[11px] text-muted-foreground shrink-0">· unverified</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">
+                    <FormattedMessage id="postDetail.zap.unverified" defaultMessage="· unverified" />
+                  </span>
                 ) : isVerifying ? (
-                  <span className="text-[11px] text-muted-foreground shrink-0">· verifying…</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">
+                    <FormattedMessage id="postDetail.zap.verifying" defaultMessage="· verifying…" />
+                  </span>
                 ) : null}
               </div>
             </div>
@@ -2413,14 +2474,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             {/* Date row */}
             <div className="py-2 sidebar:py-2.5 mt-3 text-xs sidebar:text-sm text-muted-foreground">
-              {formatFullDate(event.created_at)}
+              {formatFullDate(event.created_at, intl)}
             </div>
 
             {/* Action buttons */}
             <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
               <button
                 className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Reply"
+                title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
                 onClick={() => setReplyOpen(true)}
               >
                 <MessageCircle className="size-5" />
@@ -2433,7 +2494,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 {(isReposted: boolean) => (
                   <button
                     className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                    title={isReposted ? "Undo repost" : "Repost"}
+                    title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.repost', defaultMessage: 'Repost' })}
                   >
                     <RepostIcon className="size-5" />
                     {repostTotal ? (
@@ -2453,7 +2514,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
               <button
                 className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-                title="Share"
+                title={intl.formatMessage({ id: 'postDetail.action.share', defaultMessage: 'Share' })}
                 onClick={handleShare}
               >
                 <Share2 className="size-5" />
@@ -2461,7 +2522,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
               <button
                 className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="More"
+                title={intl.formatMessage({ id: 'postDetail.action.more', defaultMessage: 'More' })}
                 onClick={() => setMoreMenuOpen(true)}
               >
                 <MoreHorizontal className="size-5" />
@@ -2487,14 +2548,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Date row */}
           <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
-            <span>{formatFullDate(event.created_at)}</span>
+            <span>{formatFullDate(event.created_at, intl)}</span>
           </div>
 
           {/* Action buttons — same as standard post detail */}
           <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
             <button
               className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
+              title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
               onClick={() => setReplyOpen(true)}
             >
               <MessageCircle className="size-5" />
@@ -2507,7 +2568,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               {(isReposted: boolean) => (
                 <button
                   className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
-                  title={isReposted ? "Undo repost" : "Reposts"}
+                  title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.reposts', defaultMessage: 'Reposts' })}
                 >
                   <RepostIcon className="size-5" />
                   {repostTotal ? (
@@ -2527,7 +2588,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             <button
               className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
-              title="Share"
+              title={intl.formatMessage({ id: 'postDetail.action.share', defaultMessage: 'Share' })}
               onClick={handleShare}
             >
               <Share2 className="size-5" />
@@ -2535,7 +2596,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             <button
               className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
+              title={intl.formatMessage({ id: 'postDetail.action.more', defaultMessage: 'More' })}
               onClick={() => setMoreMenuOpen(true)}
             >
               <MoreHorizontal className="size-5" />
@@ -2583,7 +2644,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
                   </Link>
                 </ProfileHoverCard>
-                <span className="text-sm text-muted-foreground shrink-0">voted</span>
+                <span className="text-sm text-muted-foreground shrink-0">
+                  <FormattedMessage id="postDetail.activity.voted" defaultMessage="voted" />
+                </span>
               </div>
             }
           >
@@ -2624,28 +2687,56 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
           {/* Kind action header for app handlers */}
           {isAppHandler && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {
+              created: intl.formatMessage({ id: "noteCard.header.app.published", defaultMessage: "published an app" }),
+              updated: intl.formatMessage({ id: "noteCard.header.app.updated", defaultMessage: "updated an app" }),
+              fallback: intl.formatMessage({ id: "noteCard.header.app.published", defaultMessage: "published an app" }),
+            })} />
           )}
           {isSoftwareApp && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software app", updated: "updated a software app", fallback: "published a software app" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {
+              created: intl.formatMessage({ id: "noteCard.header.softwareApp.published", defaultMessage: "published a software app" }),
+              updated: intl.formatMessage({ id: "noteCard.header.softwareApp.updated", defaultMessage: "updated a software app" }),
+              fallback: intl.formatMessage({ id: "noteCard.header.softwareApp.published", defaultMessage: "published a software app" }),
+            })} />
           )}
           {isSoftwareRelease && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, { created: "published a software release", updated: "updated a software release", fallback: "published a software release" })} />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {
+              created: intl.formatMessage({ id: "noteCard.header.softwareRelease.published", defaultMessage: "published a software release" }),
+              updated: intl.formatMessage({ id: "noteCard.header.softwareRelease.updated", defaultMessage: "updated a software release" }),
+              fallback: intl.formatMessage({ id: "noteCard.header.softwareRelease.published", defaultMessage: "published a software release" }),
+            })} />
           )}
           {isSoftwareAsset && (
-            <EventActionHeader pubkey={event.pubkey} icon={Package} action="published a software asset" />
+            <EventActionHeader pubkey={event.pubkey} icon={Package} action={intl.formatMessage({ id: "noteCard.header.softwareAsset", defaultMessage: "published a software asset" })} />
           )}
           {isNsite && (
-            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" })} noun="nsite" nounRoute="/development" />
+            <EventActionHeader pubkey={event.pubkey} icon={Rocket} action={publishedAtAction(event, {
+              created: "created",
+              updated: "updated",
+              fallback: "created",
+            }) === "updated" ? (
+              <FormattedMessage id="noteCard.header.nsite.redeployed" defaultMessage="redeployed an <noun>nsite</noun>" values={{ noun: (chunks) => <ActionNounLink to="/development">{chunks}</ActionNounLink> }} />
+            ) : (
+              <FormattedMessage id="noteCard.header.nsite.deployed" defaultMessage="deployed an <noun>nsite</noun>" values={{ noun: (chunks) => <ActionNounLink to="/development">{chunks}</ActionNounLink> }} />
+            )} />
           )}
           {isBirdDetection && (
-            <EventActionHeader pubkey={event.pubkey} icon={Bird} action="heard a" noun="bird" />
+            <EventActionHeader pubkey={event.pubkey} icon={Bird} action={<FormattedMessage id="noteCard.header.bird" defaultMessage="heard a <noun>bird</noun>" values={{ noun: (chunks) => <>{chunks}</> }} />} />
           )}
           {isConstellation && (
-            <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" })} noun="constellation" />
+            <EventActionHeader pubkey={event.pubkey} icon={Stars} action={publishedAtAction(event, {
+              created: "created",
+              updated: "updated",
+              fallback: "created",
+            }) === "updated" ? (
+              <FormattedMessage id="noteCard.header.constellation.redrew" defaultMessage="redrew a <noun>constellation</noun>" values={{ noun: (chunks) => <>{chunks}</> }} />
+            ) : (
+              <FormattedMessage id="noteCard.header.constellation.drew" defaultMessage="drew a <noun>constellation</noun>" values={{ noun: (chunks) => <>{chunks}</> }} />
+            )} />
           )}
           {isFoundLog && (
-            <EventActionHeader pubkey={event.pubkey} icon={ChestIcon} action="found a" noun="treasure" nounRoute="/treasures" />
+            <EventActionHeader pubkey={event.pubkey} icon={ChestIcon} action={<FormattedMessage id="noteCard.header.treasure.found" defaultMessage="found a <noun>treasure</noun>" values={{ noun: (chunks) => <ActionNounLink to="/treasures">{chunks}</ActionNounLink> }} />} />
           )}
 
           {/* Author row */}
@@ -2702,7 +2793,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 </div>
 
                 {metadata?.bot && (
-                  <span className="text-sm text-primary" title="Bot account">
+                  <span className="text-sm text-primary" title={intl.formatMessage({ id: 'postDetail.botAccount', defaultMessage: 'Bot account' })}>
                     🤖
                   </span>
                 )}
@@ -2933,7 +3024,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       )}
 
       {/* Replies */}
-      <div className="pb-16 sidebar:pb-0">
+      <div>
         {repliesLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -2947,7 +3038,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </>
         ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
-            No replies yet. Be the first to reply!
+            <FormattedMessage id="postDetail.noReplies" defaultMessage="No replies yet. Be the first to reply!" />
           </div>
         ) : null}
       </div>
@@ -2973,12 +3064,16 @@ function MissingAncestor({ to }: { to?: string }) {
         </div>
         <div className="flex-1 min-w-0 pb-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            This post couldn't be loaded. It may be on a relay you're not
-            connected to.
+            <FormattedMessage
+              id="postDetail.missingAncestor"
+              defaultMessage="This post couldn't be loaded. It may be on a relay you're not connected to."
+            />
             {to && (
               <>
                 {" "}
-                <span className="text-primary font-medium">View post</span>
+                <span className="text-primary font-medium">
+                  <FormattedMessage id="postDetail.viewPost" defaultMessage="View post" />
+                </span>
               </>
             )}
           </p>

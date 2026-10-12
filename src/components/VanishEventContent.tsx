@@ -1,6 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -49,7 +50,9 @@ export function VanishCardCompact({ event, className, timestamp }: VanishCardCom
 
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-red-500 dark:text-red-400 leading-tight">
-              {isGlobal ? 'Global Request to Vanish' : 'Request to Vanish'}
+              {isGlobal
+              ? <FormattedMessage id="vanish.globalTitle" defaultMessage="Global Request to Vanish" />
+              : <FormattedMessage id="vanish.title" defaultMessage="Request to Vanish" />}
             </p>
             <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5">
               {npub}
@@ -66,7 +69,7 @@ export function VanishCardCompact({ event, className, timestamp }: VanishCardCom
         {/* Reason quote if available */}
         {reason && (
           <p className="text-xs text-muted-foreground italic line-clamp-2 pl-[42px]">
-            &ldquo;{reason}&rdquo;
+            <FormattedMessage id="vanish.quotedReason" defaultMessage="“{reason}”" values={{ reason }} />
           </p>
         )}
       </div>
@@ -88,6 +91,8 @@ export function VanishCardCompact({ event, className, timestamp }: VanishCardCom
  * {@link VanishCardCompact} instead.
  */
 export function VanishEventContent({ event, compact }: VanishEventContentProps) {
+  const intl = useIntl();
+
   if (compact) {
     return <VanishCardCompact event={event} className="mt-2" />;
   }
@@ -98,7 +103,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
   const relayList = relayTags.map(([, v]) => v).filter((v) => v !== 'ALL_RELAYS');
   const reason = event.content || undefined;
 
-  const formattedDate = new Date(event.created_at * 1000).toLocaleDateString('en-US', {
+  const formattedDate = intl.formatDate(event.created_at * 1000, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -145,12 +150,23 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
         {/* Title */}
         <div className="text-center space-y-2">
           <h3 className="text-lg font-black tracking-tight text-red-500 dark:text-red-400 uppercase">
-            {isGlobal ? 'Global Request to Vanish' : 'Request to Vanish'}
+            {isGlobal
+              ? <FormattedMessage id="vanish.globalTitle" defaultMessage="Global Request to Vanish" />
+              : <FormattedMessage id="vanish.title" defaultMessage="Request to Vanish" />}
           </h3>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
-            {isGlobal
-              ? 'This identity has requested permanent erasure from all Nostr relays.'
-              : `This identity has requested permanent erasure from ${relayList.length} relay${relayList.length !== 1 ? 's' : ''}.`}
+            {isGlobal ? (
+              <FormattedMessage
+                id="vanish.globalDescription"
+                defaultMessage="This identity has requested permanent erasure from all Nostr relays."
+              />
+            ) : (
+              <FormattedMessage
+                id="vanish.description"
+                defaultMessage="This identity has requested permanent erasure from {count, plural, one {# relay} other {# relays}}."
+                values={{ count: relayList.length }}
+              />
+            )}
           </p>
         </div>
 
@@ -158,7 +174,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
         <div className="mt-5 rounded-lg border border-red-500/20 bg-red-500/[0.04] dark:bg-red-500/[0.06] p-4 space-y-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-bold">
             <div className="size-2 rounded-full bg-red-500 vanish-blink" />
-            <span>Identity</span>
+            <span><FormattedMessage id="vanish.identity" defaultMessage="Identity" /></span>
           </div>
           <p className="font-mono text-xs text-foreground/80 break-all leading-relaxed select-all">
             {npub}
@@ -169,10 +185,10 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
         {reason && (
           <div className="mt-4 rounded-lg border border-border/50 bg-background/50 p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-2">
-              Final words
+              <FormattedMessage id="vanish.finalWords" defaultMessage="Final words" />
             </p>
             <blockquote className="text-sm text-foreground/80 italic leading-relaxed pl-3 border-l-2 border-red-500/40">
-              &ldquo;{reason}&rdquo;
+              <FormattedMessage id="vanish.quotedReason" defaultMessage="“{reason}”" values={{ reason }} />
             </blockquote>
           </div>
         )}
@@ -181,7 +197,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
         {!isGlobal && relayList.length > 0 && (
           <div className="mt-4 rounded-lg border border-border/50 bg-background/50 p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-2">
-              Target relays
+              <FormattedMessage id="vanish.targetRelays" defaultMessage="Target relays" />
             </p>
             <div className="space-y-1">
               {relayList.map((relay) => (

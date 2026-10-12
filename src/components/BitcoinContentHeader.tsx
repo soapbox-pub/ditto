@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import {
   ArrowDownLeft,
@@ -31,6 +32,7 @@ function truncateMiddle(str: string, startLen = 8, endLen = 8): string {
 }
 
 function CopyButton({ text }: { text: string }) {
+  const intl = useIntl();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -47,7 +49,8 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handleCopy}
       className="p-1 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
-      title="Copy"
+      title={intl.formatMessage({ id: 'bitcoin.copy', defaultMessage: 'Copy' })}
+      aria-label={intl.formatMessage({ id: 'bitcoin.copy', defaultMessage: 'Copy' })}
     >
       {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
     </button>
@@ -55,9 +58,9 @@ function CopyButton({ text }: { text: string }) {
 }
 
 /** Format a unix timestamp as a readable date string. */
-function formatBlockTime(timestamp: number): string {
+function formatBlockTime(timestamp: number, intl: IntlShape): string {
   const date = new Date(timestamp * 1000);
-  return date.toLocaleString('en-US', {
+  return intl.formatDate(date, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -68,8 +71,8 @@ function formatBlockTime(timestamp: number): string {
 }
 
 /** Format a large number with locale separators. */
-function formatNumber(n: number): string {
-  return n.toLocaleString();
+function formatNumber(n: number, locale: string): string {
+  return n.toLocaleString(locale);
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +80,7 @@ function formatNumber(n: number): string {
 // ---------------------------------------------------------------------------
 
 export function BitcoinTxHeader({ txid }: { txid: string }) {
+  const intl = useIntl();
   const { tx, btcPrice, isLoading, error } = useBitcoinTx(txid);
 
   if (isLoading) return <TxSkeleton />;
@@ -85,7 +89,7 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
     return (
       <div className="rounded-2xl border border-border p-6 text-center space-y-3">
         <Bitcoin className="size-10 mx-auto text-muted-foreground/40" />
-        <p className="text-sm text-destructive">Failed to load transaction</p>
+        <p className="text-sm text-destructive"><FormattedMessage id="bitcoin.tx.loadFailed" defaultMessage="Failed to load transaction" /></p>
         <p className="text-xs text-muted-foreground font-mono break-all">{txid}</p>
       </div>
     );
@@ -105,17 +109,19 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
           </div>
           <div>
             <h2 className="text-lg font-bold">
-              {tx.confirmed ? 'Confirmed' : 'Unconfirmed'}
+              {tx.confirmed
+                ? <FormattedMessage id="bitcoin.tx.confirmed" defaultMessage="Confirmed" />
+                : <FormattedMessage id="bitcoin.tx.unconfirmed" defaultMessage="Unconfirmed" />}
             </h2>
             {tx.blockTime && (
-              <p className="text-sm text-muted-foreground">{formatBlockTime(tx.blockTime)}</p>
+              <p className="text-sm text-muted-foreground">{formatBlockTime(tx.blockTime, intl)}</p>
             )}
           </div>
         </div>
 
         {/* Transaction ID */}
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Transaction ID</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider"><FormattedMessage id="bitcoin.tx.transactionId" defaultMessage="Transaction ID" /></p>
           <div className="flex items-center gap-2">
             <p className="text-sm font-mono text-foreground break-all">{tx.txid}</p>
             <CopyButton text={tx.txid} />
@@ -125,20 +131,20 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
         {/* Stats grid */}
         <div className="grid grid-cols-2 gap-3">
           {tx.confirmed && tx.blockHeight !== undefined && (
-            <StatCard icon={<Layers className="size-3.5" />} label="Block" value={formatNumber(tx.blockHeight)} />
+            <StatCard icon={<Layers className="size-3.5" />} label={<FormattedMessage id="bitcoin.tx.block" defaultMessage="Block" />} value={formatNumber(tx.blockHeight, intl.locale)} />
           )}
-          <StatCard icon={<Weight className="size-3.5" />} label="Size" value={`${formatNumber(tx.weight / 4)} vB`} />
+          <StatCard icon={<Weight className="size-3.5" />} label={<FormattedMessage id="bitcoin.tx.size" defaultMessage="Size" />} value={`${formatNumber(tx.weight / 4, intl.locale)} vB`} />
           <StatCard
             icon={<Bitcoin className="size-3.5" />}
-            label="Fee"
-            value={`${formatSats(tx.fee)} sat`}
+            label={<FormattedMessage id="bitcoin.tx.fee" defaultMessage="Fee" />}
+            value={`${formatSats(tx.fee, intl.locale)} sat`}
             subtitle={`${(tx.fee / (tx.weight / 4)).toFixed(1)} sat/vB`}
           />
           <StatCard
             icon={<Hash className="size-3.5" />}
-            label="Amount"
+            label={<FormattedMessage id="bitcoin.tx.amount" defaultMessage="Amount" />}
             value={`${formatBTC(tx.totalOutput)} BTC`}
-            subtitle={btcPrice ? satsToUSD(tx.totalOutput, btcPrice) : undefined}
+            subtitle={btcPrice ? satsToUSD(tx.totalOutput, btcPrice, intl.locale) : undefined}
           />
         </div>
       </div>
@@ -157,7 +163,7 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <Bitcoin className="size-3.5" />
-          <span>View on mempool.space</span>
+          <span><FormattedMessage id="bitcoin.viewOnMempool" defaultMessage="View on mempool.space" /></span>
           <ExternalLink className="size-3" />
         </a>
       </div>
@@ -165,7 +171,7 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
   );
 }
 
-function StatCard({ icon, label, value, subtitle }: { icon: React.ReactNode; label: string; value: string; subtitle?: string }) {
+function StatCard({ icon, label, value, subtitle }: { icon: React.ReactNode; label: React.ReactNode; value: string; subtitle?: string }) {
   return (
     <div className="rounded-xl bg-secondary/40 px-3.5 py-2.5 space-y-0.5">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -183,9 +189,9 @@ function TxFlow({ tx, btcPrice }: { tx: TxDetail; btcPrice?: number }) {
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">
-        <span>{tx.inputs.length} Input{tx.inputs.length !== 1 ? 's' : ''}</span>
+        <span><FormattedMessage id="bitcoin.tx.inputs" defaultMessage="{count, plural, one {# Input} other {# Inputs}}" values={{ count: tx.inputs.length }} /></span>
         <ArrowRight className="size-3" />
-        <span>{tx.outputs.length} Output{tx.outputs.length !== 1 ? 's' : ''}</span>
+        <span><FormattedMessage id="bitcoin.tx.outputs" defaultMessage="{count, plural, one {# Output} other {# Outputs}}" values={{ count: tx.outputs.length }} /></span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -196,7 +202,7 @@ function TxFlow({ tx, btcPrice }: { tx: TxDetail; btcPrice?: number }) {
           ))}
           {tx.inputs.length > 10 && (
             <p className="text-xs text-muted-foreground text-center py-1">
-              +{tx.inputs.length - 10} more input{tx.inputs.length - 10 !== 1 ? 's' : ''}
+              <FormattedMessage id="bitcoin.tx.moreInputs" defaultMessage="{count, plural, one {+# more input} other {+# more inputs}}" values={{ count: tx.inputs.length - 10 }} />
             </p>
           )}
         </div>
@@ -208,7 +214,7 @@ function TxFlow({ tx, btcPrice }: { tx: TxDetail; btcPrice?: number }) {
           ))}
           {tx.outputs.length > 10 && (
             <p className="text-xs text-muted-foreground text-center py-1">
-              +{tx.outputs.length - 10} more output{tx.outputs.length - 10 !== 1 ? 's' : ''}
+              <FormattedMessage id="bitcoin.tx.moreOutputs" defaultMessage="{count, plural, one {+# more output} other {+# more outputs}}" values={{ count: tx.outputs.length - 10 }} />
             </p>
           )}
         </div>
@@ -218,6 +224,7 @@ function TxFlow({ tx, btcPrice }: { tx: TxDetail; btcPrice?: number }) {
 }
 
 function TxInputRow({ input, btcPrice }: { input: TxInput; btcPrice?: number }) {
+  const intl = useIntl();
   if (input.isCoinbase) {
     return (
       <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 px-3 py-2">
@@ -240,18 +247,19 @@ function TxInputRow({ input, btcPrice }: { input: TxInput; btcPrice?: number }) 
             {truncateMiddle(input.address, 10, 6)}
           </Link>
         ) : (
-          <span className="text-xs text-muted-foreground">Unknown</span>
+          <span className="text-xs text-muted-foreground"><FormattedMessage id="bitcoin.tx.unknownAddress" defaultMessage="Unknown" /></span>
         )}
         <span className="text-xs font-mono shrink-0">{formatBTC(input.value)} BTC</span>
       </div>
       {btcPrice !== undefined && (
-        <p className="text-[10px] text-muted-foreground text-right">{satsToUSD(input.value, btcPrice)}</p>
+        <p className="text-[10px] text-muted-foreground text-right">{satsToUSD(input.value, btcPrice, intl.locale)}</p>
       )}
     </div>
   );
 }
 
 function TxOutputRow({ output, btcPrice }: { output: TxOutput; btcPrice?: number }) {
+  const intl = useIntl();
   const isOpReturn = output.scriptpubkeyType === 'op_return';
 
   if (isOpReturn) {
@@ -273,12 +281,12 @@ function TxOutputRow({ output, btcPrice }: { output: TxOutput; btcPrice?: number
             {truncateMiddle(output.address, 10, 6)}
           </Link>
         ) : (
-          <span className="text-xs text-muted-foreground">Unknown</span>
+          <span className="text-xs text-muted-foreground"><FormattedMessage id="bitcoin.tx.unknownAddress" defaultMessage="Unknown" /></span>
         )}
         <span className="text-xs font-mono shrink-0">{formatBTC(output.value)} BTC</span>
       </div>
       {btcPrice !== undefined && (
-        <p className="text-[10px] text-muted-foreground text-right">{satsToUSD(output.value, btcPrice)}</p>
+        <p className="text-[10px] text-muted-foreground text-right">{satsToUSD(output.value, btcPrice, intl.locale)}</p>
       )}
     </div>
   );
@@ -328,6 +336,7 @@ function TxSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function BitcoinAddressHeader({ address }: { address: string }) {
+  const intl = useIntl();
   const { addressDetail, btcPrice, isLoading, error, refetch } = useBitcoinAddress(address);
 
   if (isLoading) return <AddressSkeleton />;
@@ -336,11 +345,11 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
     return (
       <div className="rounded-2xl border border-border p-6 text-center space-y-3">
         <Bitcoin className="size-10 mx-auto text-muted-foreground/40" />
-        <p className="text-sm text-destructive">Failed to load address</p>
+        <p className="text-sm text-destructive"><FormattedMessage id="bitcoin.address.loadFailed" defaultMessage="Failed to load address" /></p>
         <p className="text-xs text-muted-foreground font-mono break-all">{address}</p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="size-3.5 mr-1.5" />
-          Retry
+          <FormattedMessage id="bitcoin.address.retry" defaultMessage="Retry" />
         </Button>
       </div>
     );
@@ -355,16 +364,20 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
             <Bitcoin className="size-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold">Bitcoin Address</h2>
+            <h2 className="text-lg font-bold"><FormattedMessage id="bitcoin.address.title" defaultMessage="Bitcoin Address" /></h2>
             <p className="text-xs text-muted-foreground">
-              {addressDetail.txCount + addressDetail.pendingTxCount} transaction{(addressDetail.txCount + addressDetail.pendingTxCount) !== 1 ? 's' : ''}
+              <FormattedMessage
+                id="bitcoin.address.transactionCount"
+                defaultMessage="{count, plural, one {# transaction} other {# transactions}}"
+                values={{ count: addressDetail.txCount + addressDetail.pendingTxCount }}
+              />
             </p>
           </div>
         </div>
 
         {/* Address */}
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Address</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider"><FormattedMessage id="bitcoin.address.address" defaultMessage="Address" /></p>
           <div className="flex items-center gap-2">
             <p className="text-sm font-mono text-foreground break-all">{address}</p>
             <CopyButton text={address} />
@@ -373,9 +386,9 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
 
         {/* Balance hero */}
         <div className="rounded-xl bg-secondary/40 p-4 text-center space-y-1">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">Balance</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider"><FormattedMessage id="bitcoin.address.balance" defaultMessage="Balance" /></p>
           <p className="text-3xl font-bold tracking-tight">
-            {btcPrice ? satsToUSD(addressDetail.totalBalance, btcPrice) : `${formatBTC(addressDetail.totalBalance)} BTC`}
+            {btcPrice ? satsToUSD(addressDetail.totalBalance, btcPrice, intl.locale) : `${formatBTC(addressDetail.totalBalance)} BTC`}
           </p>
           <p className="text-sm text-muted-foreground">
             {formatBTC(addressDetail.totalBalance)} BTC
@@ -383,9 +396,15 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
           {addressDetail.pendingBalance !== 0 && (
             <p className="flex items-center justify-center gap-1 text-xs text-orange-500 dark:text-orange-400 pt-1">
               <RefreshCw className="size-3 animate-spin" />
-              {btcPrice
-                ? `${satsToUSD(addressDetail.pendingBalance, btcPrice)} pending`
-                : `${formatBTC(addressDetail.pendingBalance)} BTC pending`}
+              <FormattedMessage
+                id="bitcoin.address.pending"
+                defaultMessage="{amount} pending"
+                values={{
+                  amount: btcPrice
+                    ? satsToUSD(addressDetail.pendingBalance, btcPrice, intl.locale)
+                    : `${formatBTC(addressDetail.pendingBalance)} BTC`,
+                }}
+              />
             </p>
           )}
         </div>
@@ -394,15 +413,15 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
         <div className="grid grid-cols-2 gap-3">
           <StatCard
             icon={<ArrowDownLeft className="size-3.5" />}
-            label="Total Received"
+            label={<FormattedMessage id="bitcoin.address.totalReceived" defaultMessage="Total Received" />}
             value={`${formatBTC(addressDetail.totalReceived)} BTC`}
-            subtitle={btcPrice ? satsToUSD(addressDetail.totalReceived, btcPrice) : undefined}
+            subtitle={btcPrice ? satsToUSD(addressDetail.totalReceived, btcPrice, intl.locale) : undefined}
           />
           <StatCard
             icon={<ArrowUpRight className="size-3.5" />}
-            label="Total Sent"
+            label={<FormattedMessage id="bitcoin.address.totalSent" defaultMessage="Total Sent" />}
             value={`${formatBTC(addressDetail.totalSent)} BTC`}
-            subtitle={btcPrice ? satsToUSD(addressDetail.totalSent, btcPrice) : undefined}
+            subtitle={btcPrice ? satsToUSD(addressDetail.totalSent, btcPrice, intl.locale) : undefined}
           />
         </div>
       </div>
@@ -412,7 +431,7 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
         <div className="border-t border-border">
           <div className="px-5 py-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Recent Transactions
+              <FormattedMessage id="bitcoin.address.recentTransactions" defaultMessage="Recent Transactions" />
             </p>
           </div>
           <div className="divide-y divide-border">
@@ -423,7 +442,11 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
           {addressDetail.recentTxs.length > 10 && (
             <div className="px-5 py-3 text-center">
               <p className="text-xs text-muted-foreground">
-                {addressDetail.txCount - 10} more transaction{addressDetail.txCount - 10 !== 1 ? 's' : ''}
+                <FormattedMessage
+                  id="bitcoin.address.moreTransactions"
+                  defaultMessage="{count, plural, one {# more transaction} other {# more transactions}}"
+                  values={{ count: addressDetail.txCount - 10 }}
+                />
               </p>
             </div>
           )}
@@ -439,7 +462,7 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <Bitcoin className="size-3.5" />
-          <span>View on mempool.space</span>
+          <span><FormattedMessage id="bitcoin.viewOnMempool" defaultMessage="View on mempool.space" /></span>
           <ExternalLink className="size-3" />
         </a>
       </div>
@@ -448,6 +471,7 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
 }
 
 function AddressTxRow({ tx, btcPrice }: { tx: { txid: string; amount: number; type: 'receive' | 'send'; confirmed: boolean; timestamp?: number }; btcPrice?: number }) {
+  const intl = useIntl();
   const isReceive = tx.type === 'receive';
 
   return (
@@ -464,7 +488,11 @@ function AddressTxRow({ tx, btcPrice }: { tx: { txid: string; amount: number; ty
           {isReceive ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}
         </div>
         <div>
-          <p className="text-sm font-medium">{isReceive ? 'Received' : 'Sent'}</p>
+          <p className="text-sm font-medium">
+            {isReceive
+              ? <FormattedMessage id="bitcoin.address.received" defaultMessage="Received" />
+              : <FormattedMessage id="bitcoin.address.sent" defaultMessage="Sent" />}
+          </p>
           <p className="text-xs text-muted-foreground font-mono">{truncateMiddle(tx.txid, 8, 8)}</p>
         </div>
       </div>
@@ -476,7 +504,7 @@ function AddressTxRow({ tx, btcPrice }: { tx: { txid: string; amount: number; ty
         </p>
         {btcPrice && (
           <p className="text-xs text-muted-foreground">
-            {satsToUSD(tx.amount, btcPrice)}
+            {satsToUSD(tx.amount, btcPrice, intl.locale)}
           </p>
         )}
       </div>
@@ -519,6 +547,7 @@ function AddressSkeleton() {
 
 /** Compact preview for a Bitcoin transaction — fetches real data. */
 export function BitcoinTxPreview({ txid, link }: { txid: string; link: string }) {
+  const intl = useIntl();
   const { tx, btcPrice, isLoading } = useBitcoinTx(txid);
 
   if (isLoading) {
@@ -549,26 +578,29 @@ export function BitcoinTxPreview({ txid, link }: { txid: string; link: string })
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Bitcoin className="size-3 shrink-0" />
-          <span>Bitcoin Transaction</span>
+          <span><FormattedMessage id="bitcoin.preview.transaction" defaultMessage="Bitcoin Transaction" /></span>
           {tx && (
             <span className={tx.confirmed
               ? 'text-green-600 dark:text-green-400'
               : 'text-yellow-600 dark:text-yellow-400'
             }>
-              {tx.confirmed ? 'Confirmed' : 'Unconfirmed'}
+              {tx.confirmed
+                ? <FormattedMessage id="bitcoin.tx.confirmed" defaultMessage="Confirmed" />
+                : <FormattedMessage id="bitcoin.tx.unconfirmed" defaultMessage="Unconfirmed" />}
             </span>
           )}
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
           {tx ? `${satsToBTC(amount)} BTC` : truncateMiddle(txid, 12, 8)}
           {tx && btcPrice ? (
-            <span className="text-muted-foreground font-normal"> ({satsToUSD(amount, btcPrice)})</span>
+            <span className="text-muted-foreground font-normal"> ({satsToUSD(amount, btcPrice, intl.locale)})</span>
           ) : null}
         </p>
         {tx && (
           <p className="text-xs text-muted-foreground truncate">
-            Fee {formatSats(fee)} sats
-            {tx.blockHeight ? ` · Block ${tx.blockHeight.toLocaleString()}` : ''}
+            {tx.blockHeight
+              ? <FormattedMessage id="bitcoin.preview.feeAndBlock" defaultMessage="Fee {fee} sats · Block {height}" values={{ fee: formatSats(fee, intl.locale), height: formatNumber(tx.blockHeight, intl.locale) }} />
+              : <FormattedMessage id="bitcoin.preview.fee" defaultMessage="Fee {fee} sats" values={{ fee: formatSats(fee, intl.locale) }} />}
           </p>
         )}
       </div>
@@ -579,6 +611,7 @@ export function BitcoinTxPreview({ txid, link }: { txid: string; link: string })
 
 /** Compact preview for a Bitcoin address — fetches real data. */
 export function BitcoinAddressPreview({ address, link }: { address: string; link: string }) {
+  const intl = useIntl();
   const { addressDetail, btcPrice, isLoading } = useBitcoinAddress(address);
 
   if (isLoading) {
@@ -609,17 +642,21 @@ export function BitcoinAddressPreview({ address, link }: { address: string; link
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Bitcoin className="size-3 shrink-0" />
-          <span>Bitcoin Address</span>
+          <span><FormattedMessage id="bitcoin.address.title" defaultMessage="Bitcoin Address" /></span>
         </div>
         <p className="text-sm font-medium truncate mt-0.5">
           {addressDetail ? `${satsToBTC(balance)} BTC` : truncateMiddle(address, 12, 8)}
           {addressDetail && btcPrice ? (
-            <span className="text-muted-foreground font-normal"> ({satsToUSD(balance, btcPrice)})</span>
+            <span className="text-muted-foreground font-normal"> ({satsToUSD(balance, btcPrice, intl.locale)})</span>
           ) : null}
         </p>
         {addressDetail && (
           <p className="text-xs text-muted-foreground truncate">
-            {txCount.toLocaleString()} transaction{txCount !== 1 ? 's' : ''}
+            <FormattedMessage
+              id="bitcoin.address.transactionCount"
+              defaultMessage="{count, plural, one {# transaction} other {# transactions}}"
+              values={{ count: txCount }}
+            />
             {' · '}
             <span className="font-mono">{truncateMiddle(address, 8, 6)}</span>
           </p>

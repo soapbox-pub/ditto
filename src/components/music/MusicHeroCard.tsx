@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Play, Pause, Music, Loader2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAudioPlayer } from '@/contexts/audioPlayerContextDef';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -28,6 +29,7 @@ interface MusicHeroCardProps {
  * - No artwork: Gradient placeholder with Music icon
  */
 export function MusicHeroCard({ event }: MusicHeroCardProps) {
+  const intl = useIntl();
   const player = useAudioPlayer();
   const parsed = useMemo(() => parseMusicTrack(event), [event]);
   const author = useAuthor(event.pubkey);
@@ -86,7 +88,7 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
       {/* Content */}
       <div className="absolute bottom-0 left-0 right-0 p-5">
         <span className="inline-block px-2.5 py-0.5 rounded-full bg-primary/80 text-primary-foreground text-xs font-medium mb-2">
-          Featured
+          <FormattedMessage id="musicHeroCard.featured" defaultMessage="Featured" />
         </span>
         <h3 className="text-2xl font-bold text-white leading-tight truncate">{parsed.title}</h3>
         {parsed.artist && (
@@ -102,7 +104,9 @@ export function MusicHeroCard({ event }: MusicHeroCardProps) {
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-white/90 text-black hover:bg-white',
             )}
-            aria-label={isNowPlaying && player.isPlaying ? 'Pause' : 'Play'}
+            aria-label={isNowPlaying && player.isPlaying
+              ? intl.formatMessage({ id: 'musicHeroCard.pause', defaultMessage: 'Pause' })
+              : intl.formatMessage({ id: 'musicHeroCard.play', defaultMessage: 'Play' })}
           >
             {decrypting
               ? <Loader2 className="size-5 animate-spin" />

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
+import { useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { formatNip05Display, getNip05Domain, getNip05User } from '@/lib/nip05';
@@ -53,6 +54,7 @@ export const VerifiedNip05Text = memo(function VerifiedNip05Text({
 // Memoized: its props are all primitives, and it sits in every NoteCard header,
 // which re-renders on every author/stats query update.
 export const Nip05Badge = memo(function Nip05Badge({ nip05, pubkey, className, iconSize = 16, showCheck = false }: Nip05BadgeProps) {
+  const intl = useIntl();
   const { data: verified, isPending } = useNip05Verify(nip05, pubkey);
 
   if (isPending) {
@@ -69,6 +71,7 @@ export const Nip05Badge = memo(function Nip05Badge({ nip05, pubkey, className, i
   const domain = getNip05Domain(nip05);
   const user = getNip05User(nip05);
   const isDefaultUser = user === '_';
+  const feedTitle = intl.formatMessage({ id: 'nip05Badge.viewFeed', defaultMessage: 'View {domain} feed' }, { domain });
 
   return (
     <span className={cn('inline-flex items-center min-w-0', className)}>
@@ -78,7 +81,7 @@ export const Nip05Badge = memo(function Nip05Badge({ nip05, pubkey, className, i
           to={`/feed/${domain}`}
           className="truncate min-w-0 hover:underline"
           onClick={(e) => e.stopPropagation()}
-          title={`View ${domain} feed`}
+          title={feedTitle}
         >
           @{domain}
         </Link>
@@ -90,7 +93,7 @@ export const Nip05Badge = memo(function Nip05Badge({ nip05, pubkey, className, i
               to={`/feed/${domain}`}
               className="shrink-0 hover:underline"
               onClick={(e) => e.stopPropagation()}
-              title={`View ${domain} feed`}
+              title={feedTitle}
             >
               {domain}
             </Link>
@@ -102,7 +105,7 @@ export const Nip05Badge = memo(function Nip05Badge({ nip05, pubkey, className, i
           to={`/feed/${domain}`}
           className="inline-flex items-center shrink-0 ml-1 hover:opacity-80 transition-opacity"
           onClick={(e) => e.stopPropagation()}
-          title={`View ${domain} feed`}
+          title={feedTitle}
         >
           <ExternalFavicon url={`https://${domain}`} size={iconSize} className="shrink-0" />
         </Link>

@@ -2,6 +2,7 @@ import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Loader2, Pencil, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
@@ -28,6 +29,7 @@ import { deduplicateEvents } from "@/lib/deduplicateEvents";
 type ThemesTab = "my-themes" | "follows" | "global";
 
 export function ThemesPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { autoShareTheme, setAutoShareTheme } = useTheme();
@@ -42,8 +44,8 @@ export function ThemesPage() {
   const [builderOpen, setBuilderOpen] = useState(false);
 
   useSeoMeta({
-    title: `Themes | ${config.appName}`,
-    description: "Browse, create, and share custom UI themes",
+    title: intl.formatMessage({ id: "themesPage.seoTitle", defaultMessage: "Themes | {appName}" }, { appName: config.appName }),
+    description: intl.formatMessage({ id: "themesPage.seoDescription", defaultMessage: "Browse, create, and share custom UI themes" }),
   });
 
   // FAB opens builder in "new" mode (only on My Themes tab)
@@ -89,24 +91,24 @@ export function ThemesPage() {
     activeTab !== "my-themes" && (isPending || (isLoading && !rawData));
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      <PageHeader title="Themes" icon={<Sparkles className="size-5" />} />
+    <main>
+      <PageHeader title={intl.formatMessage({ id: "settings.personalize.themes", defaultMessage: "Themes" })} icon={<Sparkles className="size-5" />} />
 
       {/* Tabs */}
       <SubHeaderBar>
         <TabButton
-          label="My Themes"
+          label={intl.formatMessage({ id: "themesPage.tabs.mine", defaultMessage: "My Themes" })}
           active={activeTab === "my-themes"}
           onClick={() => setActiveTab("my-themes")}
         />
         <TabButton
-          label="Follows"
+          label={intl.formatMessage({ id: "themesPage.tabs.follows", defaultMessage: "Follows" })}
           active={activeTab === "follows"}
           onClick={() => setActiveTab("follows")}
           disabled={!user}
         />
         <TabButton
-          label="Global"
+          label={intl.formatMessage({ id: "themesPage.tabs.global", defaultMessage: "Global" })}
           active={activeTab === "global"}
           onClick={() => setActiveTab("global")}
         />
@@ -132,11 +134,13 @@ export function ThemesPage() {
                   className="flex flex-col gap-1 cursor-pointer"
                 >
                   <span className="text-sm font-medium">
-                    Sync app theme with your profile theme
+                    <FormattedMessage id="themesPage.syncTheme" defaultMessage="Sync app theme with your profile theme" />
                   </span>
                   <span className="text-xs text-muted-foreground font-normal">
-                    Turn this off if you want to display a different theme on
-                    your profile than you use in the rest of the app.
+                    <FormattedMessage
+                      id="themesPage.syncThemeDescription"
+                      defaultMessage="Turn this off if you want to display a different theme on your profile than you use in the rest of the app."
+                    />
                   </span>
                 </Label>
                 <Switch
@@ -177,8 +181,8 @@ export function ThemesPage() {
             <FeedEmptyState
               message={
                 activeTab === "follows"
-                  ? "No themes from people you follow yet."
-                  : "No themes found. Be the first to share yours!"
+                  ? intl.formatMessage({ id: "themesPage.empty.follows", defaultMessage: "No themes from people you follow yet." })
+                  : intl.formatMessage({ id: "themesPage.empty.global", defaultMessage: "No themes found. Be the first to share yours!" })
               }
               onSwitchToGlobal={
                 activeTab === "follows"

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Mail, MailOpen, Loader2, Lock, MoreHorizontal, Link2, Trash2, Braces } from 'lucide-react';
@@ -17,6 +18,7 @@ import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { LetterStickers } from './LetterStickers';
 import { formatDistanceToNow } from 'date-fns';
+import { getDateFnsLocale } from '@/lib/dateFnsLocale';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +42,7 @@ interface LetterCardProps {
 }
 
 export function LetterCard({ letter, mode }: LetterCardProps) {
+  const intl = useIntl();
   const [isOpen, setIsOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -54,7 +57,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
 
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
+  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const avatar = author.data?.metadata?.picture;
   const npub = nip19.npubEncode(otherPubkey);
 
@@ -65,7 +68,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const handleCopyLink = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(letterUrl);
-    toast({ description: 'Link copied to clipboard.' });
+    toast({ description: intl.formatMessage({ id: 'letterCard.linkCopied', defaultMessage: 'Link copied to clipboard.' }) });
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -98,7 +101,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const effectiveFrame = effectiveStationery?.frame;
   const effectiveFrameTint = effectiveStationery?.frameTint;
 
-  const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true });
+  const timeAgo = formatDistanceToNow(new Date(letter.timestamp * 1000), { addSuffix: true, locale: getDateFnsLocale(intl.locale) });
 
   const { text: textColor, faint: faintColor, line: lineColor } = useStationeryColors(effectiveStationery);
   // Sanitize event-sourced font family before CSS interpolation (M-6).
@@ -132,18 +135,25 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this letter?</AlertDialogTitle>
+            <AlertDialogTitle>
+              <FormattedMessage id="letterCard.deleteTitle" defaultMessage="Delete this letter?" />
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This publishes a deletion request. It may not be removed from all relays.
+              <FormattedMessage
+                id="letterCard.deleteDescription"
+                defaultMessage="This publishes a deletion request. It may not be removed from all relays."
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
+            </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
             >
-              Delete
+              <FormattedMessage id="letterCard.delete" defaultMessage="Delete" />
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -184,12 +194,21 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
               )}
               <div className="flex-1 min-w-0 leading-none pt-1">
                 <div className="truncate leading-none">
-                  <span className="text-sm font-normal text-muted-foreground">{mode === 'inbox' ? 'from ' : 'to '}</span>
-                  <Link
-                    to={`/${npub}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-lg font-semibold text-foreground hover:text-primary transition-colors"
-                  >{displayName}</Link>
+                  {(() => {
+                    const name = (
+                      <Link
+                        to={`/${npub}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-lg font-semibold text-foreground hover:text-primary transition-colors"
+                      >{displayName}</Link>
+                    );
+                    const muted = (chunks: ReactNode[]) => (
+                      <span className="text-sm font-normal text-muted-foreground">{chunks}</span>
+                    );
+                    return mode === 'inbox'
+                      ? <FormattedMessage id="letterCard.from" defaultMessage="<muted>from</muted> {name}" values={{ name, muted }} />
+                      : <FormattedMessage id="letterCard.to" defaultMessage="<muted>to</muted> {name}" values={{ name, muted }} />;
+                  })()}
                 </div>
                 <span className="text-xs text-muted-foreground leading-none mt-0.5 block">{timeAgo}</span>
               </div>
@@ -209,6 +228,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   onClick={(e) => e.stopPropagation()}
+                  aria-label={intl.formatMessage({ id: 'letterCard.menu', defaultMessage: 'Letter options' })}
                   className="p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                 >
                   <MoreHorizontal className="w-5 h-5" strokeWidth={2.5} />
@@ -217,16 +237,16 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={handleCopyLink}>
                   <Link2 className="w-4 h-4 mr-2" />
-                  Copy link
+                  <FormattedMessage id="letterCard.copyLink" defaultMessage="Copy link" />
                 </DropdownMenuItem>
                 {content && (
                   <DropdownMenuItem onClick={(e) => {
                     e.stopPropagation();
                     navigator.clipboard.writeText(JSON.stringify(content, null, 2));
-                    toast({ description: 'Decrypted JSON copied.' });
+                    toast({ description: intl.formatMessage({ id: 'letterCard.jsonCopied', defaultMessage: 'Decrypted JSON copied.' }) });
                   }}>
                     <Braces className="w-4 h-4 mr-2" />
-                    Copy decrypted JSON
+                    <FormattedMessage id="letterCard.copyJson" defaultMessage="Copy decrypted JSON" />
                   </DropdownMenuItem>
                 )}
                 {isOwnLetter && (
@@ -235,7 +255,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
+                    <FormattedMessage id="letterCard.delete" defaultMessage="Delete" />
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -274,7 +294,9 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
                       <div className="flex-1 flex items-center justify-center">
                         <div className="flex flex-col items-center gap-2.5" style={{ color: faintColor }}>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          <span className="text-xs">unsealing...</span>
+                          <span className="text-xs">
+                            <FormattedMessage id="letterCard.unsealing" defaultMessage="unsealing..." />
+                          </span>
                         </div>
                       </div>
                     ) : content ? (
@@ -315,7 +337,9 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
                       <div className="flex-1 flex items-center justify-center">
                         <div className="flex flex-col items-center gap-2" style={{ color: faintColor }}>
                           <Lock className="w-5 h-5" />
-                          <p className="text-xs italic">couldn't unseal this one</p>
+                          <p className="text-xs italic">
+                            <FormattedMessage id="letterCard.unsealFailed" defaultMessage="couldn't unseal this one" />
+                          </p>
                         </div>
                       </div>
                     )}

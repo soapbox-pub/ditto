@@ -1,6 +1,7 @@
 // src/blobbi/actions/hooks/useAudioPlayback.ts
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useIntl, type IntlShape } from 'react-intl';
 
 /**
  * Audio playback state
@@ -74,6 +75,7 @@ export interface UseAudioPlaybackReturn {
  */
 export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudioPlaybackReturn {
   const { onEnded, onError, initialVolume = DEFAULT_VOLUME } = options;
+  const intl = useIntl();
   
   const [state, setState] = useState<PlaybackState>('idle');
   const [error, setError] = useState<PlaybackError | null>(null);
@@ -139,7 +141,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
       if (autoplay) {
         audio.play().catch((err) => {
           const playbackError: PlaybackError = {
-            message: getPlaybackErrorMessage(err),
+            message: getPlaybackErrorMessage(intl, err),
             code: err.name,
           };
           setError(playbackError);
@@ -168,7 +170,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     
     audio.onerror = () => {
       const playbackError: PlaybackError = {
-        message: 'Failed to load audio. The format may not be supported.',
+        message: intl.formatMessage({ id: 'audioPlayback.loadFailed', defaultMessage: 'Failed to load audio. The format may not be supported.' }),
         code: 'MEDIA_ERR',
       };
       setError(playbackError);
@@ -178,7 +180,7 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
     
     // Start loading
     audio.load();
-  }, [onEnded, onError, state]);
+  }, [onEnded, onError, state, intl]);
   
   // Play current audio
   const play = useCallback(async () => {
@@ -190,14 +192,14 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
       setState('playing');
     } catch (err) {
       const playbackError: PlaybackError = {
-        message: getPlaybackErrorMessage(err),
+        message: getPlaybackErrorMessage(intl, err),
         code: err instanceof Error ? err.name : 'UNKNOWN',
       };
       setError(playbackError);
       setState('error');
       onError?.(playbackError);
     }
-  }, [onError]);
+  }, [onError, intl]);
   
   // Pause current audio
   const pause = useCallback(() => {
@@ -225,14 +227,14 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
       setState('playing');
     } catch (err) {
       const playbackError: PlaybackError = {
-        message: getPlaybackErrorMessage(err),
+        message: getPlaybackErrorMessage(intl, err),
         code: err instanceof Error ? err.name : 'UNKNOWN',
       };
       setError(playbackError);
       setState('error');
       onError?.(playbackError);
     }
-  }, [onError]);
+  }, [onError, intl]);
   
   // Toggle play/pause
   const toggle = useCallback(async () => {
@@ -273,15 +275,15 @@ export function useAudioPlayback(options: UseAudioPlaybackOptions = {}): UseAudi
 /**
  * Get a user-friendly error message for playback errors
  */
-function getPlaybackErrorMessage(err: unknown): string {
+function getPlaybackErrorMessage(intl: IntlShape, err: unknown): string {
   if (err instanceof Error) {
     if (err.name === 'NotSupportedError') {
-      return 'This audio format is not supported by your browser.';
+      return intl.formatMessage({ id: 'audioPlayback.unsupported', defaultMessage: 'This audio format is not supported by your browser.' });
     }
     if (err.name === 'NotAllowedError') {
-      return 'Playback was blocked. Try interacting with the page first.';
+      return intl.formatMessage({ id: 'audioPlayback.blocked', defaultMessage: 'Playback was blocked. Try interacting with the page first.' });
     }
     return err.message;
   }
-  return 'An unknown error occurred during playback.';
+  return intl.formatMessage({ id: 'audioPlayback.unknown', defaultMessage: 'An unknown error occurred during playback.' });
 }

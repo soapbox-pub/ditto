@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -97,6 +98,7 @@ export function useOnchainZapMany(
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const intl = useIntl();
   const { toast } = useToast();
   const { config } = useAppContext();
   const { esploraApis } = config;
@@ -115,14 +117,14 @@ export function useOnchainZapMany(
       feeSpeed = 'halfHour',
       target,
     }) => {
-      if (!user) throw new Error('You must be logged in to zap.');
+      if (!user) throw new Error(intl.formatMessage({ id: 'onchainZap.error.loginToZap', defaultMessage: 'You must be logged in to zap.' }));
       if (!canSignPsbt || !signPsbt) {
         throw new Error(
           "Your login doesn't support sending Bitcoin.",
         );
       }
       if (!Number.isFinite(amountPerRecipientSats) || amountPerRecipientSats <= 0) {
-        throw new Error('Invalid amount.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.invalidAmount', defaultMessage: 'Invalid amount.' }));
       }
 
       // De-duplicate and remove self.
@@ -130,7 +132,7 @@ export function useOnchainZapMany(
         new Set(recipientPubkeys.filter((pk) => pk !== user.pubkey)),
       );
       if (recipients.length === 0) {
-        throw new Error('No valid recipients (the list is empty or only contains you).');
+        throw new Error(intl.formatMessage({ id: 'zapAll.error.noValidRecipients', defaultMessage: 'No valid recipients (the list is empty or only contains you).' }));
       }
 
       setIsZapping(true);
@@ -138,7 +140,7 @@ export function useOnchainZapMany(
 
       const senderAddress = nostrPubkeyToBitcoinAddress(user.pubkey);
       if (!senderAddress) {
-        throw new Error('Failed to derive your Bitcoin address.');
+        throw new Error(intl.formatMessage({ id: 'zapAll.error.deriveSender', defaultMessage: 'Failed to derive your Bitcoin address.' }));
       }
 
       // Resolve each recipient to a Taproot address. Drop any that fail to
@@ -152,7 +154,7 @@ export function useOnchainZapMany(
         recipientPubkeysOrdered.push(pk);
       }
       if (psbtRecipients.length === 0) {
-        throw new Error('Failed to derive Bitcoin addresses for any recipient.');
+        throw new Error(intl.formatMessage({ id: 'zapAll.error.deriveRecipients', defaultMessage: 'Failed to derive Bitcoin addresses for any recipient.' }));
       }
 
       // Fetch UTXOs and fee rates in parallel.
@@ -162,7 +164,7 @@ export function useOnchainZapMany(
       ]);
 
       if (utxos.length === 0) {
-        throw new Error('Your Bitcoin wallet has no spendable funds.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.noFunds', defaultMessage: 'Your Bitcoin wallet has no spendable funds.' }));
       }
 
       const feeRate = feeRateForSpeed(rates, feeSpeed);
@@ -170,9 +172,10 @@ export function useOnchainZapMany(
       const totalOut = amountPerRecipientSats * psbtRecipients.length;
       const estFee = estimateFee(utxos.length, psbtRecipients.length + 1, feeRate);
       if (totalOut + estFee > totalBalance) {
-        throw new Error(
-          `Insufficient funds. Need ~${(totalOut + estFee).toLocaleString()} sats, have ${totalBalance.toLocaleString()}.`,
-        );
+        throw new Error(intl.formatMessage(
+          { id: 'onchainZap.error.insufficientFunds', defaultMessage: 'Insufficient funds. Need ~{need} sats, have {have}.' },
+          { need: intl.formatNumber(totalOut + estFee), have: intl.formatNumber(totalBalance) },
+        ));
       }
 
       // Build the multi-output PSBT.
@@ -268,10 +271,14 @@ export function useOnchainZapMany(
         onSuccess(result);
       } else {
         toast({
-          title: 'Zapped all!',
-          description: `Sent ${result.totalAmountSats.toLocaleString()} sats to ${result.recipientCount} ${
-            result.recipientCount === 1 ? 'account' : 'accounts'
-          }. Tx ${result.txid.slice(0, 12)}…`,
+          title: intl.formatMessage({ id: 'zapAll.titleSuccess', defaultMessage: 'Zapped all!' }),
+          description: intl.formatMessage(
+            {
+              id: 'zapAll.toast.sent',
+              defaultMessage: 'Sent {sats} sats to {count, plural, one {# account} other {# accounts}}. Tx {txid}…',
+            },
+            { sats: intl.formatNumber(result.totalAmountSats), count: result.recipientCount, txid: result.txid.slice(0, 12) },
+          ),
         });
       }
     },
@@ -281,7 +288,7 @@ export function useOnchainZapMany(
         return;
       }
       toast({
-        title: 'Zap all failed',
+        title: intl.formatMessage({ id: 'zapAll.toast.failedTitle', defaultMessage: 'Zap all failed' }),
         description: err.message,
         variant: 'destructive',
       });

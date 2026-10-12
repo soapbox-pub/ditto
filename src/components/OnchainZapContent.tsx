@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { AlertTriangle, Loader2, Bitcoin, Copy, Check, MessageCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,12 +56,12 @@ function defaultAmount(currency: CurrencyDisplay): number {
   return currency === 'sats' ? 5_000 : 5;
 }
 
-const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, string> = {
-  fastest: '~10 min',
-  halfHour: '~30 min',
-  hour: '~1 hour',
-  economy: '~1 day',
-};
+const FEE_SPEED_LABELS: Record<OnchainFeeSpeed, MessageDescriptor> = defineMessages({
+  fastest: { id: 'onchainZap.speed.fastest', defaultMessage: '~10 min' },
+  halfHour: { id: 'onchainZap.speed.halfHour', defaultMessage: '~30 min' },
+  hour: { id: 'onchainZap.speed.hour', defaultMessage: '~1 hour' },
+  economy: { id: 'onchainZap.speed.economy', defaultMessage: '~1 day' },
+});
 
 const FEE_SPEED_ORDER: OnchainFeeSpeed[] = ['fastest', 'halfHour', 'hour', 'economy'];
 
@@ -136,6 +137,7 @@ interface OnchainZapContentProps {
  * Balance, fee breakdown, and confirmation are all hidden unless needed.
  */
 export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, onClose }: OnchainZapContentProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { capability } = useBitcoinSigner();
   const { logins } = useNostrLogin();
@@ -281,21 +283,42 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
 
   const handleZap = useCallback(async () => {
     setError('');
-    if (!user) { setError('You must be logged in.'); return; }
+    if (!user) {
+      setError(intl.formatMessage({ id: 'onchainZap.error.notLoggedIn', defaultMessage: 'You must be logged in.' }));
+      return;
+    }
     // Self-zap guard applies only to profile zaps. Campaign creators
     // donating to their own campaign is legitimate (and harmless on
     // chain — they're moving their own funds to their own address).
     if (!campaign && user.pubkey === target.pubkey) {
-      setError("You can't zap yourself.");
+      setError(intl.formatMessage({ id: 'onchainZap.error.selfZap', defaultMessage: "You can't zap yourself." }));
       return;
     }
     // `capability === 'unsupported'` is already handled by the UI replacement
     // above; 'supported' and 'unknown' both proceed (the latter may fail at
     // sign time, which will then flip the UI to the unsupported state).
-    if (!btcPrice) { setError('Waiting for BTC price…'); return; }
-    if (amountSats <= 0) { setError('Enter an amount.'); return; }
-    if (!utxos?.length) { setError("You don't have any Bitcoin yet. Receive some first."); return; }
-    if (insufficient) { setError('Not enough Bitcoin for this amount + network fee.'); return; }
+    if (!btcPrice) {
+      setError(intl.formatMessage({ id: 'onchainZap.error.waitingForPrice', defaultMessage: 'Waiting for BTC price…' }));
+      return;
+    }
+    if (amountSats <= 0) {
+      setError(intl.formatMessage({ id: 'onchainZap.error.enterAmount', defaultMessage: 'Enter an amount.' }));
+      return;
+    }
+    if (!utxos?.length) {
+      setError(intl.formatMessage({
+        id: 'onchainZap.error.noBitcoin',
+        defaultMessage: "You don't have any Bitcoin yet. Receive some first.",
+      }));
+      return;
+    }
+    if (insufficient) {
+      setError(intl.formatMessage({
+        id: 'onchainZap.error.insufficient',
+        defaultMessage: 'Not enough Bitcoin for this amount + network fee.',
+      }));
+      return;
+    }
 
     // Two-tap safety for large amounts: first click arms, second click sends.
     if (isLarge && !confirmArmed) {
@@ -309,11 +332,13 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
     } catch (err) {
       // Capability errors flip the UI via `reportSignerUnsupported` in the
       // hook's `onError`; no need to surface a form-level error for those.
-      const msg = err instanceof Error ? err.message : 'Zap failed';
+      const msg = err instanceof Error
+        ? err.message
+        : intl.formatMessage({ id: 'onchainZap.error.zapFailed', defaultMessage: 'Zap failed' });
       const isCapability = /does not support|doesn't support|signpsbt|sign_psbt/i.test(msg);
       if (!isCapability) setError(msg);
     }
-  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed, isLarge, confirmArmed]);
+  }, [user, target.pubkey, campaign, btcPrice, amountSats, utxos, insufficient, zapAsync, comment, feeSpeed, isLarge, confirmArmed, intl]);
 
   // ── Signer not supported ──────────────────────────────────────
   // The user's signer can't sign PSBTs locally (extension without signPsbt,
@@ -326,8 +351,8 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
   // send button and confirmation label. Falls back to the raw input while the
   // price is still loading in USD mode.
   const totalDisplay = totalSats > 0
-    ? formatMoneyAmount(totalSats, currency, btcPrice)
-    : formatAmountInput(amount, currency);
+    ? formatMoneyAmount(totalSats, currency, btcPrice, intl.locale)
+    : formatAmountInput(amount, currency, intl.locale);
   const uniqueFeeSpeeds = useMemo(() => getUniqueFeeSpeeds(feeRates), [feeRates]);
 
   if (user && capability === 'unsupported') {
@@ -374,9 +399,9 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
           type="text"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          placeholder="Add a comment (optional)"
+          placeholder={intl.formatMessage({ id: 'onchainZap.commentPlaceholder', defaultMessage: 'Add a comment (optional)' })}
           maxLength={280}
-          aria-label="Comment"
+          aria-label={intl.formatMessage({ id: 'onchainZap.commentLabel', defaultMessage: 'Comment' })}
           autoFocus
           className="text-sm rounded-full motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:duration-200"
         />
@@ -392,14 +417,18 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
           {isZapping ? (
             <>
               <Loader2 className="size-4 mr-1.5 animate-spin" />
-              {progressLabel(progress)}
+              {progressLabel(intl, progress)}
             </>
           ) : insufficient ? (
-            <>Not enough Bitcoin</>
+            <FormattedMessage id="onchainZap.notEnough" defaultMessage="Not enough Bitcoin" />
           ) : isLarge && confirmArmed ? (
-            <>Tap again to send {totalDisplay}</>
+            <FormattedMessage
+              id="onchainZap.tapAgain"
+              defaultMessage="Tap again to send {amount}"
+              values={{ amount: totalDisplay }}
+            />
           ) : (
-            <>Send {totalDisplay}</>
+            <FormattedMessage id="onchainZap.send" defaultMessage="Send {amount}" values={{ amount: totalDisplay }} />
           )}
         </Button>
         <Button
@@ -407,7 +436,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
           variant="ghost"
           size="icon"
           onClick={() => setShowComment((v) => !v)}
-          aria-label="Add a comment"
+          aria-label={intl.formatMessage({ id: 'onchainZap.addComment', defaultMessage: 'Add a comment' })}
           aria-pressed={showComment}
           className={`rounded-full ${comment.trim() ? 'text-primary' : 'text-muted-foreground'}`}
         >
@@ -425,11 +454,16 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
                 className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <span>
-                  Fee{' '}
-                  {estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
-                    ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice)}`
-                    : '…'}
-                  <span className="opacity-60"> · {FEE_SPEED_LABELS[feeSpeed]}</span>
+                  <FormattedMessage
+                    id="onchainZap.fee"
+                    defaultMessage="Fee {amount}"
+                    values={{
+                      amount: estimatedFeeSats > 0 && (currency === 'sats' || btcPrice)
+                        ? `≈ ${formatMoneyAmount(estimatedFeeSats, currency, btcPrice, intl.locale)}`
+                        : '…',
+                    }}
+                  />
+                  <span className="opacity-60"> · <FormattedMessage {...FEE_SPEED_LABELS[feeSpeed]} /></span>
                 </span>
               </button>
             </PopoverTrigger>
@@ -445,7 +479,7 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
                       onClick={() => handleFeeSpeedChange(speed)}
                       className={`flex items-center justify-between px-2 py-1.5 rounded-sm text-xs text-left hover:bg-muted transition-colors ${selected ? 'bg-muted font-medium' : ''}`}
                     >
-                      <span>{FEE_SPEED_LABELS[speed]}</span>
+                      <span><FormattedMessage {...FEE_SPEED_LABELS[speed]} /></span>
                       <span className="text-muted-foreground">{rate} sat/vB</span>
                     </button>
                   );
@@ -456,7 +490,11 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
 
           {showBalance && !insufficient && (currency === 'sats' || btcPrice) && (
             <span className="text-muted-foreground">
-              Balance: {formatMoneyAmount(totalBalance, currency, btcPrice)}
+              <FormattedMessage
+                id="onchainZap.balance"
+                defaultMessage="Balance: {amount}"
+                values={{ amount: formatMoneyAmount(totalBalance, currency, btcPrice, intl.locale) }}
+              />
             </span>
           )}
         </div>
@@ -465,13 +503,16 @@ export function OnchainZapContent({ target, campaign, bitcoinTarget, onSuccess, 
   );
 }
 
-function progressLabel(progress: 'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing'): string {
+function progressLabel(
+  intl: IntlShape,
+  progress: 'idle' | 'building' | 'signing' | 'broadcasting' | 'publishing',
+): string {
   switch (progress) {
-    case 'building': return 'Building…';
-    case 'signing': return 'Signing…';
-    case 'broadcasting': return 'Broadcasting…';
-    case 'publishing': return 'Publishing…';
-    default: return 'Processing…';
+    case 'building': return intl.formatMessage({ id: 'onchainZap.progress.building', defaultMessage: 'Building…' });
+    case 'signing': return intl.formatMessage({ id: 'onchainZap.progress.signing', defaultMessage: 'Signing…' });
+    case 'broadcasting': return intl.formatMessage({ id: 'onchainZap.progress.broadcasting', defaultMessage: 'Broadcasting…' });
+    case 'publishing': return intl.formatMessage({ id: 'onchainZap.progress.publishing', defaultMessage: 'Publishing…' });
+    default: return intl.formatMessage({ id: 'onchainZap.progress.processing', defaultMessage: 'Processing…' });
   }
 }
 
@@ -513,6 +554,7 @@ function UnsupportedSignerQR({
   loginType,
   onClose,
 }: UnsupportedSignerQRProps) {
+  const intl = useIntl();
   const { toast } = useToast();
   const [copied, setCopied] = useState<'address' | 'uri' | null>(null);
 
@@ -537,23 +579,42 @@ function UnsupportedSignerQR({
 
   const explanation =
     loginType === 'extension'
-      ? "Your browser extension can't sign Bitcoin transactions."
+      ? intl.formatMessage({
+        id: 'onchainZap.unsupported.extension',
+        defaultMessage: "Your browser extension can't sign Bitcoin transactions.",
+      })
       : loginType === 'bunker'
-        ? "Your remote signer can't sign Bitcoin transactions."
-        : "Your signer can't sign Bitcoin transactions.";
+        ? intl.formatMessage({
+          id: 'onchainZap.unsupported.bunker',
+          defaultMessage: "Your remote signer can't sign Bitcoin transactions.",
+        })
+        : intl.formatMessage({
+          id: 'onchainZap.unsupported.signer',
+          defaultMessage: "Your signer can't sign Bitcoin transactions.",
+        });
 
   const copy = useCallback(
     async (value: string, which: 'address' | 'uri', label: string) => {
       try {
         await navigator.clipboard.writeText(value);
         setCopied(which);
-        toast({ title: 'Copied', description: `${label} copied to clipboard` });
+        toast({
+          title: intl.formatMessage({ id: 'onchainZap.copied', defaultMessage: 'Copied' }),
+          description: intl.formatMessage(
+            { id: 'onchainZap.copiedDescription', defaultMessage: '{label} copied to clipboard' },
+            { label },
+          ),
+        });
         setTimeout(() => setCopied(null), 2000);
       } catch {
-        toast({ title: 'Copy failed', description: 'Please copy manually.', variant: 'destructive' });
+        toast({
+          title: intl.formatMessage({ id: 'onchainZap.copyFailed', defaultMessage: 'Copy failed' }),
+          description: intl.formatMessage({ id: 'onchainZap.copyFailedDescription', defaultMessage: 'Please copy manually.' }),
+          variant: 'destructive',
+        });
       }
     },
-    [toast],
+    [toast, intl],
   );
 
   const isSats = currency === 'sats';
@@ -563,7 +624,11 @@ function UnsupportedSignerQR({
   return (
     <div className="grid gap-3 px-4 py-4 w-full overflow-hidden">
       <p className="text-xs text-muted-foreground">
-        {explanation} You can still zap by scanning this QR from any Bitcoin wallet.
+        <FormattedMessage
+          id="onchainZap.unsupported.scanHint"
+          defaultMessage="{explanation} You can still zap by scanning this QR from any Bitcoin wallet."
+          values={{ explanation }}
+        />
       </p>
 
       {/* Amount presets, in the user's display currency */}
@@ -586,7 +651,9 @@ function UnsupportedSignerQR({
 
       <div className="flex items-center gap-2">
         <div className="h-px flex-1 bg-muted" />
-        <span className="text-xs text-muted-foreground">OR</span>
+        <span className="text-xs text-muted-foreground">
+          <FormattedMessage id="onchainZap.or" defaultMessage="OR" />
+        </span>
         <div className="h-px flex-1 bg-muted" />
       </div>
 
@@ -599,7 +666,9 @@ function UnsupportedSignerQR({
           inputMode="decimal"
           min={0}
           step={isSats ? '1' : '0.01'}
-          placeholder={isSats ? 'Custom amount (sats)' : 'Custom amount (USD)'}
+          placeholder={isSats
+            ? intl.formatMessage({ id: 'onchainZap.customAmountSats', defaultMessage: 'Custom amount (sats)' })
+            : intl.formatMessage({ id: 'onchainZap.customAmountUsd', defaultMessage: 'Custom amount (USD)' })}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           className={isSats ? undefined : 'pl-6'}
@@ -609,14 +678,19 @@ function UnsupportedSignerQR({
       {/* QR / placeholder */}
       <div className="flex justify-center">
         {hasAmount && bip21 ? (
-          <div className="bg-white p-3 rounded-xl" aria-label="Bitcoin payment QR code">
+          <div className="bg-white p-3 rounded-xl" aria-label={intl.formatMessage({ id: 'onchainZap.qrLabel', defaultMessage: 'Bitcoin payment QR code' })}>
             <QRCodeCanvas value={bip21} size={220} level="M" className="block" />
           </div>
         ) : (
           <div className="size-[220px] rounded-xl border border-dashed flex items-center justify-center text-xs text-muted-foreground text-center px-4">
-            {btcPrice
-              ? 'Choose an amount above to generate a payment QR.'
-              : 'Loading BTC price…'}
+            {btcPrice ? (
+              <FormattedMessage
+                id="onchainZap.chooseAmount"
+                defaultMessage="Choose an amount above to generate a payment QR."
+              />
+            ) : (
+              <FormattedMessage id="onchainZap.loadingPrice" defaultMessage="Loading BTC price…" />
+            )}
           </div>
         )}
       </div>
@@ -627,11 +701,16 @@ function UnsupportedSignerQR({
         <div className="text-center text-sm">
           {!isSats && btcPrice && (
             <span className="font-medium">
-              {formatMoneyAmount(amountSats, 'usd', btcPrice)}
+              {formatMoneyAmount(amountSats, 'usd', btcPrice, intl.locale)}
             </span>
           )}
           <span className="text-muted-foreground">
-            {!isSats && btcPrice ? ' · ' : ''}{formatSats(amountSats)} sats
+            {!isSats && btcPrice ? ' · ' : ''}
+            <FormattedMessage
+              id="onchainZap.satsAmount"
+              defaultMessage="{amount} sats"
+              values={{ amount: formatSats(amountSats, intl.locale) }}
+            />
           </span>
         </div>
       )}
@@ -641,7 +720,9 @@ function UnsupportedSignerQR({
         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5 min-w-0">
             <Bitcoin className="size-3.5 text-orange-500 shrink-0" />
-            <span className="shrink-0">To:</span>
+            <span className="shrink-0">
+              <FormattedMessage id="onchainZap.to" defaultMessage="To:" />
+            </span>
             <span className="font-mono truncate" title={recipientAddress}>{truncatedRecipient}</span>
           </div>
         </div>
@@ -653,23 +734,31 @@ function UnsupportedSignerQR({
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => copy(recipientAddress, 'address', 'Address')}
+          onClick={() => copy(
+            recipientAddress,
+            'address',
+            intl.formatMessage({ id: 'onchainZap.addressLabel', defaultMessage: 'Address' }),
+          )}
           disabled={!recipientAddress}
           className="text-xs"
         >
           {copied === 'address' ? <Check className="size-3.5 mr-1.5" /> : <Copy className="size-3.5 mr-1.5" />}
-          Copy address
+          <FormattedMessage id="onchainZap.copyAddress" defaultMessage="Copy address" />
         </Button>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => copy(bip21, 'uri', 'Payment link')}
+          onClick={() => copy(
+            bip21,
+            'uri',
+            intl.formatMessage({ id: 'onchainZap.paymentLinkLabel', defaultMessage: 'Payment link' }),
+          )}
           disabled={!hasAmount || !bip21}
           className="text-xs"
         >
           {copied === 'uri' ? <Check className="size-3.5 mr-1.5" /> : <Copy className="size-3.5 mr-1.5" />}
-          Copy link
+          <FormattedMessage id="onchainZap.copyLink" defaultMessage="Copy link" />
         </Button>
       </div>
 
@@ -677,13 +766,16 @@ function UnsupportedSignerQR({
       <Alert>
         <AlertTriangle className="size-4" />
         <AlertDescription className="text-xs">
-          Because we can't see your transaction, this zap won't show up as yours on Nostr. The recipient will still get the Bitcoin.
+          <FormattedMessage
+            id="onchainZap.unsupported.warning"
+            defaultMessage="Because we can't see your transaction, this zap won't show up as yours on Nostr. The recipient will still get the Bitcoin."
+          />
         </AlertDescription>
       </Alert>
 
       {onClose && (
         <Button type="button" variant="secondary" onClick={onClose} className="w-full">
-          Done
+          <FormattedMessage id="onchainZap.done" defaultMessage="Done" />
         </Button>
       )}
     </div>

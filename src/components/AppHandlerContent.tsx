@@ -1,6 +1,7 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { ExternalLink, GitFork, Package, Play } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -97,9 +98,10 @@ interface AppHandlerContentProps {
 
 /** Renders a kind 31990 NIP-89 application handler event as a showcase-style card. */
 export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
+  const intl = useIntl();
   const metadata = useMemo(() => parseHandlerMetadata(event.content), [event.content]);
 
-  const name = metadata.name || getTag(event.tags, 'name') || getTag(event.tags, 'd') || 'Unknown App';
+  const name = metadata.name || getTag(event.tags, 'name') || getTag(event.tags, 'd') || intl.formatMessage({ id: 'appHandler.unknownApp', defaultMessage: 'Unknown App' });
   const about = metadata.about;
   // Sanitize image URLs to reject non-https schemes (http IP leaks, data: URIs,
   // etc.). The CSP \`img-src\` already blocks most of these, but sanitizing
@@ -201,13 +203,13 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                   onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
                 >
                   <Play className="size-3 mr-1" />
-                  Run
+                  <FormattedMessage id="appHandler.run" defaultMessage="Run" />
                 </Button>
               )}
               {websiteUrl && (
                 <Button asChild size="sm" variant={nsiteRef ? 'secondary' : 'default'} className="h-7 text-xs">
                   <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                    Open App
+                    <FormattedMessage id="appHandler.openApp" defaultMessage="Open App" />
                     <ExternalLink className="size-3 ml-1.5" />
                   </a>
                 </Button>
@@ -215,7 +217,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
               {shakespeareUrl && (
                 <Button asChild variant="secondary" size="sm" className="h-7 text-xs">
                   <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                    Fork
+                    <FormattedMessage id="appHandler.fork" defaultMessage="Fork" />
                     <GitFork className="size-3 ml-1" />
                   </a>
                 </Button>
@@ -321,13 +323,13 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
                 onClick={(e) => { e.stopPropagation(); setPreviewOpen(true); }}
               >
                 <Play className="size-3.5 mr-1.5" />
-                Run
+                <FormattedMessage id="appHandler.run" defaultMessage="Run" />
               </Button>
             )}
             {websiteUrl && (
               <Button asChild size="sm" variant={nsiteRef ? 'secondary' : 'default'}>
                 <a href={websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                  Open App
+                  <FormattedMessage id="appHandler.openApp" defaultMessage="Open App" />
                   <ExternalLink className="size-3 ml-1.5" />
                 </a>
               </Button>
@@ -335,7 +337,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             {shakespeareUrl && (
               <Button asChild variant="secondary" size="sm">
                 <a href={shakespeareUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                  Fork
+                  <FormattedMessage id="appHandler.fork" defaultMessage="Fork" />
                   <GitFork className="size-3.5 ml-1.5" />
                 </a>
               </Button>

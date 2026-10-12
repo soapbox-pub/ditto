@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { formatDistanceToNow } from 'date-fns';
+import { getDateFnsLocale } from '@/lib/dateFnsLocale';
 import { ChevronRight, Clock, Cloud, FileText, HardDrive, Loader2, Trash2 } from 'lucide-react';
 
 import {
@@ -152,7 +153,7 @@ export function MyArticlesList() {
                       <Cloud className="w-3 h-3 text-primary shrink-0" />
                     )}
                     <Clock className="w-3 h-3 shrink-0" />
-                    <span>{formatDistanceToNow(draft.updatedAt, { addSuffix: true })}</span>
+                    <span>{formatDistanceToNow(draft.updatedAt, { addSuffix: true, locale: getDateFnsLocale(intl.locale) })}</span>
                     {draft.tags.length > 0 && (
                       <>
                         <span>·</span>
@@ -211,7 +212,7 @@ export function MyArticlesList() {
                       <FormattedMessage
                         id="articles.mine.publishedAgo"
                         defaultMessage="Published {ago}"
-                        values={{ ago: formatDistanceToNow(pub.publishedAt, { addSuffix: true }) }}
+                        values={{ ago: formatDistanceToNow(pub.publishedAt, { addSuffix: true, locale: getDateFnsLocale(intl.locale) }) }}
                       />
                     </span>
                   </div>

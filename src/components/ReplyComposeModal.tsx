@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { X } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import {
   Dialog,
@@ -43,6 +44,7 @@ export function ReplyComposeModal(props: ReplyComposeModalProps) {
 }
 
 function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
+  const intl = useIntl();
   const isUrl = event instanceof URL;
   const isExternalId = typeof event === 'string';
   const isExternal = isUrl || isExternalId;
@@ -53,8 +55,26 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const isProfileRoot = !isExternal && event instanceof Object && 'kind' in event && event.kind === 0;
-  const title = titleOverride ?? (initialMode === 'poll' ? 'New poll' : isExternal ? 'New comment' : isProfileRoot ? 'Comment on profile' : isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post');
-  const placeholder = placeholderOverride ?? (isExternal ? 'Write a comment...' : isQuote && !isReply ? 'Add a comment...' : "What's on your mind?");
+  const title = titleOverride ?? (
+    initialMode === 'poll'
+      ? intl.formatMessage({ id: 'replyCompose.title.poll', defaultMessage: 'New poll' })
+      : isExternal
+        ? intl.formatMessage({ id: 'replyCompose.title.comment', defaultMessage: 'New comment' })
+        : isProfileRoot
+          ? intl.formatMessage({ id: 'replyCompose.title.profileComment', defaultMessage: 'Comment on profile' })
+          : isReply
+            ? intl.formatMessage({ id: 'replyCompose.title.reply', defaultMessage: 'Reply to post' })
+            : isQuote
+              ? intl.formatMessage({ id: 'replyCompose.title.quote', defaultMessage: 'Quote post' })
+              : intl.formatMessage({ id: 'replyCompose.title.post', defaultMessage: 'New post' })
+  );
+  const placeholder = placeholderOverride ?? (
+    isExternal
+      ? intl.formatMessage({ id: 'replyCompose.placeholder.comment', defaultMessage: 'Write a comment...' })
+      : isQuote && !isReply
+        ? intl.formatMessage({ id: 'replyCompose.placeholder.quote', defaultMessage: 'Add a comment...' })
+        : intl.formatMessage({ id: 'replyCompose.placeholder.post', defaultMessage: "What's on your mind?" })
+  );
 
   const dialogContentRef = useCallback((node: HTMLElement | null) => {
     setPortalContainer(node ?? undefined);
@@ -104,7 +124,7 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Edit
+                    <FormattedMessage id="replyCompose.edit" defaultMessage="Edit" />
                   </button>
                   <button
                     onClick={() => setPreviewMode(true)}
@@ -115,13 +135,14 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    Preview
+                    <FormattedMessage id="replyCompose.preview" defaultMessage="Preview" />
                   </button>
                 </div>
               )}
 
               <button
                 onClick={() => onOpenChange(false)}
+                aria-label={intl.formatMessage({ id: 'replyCompose.close', defaultMessage: 'Close' })}
                 className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all motion-safe:active:scale-90"
               >
                 <X className="size-5" />
@@ -152,7 +173,10 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
             <div className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2 shrink-0">
               <span className="text-sm leading-relaxed shrink-0" aria-hidden>&#x26A0;&#xFE0F;</span>
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-                People on Bluesky can&apos;t see you because they&apos;re not actually decentralized.
+                <FormattedMessage
+                  id="replyCompose.blueskyDisclaimer"
+                  defaultMessage="People on Bluesky can't see you because they're not actually decentralized."
+                />
               </p>
             </div>
           )}

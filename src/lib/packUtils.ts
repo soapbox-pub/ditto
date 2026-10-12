@@ -1,4 +1,5 @@
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
+import { defineMessages, type IntlShape, type MessageDescriptor } from 'react-intl';
 
 import { isNostrId } from '@/lib/nostrId';
 
@@ -36,6 +37,23 @@ export interface ParsedPeopleList {
   pubkeys: string[];
   /** Variant of the list (for icon/copy choices). */
   variant: PeopleListVariant;
+  /**
+   * Set when `title` is a synthesized English fallback rather than the list's
+   * own title, so display code can show it translated (see
+   * {@link formatPeopleListTitle}) while writes keep the stored value.
+   */
+  fallbackTitle?: { message: MessageDescriptor; values?: Record<string, string> };
+}
+
+const fallbackTitleMessages = defineMessages({
+  follows: { id: 'peopleList.fallbackTitle.follows', defaultMessage: "{name}'s follows" },
+  followList: { id: 'peopleList.fallbackTitle.followList', defaultMessage: 'Follow list' },
+  untitled: { id: 'peopleList.fallbackTitle.untitled', defaultMessage: 'Untitled' },
+});
+
+/** Display title for a parsed people list, translating synthesized fallbacks. */
+export function formatPeopleListTitle(intl: IntlShape, list: Pick<ParsedPeopleList, 'title' | 'fallbackTitle'>): string {
+  return list.fallbackTitle ? intl.formatMessage(list.fallbackTitle.message, list.fallbackTitle.values) : list.title;
 }
 
 /**
@@ -65,13 +83,18 @@ export function parsePeopleList(
     // list, and leak profile bio into unrelated views.
     const displayName = opts?.authorDisplayName || opts?.authorMetadata?.name || opts?.authorMetadata?.display_name;
     const title = displayName ? `${displayName}'s follows` : 'Follow list';
-    return { title, description: '', image: undefined, pubkeys, variant };
+    const fallbackTitle = displayName
+      ? { message: fallbackTitleMessages.follows, values: { name: displayName } }
+      : { message: fallbackTitleMessages.followList };
+    return { title, description: '', image: undefined, pubkeys, variant, fallbackTitle };
   }
 
-  const title = getTag('title') || getTag('name') || 'Untitled';
+  const ownTitle = getTag('title') || getTag('name');
+  const title = ownTitle || 'Untitled';
+  const fallbackTitle = ownTitle ? undefined : { message: fallbackTitleMessages.untitled };
   const description = getTag('description') || getTag('summary') || '';
   const image = getTag('image') || getTag('thumb') || getTag('banner');
-  return { title, description, image, pubkeys, variant };
+  return { title, description, image, pubkeys, variant, fallbackTitle };
 }
 
 /** Editable metadata fields shared by follow sets (30000) and follow packs (39089). */

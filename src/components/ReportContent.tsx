@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Eye, Flag, FileWarning, UserX } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { NostrMention } from '@/components/NostrMention';
-import { parseReport, REPORT_TYPE_LABELS, type ReportType } from '@/lib/report';
+import { parseReport, type ReportType } from '@/lib/report';
 import { displayHost } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,17 @@ interface ReportContentProps {
 
 /** Report types serious enough to warrant a destructive-colored pill. */
 const SEVERE_TYPES = new Set<ReportType>(['illegal', 'malware']);
+
+/** Localized labels for the NIP-56 report types. */
+const REPORT_TYPE_LABELS: Record<ReportType, MessageDescriptor> = defineMessages({
+  nudity: { id: 'reportContent.type.nudity', defaultMessage: 'Nudity' },
+  malware: { id: 'reportContent.type.malware', defaultMessage: 'Malware' },
+  profanity: { id: 'reportContent.type.profanity', defaultMessage: 'Hateful speech' },
+  illegal: { id: 'reportContent.type.illegal', defaultMessage: 'Illegal content' },
+  spam: { id: 'reportContent.type.spam', defaultMessage: 'Spam' },
+  impersonation: { id: 'reportContent.type.impersonation', defaultMessage: 'Impersonation' },
+  other: { id: 'reportContent.type.other', defaultMessage: 'Other' },
+});
 
 /** Shared section heading style — matches the other kind cards. */
 const SECTION_LABEL = 'flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground';
@@ -36,11 +48,12 @@ export function ReportTypePill({
   rawType?: string;
   className?: string;
 }) {
+  const intl = useIntl();
   const label = type
-    ? REPORT_TYPE_LABELS[type]
+    ? intl.formatMessage(REPORT_TYPE_LABELS[type])
     : rawType
       ? rawType.charAt(0).toUpperCase() + rawType.slice(1)
-      : 'Report';
+      : intl.formatMessage({ id: 'reportContent.report', defaultMessage: 'Report' });
 
   const style = type && SEVERE_TYPES.has(type)
     ? 'border-destructive/30 bg-destructive/10 text-destructive'
@@ -85,12 +98,13 @@ export function ReportContent({
 }: ReportContentProps) {
   const report = useMemo(() => parseReport(event), [event]);
   const [revealed, setRevealed] = useState(false);
+  const intl = useIntl();
 
   if (!report) {
     // No `p`, `e`, or `x` tag — the report names no target at all.
     return (
       <div className={cn('mt-2 rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground', className)}>
-        Malformed report
+        <FormattedMessage id="reportContent.malformed" defaultMessage="Malformed report" />
       </div>
     );
   }
@@ -119,7 +133,7 @@ export function ReportContent({
         <div className="space-y-1.5">
           <div className={SECTION_LABEL}>
             <Flag className="size-3" aria-hidden="true" />
-            Reported post
+            <FormattedMessage id="reportContent.reportedPost" defaultMessage="Reported post" />
           </div>
           {revealed ? (
             <EmbeddedNote
@@ -143,7 +157,7 @@ export function ReportContent({
               )}
             >
               <Eye className="size-4" aria-hidden="true" />
-              Show reported post
+              <FormattedMessage id="reportContent.showReportedPost" defaultMessage="Show reported post" />
             </button>
           )}
         </div>
@@ -156,7 +170,7 @@ export function ReportContent({
         <div className="space-y-1.5">
           <div className={SECTION_LABEL}>
             <UserX className="size-3" aria-hidden="true" />
-            Reported user
+            <FormattedMessage id="reportContent.reportedUser" defaultMessage="Reported user" />
           </div>
           <div className="text-[15px]">
             <NostrMention pubkey={pubkey} />
@@ -169,13 +183,17 @@ export function ReportContent({
         <div className="space-y-1.5">
           <div className={SECTION_LABEL}>
             <FileWarning className="size-3" aria-hidden="true" />
-            Reported file
+            <FormattedMessage id="reportContent.reportedFile" defaultMessage="Reported file" />
           </div>
           <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 space-y-1">
             <p className="font-mono text-xs break-all text-muted-foreground">{blob.hash}</p>
             {blob.servers.length > 0 && (
               <p className="text-xs text-muted-foreground">
-                Hosted on {blob.servers.map(displayHost).join(', ')}
+                <FormattedMessage
+                  id="reportContent.hostedOn"
+                  defaultMessage="Hosted on {servers}"
+                  values={{ servers: intl.formatList(blob.servers.map(displayHost)) }}
+                />
               </p>
             )}
           </div>

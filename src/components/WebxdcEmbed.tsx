@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useIntl } from 'react-intl';
 import { Blocks, X, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Webxdc, type WebxdcHandle } from '@/components/Webxdc';
@@ -68,6 +69,7 @@ function useElementRect(el: HTMLElement | null): Rect | null {
  * full screen on mobile) when the user clicks Play — matching the nsite UX.
  */
 export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, encryption, showNameCard = true, className }: WebxdcEmbedProps) {
+  const intl = useIntl();
   const [launched, setLaunched] = useState(false);
   const [showGamepad, setShowGamepad] = useState(false);
   const webxdcHandleRef = useRef<WebxdcHandle>(null);
@@ -89,6 +91,7 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
   // Derive a private, stable subdomain from a device-local seed + the identifier.
   // Keyed off the original URL so the identity survives re-decryption.
   const identifier = uuid ?? originalUrl;
+  const appName = name ?? intl.formatMessage({ id: 'webxdcEmbed.defaultName', defaultMessage: 'Webxdc App' });
   const iframeId = deriveIframeSubdomain(config.appId, 'webxdc', identifier);
 
   const handleClose = useCallback(() => {
@@ -104,7 +107,6 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
   }, []);
 
   if (!launched) {
-    const appName = name ?? 'Webxdc App';
     return (
       <div
         className={cn('mt-3 flex flex-col items-center', className)}
@@ -148,7 +150,7 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <FallbackImage
               src={icon}
-              alt={name ?? 'Webxdc App'}
+              alt={appName}
               className="size-6 rounded-md object-cover shrink-0"
               decoding="async"
               fallback={(
@@ -157,7 +159,7 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
                 </div>
               )}
             />
-            <span className="text-sm font-medium truncate">{name ?? 'Webxdc App'}</span>
+            <span className="text-sm font-medium truncate">{appName}</span>
           </div>
 
           {/* Controls */}
@@ -167,7 +169,9 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
               size="sm"
               className={cn('h-7 w-7 p-0 shrink-0', showGamepad && 'text-primary')}
               onClick={toggleGamepad}
-              title={showGamepad ? 'Hide gamepad' : 'Show gamepad'}
+              title={showGamepad
+                ? intl.formatMessage({ id: 'webxdcEmbed.hideGamepad', defaultMessage: 'Hide gamepad' })
+                : intl.formatMessage({ id: 'webxdcEmbed.showGamepad', defaultMessage: 'Show gamepad' })}
             >
               <Gamepad2 className="size-3.5" />
             </Button>
@@ -176,7 +180,7 @@ export function WebxdcEmbed({ url: originalUrl, uuid, name, icon: originalIcon, 
               size="sm"
               className="h-7 w-7 p-0 shrink-0"
               onClick={handleClose}
-              title="Close"
+              title={intl.formatMessage({ id: 'webxdcEmbed.close', defaultMessage: 'Close' })}
             >
               <X className="size-3.5" />
             </Button>
@@ -220,6 +224,7 @@ function WebxdcCartridgeButton({
   onLaunch: () => void;
 }) {
   // Matches the subtle feel used by encrypted letters (18° max, 1.03x scale).
+  const intl = useIntl();
   const tilt = useCardTilt(18, 1.03, 800);
   const dominant = useDominantColor(icon);
 
@@ -247,7 +252,7 @@ function WebxdcCartridgeButton({
       <button
         type="button"
         onClick={onLaunch}
-        aria-label={`Launch ${appName}`}
+        aria-label={intl.formatMessage({ id: 'webxdcEmbed.launch', defaultMessage: 'Launch {appName}' }, { appName })}
         className={cn(
           'relative block w-full bg-transparent p-0 border-0',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-xl',

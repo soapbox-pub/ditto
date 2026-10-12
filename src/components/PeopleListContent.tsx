@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useIntl } from 'react-intl';
 
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
-import { getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
+import { formatPeopleListTitle, getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
@@ -14,10 +15,10 @@ import { sanitizeUrl } from '@/lib/sanitizeUrl';
  * `FollowUpdateCard` and the detail page uses `PeopleListDetailContent`.
  */
 export function PeopleListContent({ event }: { event: NostrEvent }) {
-  const { title, description, image, pubkeys, variant } = useMemo(
-    () => parsePeopleList(event),
-    [event],
-  );
+  const intl = useIntl();
+  const parsed = useMemo(() => parsePeopleList(event), [event]);
+  const { description, image, pubkeys, variant } = parsed;
+  const title = formatPeopleListTitle(intl, parsed);
 
   const displayPubkeys = useMemo(() => getDisplayPubkeys(event, pubkeys), [event, pubkeys]);
 

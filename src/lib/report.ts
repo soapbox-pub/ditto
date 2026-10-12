@@ -27,17 +27,6 @@ export const REPORT_TYPES = [
 
 export type ReportType = (typeof REPORT_TYPES)[number];
 
-/** Short display labels for the NIP-56 report types. */
-export const REPORT_TYPE_LABELS: Record<ReportType, string> = {
-  nudity: 'Nudity',
-  malware: 'Malware',
-  profanity: 'Hateful speech',
-  illegal: 'Illegal content',
-  spam: 'Spam',
-  impersonation: 'Impersonation',
-  other: 'Other',
-};
-
 export interface ParsedReport {
   /** Report type, when it's one of the NIP-56 values. */
   type?: ReportType;

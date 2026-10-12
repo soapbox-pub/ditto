@@ -6,14 +6,16 @@
  * inline in their own header row alongside back buttons, titles, etc.
  */
 
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useMemo, type ReactNode } from 'react';
 import { Paintbrush } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { TabButton } from '@/components/TabButton';
 
 import {
   FONT_OPTIONS,
   CLOSING_PRESETS,
   LINE_HEIGHT_RATIO,
+  formatFontLabel,
   type Stationery,
   type FrameStyle,
 } from '@/lib/letterTypes';
@@ -121,6 +123,7 @@ export function LetterEditor({
   beforeCard,
   cardRef: externalCardRef,
 }: LetterEditorProps) {
+  const intl = useIntl();
   const {
     selectedFont, setSelectedFont,
     stationery, setStationery,
@@ -129,6 +132,13 @@ export function LetterEditor({
     closing, setClosing,
     signature, setSignature,
   } = state;
+
+  // Presets are inserted in the writer's locale. Keep a previously chosen
+  // closing selectable even if it isn't one of the current locale's presets.
+  const closingOptions = useMemo(() => {
+    const presets = CLOSING_PRESETS.map((preset) => intl.formatMessage(preset));
+    return closing && !presets.includes(closing) ? [closing, ...presets] : presets;
+  }, [intl, closing]);
 
   const internalCardRef = useRef<HTMLDivElement>(null);
   const cardRef = externalCardRef ?? internalCardRef;
@@ -173,21 +183,21 @@ export function LetterEditor({
   const toolbarButtons = (
     <>
       <TabButton
-        label="Font"
+        label={intl.formatMessage({ id: 'letterEditor.font', defaultMessage: 'Font' })}
         active={overlay === 'font'}
         onClick={() => setOverlay(overlay === 'font' ? 'none' : 'font')}
       >
         <span className="text-base font-bold">Aa</span>
       </TabButton>
       <TabButton
-        label="Stationery"
+        label={intl.formatMessage({ id: 'letterEditor.stationery', defaultMessage: 'Stationery' })}
         active={overlay === 'stationery'}
         onClick={() => setOverlay(overlay === 'stationery' ? 'none' : 'stationery')}
       >
         <Paintbrush className="h-5 w-5" strokeWidth={2.5} />
       </TabButton>
       <TabButton
-        label="Frame"
+        label={intl.formatMessage({ id: 'letterEditor.frame', defaultMessage: 'Frame' })}
         active={overlay === 'frame'}
         onClick={() => setOverlay(overlay === 'frame' ? 'none' : 'frame')}
       >
@@ -220,7 +230,7 @@ export function LetterEditor({
                 }`}
                 style={{ fontFamily: font.family }}
               >
-                {font.label}
+                {formatFontLabel(intl, font)}
               </button>
             ))}
           </div>
@@ -276,15 +286,15 @@ export function LetterEditor({
                       fontFamily: resolvedFontFamily,
                     }}
                   >
-                    <SelectValue placeholder="Closing..." />
+                    <SelectValue placeholder={intl.formatMessage({ id: 'letterEditor.closingPlaceholder', defaultMessage: 'Closing...' })} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">
-                      <span className="text-muted-foreground italic">None</span>
+                      <span className="text-muted-foreground italic"><FormattedMessage id="letterEditor.noClosing" defaultMessage="None" /></span>
                     </SelectItem>
-                    {CLOSING_PRESETS.map((preset) => (
-                      <SelectItem key={preset} value={preset}>
-                        {preset}
+                    {closingOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -296,7 +306,7 @@ export function LetterEditor({
                   onChange={(e) => setSignature(e.target.value)}
                   onFocus={() => setOverlay('none')}
                   maxLength={50}
-                  placeholder="Your Name"
+                  placeholder={intl.formatMessage({ id: 'letterEditor.signaturePlaceholder', defaultMessage: 'Your Name' })}
                   className="bg-transparent border-none font-semibold text-right focus:outline-none placeholder:opacity-60"
                   style={{
                     fontSize: '4.2cqw',

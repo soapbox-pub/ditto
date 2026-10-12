@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { CircleDot } from "lucide-react";
+import { FormattedMessage, useIntl } from "react-intl";
 import Markdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import { buildMarkdownComponents } from "@/components/markdownComponents";
@@ -17,10 +18,12 @@ interface IssueCardProps {
 
 /** Renders a NIP-34 kind 1621 issue event card. */
 export function IssueCard({ event, preview = true }: IssueCardProps) {
+	const intl = useIntl();
 	const repoRef = getGitRepoRef(event);
 	const repoName = repoRef?.identifier ?? "";
 	const subject = event.tags.find(([n]) => n === "subject")?.[1]?.trim();
-	const title = getGitTicketSubject(event) ?? "Issue";
+	const title = getGitTicketSubject(event) ??
+		intl.formatMessage({ id: "issueCard.fallbackTitle", defaultMessage: "Issue" });
 	const labels = event.tags.filter(([n]) => n === "t").map(([, v]) => v);
 
 	// When there's no subject tag the first content line doubles as the
@@ -70,7 +73,11 @@ export function IssueCard({ event, preview = true }: IssueCardProps) {
 								))}
 							{preview && labels.length > 6 && (
 								<span className="text-[11px] text-muted-foreground/50">
-									+{labels.length - 6} more
+									<FormattedMessage
+										id="issueCard.moreLabels"
+										defaultMessage="+{count} more"
+										values={{ count: labels.length - 6 }}
+									/>
 								</span>
 							)}
 						</div>

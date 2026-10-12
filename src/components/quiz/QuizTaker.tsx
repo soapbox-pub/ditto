@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, PartyPopper, RotateCcw, Share2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { QuizScoreBars } from '@/components/quiz/QuizScoreBars';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ interface QuizTakerProps {
  * (kind 7849). Nothing is published until the user asks.
  */
 export function QuizTaker({ quiz }: QuizTakerProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { data: myResult } = useMyQuizResult(quiz.address);
 
@@ -54,7 +56,10 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
     const parsed = parseQuizResult(myResult);
     if (parsed) {
       return (
-        <section aria-label="Your quiz result" className="rounded-2xl border bg-card p-4 sm:p-5">
+        <section
+          aria-label={intl.formatMessage({ id: 'quizTaker.yourResultLabel', defaultMessage: 'Your quiz result' })}
+          className="rounded-2xl border bg-card p-4 sm:p-5"
+        >
           <ResultSummary
             quiz={quiz}
             outcomes={parsed.outcomes.map((o) =>
@@ -64,7 +69,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
           />
           <Button variant="outline" size="sm" className="mt-4" onClick={restart}>
             <RotateCcw className="size-4" />
-            Retake quiz
+            <FormattedMessage id="quizTaker.retake" defaultMessage="Retake quiz" />
           </Button>
         </section>
       );
@@ -88,9 +93,18 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
   const isLast = index === total - 1;
 
   return (
-    <section aria-label="Take this quiz" className="rounded-2xl border bg-card p-4 sm:p-5">
+    <section
+      aria-label={intl.formatMessage({ id: 'quizTaker.takeLabel', defaultMessage: 'Take this quiz' })}
+      className="rounded-2xl border bg-card p-4 sm:p-5"
+    >
       <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
-        <span>Question {index + 1} of {total}</span>
+        <span>
+          <FormattedMessage
+            id="quizTaker.progress"
+            defaultMessage="Question {current} of {total}"
+            values={{ current: index + 1, total }}
+          />
+        </span>
       </div>
       <Progress value={((index) / total) * 100} className="mt-2 h-1.5" />
 
@@ -125,14 +139,16 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
         >
           <ArrowLeft className="size-4" />
-          Back
+          <FormattedMessage id="quizTaker.back" defaultMessage="Back" />
         </Button>
         <Button
           size="sm"
           disabled={!selected}
           onClick={() => (isLast ? setFinished(true) : setIndex((i) => i + 1))}
         >
-          {isLast ? 'See results' : 'Next'}
+          {isLast
+            ? <FormattedMessage id="quizTaker.seeResults" defaultMessage="See results" />
+            : <FormattedMessage id="quizTaker.next" defaultMessage="Next" />}
           {!isLast && <ArrowRight className="size-4" />}
         </Button>
       </div>
@@ -152,6 +168,7 @@ function QuizResultScreen({
   isLoggedIn: boolean;
   onRetake: () => void;
 }) {
+  const intl = useIntl();
   const { mutate: publishEvent, isPending } = useNostrPublish();
   const { user } = useCurrentUser();
   const { toast } = useToast();
@@ -177,38 +194,47 @@ function QuizResultScreen({
       {
         onSuccess: () => {
           setShared(true);
-          toast({ title: 'Result shared', description: 'Your quiz result has been published.' });
+          toast({
+            title: intl.formatMessage({ id: 'quizTaker.shared', defaultMessage: 'Result shared' }),
+            description: intl.formatMessage({ id: 'quizTaker.sharedDescription', defaultMessage: 'Your quiz result has been published.' }),
+          });
           queryClient.invalidateQueries({ queryKey: ['quiz-results', quiz.address] });
           queryClient.invalidateQueries({ queryKey: ['quiz-my-result', quiz.address, user?.pubkey ?? ''] });
         },
         onError: () => {
-          toast({ title: 'Failed to share result', variant: 'destructive' });
+          toast({
+            title: intl.formatMessage({ id: 'quizTaker.shareFailed', defaultMessage: 'Failed to share result' }),
+            variant: 'destructive',
+          });
         },
       },
     );
   };
 
   return (
-    <section aria-label="Your quiz result" className="rounded-2xl border bg-card p-4 sm:p-5">
+    <section
+      aria-label={intl.formatMessage({ id: 'quizTaker.yourResultLabel', defaultMessage: 'Your quiz result' })}
+      className="rounded-2xl border bg-card p-4 sm:p-5"
+    >
       <ResultSummary quiz={quiz} outcomes={outcomes} scores={resultScores} />
 
       <div className="mt-4 space-y-3 border-t pt-4">
         {shared ? (
           <p className="text-sm text-muted-foreground">
-            Your result is published — your friends can see it on this quiz.
+            <FormattedMessage id="quizTaker.published" defaultMessage="Your result is published. Your friends can see it on this quiz." />
           </p>
         ) : isLoggedIn ? (
           <>
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a comment to your result (optional)"
+              placeholder={intl.formatMessage({ id: 'quizTaker.commentPlaceholder', defaultMessage: 'Add a comment to your result (optional)' })}
               rows={2}
               className="resize-none"
             />
             <div className="flex items-center justify-between gap-3">
               <Label htmlFor={`include-answers-${quiz.event.id}`} className="text-xs font-normal text-muted-foreground">
-                Include my answers (lets others verify your result)
+                <FormattedMessage id="quizTaker.includeAnswers" defaultMessage="Include my answers (lets others verify your result)" />
               </Label>
               <Switch
                 id={`include-answers-${quiz.event.id}`}
@@ -218,21 +244,23 @@ function QuizResultScreen({
             </div>
             <Button className="w-full" onClick={share} disabled={isPending}>
               <Share2 className="size-4" />
-              {isPending ? 'Sharing…' : 'Share result'}
+              {isPending
+                ? <FormattedMessage id="quizTaker.sharing" defaultMessage="Sharing…" />
+                : <FormattedMessage id="quizTaker.share" defaultMessage="Share result" />}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Nothing is published until you share.
+              <FormattedMessage id="quizTaker.nothingPublished" defaultMessage="Nothing is published until you share." />
             </p>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Log in to share your result with friends.
+            <FormattedMessage id="quizTaker.loginToShare" defaultMessage="Log in to share your result with friends." />
           </p>
         )}
 
         <Button variant="ghost" size="sm" className="w-full" onClick={onRetake}>
           <RotateCcw className="size-4" />
-          Retake quiz
+          <FormattedMessage id="quizTaker.retake" defaultMessage="Retake quiz" />
         </Button>
       </div>
     </section>
@@ -253,7 +281,7 @@ function ResultSummary({
     <div>
       <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         <PartyPopper className="size-3" />
-        Your result
+        <FormattedMessage id="quizTaker.yourResult" defaultMessage="Your result" />
       </div>
 
       {outcomes.length > 0 && (
@@ -281,7 +309,9 @@ function ResultSummary({
 
       <QuizScoreBars scores={scores} className="mt-4" />
       {quiz.scoring === 'scores' && outcomes.length === 0 && scores.length === 0 && (
-        <p className="mt-2 text-sm text-muted-foreground">No scores to display.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          <FormattedMessage id="quizTaker.noScores" defaultMessage="No scores to display." />
+        </p>
       )}
     </div>
   );

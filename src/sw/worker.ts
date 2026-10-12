@@ -51,6 +51,8 @@
  * threshold) still show normally; there is no way to know they were spam yet.
  */
 
+import { defineMessage, type IntlShape } from '@formatjs/intl';
+
 import { isNostrId } from '@/lib/nostrId';
 import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
 import { isValidZapReceipt } from '@/lib/zapReceipt';
@@ -60,6 +62,7 @@ import { parseEvent } from './event';
 import { NO_PROFILE, notificationImage, resolveProfile, resolveProfiles } from './profiles';
 import { fetchEventById } from './relays';
 import {
+  createNotificationIntl,
   eventIdPath,
   isWanted,
   MARK_READ_ACTION,
@@ -72,7 +75,7 @@ import {
   renderText,
   templateFor,
 } from './render';
-import { loadPushState } from './state';
+import { loadPushLocale, loadPushState } from './state';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -137,9 +140,21 @@ function nappRelays(payload: NappPayload): string[] {
  * anyone or only wants their follows, it arrives silently, so someone they
  * shut out can't make their phone buzz by posting a note too big to push.
  */
+const UNKNOWN_TITLE = defineMessage({ id: 'pushNotification.unknownTitle', defaultMessage: 'New notification' });
+const UNKNOWN_BODY = defineMessage({
+  id: 'pushNotification.unknownBody',
+  defaultMessage: 'Open Ditto to see what happened.',
+});
+
+/** Wording in the language the page last said the app is in. See `putPushWorkerLocale()`. */
+async function loadIntl(): Promise<IntlShape> {
+  return createNotificationIntl(await loadPushLocale());
+}
+
 async function showUnknownEventNotification(eventId: string, relays: string[]): Promise<void> {
-  const title = 'New notification';
-  const body = 'Open Ditto to see what happened.';
+  const intl = await loadIntl();
+  const title = intl.formatMessage(UNKNOWN_TITLE);
+  const body = intl.formatMessage(UNKNOWN_BODY);
   const isBurst = await recordAndCheckBurst(notificationShape(body));
   const state = await loadPushState();
   const quiet = isBurst || !!state?.muted?.length || state?.onlyFollowing === true;
@@ -150,7 +165,7 @@ async function showUnknownEventNotification(eventId: string, relays: string[]): 
     badge: '/badge-96.png',
     // No kind to go on, so the event itself, wherever it turns out to be.
     data: { url: eventIdPath(eventId, relays), eventId },
-    actions: notificationActions(null),
+    actions: notificationActions(null, intl),
     requireInteraction: false,
     // The same tag the full notification would have used, so a later push
     // carrying the event replaces this one instead of doubling it.
@@ -190,15 +205,16 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
 
   const author = notificationAuthor(event);
   const mentioned = template.body === 'content' ? mentionPubkeys(event.content) : [];
-  const [profile, mentionProfiles] = await Promise.all([
+  const [profile, mentionProfiles, intl] = await Promise.all([
     relays.length ? resolveProfile(relays, author) : NO_PROFILE,
     resolveProfiles(relays, mentioned),
+    loadIntl(),
   ]);
   const mentionNames = new Map<string, string>();
   for (const [pubkey, { name }] of mentionProfiles) {
     if (name) mentionNames.set(pubkey, name);
   }
-  const { title, body } = renderText(event, template, profile.name, mentionNames);
+  const { title, body } = renderText(event, template, profile.name, mentionNames, intl);
 
   const shape = notificationShape(body || title);
   const isBurst = await recordAndCheckBurst(shape);
@@ -211,7 +227,7 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
     data: { url: notificationPath(event, relays), eventId: event.id, kind: event.kind },
     // A collapsed burst is one entry standing for many; there's no single
     // event in it to answer.
-    actions: notificationActions(isBurst ? null : event),
+    actions: notificationActions(isBurst ? null : event, intl),
     requireInteraction: false,
     // Distinct events get distinct tags so none replaces another; a burst
     // collapses onto one shape-keyed tag instead (see the note up top).
@@ -222,6 +238,8 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
 }
 
 async function handleLegacyPush(payload: LegacyPayload): Promise<void> {
+  // The server worded the text; only the button is ours.
+  const intl = await loadIntl();
   const title = payload.title ?? 'Ditto';
   const body = payload.body ?? '';
   const shape = notificationShape(body);
@@ -234,7 +252,7 @@ async function handleLegacyPush(payload: LegacyPayload): Promise<void> {
     icon: notificationImage(payload.icon) ?? '/icon-192.png',
     badge: notificationImage(payload.badge) ?? '/badge-96.png',
     data: payload.data ?? {},
-    actions: notificationActions(null),
+    actions: notificationActions(null, intl),
     requireInteraction: false,
     // A burst collapses onto one shape-keyed tag and stops re-alerting, so a
     // spam wall overwrites itself in place as a single quiet entry instead of

@@ -13,7 +13,7 @@ import {
   Clock, Flame, TrendingUp,
   ShieldAlert,
 } from 'lucide-react';
-import { FormattedMessage } from 'react-intl';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -86,7 +86,7 @@ function parseTab(value: string | null): TabType {
 const VALID_AUTHOR_SCOPES = ['anyone', 'follows', 'people'] as const;
 type AuthorScope = typeof VALID_AUTHOR_SCOPES[number];
 
-const VALID_SORTS = ['recent', 'hot', 'trending'] as const;
+const VALID_SORTS = ['new', 'hot', 'trending'] as const;
 type SortPref = typeof VALID_SORTS[number];
 
 const DEFAULT_FILTERS = {
@@ -98,8 +98,38 @@ const DEFAULT_FILTERS = {
   kindFilter: 'all',
   customKindText: '',
   authorScope: 'anyone' as AuthorScope,
-  sort: 'recent' as SortPref,
+  sort: 'new' as SortPref,
 };
+
+const MEDIA_LABELS = defineMessages({
+  all: { id: 'search.media.all', defaultMessage: 'All' },
+  images: { id: 'search.media.images', defaultMessage: 'Images' },
+  videos: { id: 'search.media.videos', defaultMessage: 'Videos' },
+  vines: { id: 'search.media.shorts', defaultMessage: 'Shorts' },
+  none: { id: 'search.media.none', defaultMessage: 'No media' },
+});
+
+const LANGUAGE_LABELS = defineMessages({
+  global: { id: 'search.language.global', defaultMessage: 'Global' },
+  en: { id: 'search.language.en', defaultMessage: 'English' },
+  es: { id: 'search.language.es', defaultMessage: 'Spanish' },
+  fr: { id: 'search.language.fr', defaultMessage: 'French' },
+  de: { id: 'search.language.de', defaultMessage: 'German' },
+  ja: { id: 'search.language.ja', defaultMessage: 'Japanese' },
+  zh: { id: 'search.language.zh', defaultMessage: 'Chinese' },
+});
+
+const AUTHOR_SCOPE_LABELS = defineMessages({
+  anyone: { id: 'search.from.anyone', defaultMessage: 'Anyone' },
+  follows: { id: 'search.from.follows', defaultMessage: 'Follows' },
+  people: { id: 'search.from.people', defaultMessage: 'People' },
+});
+
+const SORT_LABELS = defineMessages({
+  new: { id: 'search.sort.new', defaultMessage: 'New' },
+  hot: { id: 'search.sort.hot', defaultMessage: 'Hot' },
+  trending: { id: 'search.sort.trending', defaultMessage: 'Trending' },
+});
 
 /** Parse a boolean from a URL param, returning defaultVal if absent/invalid. */
 function parseBoolParam(value: string | null, defaultVal: boolean): boolean {
@@ -108,11 +138,13 @@ function parseBoolParam(value: string | null, defaultVal: boolean): boolean {
 }
 
 export function SearchPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
+  const searchTitle = intl.formatMessage({ id: 'nav.search', defaultMessage: 'Search' });
 
   useSeoMeta({
-    title: `Search | ${config.appName}`,
-    description: 'Search Nostr',
+    title: `${searchTitle} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'search.seoDescription', defaultMessage: 'Search Nostr' }),
   });
 
   useLayoutOptions({ hasSubHeader: true });
@@ -268,7 +300,7 @@ export function SearchPage() {
     [onlyDitto, config.clientName, config.appName],
   );
 
-  const kindOptions = useMemo(() => buildKindOptions(), []);
+  const kindOptions = useMemo(() => buildKindOptions(intl), [intl]);
 
   // All kind numbers available in the picker — used as the "all kinds" default.
   const allKindNumbers = useMemo(() => kindOptions.map((o) => Number(o.value)), [kindOptions]);
@@ -307,28 +339,31 @@ export function SearchPage() {
   // Active filter labels for the summary / empty state hints
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = [];
-    if (!includeReplies) labels.push('No replies');
-    if (onlyDitto) labels.push('Ditto users only');
-    if (mediaType !== 'all') labels.push({ images: 'Images', videos: 'Videos', vines: 'Shorts', none: 'No media' }[mediaType] ?? mediaType);
+    if (!includeReplies) labels.push(intl.formatMessage({ id: 'search.chip.noReplies', defaultMessage: 'No replies' }));
+    if (onlyDitto) labels.push(intl.formatMessage({ id: 'search.chip.dittoOnly', defaultMessage: 'Ditto users only' }));
+    if (mediaType !== 'all') {
+      const media = MEDIA_LABELS[mediaType as keyof typeof MEDIA_LABELS];
+      labels.push(media ? intl.formatMessage(media) : mediaType);
+    }
     if (language !== 'global') labels.push(language.toUpperCase());
     if (platform !== 'nostr') labels.push({ activitypub: 'Mastodon', atproto: 'Bluesky' }[platform] ?? platform);
-    if (sort !== 'recent') labels.push(sort === 'hot' ? 'Hot' : 'Trending');
+    if (sort !== 'new') labels.push(intl.formatMessage(sort === 'hot' ? SORT_LABELS.hot : SORT_LABELS.trending));
     if (kindFilter !== 'all' && kindFilter !== 'custom') {
       const kindValues = kindFilter.split(',').filter(Boolean);
       if (kindValues.length === 1) {
         const opt = kindOptions.find(o => o.value === kindValues[0]);
         if (opt) labels.push(opt.label);
-        else labels.push(`Kind ${kindValues[0]}`);
+        else labels.push(intl.formatMessage({ id: 'search.chip.kind', defaultMessage: 'Kind {kind}' }, { kind: kindValues[0] }));
       } else if (kindValues.length > 1) {
-        labels.push(`${kindValues.length} kinds`);
+        labels.push(intl.formatMessage({ id: 'search.chip.kinds', defaultMessage: '{count} kinds' }, { count: kindValues.length }));
       }
     } else if (kindFilter === 'custom' && customKindText) {
-      labels.push(`Kind: ${customKindText}`);
+      labels.push(intl.formatMessage({ id: 'search.chip.customKind', defaultMessage: 'Kind: {kinds}' }, { kinds: customKindText }));
     }
-    if (authorScope === 'follows') labels.push('My follows');
-    if (authorScope === 'people' && authorPubkeys.length > 0) labels.push(`${authorPubkeys.length} author${authorPubkeys.length > 1 ? 's' : ''}`);
+    if (authorScope === 'follows') labels.push(intl.formatMessage({ id: 'search.chip.myFollows', defaultMessage: 'My follows' }));
+    if (authorScope === 'people' && authorPubkeys.length > 0) labels.push(intl.formatMessage({ id: 'search.chip.authors', defaultMessage: '{count, plural, one {# author} other {# authors}}' }, { count: authorPubkeys.length }));
     return labels;
-  }, [includeReplies, onlyDitto, mediaType, language, platform, sort, kindFilter, customKindText, authorScope, authorPubkeys, kindOptions]);
+  }, [intl, includeReplies, onlyDitto, mediaType, language, platform, sort, kindFilter, customKindText, authorScope, authorPubkeys, kindOptions]);
 
   // Hooks
   const { user } = useCurrentUser();
@@ -511,10 +546,10 @@ export function SearchPage() {
 
   return (
     <main className="flex-1 min-w-0">
-      <PageHeader title="Search" icon={<SearchIcon className="size-5" />} />
+      <PageHeader title={searchTitle} icon={<SearchIcon className="size-5" />} />
       <SubHeaderBar>
-        <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-        <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
+        <TabButton label={intl.formatMessage({ id: 'search.tab.posts', defaultMessage: 'Posts' })} active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+        <TabButton label={intl.formatMessage({ id: 'search.tab.accounts', defaultMessage: 'Accounts' })} active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
       </SubHeaderBar>
       <div style={{ height: ARC_OVERHANG_PX }} />
 
@@ -552,20 +587,24 @@ export function SearchPage() {
                         : 'border-border bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground',
                     )}
                     style={{ outline: 'none' }}
-                    aria-label="Add to feed"
+                    aria-label={intl.formatMessage({ id: 'search.addToFeed', defaultMessage: 'Add to feed' })}
                   >
                     {savedJustNow ? <Check className="size-4" /> : <BookmarkPlus className="size-4" />}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-64 p-3 space-y-3">
-                  <p className="font-semibold text-sm">Save as tab</p>
+                  <p className="font-semibold text-sm">
+                    <FormattedMessage id="search.saveAsTab" defaultMessage="Save as tab" />
+                  </p>
 
                   {alreadySaved ? (
-                    <p className="text-sm text-muted-foreground">Already saved.</p>
+                    <p className="text-sm text-muted-foreground">
+                      <FormattedMessage id="search.alreadySaved" defaultMessage="Already saved." />
+                    </p>
                   ) : (
                     <>
                       <Input
-                        placeholder="Tab name…"
+                        placeholder={intl.formatMessage({ id: 'search.tabNamePlaceholder', defaultMessage: 'Tab name…' })}
                         value={saveFeedLabel}
                         onChange={(e) => setSaveFeedLabel(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleSaveFeed(); }}
@@ -575,8 +614,8 @@ export function SearchPage() {
                       <div className="space-y-1">
                         <SaveDestinationRow
                           icon={<BookmarkPlus className="size-4 text-muted-foreground" />}
-                          label="Home feed"
-                          description="Tab on your home page"
+                          label={intl.formatMessage({ id: 'search.save.homeFeed', defaultMessage: 'Home feed' })}
+                          description={intl.formatMessage({ id: 'search.save.homeFeedDescription', defaultMessage: 'Tab on your home page' })}
                           onClick={() => handleSaveFeed()}
                           disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
                           loading={isSavingFeed}
@@ -584,8 +623,8 @@ export function SearchPage() {
                         {!isAuthorSpecific && (
                           <SaveDestinationRow
                             icon={<User className="size-4 text-muted-foreground" />}
-                            label="Profile tab"
-                            description="Your posts matching this search"
+                            label={intl.formatMessage({ id: 'search.save.profileTab', defaultMessage: 'Profile tab' })}
+                            description={intl.formatMessage({ id: 'search.save.profileTabDescription', defaultMessage: 'Your posts matching this search' })}
                             onClick={() => handleSaveProfileTab()}
                             disabled={!saveFeedLabel.trim() || isSavingFeed || isPublishingTabs}
                             loading={isPublishingTabs}
@@ -613,33 +652,37 @@ export function SearchPage() {
                         : 'border-border',
                   )}
                   style={{ outline: 'none' }}
-                  aria-label="Search filters"
+                  aria-label={intl.formatMessage({ id: 'search.filtersLabel', defaultMessage: 'Search filters' })}
                 >
                   <SlidersHorizontal className="size-4" />
                 </button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80 p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">Filters</span>
+                  <span className="font-semibold text-sm">
+                    <FormattedMessage id="search.filters" defaultMessage="Filters" />
+                  </span>
                   {hasActiveFilters && (
                     <button
                       className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                       onClick={resetFilters}
                     >
                       <RotateCcw className="size-3" />
-                      Reset
+                      <FormattedMessage id="search.reset" defaultMessage="Reset" />
                     </button>
                   )}
                 </div>
 
                 {/* Author scope */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    <FormattedMessage id="search.from" defaultMessage="From" />
+                  </span>
                   <div className="flex rounded-lg border border-border overflow-hidden">
                     {([
-                      ['anyone', 'Anyone', Globe],
-                      ['follows', 'Follows', Users],
-                      ['people', 'People', UserSearch],
+                      ['anyone', AUTHOR_SCOPE_LABELS.anyone, Globe],
+                      ['follows', AUTHOR_SCOPE_LABELS.follows, Users],
+                      ['people', AUTHOR_SCOPE_LABELS.people, UserSearch],
                     ] as const).map(([scope, label, Icon]) => (
                       <button
                         key={scope}
@@ -652,7 +695,7 @@ export function SearchPage() {
                         )}
                       >
                         <Icon className="size-3.5 shrink-0" />
-                        {label}
+                        <FormattedMessage {...label} />
                       </button>
                     ))}
                   </div>
@@ -697,12 +740,14 @@ export function SearchPage() {
 
                 {/* Sort */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Sort</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    <FormattedMessage id="search.sort" defaultMessage="Sort" />
+                  </span>
                   <div className="flex rounded-lg border border-border overflow-hidden">
                     {([
-                      ['recent', 'Recent', Clock],
-                      ['hot', 'Hot', Flame],
-                      ['trending', 'Trending', TrendingUp],
+                      ['new', SORT_LABELS.new, Clock],
+                      ['hot', SORT_LABELS.hot, Flame],
+                      ['trending', SORT_LABELS.trending, TrendingUp],
                     ] as const).map(([s, label, Icon]) => (
                       <button
                         key={s}
@@ -715,7 +760,7 @@ export function SearchPage() {
                         )}
                       >
                         <Icon className="size-3.5 shrink-0" />
-                        {label}
+                        <FormattedMessage {...label} />
                       </button>
                     ))}
                   </div>
@@ -725,22 +770,26 @@ export function SearchPage() {
                 {/* Media + Protocol */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Media</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <FormattedMessage id="search.media" defaultMessage="Media" />
+                    </span>
                     <Select value={mediaType} onValueChange={(v) => setMediaType(v)}>
                       <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="images">Images</SelectItem>
-                        <SelectItem value="videos">Videos</SelectItem>
-                        <SelectItem value="vines">Shorts</SelectItem>
-                        <SelectItem value="none">No media</SelectItem>
+                        <SelectItem value="all"><FormattedMessage {...MEDIA_LABELS.all} /></SelectItem>
+                        <SelectItem value="images"><FormattedMessage {...MEDIA_LABELS.images} /></SelectItem>
+                        <SelectItem value="videos"><FormattedMessage {...MEDIA_LABELS.videos} /></SelectItem>
+                        <SelectItem value="vines"><FormattedMessage {...MEDIA_LABELS.vines} /></SelectItem>
+                        <SelectItem value="none"><FormattedMessage {...MEDIA_LABELS.none} /></SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Protocol <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <FormattedMessage id="search.protocol" defaultMessage="Protocol" />
+                      <HelpTip faqId="vs-mastodon-bluesky" iconSize="size-3" /></span>
                     <Select value={platform} onValueChange={(v) => setPlatform(v)}>
                       <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                         <SelectValue />
@@ -757,24 +806,24 @@ export function SearchPage() {
                 {/* Language + Kind */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Language</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <FormattedMessage id="search.language" defaultMessage="Language" />
+                    </span>
                     <Select value={language} onValueChange={(v) => setLanguage(v)}>
                       <SelectTrigger className="w-full bg-secondary/50 h-8 text-base md:text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="global">Global</SelectItem>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Spanish</SelectItem>
-                        <SelectItem value="fr">French</SelectItem>
-                        <SelectItem value="de">German</SelectItem>
-                        <SelectItem value="ja">Japanese</SelectItem>
-                        <SelectItem value="zh">Chinese</SelectItem>
+                        {(Object.keys(LANGUAGE_LABELS) as (keyof typeof LANGUAGE_LABELS)[]).map((code) => (
+                          <SelectItem key={code} value={code}><FormattedMessage {...LANGUAGE_LABELS[code]} /></SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">Kind</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                      <FormattedMessage id="search.kind" defaultMessage="Kind" />
+                    </span>
                     <KindPicker value={kindFilter} options={kindOptions} onChange={(v) => setKindFilter(v)} />
                   </div>
                 </div>
@@ -783,7 +832,7 @@ export function SearchPage() {
                   <Input
                     type="text"
                     inputMode="numeric"
-                    placeholder="e.g. 1, 30023"
+                    placeholder={intl.formatMessage({ id: 'search.customKindPlaceholder', defaultMessage: 'e.g. 1, 30023' })}
                     value={customKindText}
                     onChange={(e) => setCustomKindText(e.target.value)}
                     className="bg-secondary/50 border-border focus-visible:ring-1 rounded-lg text-base md:text-xs h-8"
@@ -793,7 +842,9 @@ export function SearchPage() {
                 {/* Include replies toggle */}
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">Include replies</span>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    <FormattedMessage id="search.includeReplies" defaultMessage="Include replies" />
+                  </span>
                   <Switch checked={includeReplies} onCheckedChange={setIncludeReplies} className="scale-90" />
                 </div>
 
@@ -801,7 +852,7 @@ export function SearchPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                     <DittoLogo size={14} className="shrink-0" />
-                    {config.appName} users only
+                    <FormattedMessage id="search.appUsersOnly" defaultMessage="{appName} users only" values={{ appName: config.appName }} />
                   </span>
                   <Switch checked={onlyDitto} onCheckedChange={setOnlyDitto} className="scale-90" />
                 </div>
@@ -822,7 +873,7 @@ export function SearchPage() {
               onClick={resetFilters}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             >
-              Clear
+              <FormattedMessage id="common.clear" defaultMessage="Clear" />
             </button>
           </div>
         )}
@@ -892,12 +943,12 @@ export function SearchPage() {
               </div>
             ) : debouncedSearchQuery.trim() ? (
               <EmptyState
-                message="No posts found matching your search."
+                message={<FormattedMessage id="search.noPosts" defaultMessage="No posts found matching your search." />}
                 activeFilters={activeFilterLabels}
                 onResetFilters={hasActiveFilters ? resetFilters : undefined}
               />
             ) : (
-              <EmptyState message="Enter a search query to find posts." />
+              <EmptyState message={<FormattedMessage id="search.enterQuery" defaultMessage="Enter a search query to find posts." />} />
             )}
           </>
         )}
@@ -920,7 +971,7 @@ export function SearchPage() {
                     ))}
                   </div>
                 ) : (
-                  <EmptyState message="No accounts found matching your search." />
+                  <EmptyState message={<FormattedMessage id="search.noAccounts" defaultMessage="No accounts found matching your search." />} />
                 )
               ) : (
                 <FollowsList />
@@ -936,9 +987,10 @@ export function SearchPage() {
 /* ── Shared sub-components ── */
 
 function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
+  const intl = useIntl();
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
   const metadata = profile.metadata as { name?: string; display_name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileAvatarShape = getAvatarShape(metadata);
   const tags = profile.event?.tags ?? [];
 
@@ -957,7 +1009,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
         {isFollowed && (
           <span
             className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
-            title="Following"
+            title={intl.formatMessage({ id: 'search.following', defaultMessage: 'Following' })}
           >
             <UserRoundCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
           </span>
@@ -968,7 +1020,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
           <p className="font-bold text-[15px] truncate">
             <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
           </p>
-          {metadata?.bot && <span className="text-xs" title="Bot account">🤖</span>}
+          {metadata?.bot && <span className="text-xs" title={intl.formatMessage({ id: 'profileHoverCard.botAccount', defaultMessage: 'Bot account' })}>🤖</span>}
         </div>
         {metadata?.nip05 && (
           <VerifiedNip05Text nip05={metadata.nip05} pubkey={profile.pubkey} className="text-sm text-muted-foreground truncate block" />
@@ -1001,7 +1053,7 @@ function FollowsList() {
   }, [inView, hasMore, pubkeys.length]);
 
   if (pubkeys.length === 0) {
-    return <EmptyState message="Search for people by name or NIP-05 address." />;
+    return <EmptyState message={<FormattedMessage id="search.searchPeopleHint" defaultMessage="Search for people by name or NIP-05 address." />} />;
   }
 
   return (
@@ -1021,11 +1073,12 @@ function FollowsList() {
 }
 
 function FollowItem({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const tags = author.data?.event?.tags ?? [];
 
   if (author.isLoading) {
@@ -1046,7 +1099,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
         </Avatar>
         <span
           className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
-          title="Following"
+          title={intl.formatMessage({ id: 'search.following', defaultMessage: 'Following' })}
         >
           <UserRoundCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
         </span>
@@ -1056,7 +1109,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
           <p className="font-bold text-[15px] truncate">
             <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
           </p>
-          {metadata?.bot && <span className="text-xs" title="Bot account">🤖</span>}
+          {metadata?.bot && <span className="text-xs" title={intl.formatMessage({ id: 'profileHoverCard.botAccount', defaultMessage: 'Bot account' })}>🤖</span>}
         </div>
         {metadata?.nip05 && (
           <VerifiedNip05Text nip05={metadata.nip05} pubkey={pubkey} className="text-sm text-muted-foreground truncate block" />
@@ -1076,7 +1129,7 @@ function EmptyState({
   activeFilters,
   onResetFilters,
 }: {
-  message: string;
+  message: React.ReactNode;
   activeFilters?: string[];
   onResetFilters?: () => void;
 }) {
@@ -1085,7 +1138,9 @@ function EmptyState({
       <p className="text-muted-foreground">{message}</p>
       {activeFilters && activeFilters.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs text-muted-foreground/70 mb-2">Active filters:</p>
+          <p className="text-xs text-muted-foreground/70 mb-2">
+            <FormattedMessage id="search.activeFilters" defaultMessage="Active filters:" />
+          </p>
           <div className="flex flex-wrap justify-center gap-1.5">
             {activeFilters.map((label) => (
               <Badge key={label} variant="secondary" className="text-xs font-normal">
@@ -1098,7 +1153,7 @@ function EmptyState({
               onClick={onResetFilters}
               className="mt-3 text-xs text-primary hover:underline underline-offset-2 transition-colors"
             >
-              Clear all filters
+              <FormattedMessage id="search.clearAllFilters" defaultMessage="Clear all filters" />
             </button>
           )}
         </div>
@@ -1212,6 +1267,7 @@ function SearchInput({
   onDebouncedChange: (value: string) => void;
   className?: string;
 }) {
+  const intl = useIntl();
   const [value, setValue] = useState(initialValue);
   const onDebouncedChangeRef = useRef(onDebouncedChange);
   onDebouncedChangeRef.current = onDebouncedChange;
@@ -1231,7 +1287,7 @@ function SearchInput({
     <div className={cn('relative flex-1', className)}>
       <Input
         type="text"
-        placeholder="Search"
+        placeholder={intl.formatMessage({ id: 'nav.search', defaultMessage: 'Search' })}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-full"

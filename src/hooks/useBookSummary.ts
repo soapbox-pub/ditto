@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import { defineMessages, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { extractISBNFromEvent } from '@/lib/bookstr';
 
@@ -16,12 +17,23 @@ export interface BookSummary {
 const STALE_TIME = 1000 * 60 * 60 * 24; // 24 hours
 const GC_TIME = 1000 * 60 * 60 * 48; // 48 hours
 
+const fallbackMessages = defineMessages({
+  title: { id: 'books.unknownTitle', defaultMessage: 'Unknown Title' },
+  author: { id: 'books.unknownAuthor', defaultMessage: 'Unknown Author' },
+});
+
+/** Display text used when OpenLibrary omits a title or author name. */
+interface BookFallbacks {
+  title: string;
+  author: string;
+}
+
 /**
  * Fetch only the edition data from OpenLibrary (1 request instead of 3).
  * Extracts title, first author name, cover, and publish date — everything
  * the feed's InlineBookCard needs.
  */
-async function fetchBookSummary(isbn: string, signal?: AbortSignal): Promise<BookSummary | null> {
+async function fetchBookSummary(isbn: string, fallbacks: BookFallbacks, signal?: AbortSignal): Promise<BookSummary | null> {
   try {
     const cleanISBN = isbn.replace(/[^0-9X]/gi, '');
 
@@ -34,7 +46,7 @@ async function fetchBookSummary(isbn: string, signal?: AbortSignal): Promise<Boo
     const edition = await res.json();
 
     // Resolve author name inline if available, otherwise fall back
-    let author = 'Unknown Author';
+    let author = fallbacks.author;
     if (edition.authors && Array.isArray(edition.authors)) {
       const first = edition.authors[0];
       if (first?.name) {
@@ -45,7 +57,7 @@ async function fetchBookSummary(isbn: string, signal?: AbortSignal): Promise<Boo
           const authorRes = await fetch(`https://openlibrary.org${first.key}.json`, { signal });
           if (authorRes.ok) {
             const authorData = await authorRes.json();
-            author = authorData.name ?? 'Unknown Author';
+            author = authorData.name ?? fallbacks.author;
           }
         } catch { /* ignore */ }
       }
@@ -66,7 +78,7 @@ async function fetchBookSummary(isbn: string, signal?: AbortSignal): Promise<Boo
     }
 
     return {
-      title: edition.title ?? 'Unknown Title',
+      title: edition.title ?? fallbacks.title,
       author,
       isbn: isbn13 ?? isbn10 ?? isbn,
       coverUrl,
@@ -79,9 +91,11 @@ async function fetchBookSummary(isbn: string, signal?: AbortSignal): Promise<Boo
 
 /** Hook to fetch lightweight book summary for feed display. */
 export function useBookSummary(isbn: string | null) {
+  const intl = useIntl();
+  const fallbacks: BookFallbacks = { title: intl.formatMessage(fallbackMessages.title), author: intl.formatMessage(fallbackMessages.author) };
   return useQuery({
-    queryKey: ['book-summary', isbn],
-    queryFn: ({ signal }) => fetchBookSummary(isbn!, signal),
+    queryKey: ['book-summary', isbn, intl.locale],
+    queryFn: ({ signal }) => fetchBookSummary(isbn!, fallbacks, signal),
     enabled: !!isbn,
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
@@ -96,11 +110,14 @@ export function useBookSummary(isbn: string | null) {
  * and fetches up to `concurrency` at a time to avoid hammering OpenLibrary.
  */
 export function usePrefetchBookSummaries(events: NostrEvent[], concurrency = 4) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const prefetchedRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (events.length === 0) return;
+
+    const fallbacks: BookFallbacks = { title: intl.formatMessage(fallbackMessages.title), author: intl.formatMessage(fallbackMessages.author) };
 
     // Extract unique ISBNs not yet prefetched or cached
     const isbns = new Set<string>();
@@ -109,7 +126,7 @@ export function usePrefetchBookSummaries(events: NostrEvent[], concurrency = 4) 
       if (!isbn) continue;
       if (prefetchedRef.current.has(isbn)) continue;
 
-      const cached = queryClient.getQueryData(['book-summary', isbn]);
+      const cached = queryClient.getQueryData(['book-summary', isbn, intl.locale]);
       if (cached !== undefined) continue;
 
       isbns.add(isbn);
@@ -129,8 +146,8 @@ export function usePrefetchBookSummaries(events: NostrEvent[], concurrency = 4) 
       await Promise.allSettled(
         batch.map((isbn) =>
           queryClient.prefetchQuery({
-            queryKey: ['book-summary', isbn],
-            queryFn: ({ signal }) => fetchBookSummary(isbn, signal),
+            queryKey: ['book-summary', isbn, intl.locale],
+            queryFn: ({ signal }) => fetchBookSummary(isbn, fallbacks, signal),
             staleTime: STALE_TIME,
             gcTime: GC_TIME,
           }),
@@ -144,5 +161,5 @@ export function usePrefetchBookSummaries(events: NostrEvent[], concurrency = 4) 
         await prefetchBatch(batch);
       }
     })();
-  }, [events, queryClient, concurrency]);
+  }, [events, queryClient, concurrency, intl]);
 }

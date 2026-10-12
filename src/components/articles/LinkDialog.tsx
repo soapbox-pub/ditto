@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,7 @@ interface LinkDialogProps {
 }
 
 export function LinkDialog({ open, onOpenChange, selectedText, onSubmit }: LinkDialogProps) {
+  const intl = useIntl();
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
 
@@ -51,30 +53,30 @@ export function LinkDialog({ open, onOpenChange, selectedText, onSubmit }: LinkD
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Insert Link</DialogTitle>
+          <DialogTitle><FormattedMessage id="linkDialog.title" defaultMessage="Insert Link" /></DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
             {!hasSelectedText && (
               <div className="space-y-2">
-                <Label htmlFor="link-text">Link Text</Label>
+                <Label htmlFor="link-text"><FormattedMessage id="linkDialog.linkText" defaultMessage="Link Text" /></Label>
                 <Input
                   id="link-text"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="Enter link text..."
+                  placeholder={intl.formatMessage({ id: 'linkDialog.linkTextPlaceholder', defaultMessage: 'Enter link text...' })}
                   autoFocus={!hasSelectedText}
                 />
               </div>
             )}
             {hasSelectedText && (
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Link Text</Label>
+                <Label className="text-muted-foreground"><FormattedMessage id="linkDialog.linkText" defaultMessage="Link Text" /></Label>
                 <p className="text-sm bg-muted px-3 py-2 rounded-md">{selectedText}</p>
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="link-url">URL</Label>
+              <Label htmlFor="link-url"><FormattedMessage id="linkDialog.url" defaultMessage="URL" /></Label>
               <Input
                 id="link-url"
                 value={url}
@@ -86,10 +88,10 @@ export function LinkDialog({ open, onOpenChange, selectedText, onSubmit }: LinkD
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
             </Button>
             <Button type="submit" disabled={!url.trim()}>
-              Insert Link
+              <FormattedMessage id="linkDialog.title" defaultMessage="Insert Link" />
             </Button>
           </DialogFooter>
         </form>

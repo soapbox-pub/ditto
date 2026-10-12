@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Check, Loader2, RotateCcw } from 'lucide-react';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import {
   Dialog,
@@ -54,8 +55,8 @@ async function queryAllEvents(
 }
 
 /** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+function formatDate(timestamp: number, intl: IntlShape): string {
+  return intl.formatDate(new Date(timestamp * 1000), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -91,9 +92,11 @@ export function EventRecoveryDialog({ event, open, onOpenChange }: EventRecovery
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-lg font-bold">Restore previous version</DialogTitle>
+          <DialogTitle className="text-lg font-bold">
+            <FormattedMessage id="eventRecovery.title" defaultMessage="Restore previous version" />
+          </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Browse and restore older versions of this event.
+            <FormattedMessage id="eventRecovery.description" defaultMessage="Browse and restore older versions of this event." />
           </p>
         </DialogHeader>
 
@@ -118,6 +121,7 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
   const { nostr } = useNostr();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const { toast } = useToast();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
@@ -177,8 +181,11 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
       });
 
       toast({
-        title: 'Event restored',
-        description: `Successfully restored from ${formatDate(snapshot.created_at)}.`,
+        title: intl.formatMessage({ id: 'eventRecovery.restored', defaultMessage: 'Event restored' }),
+        description: intl.formatMessage(
+          { id: 'muteRecovery.restoredDescription', defaultMessage: 'Successfully restored from {date}.' },
+          { date: formatDate(snapshot.created_at, intl) },
+        ),
       });
 
       queryClient.invalidateQueries({ queryKey });
@@ -186,8 +193,8 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
     } catch (error) {
       console.error('Failed to restore event:', error);
       toast({
-        title: 'Restore failed',
-        description: 'Could not republish the event. Please try again.',
+        title: intl.formatMessage({ id: 'muteRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
+        description: intl.formatMessage({ id: 'eventRecovery.restoreFailedDescription', defaultMessage: 'Could not republish the event. Please try again.' }),
         variant: 'destructive',
       });
     } finally {
@@ -221,7 +228,7 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
               {isCurrent ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                   <Check className="size-3" />
-                  Current
+                  <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
                 </span>
               ) : (
                 <Button
@@ -236,7 +243,7 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
                   ) : (
                     <RotateCcw className="size-3" />
                   )}
-                  Restore
+                  <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
                 </Button>
               )}
             </div>
@@ -251,7 +258,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <p className="text-sm text-muted-foreground">
-        No previous versions found. Your relays may not store historical events.
+        <FormattedMessage id="eventRecovery.empty" defaultMessage="No previous versions found. Your relays may not store historical events." />
       </p>
     </div>
   );

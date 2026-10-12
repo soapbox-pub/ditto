@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Search, X, Award, Loader2, Check } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import {
   Dialog,
@@ -27,6 +28,7 @@ interface AwardBadgeDialogProps {
 }
 
 export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: AwardBadgeDialogProps) {
+  const intl = useIntl();
   const { toast } = useToast();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<SearchProfile[]>([]);
@@ -62,16 +64,23 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
         recipientPubkeys: selected.map((p) => p.pubkey),
       });
       toast({
-        title: 'Badge awarded!',
-        description: `"${badgeName}" awarded to ${selected.length} user${selected.length !== 1 ? 's' : ''}.`,
+        title: intl.formatMessage({ id: 'awardBadge.toast.awarded', defaultMessage: 'Badge awarded!' }),
+        description: intl.formatMessage(
+          { id: 'awardBadge.toast.awardedDescription', defaultMessage: '"{name}" awarded to {count, plural, one {# user} other {# users}}.' },
+          { name: badgeName, count: selected.length },
+        ),
       });
       setSelected([]);
       setQuery('');
       onOpenChange(false);
     } catch {
-      toast({ title: 'Failed to award badge', description: 'Please try again.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'awardBadge.toast.failed', defaultMessage: 'Failed to award badge' }),
+        description: intl.formatMessage({ id: 'awardBadge.toast.tryAgain', defaultMessage: 'Please try again.' }),
+        variant: 'destructive',
+      });
     }
-  }, [selected, awardBadge, badgeATag, badgeName, toast, onOpenChange]);
+  }, [selected, awardBadge, badgeATag, badgeName, toast, onOpenChange, intl]);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     if (!nextOpen) {
@@ -87,10 +96,14 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
         <DialogHeader className="px-4 pt-5 pb-3">
           <DialogTitle className="flex items-center gap-2">
             <Award className="size-5 text-primary" />
-            Award Badge
+            <FormattedMessage id="awardBadge.title" defaultMessage="Award Badge" />
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Search for users to award <span className="font-medium text-foreground">"{badgeName}"</span> to.
+            <FormattedMessage
+              id="awardBadge.description"
+              defaultMessage='Search for users to award <b>"{name}"</b> to.'
+              values={{ name: badgeName, b: (chunks) => <span className="font-medium text-foreground">{chunks}</span> }}
+            />
           </DialogDescription>
         </DialogHeader>
 
@@ -99,7 +112,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name or NIP-05..."
+              placeholder={intl.formatMessage({ id: 'awardBadge.searchPlaceholder', defaultMessage: 'Search by name or NIP-05...' })}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9 pr-3 rounded-full"
@@ -113,7 +126,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
           <div className="px-4 pb-2">
             <div className="flex flex-wrap gap-1.5">
               {selected.map((profile) => {
-                const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
+                const name = profile.metadata.name || profile.metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
                 return (
                   <button
                     key={profile.pubkey}
@@ -155,12 +168,12 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
           ) : query.trim().length > 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground text-sm">
               <Search className="size-8 mb-2 opacity-30" />
-              No users found
+              <FormattedMessage id="awardBadge.noUsers" defaultMessage="No users found" />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground text-sm">
               <Search className="size-8 mb-2 opacity-30" />
-              Search to find users
+              <FormattedMessage id="awardBadge.searchPrompt" defaultMessage="Search to find users" />
             </div>
           )}
         </ScrollArea>
@@ -175,12 +188,20 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
             {isAwarding ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Awarding...
+                <FormattedMessage id="awardBadge.awarding" defaultMessage="Awarding..." />
               </>
             ) : (
               <>
                 <Check className="size-4" />
-                Award Badge{selected.length > 0 ? ` to ${selected.length} user${selected.length !== 1 ? 's' : ''}` : ''}
+                {selected.length > 0 ? (
+                  <FormattedMessage
+                    id="awardBadge.submitCount"
+                    defaultMessage="Award Badge to {count, plural, one {# user} other {# users}}"
+                    values={{ count: selected.length }}
+                  />
+                ) : (
+                  <FormattedMessage id="awardBadge.title" defaultMessage="Award Badge" />
+                )}
               </>
             )}
           </Button>
@@ -191,7 +212,8 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
 }
 
 function SearchResultItem({ profile, onSelect }: { profile: SearchProfile; onSelect: (p: SearchProfile) => void }) {
-  const name = profile.metadata.name || profile.metadata.display_name || 'Anonymous';
+  const intl = useIntl();
+  const name = profile.metadata.name || profile.metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const about = profile.metadata.about;
 
   return (

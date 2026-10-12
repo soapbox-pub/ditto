@@ -1,3 +1,4 @@
+import { FormattedMessage } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { useNavHidden } from '@/contexts/LayoutContext';
 
@@ -33,7 +34,11 @@ export function NewPostsPill({ count, onClick }: NewPostsPillProps) {
         onClick={onClick}
         className="pointer-events-auto px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-colors animate-in fade-in slide-in-from-top-2 duration-300"
       >
-        {count} new post{count !== 1 ? 's' : ''}
+        <FormattedMessage
+          id="newPostsPill.label"
+          defaultMessage="{count, plural, one {# new post} other {# new posts}}"
+          values={{ count }}
+        />
       </button>
     </div>
   );

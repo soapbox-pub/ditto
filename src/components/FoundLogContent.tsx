@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -35,6 +36,7 @@ function parseGeocacheAddr(tags: string[][]): AddrCoords | undefined {
 
 /** Renders the content of a found log event (kind 7516). */
 export function FoundLogContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const text = event.content;
   const images = getAllTags(event.tags, 'image').filter((url) => url.trim() !== '');
   const hasVerification = !!getTag(event.tags, 'verification');
@@ -73,7 +75,7 @@ export function FoundLogContent({ event }: { event: NostrEvent }) {
         {hasVerification && (
           <Badge variant="secondary" className="text-[11px] gap-1 font-medium text-green-600 dark:text-green-400">
             <ShieldCheck className="size-3" />
-            Verified
+            <FormattedMessage id="foundLog.verified" defaultMessage="Verified" />
           </Badge>
         )}
       </div>
@@ -90,7 +92,7 @@ export function FoundLogContent({ event }: { event: NostrEvent }) {
         <div className="mt-3 rounded-2xl overflow-hidden">
           <img
             src={images[0]}
-            alt="Found log"
+            alt={intl.formatMessage({ id: 'foundLog.imageAlt', defaultMessage: 'Found log' })}
             className="w-full max-h-[300px] object-cover"
             loading="lazy"
             decoding="async"

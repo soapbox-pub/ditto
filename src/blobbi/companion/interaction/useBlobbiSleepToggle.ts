@@ -12,6 +12,7 @@
 import { useCallback, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBlobbonautProfile } from '@/hooks/useBlobbonautProfile';
@@ -42,6 +43,7 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const { profile } = useBlobbonautProfile();
+  const intl = useIntl();
 
   // Track pending state via ref to avoid re-renders.
   // We only use this for the guard (no duplicate calls), not for rendering.
@@ -110,8 +112,8 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
       const companion = await fetchFreshCompanion(user.pubkey, profile.currentCompanion);
       if (!companion) {
         toast({
-          title: 'Cannot change state',
-          description: 'Companion not found. Please try again.',
+          title: intl.formatMessage({ id: 'blobbiSleep.cannotChange.title', defaultMessage: 'Cannot change state' }),
+          description: intl.formatMessage({ id: 'blobbiSleep.cannotChange.description', defaultMessage: 'Companion not found. Please try again.' }),
           variant: 'destructive',
         });
         return;
@@ -158,10 +160,12 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
       updateCache(event, user.pubkey);
 
       toast({
-        title: isCurrentlySleeping ? 'Woke up!' : 'Resting...',
+        title: isCurrentlySleeping
+          ? intl.formatMessage({ id: 'blobbi.rest.wokeUp.title', defaultMessage: 'Woke up!' })
+          : intl.formatMessage({ id: 'blobbi.rest.resting.title', defaultMessage: 'Resting...' }),
         description: isCurrentlySleeping
-          ? 'Your Blobbi is now awake and active!'
-          : 'Your Blobbi is taking a rest.',
+          ? intl.formatMessage({ id: 'blobbi.rest.wokeUp.description', defaultMessage: 'Your Blobbi is now awake and active!' })
+          : intl.formatMessage({ id: 'blobbi.rest.resting.description', defaultMessage: 'Your Blobbi is taking a rest.' }),
       });
 
       // Track daily mission progress (only when putting to sleep)
@@ -171,14 +175,14 @@ export function useBlobbiSleepToggle(): UseBlobbiSleepToggleResult {
     } catch (error) {
       console.error('[SleepToggle] Failed:', error);
       toast({
-        title: 'Failed to update',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        title: intl.formatMessage({ id: 'blobbi.updateFailed', defaultMessage: 'Failed to update' }),
+        description: error instanceof Error ? error.message : intl.formatMessage({ id: 'blobbi.unknownError', defaultMessage: 'Unknown error' }),
         variant: 'destructive',
       });
     } finally {
       pendingRef.current = false;
     }
-  }, [user?.pubkey, profile?.currentCompanion, fetchFreshCompanion, publishEvent, updateCache]);
+  }, [user?.pubkey, profile?.currentCompanion, fetchFreshCompanion, publishEvent, updateCache, intl]);
 
   return {
     toggleSleep,

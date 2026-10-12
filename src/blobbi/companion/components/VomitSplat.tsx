@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useIntl } from 'react-intl';
 
 const FALL_DURATION_MS = 500;
 
@@ -24,6 +25,7 @@ interface VomitSplatProps {
 }
 
 export function VomitSplat({ id, spawnX, spawnY, landX, landY, onRemove }: VomitSplatProps) {
+  const intl = useIntl();
   const [landed, setLanded] = useState(false);
   const fallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -83,7 +85,7 @@ export function VomitSplat({ id, spawnX, spawnY, landX, landY, onRemove }: Vomit
         zIndex: 9998, // Below companion (10000+)
       }}
       onClick={handleClick}
-      aria-label="Clean up puddle"
+      aria-label={intl.formatMessage({ id: 'vomitSplat.cleanUp', defaultMessage: 'Clean up puddle' })}
     >
       <VomitPuddle />
     </button>

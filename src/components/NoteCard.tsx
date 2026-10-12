@@ -56,6 +56,7 @@ import {
 import { nip19 } from "nostr-tools";
 import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "@/hooks/useInView";
+import { defineMessage, FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
@@ -196,7 +197,6 @@ import { isNostrId } from "@/lib/nostrId";
 import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
 import { formatNumber } from "@/lib/formatNumber";
-import { publishedAtAction } from "@/lib/publishedAtAction";
 import { isAdoptedActiveTheme } from "@/lib/themeEvent";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus, getStreamStatusConfig } from "@/lib/streamStatus";
@@ -319,6 +319,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   hideKindHeader,
   zapAsReply,
 }: NoteCardProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
@@ -947,12 +948,12 @@ const NoteCardImpl = memo(function NoteCardImpl({
         {authorIsLoved && (
           <Heart
             className="size-3.5 shrink-0 text-red-500 fill-red-500"
-            aria-label="On your Love List"
+            aria-label={intl.formatMessage({ id: "noteCard.lovedAuthor", defaultMessage: "On your Love List" })}
             role="img"
           />
         )}
         {metadata?.bot && (
-          <span className="text-xs text-primary shrink-0" title="Bot account">
+          <span className="text-xs text-primary shrink-0" title={intl.formatMessage({ id: "noteCard.botAccount", defaultMessage: "Bot account" })}>
             🤖
           </span>
         )}
@@ -978,7 +979,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             openPost();
           }}
         >
-          {timeAgo(event.created_at)}
+          {timeAgo(event.created_at, intl)}
         </Link>
       </div>
     </div>
@@ -1039,7 +1040,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         <button
           type="button"
           className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-          title="Reply"
+          title={intl.formatMessage({ id: "noteCard.reply", defaultMessage: "Reply" })}
           onClick={(e) => {
             e.stopPropagation();
             reply();
@@ -1056,7 +1057,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             <button
               type="button"
               className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-              title={isReposted ? "Undo repost" : "Repost"}
+              title={isReposted ? intl.formatMessage({ id: "noteCard.undoRepost", defaultMessage: "Undo repost" }) : intl.formatMessage({ id: "noteCard.repost", defaultMessage: "Repost" })}
             >
               <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
               {s?.reposts || s?.quotes ? (
@@ -1091,7 +1092,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
                 showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
               )}
-              title="Zap"
+              title={intl.formatMessage({ id: "noteCard.zap", defaultMessage: "Zap" })}
             >
               <Zap
                 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
@@ -1109,7 +1110,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         <button
           type="button"
           className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
-          title="More"
+          title={intl.formatMessage({ id: "noteCard.more", defaultMessage: "More" })}
           onClick={(e) => {
             e.stopPropagation();
             more();
@@ -1141,7 +1142,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           />
         </span>
       }
-      action="reacted to"
+      action={intl.formatMessage({ id: "noteCard.wrapper.reacted", defaultMessage: "reacted to" })}
       actionEvent={reactedBy.event}
     />
   ) : zappedBy ? (
@@ -1149,7 +1150,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       pubkey={zappedBy.pubkey}
       icon={Zap}
       iconClassName="text-amber-500"
-      action="zapped"
+      action={intl.formatMessage({ id: "noteCard.wrapper.zapped", defaultMessage: "zapped" })}
       actionEvent={zappedBy.event}
       extra={zappedBy.sats > 0 ? (
         <span className="font-semibold text-amber-500">
@@ -1162,7 +1163,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       pubkey={repostedBy}
       icon={RepostIcon}
       iconClassName="text-accent"
-      action="reposted"
+      action={intl.formatMessage({ id: "noteCard.wrapper.reposted", defaultMessage: "reposted" })}
       actionEvent={repostEvent}
     />
   ) : undefined;
@@ -1190,7 +1191,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             </div>
             <div className={cn("flex-1 min-w-0", threaded && "pb-3")}>
               {wrapperHeader}
-              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at)} />
+              <VanishCardCompact event={event} timestamp={timeAgo(event.created_at, intl)} />
               {!compact && (
                 <>
                   {actionButtons}
@@ -1302,7 +1303,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
               </ProfileHoverCard>
               <span className="inline-flex items-center gap-1 text-sm font-semibold text-amber-500 shrink-0">
                 <Zap className="size-3.5 fill-amber-500" />
-                {zapAmountSats > 0 ? formatMoney(zapAmountSats) : "zapped"}
+                {zapAmountSats > 0 ? formatMoney(zapAmountSats) : <FormattedMessage id="noteCard.zappedBadge" defaultMessage="zapped" />}
               </span>
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
@@ -1312,7 +1313,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 <Nip05Badge nip05={zapSenderNip05} pubkey={zapSenderPubkey} />
               )}
               {zapSenderNip05 && zapSenderNip05Verified && <span className="shrink-0">·</span>}
-              <span className="shrink-0 whitespace-nowrap">{timeAgo(event.created_at)}</span>
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(event.created_at, intl)}</span>
             </div>
           </div>
         </div>
@@ -1320,7 +1321,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         {/* "Zapping @recipient" context, mirroring a reply's "Replying to" row */}
         {zapRecipients.length > 0 && (
           <ReplyContext
-            label="Zapping"
+            label={intl.formatMessage({ id: "noteCard.zapping", defaultMessage: "Zapping" })}
             pubkeys={zapRecipients}
             parentEventId={isNostrId(zappedEventId) ? zappedEventId : undefined}
           />
@@ -1367,7 +1368,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           pubkey={senderPubkey}
           icon={Zap}
           iconClassName="text-amber-500"
-          action="zapped"
+          action={intl.formatMessage({ id: "noteCard.wrapper.zapped", defaultMessage: "zapped" })}
           actionEvent={event}
           extra={zapSats > 0 ? (
             <span className="font-semibold text-amber-500">
@@ -1419,7 +1420,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                   </Link>
                 </ProfileHoverCard>
                 {recipientMeta?.bot && (
-                  <span className="text-xs text-primary shrink-0" title="Bot account">
+                  <span className="text-xs text-primary shrink-0" title={intl.formatMessage({ id: "noteCard.botAccount", defaultMessage: "Bot account" })}>
                     🤖
                   </span>
                 )}
@@ -1432,7 +1433,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 )}
                 {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
                 <span className="shrink-0 hover:underline whitespace-nowrap">
-                  {timeAgo(event.created_at)}
+                  {timeAgo(event.created_at, intl)}
                 </span>
               </div>
             </div>
@@ -1490,7 +1491,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         }
         actorRow={
           <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture} pictureImeta={author.data?.imeta?.picture}
-            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reacted" timestampLabel={timeAgo(event.created_at)} />
+            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label={intl.formatMessage({ id: "noteCard.actor.reacted", defaultMessage: "reacted" })} timestampLabel={timeAgo(event.created_at, intl)} />
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
         className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
@@ -1511,7 +1512,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         }
         actorRow={
           <ActorRow pubkey={event.pubkey} profileUrl={profileUrl} avatarShape={avatarShape} picture={metadata?.picture} pictureImeta={author.data?.imeta?.picture}
-            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label="reposted" timestampLabel={timeAgo(event.created_at)} />
+            displayName={displayName} authorEvent={author.data?.event} isLoading={author.isLoading} label={intl.formatMessage({ id: "noteCard.actor.reposted", defaultMessage: "reposted" })} timestampLabel={timeAgo(event.created_at, intl)} />
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
         className={className} onClick={handleCardClick} onAuxClick={handleAuxClick}
@@ -1549,8 +1550,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
         actorRow={
           <ActorRow pubkey={zapSenderPubkey} profileUrl={zapSenderUrl} avatarShape={zapSenderShape} picture={zapSenderMeta?.picture} pictureImeta={zapSender.data?.imeta?.picture}
             displayName={zapSenderName} authorEvent={zapSender.data?.event} isLoading={zapSender.isLoading}
-            label={isMultiRecipientOnchainZap ? `zapped ${zapRecipients.length} people` : "zapped"}
-            timestampLabel={timeAgo(event.created_at)}
+            label={isMultiRecipientOnchainZap
+              ? intl.formatMessage({ id: "noteCard.actor.zappedPeople", defaultMessage: "zapped {count, plural, one {# person} other {# people}}" }, { count: zapRecipients.length })
+              : intl.formatMessage({ id: "noteCard.actor.zapped", defaultMessage: "zapped" })}
+            timestampLabel={timeAgo(event.created_at, intl)}
             extra={zapAmountSats > 0 ? (
               <span className="text-sm font-semibold text-amber-500 shrink-0">
                 {formatMoney(zapAmountSats)}
@@ -1594,8 +1597,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
               </Link>
             </ProfileHoverCard>
-            <span className="text-sm text-muted-foreground shrink-0">voted</span>
-            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at)}</span>
+            <span className="text-sm text-muted-foreground shrink-0">
+              <FormattedMessage id="noteCard.actor.voted" defaultMessage="voted" />
+            </span>
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">{timeAgo(event.created_at, intl)}</span>
           </div>
         }
         threaded={threaded} threadedLast={threadedLast} threadedLineClassName={threadedLineClassName}
@@ -1613,24 +1618,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       ? isGitStatus
         ? <GitStatusActionHeader event={event} />
         : KIND_HEADER_MAP[event.kind]
-        ? (() => {
-          const cfg = KIND_HEADER_MAP[event.kind];
-          const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
-          return (
-            <EventActionHeader
-              pubkey={event.pubkey}
-              icon={cfg.icon}
-              iconClassName={
-                event.kind === 30311
-                  ? isLive ? "text-primary" : "text-muted-foreground"
-                  : cfg.iconClassName
-              }
-              action={typeof cfg.action === "function" ? cfg.action(event) : cfg.action}
-              noun={cfg.noun}
-              nounRoute={cfg.nounRoute}
-            />
-          );
-        })()
+        ? <KindActionHeader event={event} config={KIND_HEADER_MAP[event.kind]} />
         : null
       : null;
 
@@ -1691,32 +1679,9 @@ const NoteCardImpl = memo(function NoteCardImpl({
       ) : !hideKindHeader && !profileZapRecipient && isGitStatus ? (
         <GitStatusActionHeader event={event} />
       ) : (
-        !hideKindHeader && !profileZapRecipient && KIND_HEADER_MAP[event.kind] &&
-        (() => {
-          const cfg = KIND_HEADER_MAP[event.kind];
-          const isLive =
-            event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
-          return (
-            <EventActionHeader
-              pubkey={event.pubkey}
-              icon={cfg.icon}
-              iconClassName={
-                event.kind === 30311
-                  ? isLive
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                  : cfg.iconClassName
-              }
-              action={
-                typeof cfg.action === "function"
-                  ? cfg.action(event)
-                  : cfg.action
-              }
-              noun={cfg.noun}
-              nounRoute={cfg.nounRoute}
-            />
-          );
-        })()
+        !hideKindHeader && !profileZapRecipient && KIND_HEADER_MAP[event.kind] && (
+          <KindActionHeader event={event} config={KIND_HEADER_MAP[event.kind]} />
+        )
       )}
 
       {/* Header: avatar + name/handle stacked */}
@@ -1855,7 +1820,9 @@ function TruncatedNoteContent({
             setExpanded((v) => !v);
           }}
         >
-          {expanded ? "Show less" : "Read more"}
+          {expanded
+            ? <FormattedMessage id="noteCard.showLess" defaultMessage="Show less" />
+            : <FormattedMessage id="noteCard.readMore" defaultMessage="Read more" />}
         </button>
       )}
     </div>
@@ -1970,6 +1937,7 @@ function VineMedia({
   imeta?: { url?: string; thumbnail?: string; encryption?: FileEncryption };
   hashtags: string[];
 }) {
+  const intl = useIntl();
   const { config } = useAppContext();
   // The vine and its thumbnail are separate blobs under one key, so the
   // thumbnail can't be checked against the vine's `ox` hash or MIME type.
@@ -2103,7 +2071,7 @@ function VineMedia({
             <button
               className="absolute bottom-2.5 right-2.5 z-10 size-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
               onClick={handleMuteToggle}
-              aria-label={isMuted ? "Unmute" : "Mute"}
+              aria-label={isMuted ? intl.formatMessage({ id: "noteCard.unmute", defaultMessage: "Unmute" }) : intl.formatMessage({ id: "noteCard.mute", defaultMessage: "Mute" })}
             >
               {isMuted ? (
                 <VolumeX className="size-4" />
@@ -2136,13 +2104,14 @@ function VineMedia({
 
 /** Inline content for kind 30311 live stream events. */
 function StreamContent({ event }: { event: NostrEvent }) {
-  const title = getTag(event.tags, "title") || "Untitled Stream";
+  const intl = useIntl();
+  const title = getTag(event.tags, "title") || intl.formatMessage({ id: "noteCard.untitledStream", defaultMessage: "Untitled Stream" });
   const summary = getTag(event.tags, "summary");
   const imageUrl = getTag(event.tags, "image");
   const streamingUrl = getTag(event.tags, "streaming");
   const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, "current_participants");
-  const statusConfig = getStreamStatusConfig(status);
+  const statusConfig = getStreamStatusConfig(status, intl);
 
   const isLive = status === "live" && !!streamingUrl;
 
@@ -2278,7 +2247,7 @@ export interface EventActionHeaderProps {
   /** Optional className for the icon (defaults to text-primary). */
   iconClassName?: string;
   /** Verb phrase shown after the author name, e.g. "hid a" or "is streaming". */
-  action: string;
+  action: ReactNode;
   /** Optional noun shown after the verb, linked to a page route, e.g. "treasure" → /treasures. */
   noun?: string;
   /** Route to link the noun to, e.g. "/treasures". */
@@ -2298,220 +2267,282 @@ export interface EventActionHeaderProps {
   extra?: ReactNode;
 }
 
+/**
+ * Picks the created / updated / fallback variant of an action header by the
+ * event's `published_at` tag (mirrors `publishedAtAction`). `fallback` defaults to
+ * `created`.
+ */
+function byPublishedAt<T>(event: NostrEvent, variants: { created: T; updated: T; fallback?: T }): T {
+  const publishedAt = event.tags.find(([name]) => name === "published_at")?.[1];
+  if (!publishedAt) return variants.fallback ?? variants.created;
+  return publishedAt === String(event.created_at) ? variants.created : variants.updated;
+}
+
 /** Static config for deriving the action header from an event's kind and tags. */
 interface KindHeaderConfig {
   icon: React.ComponentType<{ className?: string }>;
   iconClassName?: string;
-  /** Static action string, or a function that computes it from the event. */
-  action: string | ((event: NostrEvent) => string);
-  noun?: string;
+  /**
+   * Verb phrase shown after the author name, or a function that computes it
+   * from the event. `<noun>…</noun>` chunks link to `nounRoute` when set.
+   */
+  message: MessageDescriptor | ((event: NostrEvent) => MessageDescriptor);
+  /** ICU values for `message` derived from the event (e.g. a badge set's title). */
+  values?: (event: NostrEvent) => Record<string, string>;
   nounRoute?: string;
 }
 
 const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   20: {
     icon: Camera,
-    action: "shared a",
-    noun: "photo",
+    message: defineMessage({ id: "noteCard.header.photo", defaultMessage: "shared a <noun>photo</noun>" }),
     nounRoute: "/photos",
   },
   [MAGAZINE_KIND]: {
     icon: Newspaper,
-    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
-    noun: "magazine",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.magazine.published", defaultMessage: "published a <noun>magazine</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.magazine.updated", defaultMessage: "updated a <noun>magazine</noun>" }),
+    }),
   },
   [MAGAZINE_ISSUE_KIND]: {
     icon: Newspaper,
-    action: (event) => publishedAtAction(event, { created: "published a", updated: "updated a", fallback: "published a" }),
-    noun: "magazine issue",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.magazineIssue.published", defaultMessage: "published a <noun>magazine issue</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.magazineIssue.updated", defaultMessage: "updated a <noun>magazine issue</noun>" }),
+    }),
   },
   [EBOOK_KIND]: {
     icon: BookOpen,
-    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
-    noun: "ebook",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.ebook.published", defaultMessage: "published an <noun>ebook</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.ebook.updated", defaultMessage: "updated an <noun>ebook</noun>" }),
+    }),
   },
   4: {
     icon: Mail,
-    action: "sent an",
-    noun: "encrypted message",
+    message: defineMessage({ id: "noteCard.header.encryptedMessage", defaultMessage: "sent an <noun>encrypted message</noun>" }),
   },
   8211: {
     icon: Mail,
-    action: "sent a",
-    noun: "letter",
+    message: defineMessage({ id: "noteCard.header.letter", defaultMessage: "sent a <noun>letter</noun>" }),
     nounRoute: "/letters",
   },
   [LOVE_LIST_KIND]: {
     icon: Heart,
     iconClassName: "text-red-500",
-    action: (event) => publishedAtAction(event, { created: "wrote their", updated: "updated their", fallback: "updated their" }),
-    noun: "Love List",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.loveList.created", defaultMessage: "wrote their <noun>Love List</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.loveList.updated", defaultMessage: "updated their <noun>Love List</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.loveList.updated", defaultMessage: "updated their <noun>Love List</noun>" }),
+    }),
   },
   [TOP8_KIND]: {
     icon: Crown,
     iconClassName: "text-primary",
-    action: (event) => publishedAtAction(event, { created: "picked their", updated: "shuffled their", fallback: "updated their" }),
     // No nounRoute — /top-8 is the viewer's own editor, not an index of the
     // author's list, so linking the noun there would be a bait-and-switch.
-    noun: "Top 8",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.top8.created", defaultMessage: "picked their <noun>Top 8</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.top8.updated", defaultMessage: "shuffled their <noun>Top 8</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.top8.fallback", defaultMessage: "updated their <noun>Top 8</noun>" }),
+    }),
   },
   [SNO_KIND]: {
     icon: Box,
-    action: (event) => publishedAtAction(event, { created: "built a", updated: "updated a", fallback: "built a" }),
-    noun: "3D object",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.object.created", defaultMessage: "built a <noun>3D object</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.object.updated", defaultMessage: "updated a <noun>3D object</noun>" }),
+    }),
     nounRoute: "/objects",
   },
   37516: {
     icon: ChestIcon,
-    action: (event) => publishedAtAction(event, { created: "hid a", updated: "updated a", fallback: "hid a" }),
-    noun: "treasure",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.treasure.hid", defaultMessage: "hid a <noun>treasure</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.treasure.updated", defaultMessage: "updated a <noun>treasure</noun>" }),
+    }),
     nounRoute: "/treasures",
   },
   7516: {
     icon: ChestIcon,
-    action: "found a",
-    noun: "treasure",
+    message: defineMessage({ id: "noteCard.header.treasure.found", defaultMessage: "found a <noun>treasure</noun>" }),
     nounRoute: "/treasures",
   },
   37381: {
     icon: CardsIcon,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "deck",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.deck.created", defaultMessage: "created a <noun>deck</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.deck.updated", defaultMessage: "updated a <noun>deck</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.deck.shared", defaultMessage: "shared a <noun>deck</noun>" }),
+    }),
     nounRoute: "/decks",
   },
   36767: {
     icon: Sparkles,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "theme",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.theme.created", defaultMessage: "created a <noun>theme</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.theme.updated", defaultMessage: "updated a <noun>theme</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.theme.shared", defaultMessage: "shared a <noun>theme</noun>" }),
+    }),
     nounRoute: "/themes",
   },
   16767: {
     icon: Sparkles,
     // A 16767 is the theme the author is wearing, which may be someone else's
     // (credited inside the card), so it never claims they created it.
-    action: (event) => event && isAdoptedActiveTheme(event) ? "is using a" : "updated their",
-    noun: "theme",
+    message: (event) => isAdoptedActiveTheme(event)
+      ? defineMessage({ id: "noteCard.header.activeTheme.using", defaultMessage: "is using a <noun>theme</noun>" })
+      : defineMessage({ id: "noteCard.header.activeTheme.updated", defaultMessage: "updated their <noun>theme</noun>" }),
     nounRoute: "/themes",
   },
   30030: {
     icon: SmilePlus,
-    action: (event) => publishedAtAction(event, { created: "created an", updated: "updated an", fallback: "shared an" }),
-    noun: "emoji pack",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.emojiPack.created", defaultMessage: "created an <noun>emoji pack</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.emojiPack.updated", defaultMessage: "updated an <noun>emoji pack</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.emojiPack.shared", defaultMessage: "shared an <noun>emoji pack</noun>" }),
+    }),
     nounRoute: "/emojis",
   },
   30315: {
     icon: SmilePlus,
-    action: "updated their",
-    noun: "status",
+    message: defineMessage({ id: "noteCard.header.status", defaultMessage: "updated their <noun>status</noun>" }),
   },
   39701: {
     icon: Bookmark,
-    action: (event) => publishedAtAction(event, { created: "bookmarked a", updated: "updated a", fallback: "bookmarked a" }),
-    noun: "web page",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.webBookmark.created", defaultMessage: "bookmarked a <noun>web page</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.webBookmark.updated", defaultMessage: "updated a <noun>web page</noun>" }),
+    }),
   },
   8: {
     icon: Award,
-    action: "awarded a",
-    noun: "badge",
+    message: defineMessage({ id: "noteCard.header.badgeAward", defaultMessage: "awarded a <noun>badge</noun>" }),
     nounRoute: "/badges",
   },
   30009: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "created a" }),
-    noun: "badge",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.badge.created", defaultMessage: "created a <noun>badge</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.badge.updated", defaultMessage: "updated a <noun>badge</noun>" }),
+    }),
     nounRoute: "/badges",
   },
   10008: {
     icon: Award,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" }),
-    noun: "badges",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.profileBadges.created", defaultMessage: "created their <noun>badges</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.profileBadges.updated", defaultMessage: "updated their <noun>badges</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.profileBadges.updated", defaultMessage: "updated their <noun>badges</noun>" }),
+    }),
     nounRoute: "/badges",
   },
   30008: {
     icon: Award,
-    action: (event) => {
+    message: (event) => {
       // Kind 30008 is overloaded: legacy NIP-58 profile badges
       // (`d=profile_badges`) vs. NIP-51 badge set (arbitrary `d`).
       if (isProfileBadgesEvent(event)) {
-        return publishedAtAction(event, { created: "created their", updated: "updated their", fallback: "updated their" });
+        return byPublishedAt(event, {
+          created: defineMessage({ id: "noteCard.header.profileBadges.created", defaultMessage: "created their <noun>badges</noun>" }),
+          updated: defineMessage({ id: "noteCard.header.profileBadges.updated", defaultMessage: "updated their <noun>badges</noun>" }),
+          fallback: defineMessage({ id: "noteCard.header.profileBadges.updated", defaultMessage: "updated their <noun>badges</noun>" }),
+        });
       }
-      // Badge set — interpolate the set's title into the verb so the
-      // header reads "Alice updated Super Mario Bros." with "badges"
-      // rendered as the linked noun ("/badges") by EventActionHeader.
-      const title = parseBadgeSet(event)?.title;
-      const base = publishedAtAction(event, { created: "created", updated: "updated", fallback: "updated" });
-      return title ? `${base} ${title}` : base;
+      // Badge set — interpolate the set's title so the header reads
+      // "Alice updated Super Mario Bros. badges" with "badges" linked.
+      return parseBadgeSet(event)?.title
+        ? byPublishedAt(event, {
+          created: defineMessage({ id: "noteCard.header.badgeSet.createdTitled", defaultMessage: "created {title} <noun>badges</noun>" }),
+          updated: defineMessage({ id: "noteCard.header.badgeSet.updatedTitled", defaultMessage: "updated {title} <noun>badges</noun>" }),
+          fallback: defineMessage({ id: "noteCard.header.badgeSet.updatedTitled", defaultMessage: "updated {title} <noun>badges</noun>" }),
+        })
+        : byPublishedAt(event, {
+          created: defineMessage({ id: "noteCard.header.badgeSet.created", defaultMessage: "created <noun>badges</noun>" }),
+          updated: defineMessage({ id: "noteCard.header.badgeSet.updated", defaultMessage: "updated <noun>badges</noun>" }),
+          fallback: defineMessage({ id: "noteCard.header.badgeSet.updated", defaultMessage: "updated <noun>badges</noun>" }),
+        });
     },
-    noun: "badges",
+    values: (event) => ({ title: parseBadgeSet(event)?.title ?? "" }),
     nounRoute: "/badges",
   },
   30311: {
     icon: Radio,
     iconClassName: undefined, // computed dynamically below
-    action: (event) =>
+    message: (event) =>
       getEffectiveStreamStatus(event) === "live"
-        ? "is streaming"
-        : "streamed",
+        ? defineMessage({ id: "noteCard.header.stream.live", defaultMessage: "is streaming" })
+        : defineMessage({ id: "noteCard.header.stream.ended", defaultMessage: "streamed" }),
   },
   30312: {
     icon: Video,
-    action: (event) => publishedAtAction(event, { created: "opened a", updated: "updated a", fallback: "opened a" }),
-    noun: "room",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.room.opened", defaultMessage: "opened a <noun>room</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.room.updated", defaultMessage: "updated a <noun>room</noun>" }),
+    }),
   },
   30313: {
     icon: CalendarClock,
-    action: (event) => {
+    message: (event) => {
       const status = event.tags.find(([n]) => n === "status")?.[1];
-      if (status === "live") return "is hosting a";
-      if (status === "ended") return "hosted a";
-      return "scheduled a";
+      if (status === "live") return defineMessage({ id: "noteCard.header.meeting.live", defaultMessage: "is hosting a <noun>meeting</noun>" });
+      if (status === "ended") return defineMessage({ id: "noteCard.header.meeting.ended", defaultMessage: "hosted a <noun>meeting</noun>" });
+      return defineMessage({ id: "noteCard.header.meeting.scheduled", defaultMessage: "scheduled a <noun>meeting</noun>" });
     },
-    noun: "meeting",
   },
   32267: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published a software app", updated: "updated a software app", fallback: "published a software app" }),
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.softwareApp.published", defaultMessage: "published a software app" }),
+      updated: defineMessage({ id: "noteCard.header.softwareApp.updated", defaultMessage: "updated a software app" }),
+    }),
   },
   30063: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published a software release", updated: "updated a software release", fallback: "published a software release" }),
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.softwareRelease.published", defaultMessage: "published a software release" }),
+      updated: defineMessage({ id: "noteCard.header.softwareRelease.updated", defaultMessage: "updated a software release" }),
+    }),
   },
   3063: {
     icon: Package,
-    action: "published a software asset",
+    message: defineMessage({ id: "noteCard.header.softwareAsset", defaultMessage: "published a software asset" }),
   },
   31990: {
     icon: Package,
-    action: (event) => publishedAtAction(event, { created: "published an app", updated: "updated an app", fallback: "published an app" }),
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.app.published", defaultMessage: "published an app" }),
+      updated: defineMessage({ id: "noteCard.header.app.updated", defaultMessage: "updated an app" }),
+    }),
   },
   30617: {
     icon: GitBranch,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "repository",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.repo.created", defaultMessage: "created a <noun>repository</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.repo.updated", defaultMessage: "updated a <noun>repository</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.repo.shared", defaultMessage: "shared a <noun>repository</noun>" }),
+    }),
     nounRoute: "/development",
   },
   1617: {
     icon: FileText,
-    action: "submitted a",
-    noun: "patch",
+    message: defineMessage({ id: "noteCard.header.patch", defaultMessage: "submitted a <noun>patch</noun>" }),
     nounRoute: "/development",
   },
   1618: {
     icon: GitPullRequest,
-    action: "opened a",
-    noun: "pull request",
+    message: defineMessage({ id: "noteCard.header.pullRequest.opened", defaultMessage: "opened a <noun>pull request</noun>" }),
     nounRoute: "/development",
   },
   1619: {
     icon: GitPullRequestArrow,
-    action: "updated a",
-    noun: "pull request",
+    message: defineMessage({ id: "noteCard.header.pullRequest.updated", defaultMessage: "updated a <noun>pull request</noun>" }),
     nounRoute: "/development",
   },
   1621: {
     icon: CircleDot,
-    action: "opened an",
-    noun: "issue",
+    message: defineMessage({ id: "noteCard.header.issue", defaultMessage: "opened an <noun>issue</noun>" }),
     nounRoute: "/development",
   },
   // NIP-34 status events (1630-1633) intentionally have no header entry:
@@ -2520,157 +2551,220 @@ const KIND_HEADER_MAP: Record<number, KindHeaderConfig> = {
   // sentence ("Closed issue: ...", "Merged pull request: ...") itself.
   30618: {
     icon: GitBranch,
-    action: "pushed to a",
-    noun: "repository",
+    message: defineMessage({ id: "noteCard.header.repoPush", defaultMessage: "pushed to a <noun>repository</noun>" }),
     nounRoute: "/development",
   },
   30817: {
     icon: FileCode,
-    action: (event) => publishedAtAction(event, { created: "proposed a", updated: "updated a", fallback: "proposed a" }),
-    noun: "NIP",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.nip.proposed", defaultMessage: "proposed a <noun>NIP</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.nip.updated", defaultMessage: "updated a <noun>NIP</noun>" }),
+    }),
     nounRoute: "/development",
   },
   15128: {
     icon: Rocket,
-    action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
-    noun: "nsite",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.nsite.deployed", defaultMessage: "deployed an <noun>nsite</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.nsite.redeployed", defaultMessage: "redeployed an <noun>nsite</noun>" }),
+    }),
     nounRoute: "/development",
   },
   35128: {
     icon: Rocket,
-    action: (event) => publishedAtAction(event, { created: "deployed an", updated: "redeployed an", fallback: "deployed an" }),
-    noun: "nsite",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.nsite.deployed", defaultMessage: "deployed an <noun>nsite</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.nsite.redeployed", defaultMessage: "redeployed an <noun>nsite</noun>" }),
+    }),
     nounRoute: "/development",
   },
   5128: {
     icon: History,
-    action: "snapshotted an",
-    noun: "nsite",
+    message: defineMessage({ id: "noteCard.header.nsite.snapshot", defaultMessage: "snapshotted an <noun>nsite</noun>" }),
     nounRoute: "/development",
   },
   9735: {
     icon: Zap,
-    action: "zapped",
+    message: defineMessage({ id: "noteCard.header.zapped", defaultMessage: "zapped" }),
   },
   9802: {
     icon: Quote,
-    action: "shared a",
-    noun: "highlight",
+    message: defineMessage({ id: "noteCard.header.highlight", defaultMessage: "shared a <noun>highlight</noun>" }),
     nounRoute: "/highlights",
   },
   [TAROT_READING_KIND]: {
     icon: MoonStar,
-    action: (event) =>
+    message: (event) =>
       readingTypeFromEvent(event) === "weekly"
-        ? "shared a weekly"
-        : "shared a daily",
-    noun: "tarot reading",
+        ? defineMessage({ id: "noteCard.header.tarot.weekly", defaultMessage: "shared a weekly <noun>tarot reading</noun>" })
+        : defineMessage({ id: "noteCard.header.tarot.daily", defaultMessage: "shared a daily <noun>tarot reading</noun>" }),
     nounRoute: "/tarot",
   },
   [QUIZ_KIND]: {
     icon: ClipboardList,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated their", fallback: "shared a" }),
-    noun: "quiz",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.quiz.created", defaultMessage: "created a <noun>quiz</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.quiz.updated", defaultMessage: "updated their <noun>quiz</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.quiz.shared", defaultMessage: "shared a <noun>quiz</noun>" }),
+    }),
     nounRoute: "/quizzes",
   },
   [QUIZ_RESULT_KIND]: {
     icon: ClipboardCheck,
-    action: "got a",
-    noun: "quiz result",
+    message: defineMessage({ id: "noteCard.header.quizResult", defaultMessage: "got a <noun>quiz result</noun>" }),
     nounRoute: "/quizzes",
   },
   31871: {
     icon: ShieldCheck,
-    action: (event) => publishedAtAction(event, { created: "published an", updated: "updated an", fallback: "published an" }),
-    noun: "attestation",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.attestation.published", defaultMessage: "published an <noun>attestation</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.attestation.updated", defaultMessage: "updated an <noun>attestation</noun>" }),
+    }),
   },
   [REPORT_KIND]: {
     icon: Flag,
-    // The whole phrase lives in `action` because the noun varies with the
-    // target ("a post" / "a user" / "a file") and links nowhere.
-    action: (event) => `reported a ${reportTargetNoun(event)}`,
+    // The noun varies with the target ("a post" / "a user" / "a file") and
+    // links nowhere, so it's a select rather than a `<noun>` chunk.
+    message: defineMessage({
+      id: "noteCard.header.report",
+      defaultMessage: "reported a {target, select, user {user} file {file} other {post}}",
+    }),
+    values: (event) => ({ target: reportTargetNoun(event) }),
   },
   33863: {
     icon: HandHeart,
-    action: (event) => publishedAtAction(event, { created: "started a", updated: "updated their", fallback: "shared a" }),
-    noun: "fundraiser",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.fundraiser.started", defaultMessage: "started a <noun>fundraiser</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.fundraiser.updated", defaultMessage: "updated their <noun>fundraiser</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.fundraiser.shared", defaultMessage: "shared a <noun>fundraiser</noun>" }),
+    }),
   },
   [CLASSIFIED_LISTING_KIND]: {
     icon: Tag,
-    action: (event) => publishedAtAction(event, { created: "listed a", updated: "updated a", fallback: "listed a" }),
-    noun: "listing",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.listing.created", defaultMessage: "listed a <noun>listing</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.listing.updated", defaultMessage: "updated a <noun>listing</noun>" }),
+    }),
   },
   8333: {
     icon: Zap,
-    action: "zapped",
+    message: defineMessage({ id: "noteCard.header.zapped", defaultMessage: "zapped" }),
   },
   31124: {
     icon: Egg,
-    action: (event) => publishedAtAction(event, { created: "created their", updated: "cared for their", fallback: "cared for their" }),
-    noun: "Blobbi",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.blobbi.created", defaultMessage: "created their <noun>Blobbi</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.blobbi.caredFor", defaultMessage: "cared for their <noun>Blobbi</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.blobbi.caredFor", defaultMessage: "cared for their <noun>Blobbi</noun>" }),
+    }),
     nounRoute: "/blobbi",
   },
   39089: {
     icon: PartyPopper,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "follow pack",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.followPack.created", defaultMessage: "created a <noun>follow pack</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.followPack.updated", defaultMessage: "updated a <noun>follow pack</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.followPack.shared", defaultMessage: "shared a <noun>follow pack</noun>" }),
+    }),
     nounRoute: "/packs",
   },
   30000: {
     icon: Users,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "follow set",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.followSet.created", defaultMessage: "created a <noun>follow set</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.followSet.updated", defaultMessage: "updated a <noun>follow set</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.followSet.shared", defaultMessage: "shared a <noun>follow set</noun>" }),
+    }),
     nounRoute: "/packs",
   },
   36787: {
     icon: Music,
-    action: (event) => publishedAtAction(event, { created: "shared a", updated: "updated a", fallback: "shared a" }),
-    noun: "track",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.track.shared", defaultMessage: "shared a <noun>track</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.track.updated", defaultMessage: "updated a <noun>track</noun>" }),
+    }),
     nounRoute: "/music",
   },
   34139: {
     icon: ListMusic,
-    action: (event) => publishedAtAction(event, { created: "created a", updated: "updated a", fallback: "shared a" }),
-    noun: "playlist",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.playlist.created", defaultMessage: "created a <noun>playlist</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.playlist.updated", defaultMessage: "updated a <noun>playlist</noun>" }),
+      fallback: defineMessage({ id: "noteCard.header.playlist.shared", defaultMessage: "shared a <noun>playlist</noun>" }),
+    }),
     nounRoute: "/music",
   },
   2473: {
     icon: Bird,
-    action: "heard a",
-    noun: "bird",
+    message: defineMessage({ id: "noteCard.header.bird", defaultMessage: "heard a <noun>bird</noun>" }),
   },
   30621: {
     icon: Stars,
-    action: (event) => publishedAtAction(event, { created: "drew a", updated: "redrew a", fallback: "drew a" }),
-    noun: "constellation",
+    message: (event) => byPublishedAt(event, {
+      created: defineMessage({ id: "noteCard.header.constellation.drew", defaultMessage: "drew a <noun>constellation</noun>" }),
+      updated: defineMessage({ id: "noteCard.header.constellation.redrew", defaultMessage: "redrew a <noun>constellation</noun>" }),
+    }),
   },
   3: {
     icon: UserCheck,
-    action: "updated their",
-    noun: "follow list",
+    message: defineMessage({ id: "noteCard.header.followList", defaultMessage: "updated their <noun>follow list</noun>" }),
   },
   10002: {
     icon: Server,
-    action: "updated their",
-    noun: "relay list",
+    message: defineMessage({ id: "noteCard.header.relayList", defaultMessage: "updated their <noun>relay list</noun>" }),
   },
   [TORRENT_KIND]: {
     icon: Magnet,
-    action: "shared a",
-    noun: "torrent",
+    message: defineMessage({ id: "noteCard.header.torrent", defaultMessage: "shared a <noun>torrent</noun>" }),
     nounRoute: "/torrents",
   },
   [EXTERNAL_IDENTITIES_KIND]: {
     icon: Link2,
-    action: "updated their",
-    noun: "linked accounts",
+    message: defineMessage({ id: "noteCard.header.linkedAccounts", defaultMessage: "updated their <noun>linked accounts</noun>" }),
   },
   0: {
     icon: UserRoundPen,
-    action: "updated their",
-    noun: "profile",
+    message: defineMessage({ id: "noteCard.header.profile", defaultMessage: "updated their <noun>profile</noun>" }),
   },
 };
+
+/** Action header for an event kind listed in `KIND_HEADER_MAP`. */
+function KindActionHeader({ event, config }: { event: NostrEvent; config: KindHeaderConfig }) {
+  const { nounRoute } = config;
+  const message = typeof config.message === "function" ? config.message(event) : config.message;
+  const isLive = event.kind === 30311 && getEffectiveStreamStatus(event) === "live";
+
+  return (
+    <EventActionHeader
+      pubkey={event.pubkey}
+      icon={config.icon}
+      iconClassName={
+        event.kind === 30311
+          ? isLive ? "text-primary" : "text-muted-foreground"
+          : config.iconClassName
+      }
+      action={
+        <FormattedMessage
+          {...message}
+          values={{
+            ...config.values?.(event),
+            noun: (chunks: ReactNode[]) => nounRoute ? (
+              <Link
+                to={nounRoute}
+                className="hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {chunks}
+              </Link>
+            ) : (
+              <>{chunks}</>
+            ),
+          }}
+        />
+      }
+    />
+  );
+}
 
 /** Generic action header: icon · [author name] [action] [linked noun] */
 export function EventActionHeader({
@@ -2685,7 +2779,8 @@ export function EventActionHeader({
   extra,
 }: EventActionHeaderProps) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
+  const intl = useIntl();
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const url = useProfileUrl(pubkey, author.data?.metadata);
   const actionHref = useMemo(
     () => (actionEvent ? `/${encodeEventAddress(actionEvent)}` : undefined),
@@ -2794,18 +2889,51 @@ function GitStatusActionHeader({ event }: { event: NostrEvent }) {
   const { data: root } = useEvent(rootRef?.id, relayHints, repoRef?.pubkey);
 
   const noun = gitTicketNoun(root?.kind);
-  const article = noun === 'issue' ? 'an' : 'a';
+  // `gitTicketNoun` returns English nouns; map them to ICU select keys.
+  const nounKey = noun === "pull request" ? "pullRequest" : noun;
+  const verb = gitStatusVerb(event.kind, root?.kind);
 
-  let action: string;
-  let linkedNoun: string | undefined;
+  let action: ReactNode;
   if (event.kind === 1633) {
     // "marked a pull request as draft" — the trailing "as draft" rules
-    // out the linked-noun pattern, so build the full phrase.
-    action = noun ? `marked ${article} ${noun} as draft` : 'marked as draft';
+    // out the linked-noun pattern, so the noun stays unlinked.
+    action = nounKey ? (
+      <FormattedMessage
+        id="noteCard.gitHeader.draftNoun"
+        defaultMessage="marked {noun, select, issue {an issue} patch {a patch} other {a pull request}} as draft"
+        values={{ noun: nounKey }}
+      />
+    ) : (
+      <FormattedMessage id="noteCard.gitHeader.draft" defaultMessage="marked as draft" />
+    );
+  } else if (nounKey) {
+    action = (
+      <FormattedMessage
+        id="noteCard.gitHeader.verbNoun"
+        defaultMessage="{verb, select, reopened {reopened} applied {applied} merged {merged} resolved {resolved} closed {closed} other {updated}} {noun, select, issue {an <link>issue</link>} patch {a <link>patch</link>} other {a <link>pull request</link>}}"
+        values={{
+          verb,
+          noun: nounKey,
+          link: (chunks: ReactNode[]) => (
+            <Link
+              to="/development"
+              className="hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {chunks}
+            </Link>
+          ),
+        }}
+      />
+    );
   } else {
-    const verb = gitStatusVerb(event.kind, root?.kind);
-    action = noun ? `${verb} ${article}` : verb;
-    linkedNoun = noun;
+    action = (
+      <FormattedMessage
+        id="noteCard.gitHeader.verb"
+        defaultMessage="{verb, select, reopened {reopened} applied {applied} merged {merged} resolved {resolved} closed {closed} other {updated}}"
+        values={{ verb }}
+      />
+    );
   }
 
   return (
@@ -2814,8 +2942,6 @@ function GitStatusActionHeader({ event }: { event: NostrEvent }) {
       icon={GIT_STATUS_HEADER_ICONS[event.kind] ?? CircleDot}
       iconClassName="text-muted-foreground"
       action={action}
-      noun={linkedNoun}
-      nounRoute={linkedNoun ? "/development" : undefined}
     />
   );
 }

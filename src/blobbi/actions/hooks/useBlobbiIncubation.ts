@@ -10,6 +10,7 @@
  */
 
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -94,6 +95,7 @@ export function useStartIncubation({
 }: UseStartIncubationParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
+  const intl = useIntl();
 
   return useStartIncubationBase({
     companion,
@@ -105,24 +107,33 @@ export function useStartIncubation({
     onSuccess: ({ name, mode, stoppedOtherName }) => {
       if (mode === 'switch' && stoppedOtherName) {
         toast({
-          title: 'Switched incubation!',
-          description: `Stopped ${stoppedOtherName}, now incubating ${name}.`,
+          title: intl.formatMessage({ id: 'blobbiIncubation.switched.title', defaultMessage: 'Switched incubation!' }),
+          description: intl.formatMessage(
+            { id: 'blobbiIncubation.switched.description', defaultMessage: 'Stopped {stoppedOtherName}, now incubating {name}.' },
+            { stoppedOtherName, name },
+          ),
         });
       } else if (mode === 'restart') {
         toast({
-          title: 'Incubation restarted!',
-          description: `${name}'s task progress has been reset.`,
+          title: intl.formatMessage({ id: 'blobbiIncubation.restarted.title', defaultMessage: 'Incubation restarted!' }),
+          description: intl.formatMessage(
+            { id: 'blobbiIncubation.restarted.description', defaultMessage: "{name}'s task progress has been reset." },
+            { name },
+          ),
         });
       } else {
         toast({
-          title: 'Incubation started!',
-          description: `${name} is now incubating. Complete the tasks to hatch!`,
+          title: intl.formatMessage({ id: 'blobbiIncubation.started.title', defaultMessage: 'Incubation started!' }),
+          description: intl.formatMessage(
+            { id: 'blobbiIncubation.started.description', defaultMessage: '{name} is now incubating. Complete the tasks to hatch!' },
+            { name },
+          ),
         });
       }
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to start incubation',
+        title: intl.formatMessage({ id: 'blobbiIncubation.startFailed', defaultMessage: 'Failed to start incubation' }),
         description: error.message,
         variant: 'destructive',
       });
@@ -158,6 +169,7 @@ export function useStartEvolution({
 }: UseStartEvolutionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
+  const intl = useIntl();
 
   return useStartEvolutionBase({
     companion,
@@ -167,13 +179,16 @@ export function useStartEvolution({
     updateCompanionEvent,
     onSuccess: ({ name }) => {
       toast({
-        title: 'Evolution started!',
-        description: `${name} is now working towards evolution. Complete the tasks to evolve!`,
+        title: intl.formatMessage({ id: 'blobbiEvolution.started.title', defaultMessage: 'Evolution started!' }),
+        description: intl.formatMessage(
+          { id: 'blobbiEvolution.started.description', defaultMessage: '{name} is now working towards evolution. Complete the tasks to evolve!' },
+          { name },
+        ),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to start evolution',
+        title: intl.formatMessage({ id: 'blobbiEvolution.startFailed', defaultMessage: 'Failed to start evolution' }),
         description: error.message,
         variant: 'destructive',
       });
@@ -190,6 +205,7 @@ export function useStopEvolution({
 }: UseStopEvolutionParams) {
   const { user } = useCurrentUser();
   const { mutateAsync: publish } = useNostrPublish();
+  const intl = useIntl();
 
   return useStopEvolutionBase({
     companion,
@@ -199,13 +215,16 @@ export function useStopEvolution({
     updateCompanionEvent,
     onSuccess: ({ name }) => {
       toast({
-        title: 'Evolution stopped',
-        description: `${name} is no longer evolving. Task progress has been reset.`,
+        title: intl.formatMessage({ id: 'blobbiEvolution.stopped.title', defaultMessage: 'Evolution stopped' }),
+        description: intl.formatMessage(
+          { id: 'blobbiEvolution.stopped.description', defaultMessage: '{name} is no longer evolving. Task progress has been reset.' },
+          { name },
+        ),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to stop evolution',
+        title: intl.formatMessage({ id: 'blobbiEvolution.stopFailed', defaultMessage: 'Failed to stop evolution' }),
         description: error.message,
         variant: 'destructive',
       });

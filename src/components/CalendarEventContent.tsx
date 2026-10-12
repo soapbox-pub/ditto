@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useIntl, type IntlShape } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { CalendarDays, MapPin, Clock, Users } from 'lucide-react';
 
@@ -43,44 +44,30 @@ function parseLocation(raw: string): string {
   return raw;
 }
 
-/** Date-only formatter: "Jan 15, 2026" */
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
+/** Date-only format: "Jan 15, 2026" in English. */
+const DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   month: 'short',
   day: 'numeric',
   year: 'numeric',
-});
+};
 
-/** Date+time formatter: "Jan 15, 2026 at 3:00 PM" */
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+/** Date+time format: "Jan 15, 2026, 3:00 PM" in English. */
+const DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   month: 'short',
   day: 'numeric',
   year: 'numeric',
   hour: 'numeric',
   minute: '2-digit',
-});
-
-/** Time-only formatter: "3:00 PM" */
-const timeFormatter = new Intl.DateTimeFormat('en-US', {
-  hour: 'numeric',
-  minute: '2-digit',
-});
-
-/** Check if two dates fall on the same calendar day. */
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
+};
 
 /**
  * Format the date/time display for a NIP-52 calendar event.
  *
- * Kind 31922 (date-based): "Jan 15, 2026" or "Jan 15 - Jan 17, 2026"
- * Kind 31923 (time-based): "Jan 15, 2026 at 3:00 PM" or time ranges
+ * Kind 31922 (date-based): "Jan 15, 2026" or "Jan 15 – 17, 2026"
+ * Kind 31923 (time-based): "Jan 15, 2026, 3:00 PM" or time ranges
+ * (English examples; output follows the app locale).
  */
-function formatEventDate(event: NostrEvent): string {
+function formatEventDate(event: NostrEvent, intl: IntlShape): string {
   const start = getTag(event.tags, 'start');
   if (!start) return '';
 
@@ -94,22 +81,16 @@ function formatEventDate(event: NostrEvent): string {
     if (end) {
       const endDate = new Date(end + 'T00:00:00Z');
       if (!isNaN(endDate.getTime()) && endDate > startDate) {
-        // Multi-day range: "Jan 15 - Jan 17, 2026"
+        // Multi-day range: "Jan 15 – 17, 2026"
         // NIP-52: end date is exclusive, so display the last inclusive day
         const lastDay = new Date(endDate.getTime() - 86400000);
         if (lastDay > startDate) {
-          const startParts = dateFormatter.formatToParts(startDate);
-          const startStr = startParts
-            .filter((p) => p.type !== 'year' && p.type !== 'literal' || p.value === ' ')
-            .map((p) => (p.type === 'literal' && p.value.includes(',') ? '' : p.value))
-            .join('')
-            .trim();
-          return `${startStr} – ${dateFormatter.format(lastDay)}`;
+          return intl.formatDateTimeRange(startDate, lastDay, DATE_OPTIONS);
         }
       }
     }
 
-    return dateFormatter.format(startDate);
+    return intl.formatDate(startDate, DATE_OPTIONS);
   }
 
   if (event.kind === 31923) {
@@ -122,18 +103,12 @@ function formatEventDate(event: NostrEvent): string {
     if (end) {
       const endTs = parseInt(end, 10);
       if (!isNaN(endTs) && endTs > startTs) {
-        const endDate = new Date(endTs * 1000);
-
-        if (isSameDay(startDate, endDate)) {
-          // Same day: "Jan 15, 2026 at 3:00 PM – 5:00 PM"
-          return `${dateTimeFormatter.format(startDate)} – ${timeFormatter.format(endDate)}`;
-        }
-        // Different days: "Jan 15, 2026 at 3:00 PM – Jan 16, 2026 at 5:00 PM"
-        return `${dateTimeFormatter.format(startDate)} – ${dateTimeFormatter.format(endDate)}`;
+        // Same-day ranges collapse to "Jan 15, 2026, 3:00 – 5:00 PM"
+        return intl.formatDateTimeRange(startDate, new Date(endTs * 1000), DATE_TIME_OPTIONS);
       }
     }
 
-    return dateTimeFormatter.format(startDate);
+    return intl.formatDate(startDate, DATE_TIME_OPTIONS);
   }
 
   return start;
@@ -141,11 +116,12 @@ function formatEventDate(event: NostrEvent): string {
 
 /** Renders NIP-52 calendar event content (kind 31922 and 31923). */
 export function CalendarEventContent({ event, compact, className }: CalendarEventContentProps) {
+  const intl = useIntl();
   const title = useMemo(() => getTag(event.tags, 'title'), [event.tags]);
   const image = useMemo(() => getTag(event.tags, 'image'), [event.tags]);
   const locationRaw = useMemo(() => getTag(event.tags, 'location'), [event.tags]);
   const location = useMemo(() => locationRaw ? parseLocation(locationRaw) : undefined, [locationRaw]);
-  const dateDisplay = useMemo(() => formatEventDate(event), [event]);
+  const dateDisplay = useMemo(() => formatEventDate(event, intl), [event, intl]);
   const hashtags = useMemo(() => getAllTags(event.tags, 't').map(([, v]) => v).filter(Boolean), [event.tags]);
   const participants = useMemo(() => getAllTags(event.tags, 'p'), [event.tags]);
   const hasContent = event.content.trim().length > 0;
@@ -166,7 +142,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
             <div className="relative h-[180px] overflow-hidden">
               <img
                 src={image}
-                alt={title ?? 'Calendar event'}
+                alt={title ?? intl.formatMessage({ id: 'calendarEvent.imageAlt', defaultMessage: 'Calendar event' })}
                 className="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"
@@ -243,7 +219,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
             <div className="aspect-video rounded-lg overflow-hidden">
               <img
                 src={image}
-                alt={title ?? 'Calendar event'}
+                alt={title ?? intl.formatMessage({ id: 'calendarEvent.imageAlt', defaultMessage: 'Calendar event' })}
                 className="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"

@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import {
   Target,
   ChevronRight,
@@ -29,6 +30,18 @@ import { cn } from '@/lib/utils';
 
 import type { HatchTask } from '@blobbi-kit/react/hooks/useHatchTasks';
 import type { DailyMissionView } from '@blobbi-kit/react/hooks/useDailyMissions';
+import {
+  formatDailyMissionDescription,
+  formatDailyMissionTitle,
+  formatTaskDescription,
+  formatTaskName,
+} from '@/blobbi/actions/lib/blobbi-mission-text';
+
+const BADGE_LABELS = defineMessages({
+  Hatch: { id: 'missionSurface.badge.hatch', defaultMessage: 'Hatch' },
+  Evolve: { id: 'missionSurface.badge.evolve', defaultMessage: 'Evolve' },
+  Daily: { id: 'missionSurface.badge.daily', defaultMessage: 'Daily' },
+});
 
 // ─── Card Item Types ──────────────────────────────────────────────────────────
 
@@ -76,6 +89,7 @@ interface MissionSurfaceCardProps {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildTaskCards(
+  intl: IntlShape,
   tasks: HatchTask[],
   processType: 'hatch' | 'evolve' | null,
 ): TaskCardItem[] {
@@ -89,14 +103,14 @@ function buildTaskCards(
   return toShow.map((t) => ({
     kind: 'task',
     badge: badge as 'Hatch' | 'Evolve',
-    title: t.name,
-    description: t.description,
+    title: formatTaskName(intl, t),
+    description: formatTaskDescription(intl, t),
     progress: t.required > 0 ? Math.min(100, Math.round((t.current / t.required) * 100)) : 0,
     progressLabel: `${t.current}/${t.required}`,
   }));
 }
 
-function buildDailyCards(missions: DailyMissionView[]): DailyCardItem[] {
+function buildDailyCards(intl: IntlShape, missions: DailyMissionView[]): DailyCardItem[] {
   // Show incomplete missions first
   const incomplete = missions.filter((m) => !m.complete);
   const toShow = incomplete.length > 0 ? incomplete : [];
@@ -104,8 +118,8 @@ function buildDailyCards(missions: DailyMissionView[]): DailyCardItem[] {
   return toShow.map((m) => ({
     kind: 'daily',
     badge: 'Daily',
-    title: m.title,
-    description: m.description,
+    title: formatDailyMissionTitle(intl, m),
+    description: formatDailyMissionDescription(intl, m),
     progress: m.target > 0
       ? Math.min(100, Math.round((m.progress / m.target) * 100))
       : 0,
@@ -131,13 +145,14 @@ export function MissionSurfaceCard({
 }: MissionSurfaceCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
+  const intl = useIntl();
 
   // Build card list: tasks first (priority), then daily
   const cards = useMemo<CardItem[]>(() => {
-    const taskCards = isInTaskProcess ? buildTaskCards(tasks, processType) : [];
-    const dailyCards = buildDailyCards(dailyMissions);
+    const taskCards = isInTaskProcess ? buildTaskCards(intl, tasks, processType) : [];
+    const dailyCards = buildDailyCards(intl, dailyMissions);
     return [...taskCards, ...dailyCards];
-  }, [tasks, isInTaskProcess, processType, dailyMissions]);
+  }, [tasks, isInTaskProcess, processType, dailyMissions, intl]);
 
   // Clamp index if cards shrink
   useEffect(() => {
@@ -228,7 +243,7 @@ export function MissionSurfaceCard({
             className={cn('text-[10px] font-medium px-1.5 py-0 h-4 gap-1', badgeColor)}
           >
             {badgeIcon}
-            {card.badge}
+            <FormattedMessage {...BADGE_LABELS[card.badge]} />
           </Badge>
           <span className="text-sm font-medium truncate flex-1">
             {card.title}
@@ -257,7 +272,7 @@ export function MissionSurfaceCard({
                 onHide();
               }}
               className="shrink-0 p-0.5 -m-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-              title="Hide mission card"
+              title={intl.formatMessage({ id: 'missionSurface.hide', defaultMessage: 'Hide mission card' })}
             >
               <X className="size-3.5" />
             </button>
@@ -280,7 +295,7 @@ export function MissionSurfaceCard({
           </span>
           {card.kind === 'daily' && !card.complete && (
             <span className="flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-medium shrink-0">
-              {card.xp} XP
+              <FormattedMessage id="missionSurface.xp" defaultMessage="{xp} XP" values={{ xp: card.xp }} />
             </span>
           )}
         </div>
@@ -291,7 +306,7 @@ export function MissionSurfaceCard({
         onClick={onViewAll}
         className="flex items-center gap-1 mx-auto mt-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
       >
-        View all missions
+        <FormattedMessage id="missionSurface.viewAll" defaultMessage="View all missions" />
         <ChevronRight className="size-3" />
       </button>
     </div>

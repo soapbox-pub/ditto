@@ -265,6 +265,7 @@ export function ColorMomentEyeButton({ event }: { event: NostrEvent }) {
 }
 
 export function ColorMomentContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const colors = useMemo(() => getColors(event.tags), [event.tags]);
   const layout = (getTag(event.tags, 'layout') ?? 'horizontal') as Layout;
   const name = getTag(event.tags, 'name');
@@ -321,7 +322,7 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
               navigator.clipboard.writeText(color);
             }}
             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-mono text-muted-foreground hover:bg-secondary/60 transition-colors"
-            title={`Copy ${color}`}
+            title={intl.formatMessage({ id: 'colorMoment.copyColor', defaultMessage: 'Copy {color}' }, { color })}
           >
             <span
               className="size-2.5 rounded-sm shrink-0 border border-border/40"

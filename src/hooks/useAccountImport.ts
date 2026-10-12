@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
@@ -57,6 +58,7 @@ const INITIAL: ImportState = { status: 'idle', signed: 0, stored: 0, publishable
  * way and shares the per-relay record of accepted ids.
  */
 export function useAccountImport() {
+  const intl = useIntl();
   const { store } = useNostrStorage();
   const { user } = useCurrentUser();
   const { relays, push, reset: resetRelays } = useRelayPush();
@@ -96,10 +98,10 @@ export function useAccountImport() {
           publishable: parsed.signed.length + parsed.unsigned.length,
         });
       } catch (error) {
-        setState({ ...INITIAL, status: 'error', filename: file.name, error: describeError(error) });
+        setState({ ...INITIAL, status: 'error', filename: file.name, error: describeError(error, intl) });
       }
     },
-    [resetRelays, user],
+    [resetRelays, user, intl],
   );
 
   const start = useCallback(
@@ -139,7 +141,7 @@ export function useAccountImport() {
             });
 
             if (event.pubkey !== pubkey) {
-              throw new Error('Signer returned a different account than the one selected.');
+              throw new Error(intl.formatMessage({ id: 'accountImport.error.wrongAccount', defaultMessage: 'Signer returned a different account than the one selected.' }));
             }
 
             events.push(event);
@@ -148,7 +150,10 @@ export function useAccountImport() {
             setState((prev) => ({
               ...prev,
               status: 'error',
-              error: `Signing failed on line ${record.line}: ${describeError(error)}`,
+              error: intl.formatMessage(
+                { id: 'accountImport.error.signingFailed', defaultMessage: 'Signing failed on line {line}: {error}' },
+                { line: record.line, error: describeError(error, intl) },
+              ),
             }));
             return;
           }
@@ -175,7 +180,7 @@ export function useAccountImport() {
           setState((prev) => ({ ...prev, status: 'idle' }));
           return;
         }
-        setState((prev) => ({ ...prev, status: 'error', error: describeError(error) }));
+        setState((prev) => ({ ...prev, status: 'error', error: describeError(error, intl) }));
         return;
       }
 
@@ -184,7 +189,7 @@ export function useAccountImport() {
       await push(pubkey, events, { full, signal });
       setState((prev) => ({ ...prev, status: signal.aborted ? 'idle' : 'done' }));
     },
-    [push, state.parsed, store, user],
+    [push, state.parsed, store, user, intl],
   );
 
   return { state, relays, selectFile, start, cancel, reset };

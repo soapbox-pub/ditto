@@ -1,3 +1,5 @@
+import type { IntlShape } from 'react-intl';
+
 import { getSubdivisionName, getSubdivisionWikipediaTitle } from './subdivisions';
 
 /** ISO 3166-1 alpha-2 country code to country name and flag emoji mapping. */
@@ -300,7 +302,7 @@ export function getWikipediaTitle(code: string): string | null {
 }
 
 /** Get country info from an ISO 3166 code (country or subdivision). */
-export function getCountryInfo(code: string): { name: string; flag: string; subdivision?: string; subdivisionName?: string } | null {
+export function getCountryInfo(code: string, intl?: IntlShape): { name: string; flag: string; subdivision?: string; subdivisionName?: string } | null {
   const upper = code.toUpperCase();
 
   // Handle subdivision codes like "US-CA"
@@ -309,7 +311,7 @@ export function getCountryInfo(code: string): { name: string; flag: string; subd
     const country = COUNTRIES[countryCode];
     if (!country) return null;
     return {
-      name: country.name,
+      name: intl ? countryName(intl, countryCode) : country.name,
       flag: country.flag,
       subdivision: upper,
       subdivisionName: getSubdivisionName(upper) ?? undefined,
@@ -318,5 +320,21 @@ export function getCountryInfo(code: string): { name: string; flag: string; subd
 
   const country = COUNTRIES[upper];
   if (!country) return null;
-  return { name: country.name, flag: country.flag };
+  return { name: intl ? countryName(intl, upper) : country.name, flag: country.flag };
+}
+
+/**
+ * Country name in the active locale (via `Intl.DisplayNames`). English keeps
+ * the curated names from {@link COUNTRIES}; other locales fall back to them
+ * when the runtime has no localized name.
+ */
+export function countryName(intl: IntlShape, code: string): string {
+  const upper = code.toUpperCase();
+  const english = COUNTRIES[upper]?.name ?? upper;
+  if (intl.locale.startsWith('en')) return english;
+  try {
+    return intl.formatDisplayName(upper, { type: 'region', fallback: 'none' }) ?? english;
+  } catch {
+    return english;
+  }
 }

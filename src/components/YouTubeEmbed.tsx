@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -74,6 +75,7 @@ function findThumbnail(videoId: string): Promise<string | null> {
  * is never visible to the user.
  */
 export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
+  const intl = useIntl();
   const [activated, setActivated] = useState(false);
   const [resolvedThumb, setResolvedThumb] = useState<string | null>(null);
 
@@ -97,7 +99,7 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
         {activated ? (
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
-            title="YouTube video"
+            title={intl.formatMessage({ id: 'youtubeEmbed.title', defaultMessage: 'YouTube video' })}
             // No accelerometer/gyroscope: the player listens for device
             // orientation (360° video), which trips GrapheneOS's Sensors prompt.
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
@@ -112,7 +114,7 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
             type="button"
             className="absolute inset-0 w-full h-full cursor-pointer bg-black group"
             onClick={() => setActivated(true)}
-            aria-label="Play video"
+            aria-label={intl.formatMessage({ id: 'youtubeEmbed.play', defaultMessage: 'Play video' })}
           >
             {resolvedThumb && (
               <img

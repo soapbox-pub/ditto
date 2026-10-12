@@ -19,6 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -53,6 +54,7 @@ export type MoneroConnectionPhase =
   | 'error';
 
 export function useMoneroWallet() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
@@ -254,14 +256,16 @@ export function useMoneroWallet() {
         return;
       }
 
-      const message = err instanceof Error ? err.message : 'Failed to open Monero wallet';
+      const message = err instanceof Error
+        ? err.message
+        : intl.formatMessage({ id: 'moneroWallet.error.openFailed', defaultMessage: 'Failed to open Monero wallet' });
       setError(message);
       setPhase('error');
     } finally {
       connectingRef.current = false;
       queryClient.invalidateQueries({ queryKey: ['monero-cache-present', pubkey] });
     }
-  }, [record, pubkey, session, nodeUrls, isCurrent, publishState, queryClient]);
+  }, [record, pubkey, session, nodeUrls, isCurrent, publishState, queryClient, intl]);
 
   /** Re-sync an already-open wallet. */
   const refresh = useCallback(async () => {
@@ -287,10 +291,10 @@ export function useMoneroWallet() {
       publishState(session, state);
     } catch (err) {
       if (!isCurrent(session)) return;
-      setError(err instanceof Error ? err.message : 'Sync failed');
+      setError(err instanceof Error ? err.message : intl.formatMessage({ id: 'moneroWallet.error.syncFailed', defaultMessage: 'Sync failed' }));
       setPhase('error');
     }
-  }, [session, connect, isCurrent, publishState]);
+  }, [session, connect, isCurrent, publishState, intl]);
 
   /** Re-read balances without a full sync (after sending, say). */
   const refreshState = useCallback(async () => {

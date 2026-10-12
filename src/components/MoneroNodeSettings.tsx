@@ -144,14 +144,14 @@ export function MoneroNodeSettings() {
       <p className="text-xs text-muted-foreground px-1">
         <FormattedMessage
           id="settings.monero.description"
-          defaultMessage="Your Monero wallet scans the blockchain through these nodes. A node sees your IP address and when you ask for blocks — never your keys, balance, or which outputs are yours. The first reachable node is used."
+          defaultMessage="Your Monero wallet scans the blockchain through these nodes. A node sees your IP address and when you ask for blocks, but never your keys, balance, or which outputs are yours. The first reachable node is used."
         />
       </p>
 
       <p className="text-xs text-muted-foreground px-1">
         <FormattedMessage
           id="settings.monero.corsNote"
-          defaultMessage="A node needs a valid certificate and CORS headers to work in a browser. Most public nodes have neither, even ones that work fine in other Monero wallets — use Test before relying on one."
+          defaultMessage="A node needs a valid certificate and CORS headers to work in a browser. Most public nodes have neither, even ones that work fine in other Monero wallets, so use Test before relying on one."
         />
       </p>
 
@@ -203,7 +203,7 @@ export function MoneroNodeSettings() {
                               defaultMessage="{ms}ms · height {height}"
                               values={{
                                 ms: probe.responseMs ?? 0,
-                                height: (probe.height ?? 0).toLocaleString(),
+                                height: intl.formatNumber(probe.height ?? 0),
                               }}
                             />
                           </>
@@ -213,7 +213,7 @@ export function MoneroNodeSettings() {
                             {probe.error === 'blocked' ? (
                               <FormattedMessage
                                 id="settings.monero.probeBlocked"
-                                defaultMessage="Blocked — untrusted certificate or no CORS"
+                                defaultMessage="Blocked: untrusted certificate or no CORS"
                               />
                             ) : probe.error === 'timeout' ? (
                               <FormattedMessage

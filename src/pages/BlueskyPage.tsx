@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
+import { PageHeader } from '@/components/PageHeader';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useInView } from '@/hooks/useInView';
 import {
-  ArrowLeft,
   ExternalLink,
   FlameKindling,
   Info,
@@ -64,19 +65,19 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, intl: IntlShape): string {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
   const diff = now - then;
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return intl.formatMessage({ id: 'bluesky.time.justNow', defaultMessage: 'just now' });
+  if (minutes < 60) return intl.formatMessage({ id: 'bluesky.time.minutes', defaultMessage: '{count}m' }, { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return intl.formatMessage({ id: 'bluesky.time.hours', defaultMessage: '{count}h' }, { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
+  if (days < 30) return intl.formatMessage({ id: 'bluesky.time.days', defaultMessage: '{count}d' }, { count: days });
   const months = Math.floor(days / 30);
-  return `${months}mo`;
+  return intl.formatMessage({ id: 'bluesky.time.months', defaultMessage: '{count}mo' }, { count: months });
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +89,7 @@ function timeAgo(dateStr: string): string {
 // ---------------------------------------------------------------------------
 
 function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
+  const intl = useIntl();
   const navigate = useNavigate();
   const { toast } = useToast();
   const shareOrigin = useShareOrigin();
@@ -119,9 +121,9 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
     const fullUrl = `${shareOrigin}${internalUrl}`;
     const result = await shareOrCopy(fullUrl);
     if (result === 'copied') {
-      toast({ title: 'Link copied' });
+      toast({ title: intl.formatMessage({ id: 'bluesky.linkCopied', defaultMessage: 'Link copied' }) });
     }
-  }, [internalUrl, toast, shareOrigin]);
+  }, [internalUrl, toast, shareOrigin, intl]);
 
   const handleCardClick = useCallback(() => {
     navigate(internalUrl);
@@ -164,7 +166,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
               </Link>
               <span className="text-muted-foreground text-sm shrink-0">&middot;</span>
               <span className="text-muted-foreground text-sm shrink-0">
-                {timeAgo(post.record.createdAt)}
+                {timeAgo(post.record.createdAt, intl)}
               </span>
             </div>
 
@@ -241,7 +243,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 type="button"
                 onClick={handleComment}
                 className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-sky-500 hover:bg-sky-500/10 transition-colors"
-                title="Comment"
+                title={intl.formatMessage({ id: 'bluesky.comment', defaultMessage: 'Comment' })}
               >
                 <MessageCircle className="size-[18px]" />
                 {post.replyCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.replyCount)}</span>}
@@ -250,7 +252,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 type="button"
                 onClick={handleRepost}
                 className="inline-flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-                title="Share to feed"
+                title={intl.formatMessage({ id: 'bluesky.shareToFeed', defaultMessage: 'Share to feed' })}
               >
                 <Repeat2 className="size-[18px]" />
                 {post.repostCount > 0 && <span className="text-sm tabular-nums">{formatCount(post.repostCount)}</span>}
@@ -260,7 +262,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
                 type="button"
                 onClick={handleShare}
                 className="inline-flex items-center p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Share link"
+                title={intl.formatMessage({ id: 'bluesky.shareLink', defaultMessage: 'Share link' })}
               >
                 <Share2 className="size-[18px]" />
               </button>
@@ -284,7 +286,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
           open={shareOpen}
           onOpenChange={setShareOpen}
           initialContent={webUrl}
-          title="Share to feed"
+          title={intl.formatMessage({ id: 'bluesky.shareToFeed', defaultMessage: 'Share to feed' })}
         />
       )}
     </>
@@ -296,6 +298,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
 // ---------------------------------------------------------------------------
 
 function BlueskySearchBar() {
+  const intl = useIntl();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -371,7 +374,7 @@ function BlueskySearchBar() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search Bluesky users..."
+          placeholder={intl.formatMessage({ id: 'bluesky.searchPlaceholder', defaultMessage: 'Search Bluesky users...' })}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => {
@@ -384,6 +387,7 @@ function BlueskySearchBar() {
           <button
             type="button"
             onClick={handleClear}
+            aria-label={intl.formatMessage({ id: 'bluesky.clearSearch', defaultMessage: 'Clear search' })}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <X className="size-3.5" />
@@ -441,7 +445,11 @@ function BlueskySearchBar() {
             </div>
           ) : (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No users found for &ldquo;{debouncedQuery}&rdquo;
+              <FormattedMessage
+                id="bluesky.noUsersFound"
+                defaultMessage="No users found for “{query}”"
+                values={{ query: debouncedQuery }}
+              />
             </div>
           )}
 
@@ -494,6 +502,7 @@ function BlueskyLoadingSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function BlueskyPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const {
     data,
@@ -506,8 +515,8 @@ export function BlueskyPage() {
   const { ref: loadMoreRef, inView } = useInView();
 
   useSeoMeta({
-    title: `Bluesky | ${config.appName}`,
-    description: 'Explore popular posts from Bluesky \u2014 trending discussions, images, and links.',
+    title: intl.formatMessage({ id: 'bluesky.seoTitle', defaultMessage: 'Bluesky | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'bluesky.seoDescription', defaultMessage: 'Explore popular posts from Bluesky: trending discussions, images, and links.' }),
   });
 
   // Flatten pages, deduplicate by URI
@@ -529,43 +538,40 @@ export function BlueskyPage() {
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-2">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-sky-500/20 to-blue-500/10 flex items-center justify-center">
-            <BlueskyIcon className="size-4 text-sky-500 dark:text-sky-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Bluesky</h1>
-            <p className="text-xs text-muted-foreground">Popular posts from the ATmosphere</p>
-          </div>
-        </div>
+    <main>
+      <PageHeader
+        title="Bluesky"
+        icon={<BlueskyIcon className="size-5" />}
+        subtitle={intl.formatMessage({ id: 'bluesky.subtitle', defaultMessage: 'Popular posts from the ATmosphere' })}
+      >
         <div className="flex items-center gap-1">
           <Popover>
             <PopoverTrigger asChild>
               <button
                 type="button"
                 className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                title="About"
+                title={intl.formatMessage({ id: 'bluesky.about', defaultMessage: 'About' })}
               >
                 <Info className="size-4" />
               </button>
             </PopoverTrigger>
             <PopoverContent side="bottom" align="end" className="w-72 text-xs text-muted-foreground">
-              Content provided by{' '}
-              <a
-                href="https://bsky.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-foreground transition-colors"
-              >
-                Bluesky
-              </a>
-              , a decentralized social network built on the AT Protocol. All posts are public and belong to their respective authors.
+              <FormattedMessage
+                id="bluesky.aboutText"
+                defaultMessage="Content provided by <a>Bluesky</a>, a decentralized social network built on the AT Protocol. All posts are public and belong to their respective authors."
+                values={{
+                  a: (chunks) => (
+                    <a
+                      href="https://bsky.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2 hover:text-foreground transition-colors"
+                    >
+                      {chunks}
+                    </a>
+                  ),
+                }}
+              />
             </PopoverContent>
           </Popover>
           <a
@@ -573,12 +579,12 @@ export function BlueskyPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-            title="Visit Bluesky"
+            title={intl.formatMessage({ id: 'bluesky.visit', defaultMessage: 'Visit Bluesky' })}
           >
             <ExternalLink className="size-4" />
           </a>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Search bar */}
       <BlueskySearchBar />
@@ -590,13 +596,13 @@ export function BlueskyPage() {
         <div className="px-4 pt-8 pb-16 text-center">
           <FlameKindling className="size-10 mx-auto mb-3 text-muted-foreground/30" />
           <p className="text-muted-foreground text-sm">
-            Couldn&apos;t load Bluesky posts. Try again later.
+            <FormattedMessage id="bluesky.loadError" defaultMessage="Couldn't load Bluesky posts. Try again later." />
           </p>
         </div>
       ) : allPosts.length === 0 ? (
         <div className="py-16 text-center">
           <BlueskyIcon className="size-10 mx-auto mb-3 text-muted-foreground/20" />
-          <p className="text-muted-foreground text-sm">No posts found.</p>
+          <p className="text-muted-foreground text-sm"><FormattedMessage id="bluesky.empty" defaultMessage="No posts found." /></p>
         </div>
       ) : (
         <div>

@@ -1,6 +1,7 @@
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { HelpCircle, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -10,25 +11,35 @@ import { HelpFAQSection } from '@/components/HelpFAQSection';
 
 export function HelpPage() {
   const { config } = useAppContext();
+  const intl = useIntl();
   useLayoutOptions({});
 
   useSeoMeta({
-    title: `Help | ${config.appName}`,
-    description: `Get help with ${config.appName} — Nostr 101, FAQs, and support`,
+    title: intl.formatMessage({ id: 'help.seoTitle', defaultMessage: 'Help | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage(
+      { id: 'help.metaDescription', defaultMessage: 'Get help with {appName}: Nostr 101, FAQs, and support' },
+      { appName: config.appName },
+    ),
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
-      <PageHeader title="Help" icon={<HelpCircle className="size-5" />} />
+    <main className="min-h-screen">
+      <PageHeader title={intl.formatMessage({ id: 'help.title', defaultMessage: 'Help' })} icon={<HelpCircle className="size-5" />} />
 
       {/* Team Soapbox follow pack */}
       <TeamSoapboxCard className="px-4 pt-2 pb-4" />
 
       {/* FAQ heading */}
       <div className="px-4 pt-4 pb-1">
-        <h2 className="text-lg font-bold">Frequently Asked Questions</h2>
+        <h2 className="text-lg font-bold">
+          <FormattedMessage id="help.faqTitle" defaultMessage="Frequently Asked Questions" />
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Everything you need to know about Nostr, {config.appName}, and how it all works.
+          <FormattedMessage
+            id="help.faqDescription"
+            defaultMessage="Everything you need to know about Nostr, {appName}, and how it all works."
+            values={{ appName: config.appName }}
+          />
         </p>
       </div>
 
@@ -42,7 +53,7 @@ export function HelpPage() {
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <Shield className="size-4" />
-          <span>Privacy Policy</span>
+          <span><FormattedMessage id="help.privacyPolicy" defaultMessage="Privacy Policy" /></span>
         </Link>
       </div>
     </main>

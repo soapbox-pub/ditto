@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { useIntl } from 'react-intl';
+import { defineMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import {
   TrendingUp,
   Flame,
@@ -25,9 +25,9 @@ export interface WidgetDefinition {
   /** Unique identifier matching WidgetConfig.id */
   id: string;
   /** Display label shown in the widget header and picker. */
-  label: string;
+  label: MessageDescriptor;
   /** Short description for the widget picker. */
-  description: string;
+  description: MessageDescriptor;
   /** Icon component for the widget header and picker. */
   icon: IconComponent;
   /** Default height in pixels. */
@@ -51,8 +51,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   // Discovery
   {
     id: 'trends',
-    label: 'Trending',
-    description: 'Top trending hashtags with sparkline charts',
+    label: defineMessage({ id: 'widgets.trending.title', defaultMessage: 'Trending' }),
+    description: defineMessage({ id: 'widgets.trending.description', defaultMessage: 'Top trending hashtags with sparkline charts' }),
     icon: TrendingUp,
     defaultHeight: 320,
     minHeight: 200,
@@ -62,8 +62,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'hot-posts',
-    label: 'Hot Posts',
-    description: 'Top posts from the Hot feed',
+    label: defineMessage({ id: 'widgets.hotPosts.title', defaultMessage: 'Hot Posts' }),
+    description: defineMessage({ id: 'widgets.hotPosts.description', defaultMessage: 'Top posts from the Hot feed' }),
     icon: Flame,
     defaultHeight: 350,
     minHeight: 200,
@@ -73,8 +73,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'wikipedia',
-    label: 'Wikipedia',
-    description: "Today's featured article from Wikipedia",
+    label: defineMessage({ id: 'widgets.wikipedia.title', defaultMessage: 'Wikipedia' }),
+    description: defineMessage({ id: 'widgets.wikipedia.description', defaultMessage: "Today's featured article from Wikipedia" }),
     icon: WikipediaIcon,
     defaultHeight: 350,
     minHeight: 200,
@@ -84,8 +84,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'bluesky',
-    label: 'Bluesky',
-    description: 'Trending posts from Bluesky',
+    label: defineMessage({ id: 'widgets.bluesky.title', defaultMessage: 'Bluesky' }),
+    description: defineMessage({ id: 'widgets.bluesky.description', defaultMessage: 'Trending posts from Bluesky' }),
     icon: BlueskyIcon,
     defaultHeight: 400,
     minHeight: 250,
@@ -95,8 +95,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'nostr-clients',
-    label: 'Nostr Clients',
-    description: 'Distinct authors per client over the last 30 days',
+    label: defineMessage({ id: 'widgets.nostrClients.title', defaultMessage: 'Nostr Clients' }),
+    description: defineMessage({ id: 'widgets.nostrClients.description', defaultMessage: 'Distinct authors per client over the last 30 days' }),
     icon: BarChart3,
     defaultHeight: 300,
     minHeight: 200,
@@ -108,8 +108,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   // Personal
   {
     id: 'blobbi',
-    label: 'Blobbi',
-    description: 'Your virtual pet companion',
+    label: defineMessage({ id: 'widgets.blobbi.title', defaultMessage: 'Blobbi' }),
+    description: defineMessage({ id: 'widgets.blobbi.description', defaultMessage: 'Your virtual pet companion' }),
     icon: Egg,
     defaultHeight: 350,
     minHeight: 200,
@@ -119,8 +119,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'status',
-    label: 'Status',
-    description: 'Your current status, editable inline',
+    label: defineMessage({ id: 'widgets.status.title', defaultMessage: 'Status' }),
+    description: defineMessage({ id: 'widgets.status.description', defaultMessage: 'Your current status, editable inline' }),
     icon: SmilePlus,
     defaultHeight: 80,
     minHeight: 60,
@@ -130,8 +130,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'ai-chat',
-    label: 'AI Chat',
-    description: 'Chat with Shakespeare AI',
+    label: defineMessage({ id: 'widgets.aiChat.title', defaultMessage: 'AI Chat' }),
+    description: defineMessage({ id: 'widgets.aiChat.description', defaultMessage: 'Chat with Shakespeare AI' }),
     icon: Bot,
     defaultHeight: 300,
     minHeight: 200,
@@ -144,8 +144,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   // Content feeds
   {
     id: 'feed:photos',
-    label: 'Photos',
-    description: 'Recent photos from your feed',
+    label: defineMessage({ id: 'widgets.photo.title', defaultMessage: 'Photos' }),
+    description: defineMessage({ id: 'widgets.photo.description', defaultMessage: 'Recent photos from your feed' }),
     icon: Camera,
     defaultHeight: 400,
     minHeight: 250,
@@ -155,8 +155,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'feed:music',
-    label: 'Music',
-    description: 'Music tracks from your feed',
+    label: defineMessage({ id: 'widgets.music.title', defaultMessage: 'Music' }),
+    description: defineMessage({ id: 'widgets.music.description', defaultMessage: 'Music tracks from your feed' }),
     icon: Music,
     defaultHeight: 350,
     minHeight: 250,
@@ -166,8 +166,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'feed:articles',
-    label: 'Articles',
-    description: 'Long-form articles from your feed',
+    label: defineMessage({ id: 'widgets.articles.title', defaultMessage: 'Articles' }),
+    description: defineMessage({ id: 'widgets.articles.description', defaultMessage: 'Long-form articles from your feed' }),
     icon: ScrollText,
     defaultHeight: 350,
     minHeight: 250,
@@ -177,8 +177,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   },
   {
     id: 'feed:events',
-    label: 'Events',
-    description: 'Upcoming calendar events',
+    label: defineMessage({ id: 'widgets.events.title', defaultMessage: 'Events' }),
+    description: defineMessage({ id: 'widgets.events.description', defaultMessage: 'Upcoming calendar events' }),
     icon: CalendarDays,
     defaultHeight: 300,
     minHeight: 200,
@@ -209,66 +209,31 @@ export function getWidgetDefinition(id: string): WidgetDefinition | undefined {
 }
 
 /** Category labels for display in the picker. */
-export const WIDGET_CATEGORIES: Record<string, string> = {
-  personal: 'Personal',
-  content: 'Content',
-  discovery: 'Discovery',
-};
-
-// ── Translated labels ─────────────────────────────────────────────────────────
-
-/** Maps registry widget IDs to their i18n key stem under `widgets.*`. */
-const WIDGET_I18N_STEMS: Record<string, string> = {
-  'trends': 'trending',
-  'hot-posts': 'hotPosts',
-  'wikipedia': 'wikipedia',
-  'bluesky': 'bluesky',
-  'nostr-clients': 'nostrClients',
-  'blobbi': 'blobbi',
-  'status': 'status',
-  'ai-chat': 'aiChat',
-  'feed:photos': 'photo',
-  'feed:music': 'music',
-  'feed:articles': 'articles',
-  'feed:events': 'events',
-};
-
-/** i18n key stem for a widget ID, used to build `widgets.<stem>.*` keys. */
-export function widgetI18nStem(id: string): string {
-  return WIDGET_I18N_STEMS[id] ?? id;
-}
+export const WIDGET_CATEGORIES: Record<WidgetDefinition['category'], MessageDescriptor> = defineMessages({
+  personal: { id: 'widgets.categories.personal', defaultMessage: 'Personal' },
+  content: { id: 'widgets.categories.content', defaultMessage: 'Content' },
+  discovery: { id: 'widgets.categories.discovery', defaultMessage: 'Discovery' },
+});
 
 /**
  * Translated display label for a widget ID, for use in components.
- * Looks up `widgets.<stem>.title` in the active locale and falls back to the
- * registry's English label when the key is missing. Unknown IDs pass through
- * untranslated.
+ * Unknown IDs pass through untranslated.
  */
 export function useWidgetLabel(id: string): string {
   const intl = useIntl();
   const def = WIDGET_MAP.get(id);
-  if (!def) return id;
-  return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.title`, defaultMessage: def.label });
+  return def ? intl.formatMessage(def.label) : id;
 }
 
-/**
- * Translated description for a widget ID, for use in the widget picker.
- * Looks up `widgets.<stem>.description` in the active locale and falls back to
- * the registry's English description when the key is missing.
- */
+/** Translated description for a widget ID, for use in the widget picker. */
 export function useWidgetDescription(id: string): string {
   const intl = useIntl();
   const def = WIDGET_MAP.get(id);
-  if (!def) return '';
-  return intl.formatMessage({ id: `widgets.${widgetI18nStem(id)}.description`, defaultMessage: def.description });
+  return def ? intl.formatMessage(def.description) : '';
 }
 
-/**
- * Translated category label for the widget picker.
- * Looks up `widgets.categories.<category>` and falls back to the English
- * label from WIDGET_CATEGORIES when the key is missing.
- */
-export function useWidgetCategoryLabel(category: string): string {
+/** Translated category label for the widget picker. */
+export function useWidgetCategoryLabel(category: WidgetDefinition['category']): string {
   const intl = useIntl();
-  return intl.formatMessage({ id: `widgets.categories.${category}`, defaultMessage: WIDGET_CATEGORIES[category] ?? category });
+  return intl.formatMessage(WIDGET_CATEGORIES[category]);
 }

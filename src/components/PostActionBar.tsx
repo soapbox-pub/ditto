@@ -1,5 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { MessageCircle, MoreHorizontal, Zap } from 'lucide-react';
+import { useIntl } from 'react-intl';
 
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -28,13 +29,14 @@ interface PostActionBarProps {
 
 export function PostActionBar({
   event,
-  replyLabel = 'Reply',
+  replyLabel,
   onReply,
   onMore,
   className,
   extraButtons,
   compact,
 }: PostActionBarProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   // Zap button shows for any logged-in user except on their own posts.
   // Exception: people-list events the user authored — they can't zap
@@ -56,7 +58,7 @@ export function PostActionBar({
       <button
         type="button"
         className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
-        title={replyLabel}
+        title={replyLabel ?? intl.formatMessage({ id: 'postActionBar.reply', defaultMessage: 'Reply' })}
         onClick={onReply}
       >
         <MessageCircle className={compact ? "size-[18px] sm:size-5" : "size-5"} />
@@ -71,7 +73,9 @@ export function PostActionBar({
           <button
             type="button"
             className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`, compact ? "p-1.5 sm:p-2" : "p-2")}
-            title={isReposted ? 'Undo repost' : 'Repost'}
+            title={isReposted
+              ? intl.formatMessage({ id: 'postActionBar.undoRepost', defaultMessage: 'Undo repost' })
+              : intl.formatMessage({ id: 'postActionBar.repost', defaultMessage: 'Repost' })}
           >
             <RepostIcon className={compact ? "size-[18px] sm:size-5" : "size-5"} />
             {repostTotal > 0 ? (
@@ -102,7 +106,7 @@ export function PostActionBar({
               'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
               compact ? "p-1.5 sm:p-2" : "p-2",
             )}
-            title="Zap"
+            title={intl.formatMessage({ id: 'postActionBar.zap', defaultMessage: 'Zap' })}
           >
             <Zap
               className={compact ? "size-[18px] sm:size-5" : "size-5"}
@@ -119,7 +123,7 @@ export function PostActionBar({
       <button
         type="button"
         className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
-        title="More"
+        title={intl.formatMessage({ id: 'postActionBar.more', defaultMessage: 'More' })}
         onClick={onMore}
       >
         <MoreHorizontal className={compact ? "size-[18px] sm:size-5" : "size-5"} />

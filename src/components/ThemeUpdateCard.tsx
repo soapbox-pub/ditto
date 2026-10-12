@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Palette, Copy, Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -24,13 +25,14 @@ interface ThemeUpdateCardProps {
  * card in feeds, showing the theme's colors, title, and description.
  */
 export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const isOwn = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const authorEvent = author.data?.event;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const theme = useMemo(() => parseThemeDefinition(event), [event]);
@@ -47,12 +49,12 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
   };
 
   const swatchColors = [
-    { label: 'Primary', hex: hexColors.primary },
-    { label: 'Text', hex: hexColors.foreground },
-    { label: 'Background', hex: hexColors.background },
+    { label: intl.formatMessage({ id: 'themeUpdateCard.swatch.primary', defaultMessage: 'Primary' }), hex: hexColors.primary },
+    { label: intl.formatMessage({ id: 'themeUpdateCard.swatch.text', defaultMessage: 'Text' }), hex: hexColors.foreground },
+    { label: intl.formatMessage({ id: 'themeUpdateCard.swatch.background', defaultMessage: 'Background' }), hex: hexColors.background },
   ];
 
-  const relativeTime = timeAgo(event.created_at);
+  const relativeTime = timeAgo(event.created_at, intl);
 
   return (
     <div className="px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors">
@@ -73,7 +75,9 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
                 <EmojifiedText tags={authorEvent.tags}>{displayName}</EmojifiedText>
               ) : displayName}
             </Link>
-            <span className="text-muted-foreground text-sm">shared a theme</span>
+            <span className="text-muted-foreground text-sm">
+              <FormattedMessage id="themeUpdateCard.sharedTheme" defaultMessage="shared a theme" />
+            </span>
           </div>
           <span className="text-xs text-muted-foreground">{relativeTime}</span>
         </div>
@@ -132,21 +136,21 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
       <div className="flex items-center gap-2 mt-2.5">
         <Link to={profileUrl}>
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground">
-            View Profile
+            <FormattedMessage id="themeUpdateCard.viewProfile" defaultMessage="View Profile" />
           </Button>
         </Link>
         {isOwn ? (
           <Link to="/themes">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
-              Edit Theme
+              <FormattedMessage id="themeUpdateCard.editTheme" defaultMessage="Edit Theme" />
             </Button>
           </Link>
         ) : (
           <Link to="/themes">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
               <Copy className="size-3.5 mr-1" />
-              Copy Theme
+              <FormattedMessage id="themeUpdateCard.copyTheme" defaultMessage="Copy Theme" />
             </Button>
           </Link>
         )}

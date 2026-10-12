@@ -16,6 +16,8 @@
  * - Selected action highlight
  */
 
+import { useIntl } from 'react-intl';
+
 import { cn } from '@/lib/utils';
 import type { Position } from '../types/companion.types';
 import type { CompanionMenuAction, MenuActionConfig } from './types';
@@ -94,6 +96,8 @@ export function CompanionActionMenu({
   onClickOutside,
   isSleeping = false,
 }: CompanionActionMenuProps) {
+  const intl = useIntl();
+
   if (!isOpen) return null;
   
   // Calculate companion center directly (no memoization to avoid stale values)
@@ -128,7 +132,9 @@ export function CompanionActionMenu({
         // Sleep action toggles label/emoji based on sleeping state
         const isSleepAction = action.id === 'sleep';
         const displayEmoji = isSleepAction && isSleeping ? '\u2600\uFE0F' : action.emoji;
-        const displayLabel = isSleepAction && isSleeping ? 'Wake up' : action.label;
+        const displayLabel = isSleepAction && isSleeping
+          ? intl.formatMessage({ id: 'blobbiRoom.dock.wakeUp', defaultMessage: 'Wake up' })
+          : intl.formatMessage(action.label);
         
         return (
           <button

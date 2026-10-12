@@ -21,6 +21,7 @@ import {
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { FormattedMessage, useIntl } from "react-intl";
 import { LazyFeedItem } from "@/components/LazyFeedItem";
 import { AwardBadgeDialog } from "@/components/AwardBadgeDialog";
 import { LoginArea } from "@/components/auth/LoginArea";
@@ -34,6 +35,7 @@ import { NoteCard } from "@/components/NoteCard";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { SortableList, SortableItem } from "@/components/SortableList";
+import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
 import {
@@ -121,6 +123,7 @@ function NoteCardSkeleton() {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export function BadgesPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -146,30 +149,32 @@ export function BadgesPage() {
   ]);
 
   useSeoMeta({
-    title: `Badges | ${config.appName}`,
-    description:
-      "Discover badges, create new ones, and show them off on your profile",
+    title: intl.formatMessage(
+      { id: "badgesPage.seoTitle", defaultMessage: "Badges | {appName}" },
+      { appName: config.appName },
+    ),
+    description: intl.formatMessage({ id: "badgesPage.seoDescription", defaultMessage: "Discover badges, create new ones, and show them off on your profile" }),
   });
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      <PageHeader title="Badges" icon={<Award className="size-5" />} />
+    <main>
+      <PageHeader title={intl.formatMessage({ id: "badgesPage.title", defaultMessage: "Badges" })} icon={<Award className="size-5" />} />
 
       {/* Follows / My Badges tabs */}
       {user && (
         <SubHeaderBar>
           <TabButton
-            label="Follows"
+            label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
             active={activeTab === "follows"}
             onClick={() => setActiveTab("follows")}
           />
           <TabButton
-            label="My Badges"
+            label={intl.formatMessage({ id: "badgesPage.myBadges", defaultMessage: "My Badges" })}
             active={activeTab === "mine"}
             onClick={() => setActiveTab("mine")}
           >
             <span className="inline-flex items-center gap-1.5">
-              My Badges
+              <FormattedMessage id="badgesPage.myBadges" defaultMessage="My Badges" />
               {pendingCount > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold leading-none">
                   {pendingCount}
@@ -181,7 +186,7 @@ export function BadgesPage() {
       )}
 
       {/* Arc overhang spacer (matches Feed.tsx) */}
-      {user && <div style={{ height: 20 }} />}
+      {user && <div style={{ height: ARC_OVERHANG_PX }} />}
 
       {/* Tab content */}
       {activeTab === "mine" ? (
@@ -232,9 +237,9 @@ function MyBadgesTab({
           <Award className="size-8 text-primary" />
         </div>
         <div className="space-y-2 max-w-xs">
-          <h2 className="text-xl font-bold">Manage your badges</h2>
+          <h2 className="text-xl font-bold"><FormattedMessage id="badgesPage.manageTitle" defaultMessage="Manage your badges" /></h2>
           <p className="text-muted-foreground text-sm">
-            Log in to view, accept, and organize your Nostr badges.
+            <FormattedMessage id="badgesPage.manageDescription" defaultMessage="Log in to view, accept, and organize your Nostr badges." />
           </p>
         </div>
         <LoginArea className="max-w-60" />
@@ -256,6 +261,7 @@ function MyBadgesContent({
   pendingCount,
   isLoadingPending,
 }: MyBadgesTabProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const [recoveryOpen, setRecoveryOpen] = useState(false);
@@ -321,7 +327,7 @@ function MyBadgesContent({
       {(pendingCount > 0 || isLoadingPending) && (
         <section>
           <SectionHeader
-            title="Pending"
+            title={intl.formatMessage({ id: "badgesPage.pending", defaultMessage: "Pending" })}
             count={isLoadingPending ? undefined : pendingCount}
             icon={<Clock className="size-4" />}
           />
@@ -343,7 +349,7 @@ function MyBadgesContent({
       {/* ── Accepted Badges ── */}
       <section>
         <SectionHeader
-          title="Accepted"
+          title={intl.formatMessage({ id: "badgesPage.accepted", defaultMessage: "Accepted" })}
           count={isLoadingAccepted ? undefined : localRefs.length}
           icon={<Check className="size-4" />}
           action={
@@ -354,7 +360,7 @@ function MyBadgesContent({
               onClick={() => setRecoveryOpen(true)}
             >
               <RotateCcw className="size-3.5" />
-              Recovery
+              <FormattedMessage id="badgesPage.recovery" defaultMessage="Recovery" />
             </Button>
           }
         />
@@ -369,7 +375,7 @@ function MyBadgesContent({
       {/* ── Created Badges ── */}
       <section>
         <SectionHeader
-          title="Created"
+          title={intl.formatMessage({ id: "badgesPage.created", defaultMessage: "Created" })}
           count={isLoadingCreated ? undefined : createdBadges.length}
           icon={<Pencil className="size-4" />}
         />
@@ -422,6 +428,7 @@ function PendingBadgeList({
 }) {
   const [dismissedATags, setDismissedATags] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
+  const intl = useIntl();
   const { toast } = useToast();
   const { mutate: acceptBadge, isPending: isAccepting } = useAcceptBadge();
 
@@ -451,9 +458,9 @@ function PendingBadgeList({
     acceptBadge(
       { aTag: current.aTag, awardEventId: current.awardEvent.id },
       {
-        onSuccess: () => toast({ title: "Badge accepted!" }),
+        onSuccess: () => toast({ title: intl.formatMessage({ id: "badgesPage.acceptedToast", defaultMessage: "Badge accepted!" }) }),
         onError: () =>
-          toast({ title: "Failed to accept badge", variant: "destructive" }),
+          toast({ title: intl.formatMessage({ id: "badgesPage.acceptFailed", defaultMessage: "Failed to accept badge" }), variant: "destructive" }),
       },
     );
   };
@@ -483,8 +490,16 @@ function PendingBadgeList({
 
       {/* Issuer line */}
       <div className="flex items-center justify-center gap-2 pb-2 -mt-1">
-        <span className="text-xs text-muted-foreground">from</span>
-        <IssuerName pubkey={current.issuerPubkey} />
+        <FormattedMessage
+          id="badgesPage.fromIssuer"
+          defaultMessage="<muted>from</muted> {issuer}"
+          values={{
+            muted: (chunks: React.ReactNode[]) => (
+              <span className="text-xs text-muted-foreground">{chunks}</span>
+            ),
+            issuer: <IssuerName pubkey={current.issuerPubkey} />,
+          }}
+        />
       </div>
 
       {/* Actions */}
@@ -500,7 +515,7 @@ function PendingBadgeList({
           ) : (
             <>
               <Award className="size-4" />
-              Accept Badge
+              <FormattedMessage id="badgesPage.accept" defaultMessage="Accept Badge" />
             </>
           )}
         </Button>
@@ -510,7 +525,7 @@ function PendingBadgeList({
           onClick={() => handleDismiss(current.aTag)}
           disabled={isAccepting}
         >
-          Dismiss
+          <FormattedMessage id="badgesPage.dismiss" defaultMessage="Dismiss" />
         </Button>
       </div>
 
@@ -523,12 +538,16 @@ function PendingBadgeList({
             className="size-8 rounded-full"
             onClick={() => setCurrentIndex((i) => i - 1)}
             disabled={!hasPrev}
-            aria-label="Previous badge"
+            aria-label={intl.formatMessage({ id: "badgesPage.previous", defaultMessage: "Previous badge" })}
           >
             <ChevronLeft className="size-4" strokeWidth={4} />
           </Button>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {currentIndex + 1} of {visibleBadges.length}
+            <FormattedMessage
+              id="badgesPage.position"
+              defaultMessage="{current} of {total}"
+              values={{ current: currentIndex + 1, total: visibleBadges.length }}
+            />
           </span>
           <Button
             variant="ghost"
@@ -536,7 +555,7 @@ function PendingBadgeList({
             className="size-8 rounded-full"
             onClick={() => setCurrentIndex((i) => i + 1)}
             disabled={!hasNext}
-            aria-label="Next badge"
+            aria-label={intl.formatMessage({ id: "badgesPage.next", defaultMessage: "Next badge" })}
           >
             <ChevronRight className="size-4" strokeWidth={4} />
           </Button>
@@ -585,6 +604,7 @@ function AcceptedBadgeList({
   badgeMap: Map<string, BadgeDefinition>;
   isLoading: boolean;
 }) {
+  const intl = useIntl();
   const { toast } = useToast();
   const { mutate: reorderBadges, isPending: isReordering } = useReorderBadges();
   const { mutate: removeBadge } = useRemoveBadge();
@@ -597,13 +617,13 @@ function AcceptedBadgeList({
         {
           onError: () =>
             toast({
-              title: "Failed to reorder badges",
+              title: intl.formatMessage({ id: "badgesPage.reorderFailed", defaultMessage: "Failed to reorder badges" }),
               variant: "destructive",
             }),
         },
       );
     },
-    [setRefs, reorderBadges, toast],
+    [setRefs, reorderBadges, toast, intl],
   );
 
   const handleRemove = useCallback(
@@ -611,10 +631,10 @@ function AcceptedBadgeList({
       setRefs((prev) => prev.filter((r) => r.aTag !== aTag));
       removeBadge(aTag, {
         onError: () =>
-          toast({ title: "Failed to remove badge", variant: "destructive" }),
+          toast({ title: intl.formatMessage({ id: "badgesPage.removeFailed", defaultMessage: "Failed to remove badge" }), variant: "destructive" }),
       });
     },
-    [setRefs, removeBadge, toast],
+    [setRefs, removeBadge, toast, intl],
   );
 
   return (
@@ -633,7 +653,7 @@ function AcceptedBadgeList({
           ) : refs.length === 0 ? (
             <div className="py-8 text-center">
               <p className="text-sm text-muted-foreground">
-                No accepted badges yet. When you accept a badge, it will appear here.
+                <FormattedMessage id="badgesPage.noAccepted" defaultMessage="No accepted badges yet. When you accept a badge, it will appear here." />
               </p>
             </div>
           ) : (
@@ -711,10 +731,14 @@ function CreatedBadgeList({ badges, isLoading }: { badges: ParsedBadge[]; isLoad
             onClick={() => setEditingBadge(null)}
           >
             <X className="size-4" />
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <h3 className="text-xs font-semibold text-muted-foreground">
-            Editing: {editingBadge.badge.name}
+            <FormattedMessage
+              id="badgesPage.editing"
+              defaultMessage="Editing: {name}"
+              values={{ name: editingBadge.badge.name }}
+            />
           </h3>
         </div>
         <EditBadgeForm
@@ -735,7 +759,7 @@ function CreatedBadgeList({ badges, isLoading }: { badges: ParsedBadge[]; isLoad
         ) : badges.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-sm text-muted-foreground">
-              You haven't created any badges yet.
+              <FormattedMessage id="badgesPage.noCreated" defaultMessage="You haven't created any badges yet." />
             </p>
           </div>
         ) : (
@@ -759,6 +783,7 @@ function CreatedBadgeRow({
   badge: ParsedBadge;
   onEdit: (badge: ParsedBadge) => void;
 }) {
+  const intl = useIntl();
   const { toast } = useToast();
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
@@ -799,12 +824,12 @@ function CreatedBadgeRow({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-created-badges"] });
       toast({
-        title: "Deletion requested",
-        description: "The badge and all its awards have been requested for deletion.",
+        title: intl.formatMessage({ id: "badgesPage.deletionRequested", defaultMessage: "Deletion requested" }),
+        description: intl.formatMessage({ id: "badgesPage.deletionRequestedDescription", defaultMessage: "The badge and all its awards have been requested for deletion." }),
       });
     },
     onError: () => {
-      toast({ title: "Failed to delete", variant: "destructive" });
+      toast({ title: intl.formatMessage({ id: "badgesPage.deleteFailed", defaultMessage: "Failed to delete" }), variant: "destructive" });
     },
   });
 
@@ -841,16 +866,21 @@ function CreatedBadgeRow({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Delete "{badge.badge.name}"?
+                  <FormattedMessage
+                    id="badgesPage.deleteTitle"
+                    defaultMessage='Delete "{name}"?'
+                    values={{ name: badge.badge.name }}
+                  />
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This publishes a deletion request (NIP-09). Relays should
-                  remove the badge definition and all awards you issued
-                  for it.
+                  <FormattedMessage
+                    id="badgesPage.deleteDescription"
+                    defaultMessage="This publishes a deletion request (NIP-09). Relays should remove the badge definition and all awards you issued for it."
+                  />
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel><FormattedMessage id="common.cancel" defaultMessage="Cancel" /></AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
@@ -859,7 +889,7 @@ function CreatedBadgeRow({
                   {deleteMutation.isPending ? (
                     <Loader2 className="size-4 animate-spin mr-1.5" />
                   ) : null}
-                  Delete
+                  <FormattedMessage id="articles.mine.delete" defaultMessage="Delete" />
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -903,6 +933,7 @@ function EditBadgeForm({
   badge: ParsedBadge;
   onClose: () => void;
 }) {
+  const intl = useIntl();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -921,8 +952,8 @@ function EditBadgeForm({
     async (file: File) => {
       if (!file.type.startsWith("image/")) {
         toast({
-          title: "Invalid file",
-          description: "Please select an image file.",
+          title: intl.formatMessage({ id: "badgesPage.invalidFile", defaultMessage: "Invalid file" }),
+          description: intl.formatMessage({ id: "badgesPage.selectImage", defaultMessage: "Please select an image file." }),
           variant: "destructive",
         });
         return;
@@ -934,10 +965,10 @@ function EditBadgeForm({
         const [[, url]] = await uploadFile(file);
         setImageUrl(url);
       } catch {
-        toast({ title: "Upload failed", variant: "destructive" });
+        toast({ title: intl.formatMessage({ id: "settings.profile.uploadFailed", defaultMessage: "Upload failed" }), variant: "destructive" });
       }
     },
-    [uploadFile, toast],
+    [uploadFile, toast, intl],
   );
 
   const handleSave = useCallback(async () => {
@@ -960,10 +991,10 @@ function EditBadgeForm({
         tags: newTags,
       } as Omit<NostrEvent, "id" | "pubkey" | "sig">);
       queryClient.invalidateQueries({ queryKey: ["my-created-badges"] });
-      toast({ title: "Badge updated!" });
+      toast({ title: intl.formatMessage({ id: "badgesPage.updated", defaultMessage: "Badge updated!" }) });
       onClose();
     } catch {
-      toast({ title: "Failed to update badge", variant: "destructive" });
+      toast({ title: intl.formatMessage({ id: "badgesPage.updateFailed", defaultMessage: "Failed to update badge" }), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -977,12 +1008,13 @@ function EditBadgeForm({
     queryClient,
     toast,
     onClose,
+    intl,
   ]);
 
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-sm font-medium mb-1.5 block">Image</Label>
+        <Label className="text-sm font-medium mb-1.5 block"><FormattedMessage id="blobbiRoom.frame.image" defaultMessage="Image" /></Label>
         <div
           className="relative w-24 h-24 rounded-xl overflow-hidden border border-border cursor-pointer group"
           onClick={() => fileInputRef.current?.click()}
@@ -1018,12 +1050,12 @@ function EditBadgeForm({
           }
         />
         <p className="text-xs text-muted-foreground mt-1.5">
-          Recommended aspect ratio is 1:1 (max 1024x1024 px).
+          <FormattedMessage id="badgesPage.aspectHint" defaultMessage="Recommended aspect ratio is 1:1 (max 1024x1024 px)." />
         </p>
       </div>
       <div>
         <Label htmlFor="edit-name" className="text-sm font-medium mb-1.5 block">
-          Name
+          <FormattedMessage id="editProfile.name.label" defaultMessage="Name" />
         </Label>
         <Input
           id="edit-name"
@@ -1032,12 +1064,12 @@ function EditBadgeForm({
         />
       </div>
       <div>
-        <Label className="text-sm font-medium mb-1.5 block">Identifier</Label>
+        <Label className="text-sm font-medium mb-1.5 block"><FormattedMessage id="badgesPage.identifier" defaultMessage="Identifier" /></Label>
         <Input value={identifier} disabled className="text-muted-foreground" />
       </div>
       <div>
         <Label htmlFor="edit-desc" className="text-sm font-medium mb-1.5 block">
-          Description
+          <FormattedMessage id="torrent.description" defaultMessage="Description" />
         </Label>
         <Textarea
           id="edit-desc"
@@ -1048,11 +1080,11 @@ function EditBadgeForm({
       </div>
       <div className="flex gap-2 justify-end pt-2">
         <Button variant="outline" onClick={onClose}>
-          Cancel
+          <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
         </Button>
         <Button onClick={handleSave} disabled={isSaving || !name.trim()}>
           {isSaving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
-          Save Changes
+          <FormattedMessage id="badgesPage.saveChanges" defaultMessage="Save Changes" />
         </Button>
       </div>
     </div>
@@ -1064,6 +1096,7 @@ function EditBadgeForm({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const feedQuery = useBadgeFeed("follows");
 
@@ -1113,7 +1146,11 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
           )}
         </div>
       ) : (
-        <FeedEmptyState message={user ? "No badge activity from people you follow yet." : "No badge activity found yet."} />
+        <FeedEmptyState
+          message={user
+            ? intl.formatMessage({ id: "badgesPage.emptyFollows", defaultMessage: "No badge activity from people you follow yet." })
+            : intl.formatMessage({ id: "badgesPage.empty", defaultMessage: "No badge activity found yet." })}
+        />
       )}
     </PullToRefresh>
   );
@@ -1124,10 +1161,13 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function IssuerName({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
+  const name = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? intl.formatMessage({ id: "common.anonymous", defaultMessage: "Anonymous" });
   return (
-    <span className="text-xs text-muted-foreground truncate">by {name}</span>
+    <span className="text-xs text-muted-foreground truncate">
+      <FormattedMessage id="badgesPage.byIssuer" defaultMessage="by {name}" values={{ name }} />
+    </span>
   );
 }
 
@@ -1160,19 +1200,19 @@ function BadgeOverflowMenu({
         <DropdownMenuItem asChild>
           <Link to={`/${naddr}`}>
             <ExternalLink className="size-4 mr-2" />
-            View
+            <FormattedMessage id="badgesPage.view" defaultMessage="View" />
           </Link>
         </DropdownMenuItem>
         {onAward && (
           <DropdownMenuItem onClick={onAward}>
             <Users className="size-4 mr-2" />
-            Award
+            <FormattedMessage id="badgesPage.award" defaultMessage="Award" />
           </DropdownMenuItem>
         )}
         {onEdit && (
           <DropdownMenuItem onClick={onEdit}>
             <Pencil className="size-4 mr-2" />
-            Edit
+            <FormattedMessage id="settings.feed.edit" defaultMessage="Edit" />
           </DropdownMenuItem>
         )}
         {(onDelete || onRemove) && <DropdownMenuSeparator />}
@@ -1182,7 +1222,7 @@ function BadgeOverflowMenu({
             onClick={onRemove}
           >
             <Trash2 className="size-4 mr-2" />
-            Remove
+            <FormattedMessage id="settings.feed.remove" defaultMessage="Remove" />
           </DropdownMenuItem>
         )}
         {onDelete && (
@@ -1191,7 +1231,7 @@ function BadgeOverflowMenu({
             onClick={onDelete}
           >
             <Trash2 className="size-4 mr-2" />
-            Delete
+            <FormattedMessage id="articles.mine.delete" defaultMessage="Delete" />
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

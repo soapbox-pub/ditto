@@ -1,4 +1,5 @@
 import { HelpCircle } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -63,8 +64,9 @@ interface HelpTipProps {
  * <label>Relays <HelpTip faqId="what-are-relays" /></label>
  */
 export function HelpTip({ faqId, iconSize = 'size-4', className }: HelpTipProps) {
+  const intl = useIntl();
   const { config } = useAppContext();
-  const item = getFAQItem(config.appName, faqId);
+  const item = getFAQItem(intl, config.appName, faqId);
   if (!item) return null;
 
   return (
@@ -73,7 +75,7 @@ export function HelpTip({ faqId, iconSize = 'size-4', className }: HelpTipProps)
         <button
           type="button"
           className={`inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-primary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ''}`}
-          aria-label={`Help: ${item.question}`}
+          aria-label={intl.formatMessage({ id: 'helpTip.ariaLabel', defaultMessage: 'Help: {question}' }, { question: item.question })}
         >
           <HelpCircle className={iconSize} />
         </button>
@@ -95,7 +97,7 @@ export function HelpTip({ faqId, iconSize = 'size-4', className }: HelpTipProps)
           to="/help"
           className="block text-xs text-primary hover:text-primary/80 font-medium transition-colors"
         >
-          View all FAQs &rarr;
+          <FormattedMessage id="helpTip.viewAllFaqs" defaultMessage="View all FAQs →" />
         </Link>
       </PopoverContent>
     </Popover>

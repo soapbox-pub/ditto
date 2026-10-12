@@ -1,3 +1,4 @@
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Loader2, RefreshCw, Users, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,9 @@ export function FeedEmptyState({
 
       <p className="text-muted-foreground max-w-xs">
         {isOffline && (
-          <span className="block font-medium text-foreground mb-1">You appear to be offline.</span>
+          <span className="block font-medium text-foreground mb-1">
+            <FormattedMessage id="feedEmptyState.offline" defaultMessage="You appear to be offline." />
+          </span>
         )}
         {message}
       </p>
@@ -73,17 +76,19 @@ export function FeedEmptyState({
               ) : (
                 <RefreshCw className="size-4" />
               )}
-              Try again
+              <FormattedMessage id="feedEmptyState.tryAgain" defaultMessage="Try again" />
             </Button>
           )}
           {showDiscover && (
             <Button asChild className="rounded-full">
-              <Link to="/packs" onClick={handleDiscoverClick}>Discover people to follow</Link>
+              <Link to="/packs" onClick={handleDiscoverClick}>
+                <FormattedMessage id="feedEmptyState.discover" defaultMessage="Discover people to follow" />
+              </Link>
             </Button>
           )}
           {onSwitchToGlobal && (
             <Button variant="ghost" className="rounded-full" onClick={onSwitchToGlobal}>
-              Browse the Global feed
+              <FormattedMessage id="feedEmptyState.browseGlobal" defaultMessage="Browse the Global feed" />
             </Button>
           )}
         </div>

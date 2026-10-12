@@ -1,3 +1,4 @@
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
@@ -27,7 +28,9 @@ interface ReplyContextProps {
  * When parentEventId is provided, hovering over the line shows an embedded preview of the parent post.
  * Used consistently across NoteCard and notification views.
  */
-export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAuthorHint, label = 'Replying to', className }: ReplyContextProps) {
+export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAuthorHint, label: labelProp, className }: ReplyContextProps) {
+  const intl = useIntl();
+  const label = labelProp ?? intl.formatMessage({ id: 'replyContext.replyingTo', defaultMessage: 'Replying to' });
   // Filter out any undefined/empty pubkeys defensively
   const validPubkeys = pubkeys.filter(Boolean);
   // Show max 2 authors for cleaner UI
@@ -61,24 +64,27 @@ export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAu
   return (
     <div className={className || 'flex items-center flex-wrap gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
       {replyingToLabel}
-      {displayPubkeys.map((pubkey, index) => (
-        <span key={pubkey} className="inline-flex items-center gap-1 min-w-0">
-          <ReplyAuthor pubkey={pubkey} />
-          {index < displayPubkeys.length - 1 && <span className="shrink-0">and</span>}
-        </span>
-      ))}
-      {validPubkeys.length > 2 && (
-        <span className="text-muted-foreground shrink-0">
-          and {validPubkeys.length - 2} other{validPubkeys.length - 2 !== 1 ? 's' : ''}
-        </span>
-      )}
+      {displayPubkeys.length === 1 ? (
+        <ReplyAuthor pubkey={displayPubkeys[0]} />
+      ) : displayPubkeys.length === 2 ? (
+        <FormattedMessage
+          id="replyContext.authors"
+          defaultMessage="{first} and {second}{others, plural, =0 {} one { and # other} other { and # others}}"
+          values={{
+            first: <ReplyAuthor pubkey={displayPubkeys[0]} />,
+            second: <ReplyAuthor pubkey={displayPubkeys[1]} />,
+            others: validPubkeys.length - 2,
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
 function ReplyAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || 'Anonymous';
+  const intl = useIntl();
+  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   if (author.isLoading) {

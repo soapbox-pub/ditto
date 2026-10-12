@@ -1,3 +1,4 @@
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Award, Pencil } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -112,7 +113,7 @@ export function BadgeShowcaseGrid({
           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" asChild>
             <Link to={editPath}>
               <Pencil className="size-3" />
-              Edit Badges
+              <FormattedMessage id="badgeShowcase.editBadges" defaultMessage="Edit Badges" />
             </Link>
           </Button>
         </div>

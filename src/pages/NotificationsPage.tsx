@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { useInView } from '@/hooks/useInView';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
@@ -51,97 +51,170 @@ import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 
 type NotificationTab = 'all' | 'mentions';
 
+/** Bare noun labels for notification action text, keyed by name. */
+const kindNouns = defineMessages({
+  profile: { id: 'notifications.kindNoun.profile', defaultMessage: 'profile' },
+  post: { id: 'notifications.kindNoun.post', defaultMessage: 'post' },
+  encryptedMessage: { id: 'notifications.kindNoun.encryptedMessage', defaultMessage: 'encrypted message' },
+  repost: { id: 'notifications.kindNoun.repost', defaultMessage: 'repost' },
+  reaction: { id: 'notifications.kindNoun.reaction', defaultMessage: 'reaction' },
+  badgeAward: { id: 'notifications.kindNoun.badgeAward', defaultMessage: 'badge award' },
+  photo: { id: 'notifications.kindNoun.photo', defaultMessage: 'photo' },
+  video: { id: 'notifications.kindNoun.video', defaultMessage: 'video' },
+  requestToVanish: { id: 'notifications.kindNoun.requestToVanish', defaultMessage: 'request to vanish' },
+  file: { id: 'notifications.kindNoun.file', defaultMessage: 'file' },
+  poll: { id: 'notifications.kindNoun.poll', defaultMessage: 'poll' },
+  comment: { id: 'notifications.kindNoun.comment', defaultMessage: 'comment' },
+  voiceMessage: { id: 'notifications.kindNoun.voiceMessage', defaultMessage: 'voice message' },
+  liveChatMessage: { id: 'notifications.kindNoun.liveChatMessage', defaultMessage: 'live chat message' },
+  patch: { id: 'notifications.kindNoun.patch', defaultMessage: 'patch' },
+  pullRequest: { id: 'notifications.kindNoun.pullRequest', defaultMessage: 'pull request' },
+  pullRequestUpdate: { id: 'notifications.kindNoun.pullRequestUpdate', defaultMessage: 'pull request update' },
+  issue: { id: 'notifications.kindNoun.issue', defaultMessage: 'issue' },
+  statusUpdate: { id: 'notifications.kindNoun.statusUpdate', defaultMessage: 'status update' },
+  highlight: { id: 'notifications.kindNoun.highlight', defaultMessage: 'highlight' },
+  torrent: { id: 'notifications.kindNoun.torrent', defaultMessage: 'torrent' },
+  tarotReading: { id: 'notifications.kindNoun.tarotReading', defaultMessage: 'tarot reading' },
+  relayList: { id: 'notifications.kindNoun.relayList', defaultMessage: 'relay list' },
+  linkedAccounts: { id: 'notifications.kindNoun.linkedAccounts', defaultMessage: 'linked accounts' },
+  webBookmark: { id: 'notifications.kindNoun.webBookmark', defaultMessage: 'web bookmark' },
+  loveList: { id: 'notifications.kindNoun.loveList', defaultMessage: 'Love List' },
+  top8: { id: 'notifications.kindNoun.top8', defaultMessage: 'Top 8' },
+  attestation: { id: 'notifications.kindNoun.attestation', defaultMessage: 'attestation' },
+  report: { id: 'notifications.kindNoun.report', defaultMessage: 'report' },
+  birdDetection: { id: 'notifications.kindNoun.birdDetection', defaultMessage: 'bird detection' },
+  birdex: { id: 'notifications.kindNoun.birdex', defaultMessage: 'Birdex' },
+  colorMoment: { id: 'notifications.kindNoun.colorMoment', defaultMessage: 'color moment' },
+  foundLog: { id: 'notifications.kindNoun.foundLog', defaultMessage: 'found log' },
+  nsiteSnapshot: { id: 'notifications.kindNoun.nsiteSnapshot', defaultMessage: 'nsite snapshot' },
+  nsite: { id: 'notifications.kindNoun.nsite', defaultMessage: 'nsite' },
+  theme: { id: 'notifications.kindNoun.theme', defaultMessage: 'theme' },
+  profileBadges: { id: 'notifications.kindNoun.profileBadges', defaultMessage: 'profile badges' },
+  badgeSet: { id: 'notifications.kindNoun.badgeSet', defaultMessage: 'badge set' },
+  badge: { id: 'notifications.kindNoun.badge', defaultMessage: 'badge' },
+  article: { id: 'notifications.kindNoun.article', defaultMessage: 'article' },
+  ebook: { id: 'notifications.kindNoun.ebook', defaultMessage: 'ebook' },
+  magazine: { id: 'notifications.kindNoun.magazine', defaultMessage: 'magazine' },
+  magazineIssue: { id: 'notifications.kindNoun.magazineIssue', defaultMessage: 'magazine issue' },
+  emojiPack: { id: 'notifications.kindNoun.emojiPack', defaultMessage: 'emoji pack' },
+  podcastEpisode: { id: 'notifications.kindNoun.podcastEpisode', defaultMessage: 'podcast episode' },
+  podcastTrailer: { id: 'notifications.kindNoun.podcastTrailer', defaultMessage: 'podcast trailer' },
+  softwareAsset: { id: 'notifications.kindNoun.softwareAsset', defaultMessage: 'software asset' },
+  softwareRelease: { id: 'notifications.kindNoun.softwareRelease', defaultMessage: 'software release' },
+  stream: { id: 'notifications.kindNoun.stream', defaultMessage: 'stream' },
+  room: { id: 'notifications.kindNoun.room', defaultMessage: 'room' },
+  meeting: { id: 'notifications.kindNoun.meeting', defaultMessage: 'meeting' },
+  status: { id: 'notifications.kindNoun.status', defaultMessage: 'status' },
+  listing: { id: 'notifications.kindNoun.listing', defaultMessage: 'listing' },
+  repository: { id: 'notifications.kindNoun.repository', defaultMessage: 'repository' },
+  repositoryUpdate: { id: 'notifications.kindNoun.repositoryUpdate', defaultMessage: 'repository update' },
+  customNip: { id: 'notifications.kindNoun.customNip', defaultMessage: 'custom NIP' },
+  calendarEvent: { id: 'notifications.kindNoun.calendarEvent', defaultMessage: 'calendar event' },
+  softwareApp: { id: 'notifications.kindNoun.softwareApp', defaultMessage: 'software app' },
+  playlist: { id: 'notifications.kindNoun.playlist', defaultMessage: 'playlist' },
+  shortVideo: { id: 'notifications.kindNoun.shortVideo', defaultMessage: 'short video' },
+  community: { id: 'notifications.kindNoun.community', defaultMessage: 'community' },
+  track: { id: 'notifications.kindNoun.track', defaultMessage: 'track' },
+  magicDeck: { id: 'notifications.kindNoun.magicDeck', defaultMessage: 'Magic deck' },
+  treasure: { id: 'notifications.kindNoun.treasure', defaultMessage: 'treasure' },
+  quiz: { id: 'notifications.kindNoun.quiz', defaultMessage: 'quiz' },
+  object3d: { id: 'notifications.kindNoun.object3d', defaultMessage: '3D object' },
+  quizResult: { id: 'notifications.kindNoun.quizResult', defaultMessage: 'quiz result' },
+  constellation: { id: 'notifications.kindNoun.constellation', defaultMessage: 'constellation' },
+  followPack: { id: 'notifications.kindNoun.followPack', defaultMessage: 'follow pack' },
+});
+
 /**
  * Maps event kind numbers to bare noun labels for notification action text.
  * e.g. "reacted to your **badge**", "reposted your **theme**".
  * Falls back to "post" for unknown kinds.
  */
-const NOTIFICATION_KIND_NOUNS: Record<number, string> = {
-  0: 'profile',
-  1: 'post',
-  4: 'encrypted message',
-  6: 'repost',
-  7: 'reaction',
-  8: 'badge award',
-  16: 'repost',
-  20: 'photo',
-  21: 'video',
-  22: 'video',
-  34235: 'video',
-  62: 'request to vanish',
-  1063: 'file',
-  1068: 'poll',
-  11: 'post',
-  1111: 'comment',
-  1222: 'voice message',
-  1244: 'voice message',
-  1311: 'live chat message',
-  1617: 'patch',
-  1618: 'pull request',
-  1619: 'pull request update',
-  1621: 'issue',
-  1630: 'status update',
-  1631: 'status update',
-  1632: 'status update',
-  1633: 'status update',
-  9802: 'highlight',
-  2003: 'torrent',
-  2256: 'tarot reading',
-  10002: 'relay list',
-  10011: 'linked accounts',
-  39701: 'web bookmark',
-  15683: 'Love List',
-  18678: 'Top 8',
-  31871: 'attestation',
-  1984: 'report',
-  2473: 'bird detection',
-  12473: 'Birdex',
-  3367: 'color moment',
-  7516: 'found log',
-  5128: 'nsite snapshot',
-  15128: 'nsite',
-  16767: 'theme',
-  10008: 'profile badges',
+const NOTIFICATION_KIND_NOUNS: Record<number, MessageDescriptor> = {
+  0: kindNouns.profile,
+  1: kindNouns.post,
+  4: kindNouns.encryptedMessage,
+  6: kindNouns.repost,
+  7: kindNouns.reaction,
+  8: kindNouns.badgeAward,
+  16: kindNouns.repost,
+  20: kindNouns.photo,
+  21: kindNouns.video,
+  22: kindNouns.video,
+  34235: kindNouns.video,
+  62: kindNouns.requestToVanish,
+  1063: kindNouns.file,
+  1068: kindNouns.poll,
+  11: kindNouns.post,
+  1111: kindNouns.comment,
+  1222: kindNouns.voiceMessage,
+  1244: kindNouns.voiceMessage,
+  1311: kindNouns.liveChatMessage,
+  1617: kindNouns.patch,
+  1618: kindNouns.pullRequest,
+  1619: kindNouns.pullRequestUpdate,
+  1621: kindNouns.issue,
+  1630: kindNouns.statusUpdate,
+  1631: kindNouns.statusUpdate,
+  1632: kindNouns.statusUpdate,
+  1633: kindNouns.statusUpdate,
+  9802: kindNouns.highlight,
+  2003: kindNouns.torrent,
+  2256: kindNouns.tarotReading,
+  10002: kindNouns.relayList,
+  10011: kindNouns.linkedAccounts,
+  39701: kindNouns.webBookmark,
+  15683: kindNouns.loveList,
+  18678: kindNouns.top8,
+  31871: kindNouns.attestation,
+  1984: kindNouns.report,
+  2473: kindNouns.birdDetection,
+  12473: kindNouns.birdex,
+  3367: kindNouns.colorMoment,
+  7516: kindNouns.foundLog,
+  5128: kindNouns.nsiteSnapshot,
+  15128: kindNouns.nsite,
+  16767: kindNouns.theme,
+  10008: kindNouns.profileBadges,
   // 30008 is overloaded (legacy profile badges with d=profile_badges vs.
   // NIP-51 badge set). The badge-set reading is more common today; for
   // legacy profile-badges events the noun will be slightly off ("reacted
   // to your badge set" instead of "profile badges"), which is acceptable
   // since 10008 is the canonical kind for profile badges now.
-  30008: 'badge set',
-  30009: 'badge',
-  30023: 'article',
-  33953: 'ebook',
-  34609: 'magazine',
-  39731: 'magazine issue',
-  30030: 'emoji pack',
-  30054: 'podcast episode',
-  30055: 'podcast trailer',
-  3063: 'software asset',
-  30063: 'software release',
-  30311: 'stream',
-  30312: 'room',
-  30313: 'meeting',
-  30315: 'status',
-  30402: 'listing',
-  30617: 'repository',
-  30618: 'repository update',
-  30817: 'custom NIP',
-  31922: 'calendar event',
-  31923: 'calendar event',
-  32267: 'software app',
-  34139: 'playlist',
-  34236: 'short video',
-  34550: 'community',
-  35128: 'nsite',
-  36767: 'theme',
-  36787: 'track',
-  37381: 'Magic deck',
-  37516: 'treasure',
-  37849: 'quiz',
-  33331: '3D object',
-  7849: 'quiz result',
-  30621: 'constellation',
-  39089: 'follow pack',
+  30008: kindNouns.badgeSet,
+  30009: kindNouns.badge,
+  30023: kindNouns.article,
+  33953: kindNouns.ebook,
+  34609: kindNouns.magazine,
+  39731: kindNouns.magazineIssue,
+  30030: kindNouns.emojiPack,
+  30054: kindNouns.podcastEpisode,
+  30055: kindNouns.podcastTrailer,
+  3063: kindNouns.softwareAsset,
+  30063: kindNouns.softwareRelease,
+  30311: kindNouns.stream,
+  30312: kindNouns.room,
+  30313: kindNouns.meeting,
+  30315: kindNouns.status,
+  30402: kindNouns.listing,
+  30617: kindNouns.repository,
+  30618: kindNouns.repositoryUpdate,
+  30817: kindNouns.customNip,
+  31922: kindNouns.calendarEvent,
+  31923: kindNouns.calendarEvent,
+  32267: kindNouns.softwareApp,
+  34139: kindNouns.playlist,
+  34236: kindNouns.shortVideo,
+  34550: kindNouns.community,
+  35128: kindNouns.nsite,
+  36767: kindNouns.theme,
+  36787: kindNouns.track,
+  37381: kindNouns.magicDeck,
+  37516: kindNouns.treasure,
+  37849: kindNouns.quiz,
+  33331: kindNouns.object3d,
+  7849: kindNouns.quizResult,
+  30621: kindNouns.constellation,
+  39089: kindNouns.followPack,
 };
 
 /**
@@ -176,9 +249,9 @@ type NotificationRow =
   | { type: 'flood'; key: string; groups: GroupedNotificationItem[] };
 
 /** Get a bare noun label for a kind number, defaulting to "post". */
-function getNotificationKindNoun(kind: number | undefined): string {
-  if (kind === undefined) return 'post';
-  return NOTIFICATION_KIND_NOUNS[kind] ?? 'post';
+function getNotificationKindNoun(kind: number | undefined): MessageDescriptor {
+  if (kind === undefined) return kindNouns.post;
+  return NOTIFICATION_KIND_NOUNS[kind] ?? kindNouns.post;
 }
 
 /**
@@ -208,11 +281,12 @@ function contentMentionsPubkey(event: NostrEvent, pubkey: string): boolean {
 }
 
 export function NotificationsPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
 
   useSeoMeta({
-    title: `Notifications | ${config.appName}`,
-    description: 'Your Nostr notifications',
+    title: intl.formatMessage({ id: 'notifications.seoTitle', defaultMessage: 'Notifications | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({ id: 'notifications.seoDescription', defaultMessage: 'Your Nostr notifications' }),
   });
 
   useLayoutOptions({ hasSubHeader: true });
@@ -330,8 +404,8 @@ export function NotificationsPage() {
   }, [filteredGroups, floodedIds]);
 
   const tabs: { key: NotificationTab; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'mentions', label: 'Mentions' },
+    { key: 'all', label: intl.formatMessage({ id: 'notifications.tab.all', defaultMessage: 'All' }) },
+    { key: 'mentions', label: intl.formatMessage({ id: 'notifications.tab.mentions', defaultMessage: 'Mentions' }) },
   ];
 
   return (
@@ -354,7 +428,7 @@ export function NotificationsPage() {
       <PullToRefresh onRefresh={handleRefresh}>
         {!user ? (
           <div className="py-16 text-center text-muted-foreground">
-            Log in to see your notifications.
+            <FormattedMessage id="notifications.loggedOut" defaultMessage="Log in to see your notifications." />
           </div>
         ) : isLoading || !hasFetched ? (
           <div className="divide-y divide-border">
@@ -381,7 +455,7 @@ export function NotificationsPage() {
           </div>
         ) : (
           <div className="py-16 text-center text-muted-foreground">
-            No notifications yet.
+            <FormattedMessage id="notifications.empty" defaultMessage="No notifications yet." />
           </div>
         )}
       </PullToRefresh>
@@ -528,7 +602,7 @@ function ActorAvatars({ actors }: { actors: NotificationItem[] }) {
       ))}
       {overflow > 0 && (
         <span className="text-xs text-muted-foreground font-medium pl-0.5">
-          +{overflow} more
+          <FormattedMessage id="notifications.moreActors" defaultMessage="+{count} more" values={{ count: overflow }} />
         </span>
       )}
     </div>
@@ -536,9 +610,10 @@ function ActorAvatars({ actors }: { actors: NotificationItem[] }) {
 }
 
 function ActorAvatar({ pubkey }: { pubkey: string }) {
+  const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const name = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const name = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
   const shape = getAvatarShape(metadata);
   const isEmojiShape = !!shape;
@@ -587,18 +662,25 @@ function GroupHeader({
     subject = <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />;
   } else if (totalCount === 2) {
     subject = (
-      <>
-        <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />
-        {' and '}
-        <ActorLink pubkey={secondActor.event.pubkey} name={secondName} />
-      </>
+      <FormattedMessage
+        id="notifications.subject.two"
+        defaultMessage="{first} and {second}"
+        values={{
+          first: <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />,
+          second: <ActorLink pubkey={secondActor.event.pubkey} name={secondName} />,
+        }}
+      />
     );
   } else {
     subject = (
-      <>
-        <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />
-        {` and ${totalCount - 1} others`}
-      </>
+      <FormattedMessage
+        id="notifications.subject.many"
+        defaultMessage="{first} and {count, plural, one {# other} other {# others}}"
+        values={{
+          first: <ActorLink pubkey={firstActor.event.pubkey} name={firstName} />,
+          count: totalCount - 1,
+        }}
+      />
     );
   }
 
@@ -616,8 +698,9 @@ function GroupHeader({
 
 /** Helper hook to get a display name for a pubkey. */
 function useActorName(pubkey: string): string {
+  const intl = useIntl();
   const author = useAuthor(pubkey || 'dummy');
-  return author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
+  return author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 }
 
 function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
@@ -642,7 +725,7 @@ function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
 function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   const isProfileReaction = item.referencedEvent?.kind === 0
     || item.event.tags.some(([name, value]) => name === 'a' && value?.startsWith('0:'));
-  const noun = isProfileReaction ? 'profile' : getNotificationKindNoun(item.referencedEvent?.kind);
+  const noun = isProfileReaction ? kindNouns.profile : getNotificationKindNoun(item.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={isNew}>
       <div className={cn('px-4 pt-3', isProfileReaction && 'pb-3')}>
@@ -653,7 +736,11 @@ function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: bool
               <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} pubkey={item.event.pubkey} className="inline-block h-4 w-4 object-contain" />
             </span>
           }
-          action={<ActionLink event={item.event}>{`reacted to your ${noun}`}</ActionLink>}
+          action={
+            <ActionLink event={item.event}>
+              <FormattedMessage id="notifications.action.reacted" defaultMessage="reacted to your {noun}" values={{ noun: <FormattedMessage {...noun} /> }} />
+            </ActionLink>
+          }
         />
       </div>
       {!isProfileReaction && <ReferencedNoteCard item={item} />}
@@ -672,7 +759,11 @@ function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: bo
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<RepostIcon className="size-4 text-accent" />}
-          action={<ActionLink event={item.event}>{`reposted your ${noun}`}</ActionLink>}
+          action={
+            <ActionLink event={item.event}>
+              <FormattedMessage id="notifications.action.reposted" defaultMessage="reposted your {noun}" values={{ noun: <FormattedMessage {...noun} /> }} />
+            </ActionLink>
+          }
         />
       </div>
       <ReferencedNoteCard item={item} />
@@ -700,6 +791,7 @@ function ActionLink({ event, children }: { event: NostrEvent | undefined; childr
 }
 
 function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const intl = useIntl();
   const { event } = item;
 
   // For multi-recipient kind 8333 batch zaps, show the per-recipient
@@ -711,11 +803,20 @@ function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boole
   const { format: formatMoney } = useFormatMoney();
 
   const otherCount = event.kind === 8333 && recipientCount > 1 ? recipientCount - 1 : 0;
-  const othersLabel = otherCount > 0
-    ? ` and ${otherCount.toLocaleString()} ${otherCount === 1 ? 'other' : 'others'}`
-    : '';
-  const amountLabel = zapAmount > 0 ? ` ${formatMoney(zapAmount)}` : '';
-  const actionText = `zapped you${othersLabel}${amountLabel}`;
+  const amount = zapAmount > 0 ? formatMoney(zapAmount) : undefined;
+  const actionText = otherCount > 0
+    ? amount
+      ? intl.formatMessage(
+        { id: 'notifications.action.zappedOthersAmount', defaultMessage: 'zapped you and {count, plural, one {# other} other {# others}} {amount}' },
+        { count: otherCount, amount },
+      )
+      : intl.formatMessage(
+        { id: 'notifications.action.zappedOthers', defaultMessage: 'zapped you and {count, plural, one {# other} other {# others}}' },
+        { count: otherCount },
+      )
+    : amount
+      ? intl.formatMessage({ id: 'notifications.action.zappedAmount', defaultMessage: 'zapped you {amount}' }, { amount })
+      : intl.formatMessage({ id: 'notifications.action.zapped', defaultMessage: 'zapped you' });
 
   // A profile-targeted zap has a `p` tag but no `e` tag — there's no
   // referenced note to render. Show the recipient (the current user) as
@@ -780,12 +881,13 @@ function ZapRecipientCard({
   recipientPubkey: string;
   timestamp: number;
 }) {
+  const intl = useIntl();
   const recipient = useAuthor(recipientPubkey);
   const recipientMeta = recipient.data?.metadata;
   const recipientShape = getAvatarShape(recipientMeta);
   const recipientName = recipientMeta?.name
     ?? recipientMeta?.display_name
-    ?? 'Anonymous';
+    ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const recipientUrl = useProfileUrl(recipientPubkey, recipientMeta);
   const recipientNip05 = recipientMeta?.nip05;
   const { data: recipientNip05Verified, isPending: recipientNip05Pending } = useNip05Verify(
@@ -832,7 +934,7 @@ function ZapRecipientCard({
                 </Link>
               </ProfileHoverCard>
               {recipientMeta?.bot && (
-                <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+                <span className="text-xs text-primary shrink-0" title={intl.formatMessage({ id: 'notifications.botAccount', defaultMessage: 'Bot account' })}>🤖</span>
               )}
             </div>
             <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
@@ -842,7 +944,7 @@ function ZapRecipientCard({
                 <Nip05Badge nip05={recipientNip05} pubkey={recipientPubkey} />
               )}
               {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
-              <span className="shrink-0 whitespace-nowrap">{timeAgo(timestamp)}</span>
+              <span className="shrink-0 whitespace-nowrap">{timeAgo(timestamp, intl)}</span>
             </div>
           </div>
         )}
@@ -859,7 +961,7 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
   const firstEvent = group.actors[0].event;
   const isProfileReaction = group.referencedEvent?.kind === 0
     || firstEvent.tags.some(([name, value]) => name === 'a' && value?.startsWith('0:'));
-  const noun = isProfileReaction ? 'profile' : getNotificationKindNoun(group.referencedEvent?.kind);
+  const noun = isProfileReaction ? kindNouns.profile : getNotificationKindNoun(group.referencedEvent?.kind);
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
@@ -869,7 +971,11 @@ function LikeNotificationGroup({ group }: { group: GroupedNotificationItem }) {
             <ReactionEmoji content={firstEvent.content.trim()} tags={firstEvent.tags} pubkey={firstEvent.pubkey} className="inline-block h-4 w-4 object-contain" />
           </span>
         }
-        action={<ActionLink event={firstEvent}>{`reacted to your ${noun}`}</ActionLink>}
+        action={
+          <ActionLink event={firstEvent}>
+            <FormattedMessage id="notifications.action.reactedGroup" defaultMessage="reacted to your {noun}" values={{ noun: <FormattedMessage {...noun} /> }} />
+          </ActionLink>
+        }
       />
       {!isProfileReaction && <ReferencedNoteCard item={group.actors[0]} />}
     </NotificationWrapper>
@@ -886,7 +992,11 @@ function RepostNotificationGroup({ group }: { group: GroupedNotificationItem }) 
       <GroupHeader
         actors={group.actors}
         icon={<RepostIcon className="size-4 text-accent" />}
-        action={<ActionLink event={group.actors[0].event}>{`reposted your ${noun}`}</ActionLink>}
+        action={
+          <ActionLink event={group.actors[0].event}>
+            <FormattedMessage id="notifications.action.repostedGroup" defaultMessage="reposted your {noun}" values={{ noun: <FormattedMessage {...noun} /> }} />
+          </ActionLink>
+        }
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -922,14 +1032,20 @@ function ZapNotificationGroup({ group }: { group: GroupedNotificationItem }) {
   }, [group.actors]);
 
   const { format: formatMoney } = useFormatMoney();
-  const amountLabel = totalSats > 0 ? ` ${formatMoney(totalSats)}` : '';
+  const amount = totalSats > 0 ? formatMoney(totalSats) : undefined;
 
   return (
     <NotificationWrapper isNew={group.isNew}>
       <GroupHeader
         actors={zapActors}
         icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
-        action={<ActionLink event={group.actors[0].event}>{`zapped you${amountLabel}`}</ActionLink>}
+        action={
+          <ActionLink event={group.actors[0].event}>
+            {amount
+              ? <FormattedMessage id="notifications.action.zappedGroupAmount" defaultMessage="zapped you {amount}" values={{ amount }} />
+              : <FormattedMessage id="notifications.action.zappedGroup" defaultMessage="zapped you" />}
+          </ActionLink>
+        }
       />
       <ReferencedNoteCard item={group.actors[0]} />
     </NotificationWrapper>
@@ -951,7 +1067,9 @@ function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: b
             ? <MessageCircle className="size-4 text-primary" />
             : <AtSign className="size-4 text-primary" />
           }
-          action={isReply ? 'replied to your note' : 'mentioned you'}
+          action={isReply
+            ? <FormattedMessage id="notifications.action.repliedToNote" defaultMessage="replied to your note" />
+            : <FormattedMessage id="notifications.action.mentioned" defaultMessage="mentioned you" />}
         />
       </div>
       <NoteCard event={item.event} className="border-0" />
@@ -969,9 +1087,10 @@ function CommentNotification({ item, isNew }: { item: NotificationItem; isNew: b
   const parentKind = item.event.tags.find(([name]) => name === 'k')?.[1];
   const parentKindNum = parentKind ? parseInt(parentKind, 10) : undefined;
   const noun = getNotificationKindNoun(isNaN(parentKindNum as number) ? undefined : parentKindNum);
+  const nounNode = <FormattedMessage {...noun} />;
   const action = REPLY_PARENT_KINDS.has(parentKind ?? '')
-    ? `replied to your ${noun}`
-    : `commented on your ${noun}`;
+    ? <FormattedMessage id="notifications.action.replied" defaultMessage="replied to your {noun}" values={{ noun: nounNode }} />
+    : <FormattedMessage id="notifications.action.commented" defaultMessage="commented on your {noun}" values={{ noun: nounNode }} />;
 
   return (
     <NotificationWrapper isNew={isNew}>
@@ -1009,7 +1128,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
           <NotificationHeader
             actorPubkey={item.event.pubkey}
             icon={<Mail className="size-4 text-primary" />}
-            action="sent you a letter"
+            action={<FormattedMessage id="notifications.action.sentLetter" defaultMessage="sent you a letter" />}
           />
         </div>
         <div className="flex flex-col items-center gap-3 px-4 pb-4 pt-2">
@@ -1029,7 +1148,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
               onClick={() => navigate('/letters')}
             >
               <Mail className="size-3.5" />
-              View all letters
+              <FormattedMessage id="notifications.viewAllLetters" defaultMessage="View all letters" />
             </Button>
             <Button
               variant="default"
@@ -1037,7 +1156,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
               onClick={() => navigate(`/letters/compose?to=${nip19.npubEncode(item.event.pubkey)}`)}
             >
               <InkPenIcon className="size-3.5" strokeWidth={2} />
-              Reply
+              <FormattedMessage id="notifications.replyToLetter" defaultMessage="Reply" />
             </Button>
           </div>
         </div>
@@ -1099,7 +1218,7 @@ function HighlightNotification({ item, isNew }: { item: NotificationItem; isNew:
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<Quote className="size-4 text-primary" />}
-          action={`highlighted your ${noun}`}
+          action={<FormattedMessage id="notifications.action.highlighted" defaultMessage="highlighted your {noun}" values={{ noun: <FormattedMessage {...noun} /> }} />}
         />
       </div>
       <HighlightExcerpt event={item.event} />
@@ -1119,7 +1238,7 @@ function HighlightNotificationGroup({ group }: { group: GroupedNotificationItem 
       <GroupHeader
         actors={group.actors}
         icon={<Quote className="size-4 text-primary" />}
-        action={`highlighted your ${noun}`}
+        action={<FormattedMessage id="notifications.action.highlightedGroup" defaultMessage="highlighted your {noun}" values={{ noun: <FormattedMessage {...noun} /> }} />}
       />
       {first && <HighlightExcerpt event={first.event} />}
       {first && <ReferencedNoteCard item={first} />}
@@ -1175,7 +1294,11 @@ function QuizResultNotification({ item, isNew }: { item: NotificationItem; isNew
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<ClipboardCheck className="size-4 text-primary" />}
-          action={<ActionLink event={item.event}>took your quiz</ActionLink>}
+          action={
+            <ActionLink event={item.event}>
+              <FormattedMessage id="notifications.action.tookQuiz" defaultMessage="took your quiz" />
+            </ActionLink>
+          }
         />
       </div>
       <QuizResultOutcomeLine event={item.event} />
@@ -1191,7 +1314,7 @@ function QuizResultNotificationGroup({ group }: { group: GroupedNotificationItem
       <GroupHeader
         actors={group.actors}
         icon={<ClipboardCheck className="size-4 text-primary" />}
-        action="took your quiz"
+        action={<FormattedMessage id="notifications.action.tookQuizGroup" defaultMessage="took your quiz" />}
       />
       {first && <ReferencedNoteCard item={first} />}
     </NotificationWrapper>
@@ -1235,7 +1358,7 @@ function BadgeAwardNotification({ item, isNew }: { item: NotificationItem; isNew
         <NotificationHeader
           actorPubkey={item.event.pubkey}
           icon={<Award className="size-4 text-primary" />}
-          action="awarded you a badge"
+          action={<FormattedMessage id="notifications.action.awardedBadge" defaultMessage="awarded you a badge" />}
         />
       </div>
       {definitionEvent && (
@@ -1270,7 +1393,7 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
       <GroupHeader
         actors={group.actors}
         icon={<Award className="size-4 text-primary" />}
-        action="awarded you badges"
+        action={<FormattedMessage id="notifications.action.awardedBadges" defaultMessage="awarded you badges" />}
       />
       <div className="px-4 pb-3 space-y-2">
         {group.actors.map((actor) => {
@@ -1325,9 +1448,10 @@ function NotificationHeader({
   icon: React.ReactNode;
   action: React.ReactNode;
 }) {
+  const intl = useIntl();
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(actorPubkey, metadata);
 
   if (author.isLoading) {

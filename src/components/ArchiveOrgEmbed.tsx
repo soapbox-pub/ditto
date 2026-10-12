@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { cn } from '@/lib/utils';
 
@@ -72,6 +73,7 @@ function useArchiveOrgMeta(identifier: string) {
  * so we use a standard responsive iframe approach.
  */
 export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps) {
+  const intl = useIntl();
   const [activated, setActivated] = useState(false);
   const { data: meta } = useArchiveOrgMeta(identifier);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -115,7 +117,7 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
           // Software/games: fixed-size iframe scaled down with CSS transform.
           <div className="relative overflow-hidden bg-black" style={{ height: scaledH }}>
             <iframe
-              src={`https://archive.org/embed/${identifier}&autoplay=1`}
+              src={`https://archive.org/embed/${identifier}?autoplay=1`}
               title="Internet Archive"
               allow="autoplay"
               allowFullScreen
@@ -132,7 +134,7 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
           // Videos and other media: standard responsive iframe.
           <div className="relative w-full" style={{ paddingBottom }}>
             <iframe
-              src={`https://archive.org/embed/${identifier}&autoplay=1`}
+              src={`https://archive.org/embed/${identifier}?autoplay=1`}
               title="Internet Archive"
               allow="autoplay"
               allowFullScreen
@@ -146,7 +148,7 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
             type="button"
             className="absolute inset-0 w-full h-full cursor-pointer bg-black group"
             onClick={() => setActivated(true)}
-            aria-label="Load content"
+            aria-label={intl.formatMessage({ id: 'archiveOrgEmbed.loadContent', defaultMessage: 'Load content' })}
           >
             <img
               src={thumbnailSrc}

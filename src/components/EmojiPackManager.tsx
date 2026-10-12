@@ -1,5 +1,6 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
 import { Loader2, Pencil, Smile, Trash2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { FallbackImage } from '@/components/FallbackImage';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -58,7 +59,10 @@ export function EmojiPackManager() {
       <Card className="border-dashed mx-4 my-6">
         <CardContent className="py-12 px-8 text-center">
           <p className="text-muted-foreground max-w-sm mx-auto">
-            Log in to create emoji packs and manage your collection.
+            <FormattedMessage
+              id="emojiPackManager.loggedOut"
+              defaultMessage="Log in to create emoji packs and manage your collection."
+            />
           </p>
         </CardContent>
       </Card>
@@ -92,8 +96,10 @@ export function EmojiPackManager() {
         <CardContent className="py-12 px-8 text-center space-y-1">
           <Smile className="size-8 mx-auto text-muted-foreground/60" />
           <p className="text-muted-foreground max-w-sm mx-auto">
-            No emoji packs yet. Browse the Global tab and tap Add on a pack, or create your own with
-            the + button.
+            <FormattedMessage
+              id="emojiPackManager.empty"
+              defaultMessage="No emoji packs yet. Browse the Global tab and tap Add on a pack, or create your own with the + button."
+            />
           </p>
         </CardContent>
       </Card>
@@ -104,7 +110,9 @@ export function EmojiPackManager() {
     <>
       {publishedPacks.length > 0 && (
         <section>
-          <SectionHeader title="Published" count={publishedPacks.length} />
+          <SectionHeader
+            title={<FormattedMessage id="emojiPackManager.published" defaultMessage="Published" />}
+            count={publishedPacks.length} />
           <div className="divide-y divide-border">
             {publishedPacks.map((pack) => (
               <PackRow key={pack.coord} pack={pack} mode="published" onEdit={setEditEvent} />
@@ -115,7 +123,9 @@ export function EmojiPackManager() {
 
       {addedFromOthers.length > 0 && (
         <section>
-          <SectionHeader title="Added" count={addedFromOthers.length} />
+          <SectionHeader
+            title={<FormattedMessage id="emojiPackManager.added" defaultMessage="Added" />}
+            count={addedFromOthers.length} />
           <div className="divide-y divide-border">
             {addedFromOthers.map((pack) => (
               <PackRow key={pack.coord} pack={pack} mode="added" />
@@ -138,7 +148,7 @@ export function EmojiPackManager() {
 }
 
 /** A small labelled group divider ("Published", "Added"). */
-function SectionHeader({ title, count }: { title: string; count: number }) {
+function SectionHeader({ title, count }: { title: ReactNode; count: number }) {
   return (
     <div className="flex items-center gap-2 px-4 pt-4 pb-1.5">
       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -161,10 +171,11 @@ interface PackRowProps {
 function PackRow({ pack, mode, onEdit }: PackRowProps) {
   const { mutateAsync: removePack, isPending } = useRemoveEmojiPack();
   const { toast } = useToast();
+  const intl = useIntl();
   const [removed, setRemoved] = useState(false);
 
   // Fall back to the coordinate's d-tag when the pack event hasn't resolved.
-  const name = pack.event ? emojiPackName(pack.event) : pack.coord.split(':')[2] || 'Emoji pack';
+  const name = pack.event ? emojiPackName(pack.event) : pack.coord.split(':')[2] || intl.formatMessage({ id: 'emojiPackManager.fallbackName', defaultMessage: 'Emoji pack' });
   const picture = pack.event ? emojiPackPicture(pack.event) : undefined;
   const entries = pack.event ? emojiPackEntries(pack.event) : [];
   const visible = entries.slice(0, PREVIEW_LIMIT);
@@ -178,11 +189,16 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
     try {
       await removePack({ coord: pack.coord });
       setRemoved(true);
-      toast({ title: 'Emoji pack removed', description: name });
+      toast({
+        title: intl.formatMessage({ id: 'emojiPackManager.removed', defaultMessage: 'Emoji pack removed' }),
+        description: name,
+      });
     } catch (e) {
       toast({
-        title: "Couldn't remove pack",
-        description: e instanceof Error ? e.message : 'Publishing failed.',
+        title: intl.formatMessage({ id: 'emojiPackManager.removeFailed', defaultMessage: "Couldn't remove pack" }),
+        description: e instanceof Error
+          ? e.message
+          : intl.formatMessage({ id: 'emojiPackManager.publishFailed', defaultMessage: 'Publishing failed.' }),
         variant: 'destructive',
       });
     }
@@ -216,7 +232,9 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
           </div>
         ) : (
           <div className="text-xs text-muted-foreground">
-            {pack.event ? 'This pack has no emojis.' : 'Pack details couldn’t be loaded.'}
+            {pack.event
+              ? <FormattedMessage id="emojiPackManager.noEmojis" defaultMessage="This pack has no emojis." />
+              : <FormattedMessage id="emojiPackManager.loadFailed" defaultMessage="Pack details couldn’t be loaded." />}
           </div>
         )}
       </div>
@@ -228,7 +246,7 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
           className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
           onClick={() => pack.event && onEdit?.(pack.event)}
           disabled={!pack.event}
-          aria-label={`Edit ${name}`}
+          aria-label={intl.formatMessage({ id: 'emojiPackManager.edit', defaultMessage: 'Edit {name}' }, { name })}
         >
           <Pencil className="size-4" />
         </Button>
@@ -239,7 +257,7 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
           className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
           onClick={onRemove}
           disabled={isPending}
-          aria-label={`Remove ${name}`}
+          aria-label={intl.formatMessage({ id: 'emojiPackManager.remove', defaultMessage: 'Remove {name}' }, { name })}
         >
           {isPending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
         </Button>

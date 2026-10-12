@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { ExternalLink, Quote } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -158,7 +159,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
         <div className="space-y-1.5">
           <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             <Quote className="size-3" />
-            Highlighted from
+            <FormattedMessage id="highlight.highlightedFrom" defaultMessage="Highlighted from" />
           </div>
           {source.kind === 'addr' ? (
             <EmbeddedNaddr addr={source.addr} className="my-0" />
@@ -193,7 +194,7 @@ function Blockquote({ text, expanded }: { text: string; expanded: boolean }) {
           'rounded-xl border border-dashed border-border px-4 py-3 text-center text-sm text-muted-foreground',
         )}
       >
-        Highlighted media
+        <FormattedMessage id="highlight.highlightedMedia" defaultMessage="Highlighted media" />
       </div>
     );
   }
@@ -290,7 +291,7 @@ function SourceChipCompact({
       onClick={(e) => e.stopPropagation()}
     >
       <Quote className="size-3" />
-      Highlighted from Nostr
+      <FormattedMessage id="highlight.highlightedFromNostr" defaultMessage="Highlighted from Nostr" />
     </Link>
   );
 }

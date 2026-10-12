@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { Shield, Sparkles, Swords, Palette, List } from 'lucide-react';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -169,6 +170,7 @@ function CardLightboxTopBar({ card, index, total }: { card: CardEntry; index: nu
 }
 
 export function MagicDeckContent({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const title = getTag(event.tags, 'title');
   const banner = getTag(event.tags, 'banner');
   const commanders = getAllTagValues(event.tags, 'C');
@@ -218,7 +220,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         <div className="rounded-2xl overflow-hidden mb-3">
           <img
             src={banner}
-            alt={title ?? 'Magic deck'}
+            alt={title ?? intl.formatMessage({ id: 'magicDeck.bannerAlt', defaultMessage: 'Magic deck' })}
             className="w-full max-h-[200px] object-cover"
             loading="lazy"
             onError={(e) => {
@@ -242,7 +244,11 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         <div className="flex items-center gap-2 mb-2">
           <Shield className="size-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs text-muted-foreground">
-            Commander{commanders.length > 1 ? 's' : ''}:
+            <FormattedMessage
+              id="magicDeck.commanders"
+              defaultMessage="{count, plural, one {Commander:} other {Commanders:}}"
+              values={{ count: commanders.length }}
+            />
           </span>
           <span className="text-xs font-medium">
             {commanders.join(' & ')}
@@ -254,7 +260,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
       {companion && (
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="size-3.5 text-muted-foreground shrink-0" />
-          <span className="text-xs text-muted-foreground">Companion:</span>
+          <span className="text-xs text-muted-foreground"><FormattedMessage id="magicDeck.companion" defaultMessage="Companion:" /></span>
           <span className="text-xs font-medium">{companion}</span>
         </div>
       )}
@@ -297,11 +303,19 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         ))}
         <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
           <CardsIcon className="size-3" />
-          {totalCards} cards
+          <FormattedMessage
+            id="magicDeck.cardCount"
+            defaultMessage="{count, plural, one {# card} other {# cards}}"
+            values={{ count: totalCards }}
+          />
         </Badge>
         {totalSideboard > 0 && (
           <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
-            {totalSideboard} sideboard
+            <FormattedMessage
+              id="magicDeck.sideboardCount"
+              defaultMessage="{count} sideboard"
+              values={{ count: totalSideboard }}
+            />
           </Badge>
         )}
       </div>
@@ -312,14 +326,18 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
           {/* View toggle header */}
           <div className="flex items-center justify-between px-3 py-1.5 bg-secondary/30 border-b border-border/50">
             <span className="text-[11px] font-medium text-muted-foreground">
-              {visualView ? 'Visual Spoiler' : 'Decklist'}
+              {visualView
+                ? <FormattedMessage id="magicDeck.visualSpoiler" defaultMessage="Visual Spoiler" />
+                : <FormattedMessage id="magicDeck.decklist" defaultMessage="Decklist" />}
             </span>
             <button
               onClick={() => setVisualView(!visualView)}
               className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               {visualView ? <List className="size-3.5" /> : <Palette className="size-3.5" />}
-              {visualView ? 'List' : 'Visual'}
+              {visualView
+                ? <FormattedMessage id="magicDeck.listView" defaultMessage="List" />
+                : <FormattedMessage id="magicDeck.visualView" defaultMessage="Visual" />}
             </button>
           </div>
 
@@ -335,7 +353,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
                 <>
                   <div className="px-1 py-2 mt-1">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Sideboard
+                      <FormattedMessage id="magicDeck.sideboard" defaultMessage="Sideboard" />
                     </span>
                   </div>
                   <div className="grid grid-cols-4 gap-1.5">
@@ -362,7 +380,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
                 <>
                   <div className="px-3 py-1.5 bg-secondary/40 border-y border-border/50">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Sideboard
+                      <FormattedMessage id="magicDeck.sideboard" defaultMessage="Sideboard" />
                     </span>
                   </div>
                   {sideboard.map((card, i) => (

@@ -91,7 +91,7 @@ function Top8Row({ pubkey, rank, onRemove }: Top8RowProps) {
         {...listeners}
         className="shrink-0 p-1 -ml-1 rounded cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label={intl.formatMessage(
-          { id: 'top8.edit.reorder', defaultMessage: 'Reorder {name} — use arrow keys to move' },
+          { id: 'top8.edit.reorder', defaultMessage: 'Reorder {name}. Use arrow keys to move' },
           { name: displayName },
         )}
       >
@@ -149,9 +149,11 @@ export function Top8Page() {
   const { toast } = useToast();
   const { top8, isLoading, setTop8 } = useTop8();
 
+  const pageTitle = intl.formatMessage({ id: 'top8.card.title', defaultMessage: 'Top 8' });
+
   useSeoMeta({
-    title: `Top 8 | ${config.appName}`,
-    description: 'Curate your eight favorite people on Nostr.',
+    title: `${pageTitle} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'top8.metaDescription', defaultMessage: 'Curate your eight favorite people on Nostr.' }),
   });
 
   // Staged ordering. `null` means "no local edits yet" — read straight through
@@ -213,7 +215,7 @@ export function Top8Page() {
           }),
           description: intl.formatMessage({
             id: 'top8.edit.fullDescription',
-            defaultMessage: 'Remove someone first — that is the hard part.',
+            defaultMessage: 'Remove someone first. That is the hard part.',
           }),
           variant: 'destructive',
         });
@@ -245,7 +247,7 @@ export function Top8Page() {
   if (!user) {
     return (
       <main>
-        <PageHeader title="Top 8" icon={<Crown className="size-5" />} />
+        <PageHeader title={pageTitle} icon={<Crown className="size-5" />} />
         <div className="py-20 px-8 flex flex-col items-center gap-6 text-center">
           <div className="p-4 rounded-full bg-primary/10">
             <Crown className="size-8 text-primary" />
@@ -269,7 +271,7 @@ export function Top8Page() {
 
   return (
     <main>
-      <PageHeader title="Top 8" icon={<Crown className="size-5" />}>
+      <PageHeader title={pageTitle} icon={<Crown className="size-5" />}>
         {isDirty && (
           <Button size="sm" className="rounded-full shrink-0" onClick={handleSave} disabled={setTop8.isPending}>
             {setTop8.isPending && <Loader2 className="size-4 mr-1.5 animate-spin" />}
@@ -282,7 +284,7 @@ export function Top8Page() {
         <p className="text-sm text-muted-foreground">
           <FormattedMessage
             id="top8.edit.intro"
-            defaultMessage="Your eight favorite people, in order. Drag to rank them — number one goes at the top. Everyone can see your Top 8 on your profile, and your followers see when you rearrange it."
+            defaultMessage="Your eight favorite people, in order. Drag to rank them; number one goes at the top. Everyone can see your Top 8 on your profile, and your followers see when you rearrange it."
           />
         </p>
 

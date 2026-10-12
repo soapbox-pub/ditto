@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { ArrowDownLeft, ArrowUpRight, Check, ChevronDown, Copy, RefreshCw, Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ interface BitcoinWalletPanelProps {
 export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps = {}) {
   const { bitcoinAddress, addressData, btcPrice, transactions, isLoading, error, refetch } =
     useBitcoinWallet();
+  const intl = useIntl();
 
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [txOpen, setTxOpen] = useState(false);
@@ -70,16 +72,18 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
         </div>
       ) : error ? (
         <div className="text-center space-y-3">
-          <p className="text-sm text-destructive">Failed to load balance</p>
+          <p className="text-sm text-destructive">
+            <FormattedMessage id="bitcoinWallet.loadFailed" defaultMessage="Failed to load balance" />
+          </p>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="size-3.5 mr-1.5" />
-            Retry
+            <FormattedMessage id="bitcoinWallet.retry" defaultMessage="Retry" />
           </Button>
         </div>
       ) : addressData ? (
         <div className="flex flex-col items-center space-y-1">
           <span className="text-4xl font-bold tracking-tight">
-            {btcPrice ? satsToUSD(addressData.totalBalance, btcPrice) : '---'}
+            {btcPrice ? satsToUSD(addressData.totalBalance, btcPrice, intl.locale) : '---'}
           </span>
           <span className="text-sm text-muted-foreground">
             {formatBTC(addressData.totalBalance)} BTC
@@ -88,7 +92,12 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
           {addressData.pendingBalance !== 0 && (
             <span className="flex items-center gap-1 text-xs text-orange-500 dark:text-orange-400 pt-1">
               <RefreshCw className="size-3 animate-spin" />
-              {btcPrice ? `${satsToUSD(addressData.pendingBalance, btcPrice)} pending` : 'pending'}
+              {btcPrice
+                ? intl.formatMessage(
+                  { id: 'bitcoinWallet.pendingAmount', defaultMessage: '{amount} pending' },
+                  { amount: satsToUSD(addressData.pendingBalance, btcPrice, intl.locale) },
+                )
+                : intl.formatMessage({ id: 'bitcoinWallet.pending', defaultMessage: 'pending' })}
             </span>
           )}
         </div>
@@ -98,7 +107,7 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
       {addressData && (
         <Button variant="outline" size="sm" onClick={() => setSendOpen(true)} className="rounded-full">
           <Send className="size-3.5 mr-1.5" />
-          Send
+          <FormattedMessage id="bitcoinWallet.send" defaultMessage="Send" />
         </Button>
       )}
 
@@ -134,7 +143,7 @@ export function BitcoinWalletPanel({ initialSendUri }: BitcoinWalletPanelProps =
             onClick={() => setTxOpen((o) => !o)}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
-            Transactions
+            <FormattedMessage id="bitcoinWallet.transactions" defaultMessage="Transactions" />
             <ChevronDown
               className={`size-3 transition-transform duration-200 ${txOpen ? 'rotate-180' : ''}`}
             />
@@ -170,23 +179,26 @@ function TxAccordion({ open, children }: { open: boolean; children: React.ReactN
 }
 
 /** Format a unix timestamp as a relative or absolute date. */
-function formatTxDate(timestamp?: number): string {
-  if (!timestamp) return 'Pending';
+function formatTxDate(intl: IntlShape, timestamp?: number): string {
+  if (!timestamp) return intl.formatMessage({ id: 'bitcoinWallet.txPending', defaultMessage: 'Pending' });
 
   const date = new Date(timestamp * 1000);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays === 0) return intl.formatMessage({ id: 'bitcoinWallet.today', defaultMessage: 'Today' });
+  if (diffDays === 1) return intl.formatMessage({ id: 'bitcoinWallet.yesterday', defaultMessage: 'Yesterday' });
+  if (diffDays < 7) {
+    return intl.formatMessage({ id: 'bitcoinWallet.daysAgo', defaultMessage: '{days}d ago' }, { days: diffDays });
+  }
 
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return intl.formatDate(date, { month: 'short', day: 'numeric' });
 }
 
 /** Single transaction row. */
 function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
+  const intl = useIntl();
   const isReceive = tx.type === 'receive';
 
   return (
@@ -205,8 +217,14 @@ function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
           {isReceive ? <ArrowDownLeft className="size-4" /> : <ArrowUpRight className="size-4" />}
         </div>
         <div>
-          <p className="text-sm font-medium">{isReceive ? 'Received' : 'Sent'}</p>
-          <p className="text-xs text-muted-foreground">{formatTxDate(tx.timestamp)}</p>
+          <p className="text-sm font-medium">
+            {isReceive ? (
+              <FormattedMessage id="bitcoinWallet.received" defaultMessage="Received" />
+            ) : (
+              <FormattedMessage id="bitcoinWallet.sent" defaultMessage="Sent" />
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground">{formatTxDate(intl, tx.timestamp)}</p>
         </div>
       </div>
       <div className="text-right">
@@ -216,7 +234,7 @@ function TxRow({ tx, btcPrice }: { tx: Transaction; btcPrice?: number }) {
           }`}
         >
           {isReceive ? '+' : '-'}
-          {btcPrice ? satsToUSD(tx.amount, btcPrice) : `${formatBTC(tx.amount)} BTC`}
+          {btcPrice ? satsToUSD(tx.amount, btcPrice, intl.locale) : `${formatBTC(tx.amount)} BTC`}
         </p>
         <p className="text-xs text-muted-foreground">{formatBTC(tx.amount)} BTC</p>
       </div>

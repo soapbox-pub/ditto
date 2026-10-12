@@ -18,6 +18,7 @@ import { useNostr } from "@nostrify/react";
 import { useQuery } from "@tanstack/react-query";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Eye, Film, Play, Radio } from "lucide-react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { nip19 } from "nostr-tools";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BlurhashPlaceholder } from "@/components/BlurhashPlaceholder";
@@ -228,8 +229,10 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
     blurhash,
     encryption,
   } = parseVideoImeta(event.tags);
+  const intl = useIntl();
   const title =
-    getTag(event.tags, "title") ?? (event.content.slice(0, 120) || "Untitled");
+    getTag(event.tags, "title") ??
+    (event.content.slice(0, 120) || intl.formatMessage({ id: "videos.untitled", defaultMessage: "Untitled" }));
   const dur = fmtDuration(duration);
   // The thumbnail shares the video's key but is its own blob, so the video's
   // `ox` hash and MIME type don't describe it.
@@ -321,7 +324,7 @@ function VideoGridCard({ event }: { event: NostrEvent }) {
               </Link>
             )}
             <p className="text-[11px] text-muted-foreground">
-              {timeAgo(event.created_at)}
+              {timeAgo(event.created_at, intl)}
             </p>
           </div>
         </div>
@@ -454,26 +457,27 @@ function StreamBadge({ status }: { status: string }) {
       return (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-600 text-white px-1.5 py-0.5 rounded">
           <span className="size-1.5 rounded-full bg-white animate-pulse" />
-          LIVE
+          <FormattedMessage id="streams.status.live" defaultMessage="LIVE" />
         </span>
       );
     case "planned":
       return (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-600/90 text-white px-1.5 py-0.5 rounded">
-          PLANNED
+          <FormattedMessage id="streams.status.planned" defaultMessage="PLANNED" />
         </span>
       );
     default:
       return (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-black/60 text-white/80 px-1.5 py-0.5 rounded">
-          ENDED
+          <FormattedMessage id="streams.status.ended" defaultMessage="ENDED" />
         </span>
       );
   }
 }
 
 function LiveStreamCard({ event }: { event: NostrEvent }) {
-  const title = getTag(event.tags, "title") || "Untitled Stream";
+  const intl = useIntl();
+  const title = getTag(event.tags, "title") || intl.formatMessage({ id: "streams.untitled", defaultMessage: "Untitled Stream" });
   const imageUrl = getTag(event.tags, "image");
   const viewers = getTag(event.tags, "current_participants");
   const effectiveStatus = getEffectiveStreamStatus(event);
@@ -587,7 +591,7 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
             )}
           >
             <span className="size-1.5 rounded-full bg-current animate-pulse shrink-0" />
-            Live ({streams.live.length})
+            <FormattedMessage id="videos.streams.live" defaultMessage="Live ({count})" values={{ count: streams.live.length }} />
           </button>
         )}
         {streams.planned.length > 0 && (
@@ -600,7 +604,7 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
                 : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground",
             )}
           >
-            Planned ({streams.planned.length})
+            <FormattedMessage id="videos.streams.planned" defaultMessage="Planned ({count})" values={{ count: streams.planned.length }} />
           </button>
         )}
         {streams.past.length > 0 && (
@@ -613,7 +617,7 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
                 : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground",
             )}
           >
-            Past ({streams.past.length})
+            <FormattedMessage id="videos.streams.past" defaultMessage="Past ({count})" values={{ count: streams.past.length }} />
           </button>
         )}
       </div>
@@ -646,8 +650,10 @@ function ShortThumb({
   onClick: () => void;
 }) {
   const { url, thumbnail: imetaThumb, blurhash, encryption } = parseVideoImeta(event.tags);
+  const intl = useIntl();
   const title =
-    getTag(event.tags, "title") ?? (event.content.slice(0, 60) || "Short");
+    getTag(event.tags, "title") ??
+    (event.content.slice(0, 60) || intl.formatMessage({ id: "videos.shortFallback", defaultMessage: "Short" }));
   const decryptedThumb = useDecryptedFile(
     imetaThumb ?? "",
     imetaThumb && encryption ? companionEncryption(encryption) : undefined,
@@ -704,6 +710,7 @@ function ShortsPlayer({
   startIndex: number;
   onClose: () => void;
 }) {
+  const intl = useIntl();
   const [activeIndex, setActiveIndex] = useState(startIndex);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -774,7 +781,7 @@ function ShortsPlayer({
   return (
     <div className="flex-1 min-w-0 flex flex-col">
       <PageHeader
-        title="Videos"
+        title={intl.formatMessage({ id: "videos.title", defaultMessage: "Videos" })}
         icon={<Film className="size-5" />}
         onBack={onClose}
         alwaysShowBack
@@ -823,7 +830,7 @@ function ShortsSection({
   return (
     <section>
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-4">
-        Shorts
+        <FormattedMessage id="videos.shorts" defaultMessage="Shorts" />
       </h2>
       <div
         ref={drag.ref}
@@ -847,6 +854,7 @@ function ShortsSection({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function VideosFeedPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
@@ -857,8 +865,8 @@ export function VideosFeedPage() {
   ]);
 
   useSeoMeta({
-    title: `Videos | ${config.appName}`,
-    description: "Videos and live streams on Nostr",
+    title: `${intl.formatMessage({ id: "videos.title", defaultMessage: "Videos" })} | ${config.appName}`,
+    description: intl.formatMessage({ id: "videos.metaDescription", defaultMessage: "Videos and live streams on Nostr" }),
   });
 
   const [shortsPlayerIndex, setShortsPlayerIndex] = useState<number | null>(
@@ -946,7 +954,7 @@ export function VideosFeedPage() {
 
   return (
     <main className="">
-      <PageHeader title="Videos" icon={<Film className="size-5" />}>
+      <PageHeader title={intl.formatMessage({ id: "videos.title", defaultMessage: "Videos" })} icon={<Film className="size-5" />}>
         <KindInfoButton
           kindDef={videosDef}
           icon={sidebarItemIcon("videos", "size-5")}
@@ -956,13 +964,13 @@ export function VideosFeedPage() {
       {/* Follows / Global tabs */}
       <SubHeaderBar>
         <TabButton
-          label="Follows"
+          label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
           active={feedTab === "follows"}
           onClick={() => setFeedTab("follows")}
           disabled={!user}
         />
         <TabButton
-          label="Global"
+          label={intl.formatMessage({ id: "common.global", defaultMessage: "Global" })}
           active={feedTab === "global"}
           onClick={() => setFeedTab("global")}
         />
@@ -976,7 +984,7 @@ export function VideosFeedPage() {
         {showSkeleton ? (
           <div className="pt-3 pb-8 px-4">
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Videos
+              <FormattedMessage id="videos.title" defaultMessage="Videos" />
             </p>
             <div className="grid grid-cols-2 gap-x-3 gap-y-6">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -988,8 +996,8 @@ export function VideosFeedPage() {
           <FeedEmptyState
             message={
               feedTab === "follows"
-                ? "No videos yet. Follow some creators to see their videos here."
-                : "No videos found. Check your relay connections or come back soon."
+                ? intl.formatMessage({ id: "videos.emptyFollows", defaultMessage: "No videos yet. Follow some creators to see their videos here." })
+                : intl.formatMessage({ id: "videos.empty", defaultMessage: "No videos found. Check your relay connections or come back soon." })
             }
             onSwitchToGlobal={
               feedTab === "follows" ? () => setFeedTab("global") : undefined
@@ -1001,7 +1009,7 @@ export function VideosFeedPage() {
             {normalVideos.length > 0 && (
               <div className="px-4 mb-8">
                 <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Videos
+                  <FormattedMessage id="videos.title" defaultMessage="Videos" />
                 </p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-6">
                   {visibleVideos.map((e) => (
@@ -1013,7 +1021,11 @@ export function VideosFeedPage() {
                     className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border border-border rounded-lg"
                     onClick={() => setShowAllVideos(true)}
                   >
-                    Show {normalVideos.length - initialVideoCount} more
+                    <FormattedMessage
+                      id="videos.showMore"
+                      defaultMessage="Show {count} more"
+                      values={{ count: normalVideos.length - initialVideoCount }}
+                    />
                   </button>
                 )}
               </div>

@@ -25,13 +25,6 @@ import type { ComponentType } from 'react';
 export const TAB_MEDIA_CATEGORIES = ['images', 'videos', 'none'] as const;
 export type TabMediaCategory = typeof TAB_MEDIA_CATEGORIES[number];
 
-/** Human-readable labels for the media-category toggles. */
-export const TAB_MEDIA_LABELS: Record<TabMediaCategory, string> = {
-  images: 'Images',
-  videos: 'Videos',
-  none: 'No media',
-};
-
 /** Icons for the media-category toggles, echoing the app's content vocabulary. */
 export const TAB_MEDIA_ICONS: Record<TabMediaCategory, ComponentType<{ className?: string }>> = {
   images: Image,

@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -31,6 +32,8 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 function MarkdownHelpPopover() {
+  const intl = useIntl();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -38,27 +41,28 @@ function MarkdownHelpPopover() {
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          aria-label={intl.formatMessage({ id: 'milkdownToolbar.help.title', defaultMessage: 'Markdown Quick Reference' })}
         >
           <HelpCircle className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72" align="end">
         <div className="space-y-2">
-          <h4 className="font-medium text-sm">Markdown Quick Reference</h4>
+          <h4 className="font-medium text-sm"><FormattedMessage id="milkdownToolbar.help.title" defaultMessage="Markdown Quick Reference" /></h4>
           <div className="text-xs space-y-1.5 font-mono text-muted-foreground">
-            <div className="flex justify-between"><span>**bold**</span><span className="font-sans font-bold">bold</span></div>
-            <div className="flex justify-between"><span>*italic*</span><span className="font-sans italic">italic</span></div>
+            <div className="flex justify-between"><span>**bold**</span><span className="font-sans font-bold"><FormattedMessage id="milkdownToolbar.help.bold" defaultMessage="bold" /></span></div>
+            <div className="flex justify-between"><span>*italic*</span><span className="font-sans italic"><FormattedMessage id="milkdownToolbar.help.italic" defaultMessage="italic" /></span></div>
             <div className="flex justify-between"><span># Heading 1</span><span className="font-sans">H1</span></div>
             <div className="flex justify-between"><span>## Heading 2</span><span className="font-sans">H2</span></div>
-            <div className="flex justify-between"><span>- list item</span><span className="font-sans">* item</span></div>
-            <div className="flex justify-between"><span>1. numbered</span><span className="font-sans">1. item</span></div>
-            <div className="flex justify-between"><span>[text](url)</span><span className="font-sans text-primary">link</span></div>
-            <div className="flex justify-between"><span>![alt](url)</span><span className="font-sans">image</span></div>
-            <div className="flex justify-between"><span>&gt; quote</span><span className="font-sans border-l-2 pl-1">quote</span></div>
-            <div className="flex justify-between"><span>`code`</span><span className="font-sans bg-muted px-1 rounded">code</span></div>
+            <div className="flex justify-between"><span>- list item</span><span className="font-sans"><FormattedMessage id="milkdownToolbar.help.bulletItem" defaultMessage="* item" /></span></div>
+            <div className="flex justify-between"><span>1. numbered</span><span className="font-sans"><FormattedMessage id="milkdownToolbar.help.numberedItem" defaultMessage="1. item" /></span></div>
+            <div className="flex justify-between"><span>[text](url)</span><span className="font-sans text-primary"><FormattedMessage id="milkdownToolbar.help.link" defaultMessage="link" /></span></div>
+            <div className="flex justify-between"><span>![alt](url)</span><span className="font-sans"><FormattedMessage id="milkdownToolbar.help.image" defaultMessage="image" /></span></div>
+            <div className="flex justify-between"><span>&gt; quote</span><span className="font-sans border-l-2 pl-1"><FormattedMessage id="milkdownToolbar.help.quote" defaultMessage="quote" /></span></div>
+            <div className="flex justify-between"><span>`code`</span><span className="font-sans bg-muted px-1 rounded"><FormattedMessage id="milkdownToolbar.help.code" defaultMessage="code" /></span></div>
           </div>
           <p className="text-xs text-muted-foreground pt-2 border-t">
-            Drag & drop or paste images to upload
+            <FormattedMessage id="milkdownToolbar.help.dragDrop" defaultMessage="Drag & drop or paste images to upload" />
           </p>
         </div>
       </PopoverContent>
@@ -117,6 +121,8 @@ interface MilkdownToolbarProps {
 }
 
 export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggleSource, className }: MilkdownToolbarProps) {
+  const intl = useIntl();
+
   return (
     <div className={cn(
       "flex items-center gap-0.5 p-1.5 border-b border-border bg-card/95 backdrop-blur-sm flex-wrap sticky top-0 z-10 rounded-t-xl",
@@ -127,24 +133,24 @@ export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggle
           {/* Text formatting */}
           <ToolbarButton
             icon={<Bold className="h-4 w-4" />}
-            label="Bold"
+            label={intl.formatMessage({ id: 'milkdownToolbar.bold', defaultMessage: 'Bold' })}
             shortcut="Ctrl+B"
             onClick={() => onCommand('toggleBold')}
           />
           <ToolbarButton
             icon={<Italic className="h-4 w-4" />}
-            label="Italic"
+            label={intl.formatMessage({ id: 'milkdownToolbar.italic', defaultMessage: 'Italic' })}
             shortcut="Ctrl+I"
             onClick={() => onCommand('toggleItalic')}
           />
           <ToolbarButton
             icon={<Strikethrough className="h-4 w-4" />}
-            label="Strikethrough"
+            label={intl.formatMessage({ id: 'milkdownToolbar.strikethrough', defaultMessage: 'Strikethrough' })}
             onClick={() => onCommand('toggleStrikethrough')}
           />
           <ToolbarButton
             icon={<Code className="h-4 w-4" />}
-            label="Inline Code"
+            label={intl.formatMessage({ id: 'milkdownToolbar.inlineCode', defaultMessage: 'Inline Code' })}
             onClick={() => onCommand('toggleInlineCode')}
           />
 
@@ -153,17 +159,17 @@ export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggle
           {/* Headings */}
           <ToolbarButton
             icon={<Heading1 className="h-4 w-4" />}
-            label="Heading 1"
+            label={intl.formatMessage({ id: 'milkdownToolbar.heading1', defaultMessage: 'Heading 1' })}
             onClick={() => onCommand('heading1')}
           />
           <ToolbarButton
             icon={<Heading2 className="h-4 w-4" />}
-            label="Heading 2"
+            label={intl.formatMessage({ id: 'milkdownToolbar.heading2', defaultMessage: 'Heading 2' })}
             onClick={() => onCommand('heading2')}
           />
           <ToolbarButton
             icon={<Heading3 className="h-4 w-4" />}
-            label="Heading 3"
+            label={intl.formatMessage({ id: 'milkdownToolbar.heading3', defaultMessage: 'Heading 3' })}
             onClick={() => onCommand('heading3')}
           />
 
@@ -172,17 +178,17 @@ export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggle
           {/* Lists */}
           <ToolbarButton
             icon={<List className="h-4 w-4" />}
-            label="Bullet List"
+            label={intl.formatMessage({ id: 'milkdownToolbar.bulletList', defaultMessage: 'Bullet List' })}
             onClick={() => onCommand('bulletList')}
           />
           <ToolbarButton
             icon={<ListOrdered className="h-4 w-4" />}
-            label="Numbered List"
+            label={intl.formatMessage({ id: 'milkdownToolbar.numberedList', defaultMessage: 'Numbered List' })}
             onClick={() => onCommand('orderedList')}
           />
           <ToolbarButton
             icon={<Quote className="h-4 w-4" />}
-            label="Blockquote"
+            label={intl.formatMessage({ id: 'milkdownToolbar.blockquote', defaultMessage: 'Blockquote' })}
             onClick={() => onCommand('blockquote')}
           />
 
@@ -191,19 +197,19 @@ export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggle
           {/* Links and media */}
           <ToolbarButton
             icon={<Link className="h-4 w-4" />}
-            label="Insert Link"
+            label={intl.formatMessage({ id: 'milkdownToolbar.insertLink', defaultMessage: 'Insert Link' })}
             onClick={() => onCommand('link')}
           />
           {onImageUpload && (
             <ToolbarButton
               icon={<Image className="h-4 w-4" />}
-              label="Insert Image"
+              label={intl.formatMessage({ id: 'milkdownToolbar.insertImage', defaultMessage: 'Insert Image' })}
               onClick={onImageUpload}
             />
           )}
           <ToolbarButton
             icon={<Minus className="h-4 w-4" />}
-            label="Horizontal Rule"
+            label={intl.formatMessage({ id: 'milkdownToolbar.horizontalRule', defaultMessage: 'Horizontal Rule' })}
             onClick={() => onCommand('hr')}
           />
 
@@ -215,7 +221,7 @@ export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggle
 
       {sourceMode && (
         <>
-          <span className="text-xs text-muted-foreground px-1.5">Markdown Source</span>
+          <span className="text-xs text-muted-foreground px-1.5"><FormattedMessage id="milkdownToolbar.sourceModeLabel" defaultMessage="Markdown Source" /></span>
           <span className="flex-1" />
         </>
       )}
@@ -223,7 +229,9 @@ export function MilkdownToolbar({ onCommand, onImageUpload, sourceMode, onToggle
       {onToggleSource && (
         <ToolbarButton
           icon={sourceMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          label={sourceMode ? 'Rich text editor' : 'Markdown source'}
+          label={sourceMode
+            ? intl.formatMessage({ id: 'milkdownToolbar.richTextEditor', defaultMessage: 'Rich text editor' })
+            : intl.formatMessage({ id: 'milkdownToolbar.markdownSource', defaultMessage: 'Markdown source' })}
           active={sourceMode}
           onClick={onToggleSource}
         />

@@ -8,7 +8,7 @@ export function LetterPreferencesPage() {
   });
 
   return (
-    <main className="min-h-screen pb-16 sidebar:pb-0">
+    <main className="min-h-screen">
       <LetterPreferencesSection />
     </main>
   );

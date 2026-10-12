@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ShieldAlert, Eye } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -82,14 +83,14 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
           <ShieldAlert className="size-5 text-muted-foreground" />
         </div>
         <div className="space-y-1 max-w-xs">
-          <p className="text-sm font-medium text-foreground">Content Warning</p>
+          <p className="text-sm font-medium text-foreground"><FormattedMessage id="contentWarningGuard.title" defaultMessage="Content Warning" /></p>
           {reason ? (
             <p className="text-xs text-muted-foreground leading-relaxed">
-              &ldquo;{reason}&rdquo;
+              <FormattedMessage id="contentWarningGuard.reason" defaultMessage="“{reason}”" values={{ reason }} />
             </p>
           ) : (
             <p className="text-xs text-muted-foreground leading-relaxed">
-              The author flagged this post as sensitive.
+              <FormattedMessage id="contentWarningGuard.flagged" defaultMessage="The author flagged this post as sensitive." />
             </p>
           )}
         </div>
@@ -103,7 +104,7 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
           }}
         >
           <Eye className="size-3.5" />
-          Show Content
+          <FormattedMessage id="contentWarningGuard.showContent" defaultMessage="Show Content" />
         </Button>
       </div>
     </div>

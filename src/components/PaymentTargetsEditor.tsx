@@ -181,7 +181,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                     <Input
                       value={draft.authority}
                       onChange={(e) => updateDraft(draft.key, e.target.value)}
-                      placeholder={method.placeholder}
+                      placeholder={intl.formatMessage(method.placeholder)}
                       className="h-9 flex-1 min-w-0 font-mono text-xs"
                       aria-label={intl.formatMessage({ id: 'paymentTargets.addressAriaLabel', defaultMessage: "{method} address" }, { method: method.label })}
                     />

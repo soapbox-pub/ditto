@@ -1,6 +1,7 @@
 // src/blobbi/actions/hooks/useBlobbiUseInventoryItem.ts
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -13,7 +14,7 @@ import {
   buildBlobbiAddress,
 } from '@blobbi-kit/core/blobbi';
 import { applyBlobbiDecay } from '@blobbi-kit/core/blobbi-decay';
-import { getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { formatShopItemName, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
 import {
   applyItemEffects,
   canUseAction,
@@ -24,11 +25,12 @@ import {
   hasHygieneEffectForEgg,
   type InventoryAction,
   ACTION_METADATA,
+  ACTION_ERROR_MESSAGES,
 } from '../lib/blobbi-action-utils';
 import { trackEvolutionMissionTally, readEvolutionFromStorage, trackInventoryDailyActions } from '@blobbi-kit/react/lib/daily-mission-tracker';
 import { serializeEvolutionContent } from '@blobbi-kit/core/missions';
 import { getStreakTagUpdates } from '@blobbi-kit/react/lib/blobbi-streak';
-import { calculateInventoryActionXP, applyXPGain, formatXPGain } from '@blobbi-kit/react/lib/blobbi-xp';
+import { calculateInventoryActionXP, applyXPGain } from '@blobbi-kit/react/lib/blobbi-xp';
 import { INTERNAL_TO_INTERACTION_ACTION, emitInteractionEvent } from '@blobbi-kit/core/blobbi-interaction';
 
 // Import NostrEvent type
@@ -98,52 +100,53 @@ export function useBlobbiUseInventoryItem({
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const intl = useIntl();
 
   return useMutation({
     mutationFn: async ({ itemId, action }: UseItemRequest): Promise<UseItemResult> => {
       // ─── Validation ───
       if (!user?.pubkey) {
-        throw new Error('You must be logged in to use items');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.notLoggedInItems));
       }
 
       if (!companion) {
-        throw new Error('No companion selected');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.noCompanion));
       }
 
       if (!profile) {
-        throw new Error('Profile not found');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.profileNotFound));
       }
 
       // Check stage restrictions for this specific action
       if (!canUseAction(companion, action)) {
         const message = getStageRestrictionMessage(companion, action);
-        throw new Error(message ?? 'This companion cannot use this item');
+        throw new Error(intl.formatMessage(message ?? ACTION_ERROR_MESSAGES.cannotUseItem));
       }
 
       // Validate item exists in shop catalog
       const shopItem = getShopItemById(itemId);
       if (!shopItem) {
-        throw new Error('Item not found in catalog');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.itemNotInCatalog));
       }
 
       // Validate item has effects
       if (!shopItem.effect) {
-        throw new Error('This item has no effect');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.itemNoEffect));
       }
 
       // For eggs, validate that items have applicable effects
       const isEgg = companion.stage === 'egg';
       if (isEgg && action === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) {
-        throw new Error('This medicine has no effect on eggs');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.medicineNoEffectEgg));
       }
       if (isEgg && action === 'clean' && !hasHygieneEffectForEgg(shopItem.effect)) {
-        throw new Error('This item has no cleaning effect on eggs');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.noCleaningEffectEgg));
       }
 
       // ─── Ensure Canonical Before Action ───
       const canonical = await ensureCanonicalBeforeAction();
       if (!canonical) {
-        throw new Error('Failed to prepare companion for action');
+        throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.prepareFailed));
       }
 
       // ─── Apply Accumulated Decay First ───
@@ -170,7 +173,7 @@ export function useBlobbiUseInventoryItem({
         
         if (energyCost > 0 && currentEnergy < energyCost) {
           throw new Error(
-            `Your Blobbi needs at least ${energyCost} energy to play with this toy (current: ${currentEnergy})`
+            intl.formatMessage(ACTION_ERROR_MESSAGES.notEnoughEnergy, { energyCost, currentEnergy })
           );
         }
         
@@ -182,9 +185,7 @@ export function useBlobbiUseInventoryItem({
         const wouldSpendEnergy = energyCost > 0 && currentEnergy >= energyCost;
         
         if (!wouldGainHappiness && !wouldSpendEnergy) {
-          throw new Error(
-            'Playing would have no effect - your Blobbi is already at maximum happiness and has no energy to spend'
-          );
+          throw new Error(intl.formatMessage(ACTION_ERROR_MESSAGES.playNoEffect));
         }
       }
       
@@ -316,12 +317,17 @@ export function useBlobbiUseInventoryItem({
         newXP,
       };
     },
-    onSuccess: ({ itemName, action, xpGained }) => {
+    onSuccess: ({ itemName, action, xpGained }, { itemId }) => {
       const actionMeta = ACTION_METADATA[action];
-      const xpText = formatXPGain(xpGained);
       toast({
-        title: `${actionMeta.label} successful!`,
-        description: `Used ${itemName} on your Blobbi. ${xpText}`,
+        title: intl.formatMessage(
+          { id: 'blobbiAction.itemUsed.title', defaultMessage: '{action} successful!' },
+          { action: intl.formatMessage(actionMeta.label) },
+        ),
+        description: intl.formatMessage(
+          { id: 'blobbiAction.itemUsed.description', defaultMessage: 'Used {itemName} on your Blobbi. {xp, plural, =0 {} other {+# XP}}' },
+          { itemName: formatShopItemName(intl, { id: itemId, name: itemName }), xp: Math.max(0, xpGained) },
+        ),
       });
 
       // Track daily mission progress
@@ -329,7 +335,7 @@ export function useBlobbiUseInventoryItem({
     },
     onError: (error: Error) => {
       toast({
-        title: 'Failed to use item',
+        title: intl.formatMessage({ id: 'blobbiAction.itemUseFailed', defaultMessage: 'Failed to use item' }),
         description: error.message,
         variant: 'destructive',
       });

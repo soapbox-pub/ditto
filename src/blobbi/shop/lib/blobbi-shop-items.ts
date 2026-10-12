@@ -1,5 +1,6 @@
 // src/blobbi/shop/lib/blobbi-shop-items.ts
 
+import { defineMessages, type IntlShape, type MessageDescriptor } from 'react-intl';
 import type { ShopItem, ShopItemCategory } from '@blobbi-kit/core/types/shop';
 
 /**
@@ -189,6 +190,41 @@ export const BLOBBI_SHOP_ITEMS: ShopItem[] = [
   },
 
 ];
+
+/**
+ * Translated display names for shop items, keyed by item id.
+ * `ShopItem.name` stays English (it's used in logs and as a fallback).
+ */
+const SHOP_ITEM_NAMES: Record<string, MessageDescriptor> = defineMessages({
+  food_apple: { id: 'blobbiShop.item.apple', defaultMessage: 'Apple' },
+  food_burger: { id: 'blobbiShop.item.burger', defaultMessage: 'Burger' },
+  food_cake: { id: 'blobbiShop.item.cake', defaultMessage: 'Cake' },
+  food_pizza: { id: 'blobbiShop.item.pizza', defaultMessage: 'Pizza' },
+  food_sushi: { id: 'blobbiShop.item.sushi', defaultMessage: 'Sushi' },
+  toy_ball: { id: 'blobbiShop.item.ball', defaultMessage: 'Ball' },
+  toy_teddy: { id: 'blobbiShop.item.teddyBear', defaultMessage: 'Teddy Bear' },
+  toy_blocks: { id: 'blobbiShop.item.buildingBlocks', defaultMessage: 'Building Blocks' },
+  med_vitamins: { id: 'blobbiShop.item.vitamins', defaultMessage: 'Vitamins' },
+  med_super: { id: 'blobbiShop.item.superMedicine', defaultMessage: 'Super Medicine' },
+  med_bandage: { id: 'blobbiShop.item.bandage', defaultMessage: 'Bandage' },
+  med_elixir: { id: 'blobbiShop.item.healthElixir', defaultMessage: 'Health Elixir' },
+  med_shell_repair: { id: 'blobbiShop.item.shellRepairKit', defaultMessage: 'Shell Repair Kit' },
+  med_calcium: { id: 'blobbiShop.item.calciumSupplement', defaultMessage: 'Calcium Supplement' },
+  hyg_soap: { id: 'blobbiShop.item.soap', defaultMessage: 'Soap' },
+  hyg_shampoo: { id: 'blobbiShop.item.shampoo', defaultMessage: 'Shampoo' },
+  hyg_bubble: { id: 'blobbiShop.item.bubbleBath', defaultMessage: 'Bubble Bath' },
+  hyg_towel: { id: 'blobbiShop.item.softTowel', defaultMessage: 'Soft Towel' },
+  nrg_drink: { id: 'blobbiShop.item.energyDrink', defaultMessage: 'Energy Drink' },
+});
+
+/**
+ * Localized display name for a shop item. Falls back to the catalog's English
+ * `name` for ids without a translation.
+ */
+export function formatShopItemName(intl: IntlShape, item: { id: string; name: string }): string {
+  const message = SHOP_ITEM_NAMES[item.id];
+  return message ? intl.formatMessage(message) : item.name;
+}
 
 /**
  * Get a shop item by its ID

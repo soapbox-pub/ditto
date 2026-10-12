@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FormattedMessage, defineMessage, useIntl, type MessageDescriptor } from 'react-intl';
+import { PageHeader } from '@/components/PageHeader';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import {
-  ArrowLeft,
   BookOpen,
   Calendar,
   ExternalLink,
@@ -38,7 +39,7 @@ import { cn } from '@/lib/utils';
 type Section = 'featured' | 'mostread' | 'news' | 'onthisday';
 
 interface SectionMeta {
-  label: string;
+  label: MessageDescriptor;
   icon: React.ReactNode;
 }
 
@@ -47,10 +48,10 @@ interface SectionMeta {
 // ---------------------------------------------------------------------------
 
 const SECTIONS: Record<Section, SectionMeta> = {
-  featured: { label: 'Featured', icon: <Star className="size-3.5" /> },
-  mostread: { label: 'Trending', icon: <TrendingUp className="size-3.5" /> },
-  news: { label: 'In the News', icon: <Newspaper className="size-3.5" /> },
-  onthisday: { label: 'On This Day', icon: <Calendar className="size-3.5" /> },
+  featured: { label: defineMessage({ id: 'wikipedia.section.featured', defaultMessage: 'Featured' }), icon: <Star className="size-3.5" /> },
+  mostread: { label: defineMessage({ id: 'wikipedia.section.trending', defaultMessage: 'Trending' }), icon: <TrendingUp className="size-3.5" /> },
+  news: { label: defineMessage({ id: 'wikipedia.section.news', defaultMessage: 'In the News' }), icon: <Newspaper className="size-3.5" /> },
+  onthisday: { label: defineMessage({ id: 'wikipedia.section.onThisDay', defaultMessage: 'On This Day' }), icon: <Calendar className="size-3.5" /> },
 };
 
 const SECTION_ORDER: Section[] = ['featured', 'mostread', 'news', 'onthisday'];
@@ -169,7 +170,7 @@ function SectionPill({ section, active, onClick }: {
       )}
     >
       {meta.icon}
-      {meta.label}
+      <FormattedMessage {...meta.label} />
     </button>
   );
 }
@@ -370,6 +371,7 @@ function NewsCard({ item }: { item: NewsItem }) {
 // ---------------------------------------------------------------------------
 
 function WikipediaSearchBar() {
+  const intl = useIntl();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -445,7 +447,7 @@ function WikipediaSearchBar() {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Search Wikipedia..."
+          placeholder={intl.formatMessage({ id: 'wikipedia.searchPlaceholder', defaultMessage: 'Search Wikipedia...' })}
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => {
@@ -511,7 +513,11 @@ function WikipediaSearchBar() {
             </div>
           ) : (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No results found for &ldquo;{debouncedQuery}&rdquo;
+              <FormattedMessage
+                id="wikipedia.noResults"
+                defaultMessage="No results found for “{query}”"
+                values={{ query: debouncedQuery }}
+              />
             </div>
           )}
 
@@ -602,6 +608,7 @@ function WikipediaLoadingSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function WikipediaPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { locale } = useLanguage();
   const { data: feed, isLoading, isError } = useWikipediaFeatured();
@@ -610,7 +617,10 @@ export function WikipediaPage() {
 
   useSeoMeta({
     title: `Wikipedia | ${config.appName}`,
-    description: 'Explore today\'s featured Wikipedia content \u2014 trending articles, on this day, in the news, and more.',
+    description: intl.formatMessage({
+      id: 'wikipedia.seoDescription',
+      defaultMessage: "Explore today's featured Wikipedia content: trending articles, on this day, in the news, and more.",
+    }),
   });
 
   // Section refs for scrollspy
@@ -646,31 +656,22 @@ export function WikipediaPage() {
   }, [feed?.news]);
 
   return (
-    <main className="pb-16 sidebar:pb-0">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 pt-4 pb-2">
-        <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/10 flex items-center justify-center">
-            <WikipediaIcon className="size-4 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Wikipedia</h1>
-            <p className="text-xs text-muted-foreground">Today&apos;s featured content</p>
-          </div>
-        </div>
+    <main>
+      <PageHeader
+        title="Wikipedia"
+        icon={<WikipediaIcon className="size-5" />}
+        subtitle={intl.formatMessage({ id: 'wikipedia.subtitle', defaultMessage: "Today's featured content" })}
+      >
         <a
           href={wikiHomeUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="p-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-          title="Visit Wikipedia"
+          title={intl.formatMessage({ id: 'wikipedia.visit', defaultMessage: 'Visit Wikipedia' })}
         >
           <ExternalLink className="size-4" />
         </a>
-      </div>
+      </PageHeader>
 
       {/* Search bar */}
       <WikipediaSearchBar />
@@ -699,7 +700,7 @@ export function WikipediaPage() {
         <div className="px-4 pt-8 pb-16 text-center">
           <FlameKindling className="size-10 mx-auto mb-3 text-muted-foreground/30" />
           <p className="text-muted-foreground text-sm">
-            Couldn&apos;t load today&apos;s Wikipedia content. Try again later.
+            <FormattedMessage id="wikipedia.loadError" defaultMessage="Couldn't load today's Wikipedia content. Try again later." />
           </p>
         </div>
       ) : (
@@ -709,7 +710,7 @@ export function WikipediaPage() {
             <div ref={featuredRef} data-section="featured">
               <SectionHeading
                 icon={<Star className="size-3.5 text-amber-500" />}
-                title="Today's Featured Article"
+                title={intl.formatMessage({ id: 'wikipedia.featuredArticle', defaultMessage: "Today's Featured Article" })}
               />
               <FeaturedArticleCard page={feed.tfa} />
             </div>
@@ -720,8 +721,8 @@ export function WikipediaPage() {
             <div ref={mostreadRef} data-section="mostread">
               <SectionHeading
                 icon={<TrendingUp className="size-3.5 text-primary" />}
-                title="Trending"
-                subtitle="Most read articles today"
+                title={intl.formatMessage({ id: 'wikipedia.section.trending', defaultMessage: 'Trending' })}
+                subtitle={intl.formatMessage({ id: 'wikipedia.mostReadSubtitle', defaultMessage: 'Most read articles today' })}
               />
               <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
                 {mostReadArticles.map((page) => (
@@ -741,7 +742,7 @@ export function WikipediaPage() {
             <div ref={newsRef} data-section="news">
               <SectionHeading
                 icon={<Newspaper className="size-3.5 text-sky-500" />}
-                title="In the News"
+                title={intl.formatMessage({ id: 'wikipedia.section.news', defaultMessage: 'In the News' })}
               />
               <div className="space-y-3">
                 {newsItems.map((item, i) => (
@@ -756,7 +757,7 @@ export function WikipediaPage() {
             <div ref={onthisdayRef} data-section="onthisday">
               <SectionHeading
                 icon={<Calendar className="size-3.5 text-violet-500" />}
-                title="On This Day"
+                title={intl.formatMessage({ id: 'wikipedia.section.onThisDay', defaultMessage: 'On This Day' })}
                 subtitle={new Date().toLocaleDateString(locale, { month: 'long', day: 'numeric' })}
               />
               <div className="space-y-3">
@@ -773,25 +774,32 @@ export function WikipediaPage() {
       <div className="px-4 pb-8">
         <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-4 py-3 text-center">
           <p className="text-xs text-muted-foreground">
-            Content provided by{' '}
-            <a
-              href={wikiHomeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-foreground transition-colors"
-            >
-              Wikipedia
-            </a>
-            , the free encyclopedia. Text is available under the{' '}
-            <a
-              href="https://creativecommons.org/licenses/by-sa/4.0/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-foreground transition-colors"
-            >
-              CC BY-SA 4.0
-            </a>
-            {' '}license.
+            <FormattedMessage
+              id="wikipedia.attribution"
+              defaultMessage="Content provided by <wiki>Wikipedia</wiki>, the free encyclopedia. Text is available under the <license>CC BY-SA 4.0</license> license."
+              values={{
+                wiki: (chunks) => (
+                  <a
+                    href={wikiHomeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    {chunks}
+                  </a>
+                ),
+                license: (chunks) => (
+                  <a
+                    href="https://creativecommons.org/licenses/by-sa/4.0/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-2 hover:text-foreground transition-colors"
+                  >
+                    {chunks}
+                  </a>
+                ),
+              }}
+            />
           </p>
         </div>
       </div>

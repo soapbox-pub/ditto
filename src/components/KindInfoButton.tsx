@@ -1,4 +1,5 @@
 import { ExternalLink, Info } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import type { ExtraKindDef } from '@/lib/extraKinds';
 import { Button } from '@/components/ui/button';
@@ -40,11 +41,11 @@ export function KindInfoButton({ kindDef, icon, open, onOpenChange }: KindInfoBu
             </div>
           )}
 
-          <DialogTitle className="text-lg">{label}</DialogTitle>
+          <DialogTitle className="text-lg"><FormattedMessage {...label} /></DialogTitle>
 
           {blurb && (
             <DialogDescription className="text-sm leading-relaxed">
-              {blurb}
+              <FormattedMessage {...blurb} />
             </DialogDescription>
           )}
 

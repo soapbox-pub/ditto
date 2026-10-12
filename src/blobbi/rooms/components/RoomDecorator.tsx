@@ -176,7 +176,7 @@ export function RoomDecoratorOverlay({
             </p>
             <p aria-live="polite" className={cn('truncate text-xs leading-tight', invalid.size ? 'text-destructive font-medium' : 'text-muted-foreground')}>
               {invalid.size ? (
-                <FormattedMessage id="blobbiRoom.decorator.overlap" defaultMessage="Some pieces overlap — move them apart" />
+                <FormattedMessage id="blobbiRoom.decorator.overlap" defaultMessage="Some pieces overlap. Move them apart" />
               ) : selectedIndex === null ? (
                 <FormattedMessage
                   id="blobbiRoom.decorator.hint"

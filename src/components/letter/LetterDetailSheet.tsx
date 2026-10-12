@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Loader2, Lock } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { InkPenIcon } from '@/components/icons/InkPenIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useDecryptLetter } from '@/hooks/useLetters';
@@ -36,6 +37,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 /** Renders an attached gift — present box overlapping a themed bubble. */
 function LetterAttachment({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const { applyCustomTheme, theme, customTheme, setTheme } = useTheme();
   const [applied, setApplied] = useState(false);
   const prevRef = useRef<{ mode: typeof theme; config?: ThemeConfig } | undefined>(undefined);
@@ -47,7 +49,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
       const core = paletteToTheme(colors);
       const stationery = colorMomentToStationery(event);
       const resolved = resolveStationery(stationery);
-      return { type: 'color-moment' as const, label: 'Color Moment', colors, core, resolved };
+      return { type: 'color-moment' as const, label: intl.formatMessage({ id: 'letterDetail.colorMoment', defaultMessage: 'Color Moment' }), colors, core, resolved };
     }
     if (event.kind === THEME_KIND) {
       const parsed = parseThemeDefinition(event);
@@ -56,7 +58,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
       const resolved = resolveStationery(stationery);
       return {
         type: 'theme' as const,
-        label: parsed.title ?? 'Theme',
+        label: parsed.title ?? intl.formatMessage({ id: 'letterDetail.theme', defaultMessage: 'Theme' }),
         colors: [] as string[],
         core: parsed.colors,
         resolved,
@@ -64,7 +66,7 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
       };
     }
     return null;
-  }, [event]);
+  }, [event, intl]);
 
   const handleApply = useCallback(() => {
     if (!attachment) return;
@@ -76,8 +78,8 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
     }
     setApplied(true);
     toast({
-      title: 'Theme applied',
-      description: `"${attachment.label}" is now your active theme.`,
+      title: intl.formatMessage({ id: 'letterDetail.toast.themeApplied', defaultMessage: 'Theme applied' }),
+      description: intl.formatMessage({ id: 'letterDetail.toast.themeAppliedDescription', defaultMessage: '"{name}" is now your active theme.' }, { name: attachment.label }),
       action: (
         <button
           className="text-sm font-medium underline underline-offset-2"
@@ -89,11 +91,11 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
             setApplied(false);
           }}
         >
-          Undo
+          <FormattedMessage id="themePreview.undo" defaultMessage="Undo" />
         </button>
       ),
     });
-  }, [attachment, theme, customTheme, applyCustomTheme, setTheme]);
+  }, [attachment, theme, customTheme, applyCustomTheme, setTheme, intl]);
 
   if (!attachment) return null;
 
@@ -142,7 +144,9 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
         onClick={(e) => { e.stopPropagation(); handleApply(); }}
         role="button"
         tabIndex={0}
-        title={applied ? 'Theme applied!' : `Tap to use "${attachment.label}" as your theme`}
+        title={applied
+          ? intl.formatMessage({ id: 'letterDetail.themeAppliedTitle', defaultMessage: 'Theme applied!' })
+          : intl.formatMessage({ id: 'letterDetail.tapToUseNamed', defaultMessage: 'Tap to use "{name}" as your theme' }, { name: attachment.label })}
         className="relative rounded-2xl overflow-hidden pointer-events-auto cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-[1.02]"
         style={{
           background: bg,
@@ -176,7 +180,11 @@ function LetterAttachment({ event }: { event: NostrEvent }) {
             {attachment.label}
           </p>
           <p className="text-[11px] mt-0.5" style={{ color: textColor, opacity: 0.6 }}>
-            {applied ? 'Applied as your theme' : 'Tap to use as theme'}
+            {applied ? (
+              <FormattedMessage id="letterDetail.appliedAsTheme" defaultMessage="Applied as your theme" />
+            ) : (
+              <FormattedMessage id="letterDetail.tapToUse" defaultMessage="Tap to use as theme" />
+            )}
           </p>
         </div>
       </div>
@@ -248,7 +256,7 @@ export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailShee
       <DialogContent
         className="p-0 gap-0 border-none bg-transparent shadow-none max-w-[calc(100vw-2rem)] sm:max-w-lg overflow-visible [&>button]:hidden"
       >
-        <DialogTitle className="sr-only">Letter</DialogTitle>
+        <DialogTitle className="sr-only"><FormattedMessage id="letterDetail.title" defaultMessage="Letter" /></DialogTitle>
 
         {/* Outer click-to-close layer — zero height so dialog centers on the card only */}
         <div className="relative" onClick={onClose}>
@@ -283,7 +291,7 @@ export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailShee
                   <div className="flex-1 flex items-center justify-center">
                     <div className="flex flex-col items-center gap-2.5" style={{ color: faintColor }}>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-xs">unsealing...</span>
+                      <span className="text-xs"><FormattedMessage id="letterDetail.unsealing" defaultMessage="unsealing..." /></span>
                     </div>
                   </div>
                 ) : content ? (
@@ -324,7 +332,7 @@ export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailShee
                   <div className="flex-1 flex items-center justify-center">
                     <div className="flex flex-col items-center gap-2" style={{ color: faintColor }}>
                       <Lock className="w-5 h-5" />
-                      <p className="text-xs italic">couldn't unseal this one</p>
+                      <p className="text-xs italic"><FormattedMessage id="letterDetail.unsealFailed" defaultMessage="couldn't unseal this one" /></p>
                     </div>
                   </div>
                 )}
@@ -356,7 +364,7 @@ export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailShee
                 }}
               >
                 <InkPenIcon className="w-5 h-5" strokeWidth={2} />
-                Reply
+                <FormattedMessage id="letterDetail.reply" defaultMessage="Reply" />
               </Button>
             </div>
           )}

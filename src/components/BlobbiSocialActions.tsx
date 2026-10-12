@@ -21,6 +21,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { HandHeart } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -44,7 +45,7 @@ import {
   hasHappinessEffectForEgg,
   type InventoryAction,
 } from '@/blobbi/actions/lib/blobbi-action-utils';
-import { getLiveShopItems, getShopItemById } from '@/blobbi/shop/lib/blobbi-shop-items';
+import { getLiveShopItems, getShopItemById, formatShopItemName } from '@/blobbi/shop/lib/blobbi-shop-items';
 import { ItemCarousel, type CarouselEntry } from '@/blobbi/rooms/components/ItemCarousel';
 import type { BlobbiStats } from '@blobbi-kit/core/blobbi';
 
@@ -119,6 +120,7 @@ interface BlobbiSocialActionsProps {
 }
 
 export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteractionSuccess, companion: companionProp, className }: BlobbiSocialActionsProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -254,16 +256,16 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
         onInteractionSuccess?.(mapping.inventory);
         scheduleReturnToCarousel(mapping.inventory);
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
+        const message = err instanceof Error ? err.message : intl.formatMessage({ id: 'blobbiSocial.unknownError', defaultMessage: 'Unknown error' });
         toast({
-          title: 'Interaction failed',
+          title: intl.formatMessage({ id: 'blobbiSocial.interactionFailed', defaultMessage: 'Interaction failed' }),
           description: message,
           variant: 'destructive',
         });
         setPanel({ step: 'carousel', action: mapping.inventory });
       }
     },
-    [companion, user, panel, publishEvent, queryClient, scheduleReturnToCarousel, source, onInteractionSuccess],
+    [companion, user, panel, publishEvent, queryClient, scheduleReturnToCarousel, source, onInteractionSuccess, intl],
   );
 
   // ── Carousel entries ──
@@ -283,11 +285,11 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
         if (activeAction === 'medicine' && !hasMedicineEffectForEgg(shopItem.effect)) continue;
         if (activeAction === 'clean' && !hasHygieneEffectForEgg(shopItem.effect) && !hasHappinessEffectForEgg(shopItem.effect)) continue;
       }
-      entries.push({ id: shopItem.id, icon: <span>{shopItem.icon}</span>, label: shopItem.name });
+      entries.push({ id: shopItem.id, icon: <span>{shopItem.icon}</span>, label: formatShopItemName(intl, shopItem) });
     }
 
     return entries;
-  }, [activeAction, companion]);
+  }, [activeAction, companion, intl]);
 
   // ── Guard ──
   if (!user || !companion) return null;
@@ -304,7 +306,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
               : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
             className,
           )}
-          title="Interact with Blobbi"
+          title={intl.formatMessage({ id: 'blobbiSocial.interact', defaultMessage: 'Interact with Blobbi' })}
           onClick={(e) => e.stopPropagation()}
         >
           <HandHeart className="size-[18px] sm:size-5" />
@@ -324,7 +326,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
         {panel.step === 'actions' && (
           availableActions.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-3">
-              All good! No needs right now.
+              <FormattedMessage id="blobbiSocial.allGood" defaultMessage="All good! No needs right now." />
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-1.5">
@@ -342,7 +344,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
                     )}
                   >
                     <span className="text-base leading-none">{meta.icon}</span>
-                    <span>{meta.label}</span>
+                    <span><FormattedMessage {...meta.label} /></span>
                   </button>
                 );
               })}
@@ -360,11 +362,11 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
                 disabled={panel.step === 'pending'}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                &larr; Back
+                &larr; <FormattedMessage id="blobbiSocial.back" defaultMessage="Back" />
               </button>
               <span className="text-sm font-medium ml-auto">
                 {activeAction && ACTION_METADATA[activeAction].icon}{' '}
-                {activeAction && ACTION_METADATA[activeAction].label}
+                {activeAction && <FormattedMessage {...ACTION_METADATA[activeAction].label} />}
               </span>
             </div>
             {carouselEntries.length > 0 ? (
@@ -377,7 +379,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
               />
             ) : (
               <p className="text-xs text-muted-foreground text-center py-3">
-                No items available.
+                <FormattedMessage id="blobbiSocial.noItems" defaultMessage="No items available." />
               </p>
             )}
           </div>
@@ -387,7 +389,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
         {panel.step === 'success' && (
           <div className="flex items-center justify-center gap-1.5 py-2">
             <span className="text-base">{ACTION_METADATA[panel.action].icon}</span>
-            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Sent!</span>
+            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400"><FormattedMessage id="blobbiSocial.sent" defaultMessage="Sent!" /></span>
           </div>
         )}
       </PopoverContent>

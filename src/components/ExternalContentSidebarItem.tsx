@@ -54,11 +54,12 @@ function ExternalSidebarIcon({ id }: { id: string }) {
 }
 
 function ExternalSidebarLabel({ id }: { id: string }) {
+  const intl = useIntl();
   const content = useMemo(() => parseExternalUri(id), [id]);
   const isbn = content.type === 'isbn' ? content.value.replace('isbn:', '') : null;
   const { data: book } = useBookInfo(isbn);
 
-  const label = content.type === 'isbn' && book?.title ? book.title : headerLabel(content);
+  const label = content.type === 'isbn' && book?.title ? book.title : headerLabel(content, intl);
 
   return <span className="truncate">{label}</span>;
 }
@@ -110,7 +111,7 @@ export function ExternalContentSidebarItem({
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(id); }}
           className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          title="Remove"
+          title={intl.formatMessage({ id: 'externalContentSidebarItem.remove', defaultMessage: 'Remove' })}
         >
           <X className="size-4" />
         </button>

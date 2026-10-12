@@ -8,6 +8,7 @@
  * - Add a custom tab
  */
 import { useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import {
   DndContext,
   closestCenter,
@@ -111,12 +112,12 @@ export function ProfileTabsManagerModal({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Manage profile tabs</DialogTitle>
+            <DialogTitle><FormattedMessage id="profileTabsManager.title" defaultMessage="Manage profile tabs" /></DialogTitle>
           </DialogHeader>
 
           <div className="space-y-1 py-1">
             {localTabs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No custom tabs yet.</p>
+              <p className="text-sm text-muted-foreground text-center py-4"><FormattedMessage id="profileTabsManager.empty" defaultMessage="No custom tabs yet." /></p>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={localTabs.map((t) => t.label)} strategy={verticalListSortingStrategy}>
@@ -137,7 +138,7 @@ export function ProfileTabsManagerModal({
               className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
             >
               <Plus className="size-4 shrink-0" />
-              Add custom tab
+              <FormattedMessage id="profileTabsManager.addCustom" defaultMessage="Add custom tab" />
             </button>
           </div>
 
@@ -147,7 +148,7 @@ export function ProfileTabsManagerModal({
             disabled={isPending}
           >
             {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Save
+            <FormattedMessage id="common.save" defaultMessage="Save" />
           </Button>
         </DialogContent>
       </Dialog>
@@ -174,6 +175,7 @@ function SortableTabRow({
   onEdit: () => void;
   onRemove: () => void;
 }) {
+  const intl = useIntl();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.label });
 
   return (
@@ -189,7 +191,7 @@ function SortableTabRow({
         {...attributes}
         {...listeners}
         className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
-        aria-label="Drag to reorder"
+        aria-label={intl.formatMessage({ id: 'profileTabsManager.dragToReorder', defaultMessage: 'Drag to reorder' })}
       >
         <GripVertical className="size-4" />
       </button>
@@ -199,14 +201,14 @@ function SortableTabRow({
       <button
         onClick={onEdit}
         className="shrink-0 size-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        aria-label={`Edit ${tab.label}`}
+        aria-label={intl.formatMessage({ id: 'profileTabsManager.editTab', defaultMessage: 'Edit {label}' }, { label: tab.label })}
       >
         <Pencil className="size-3.5" />
       </button>
       <button
         onClick={onRemove}
         className="shrink-0 size-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-        aria-label={`Remove ${tab.label}`}
+        aria-label={intl.formatMessage({ id: 'profileTabsManager.removeTab', defaultMessage: 'Remove {label}' }, { label: tab.label })}
       >
         <Trash2 className="size-3.5" />
       </button>

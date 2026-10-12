@@ -399,9 +399,9 @@ describe('previews', () => {
     const mario = memoryBlock([...ascii('SC'), 0x11, 0x01, 0x82, 0x6c, 0x82, 0x81, 0x82, 0x92, 0x82, 0x89, 0x82, 0x8f, 0x81, 0x40, 0x82, 0x50]);
     expect(card(38192, [], mario).title).toBe('Mario 1');
     expect(card(38192, [['title', 'Fallback']], 'zz').title).toBe('Fallback');
-    expect(card(31985, [['d', 'isbn:123'], ['rating', '0.6']], 'Fine').description).toBe('★★★☆☆ — Fine');
+    expect(card(31985, [['d', 'isbn:123'], ['rating', '0.6']], 'Fine').description).toBe('★★★☆☆: Fine');
     expect(card(39701, [['d', 'example.com/a']], '').description).toBe('https://example.com/a');
-    expect(card(30402, [['d', 'l'], ['title', 'Bike'], ['price', '100', 'usd', 'month'], ['status', 'sold']], 'Fast').description).toBe('Sold · 100 USD per month — Fast');
+    expect(card(30402, [['d', 'l'], ['title', 'Bike'], ['price', '100', 'usd', 'month'], ['status', 'sold']], 'Fast').description).toBe('Sold · 100 USD per month: Fast');
     const party = card(31923, [['d', 'p'], ['title', 'Party'], ['start', '1748790000'], ['start_tzid', 'America/New_York'], ['location', 'Park']], '');
     expect(party.description).toBe('June 1, 2025, 15:00 UTC · Park');
     expect(card(1984, [['e', 'b'.repeat(64), 'nudity']], '').title).toBe('Reported for nudity');

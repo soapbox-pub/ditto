@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Star } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,7 +38,11 @@ export function BookReviewFormDialog({ isbn, children }: BookReviewFormDialogPro
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {existingReview ? 'Edit Review' : 'Write a Review'}
+            {existingReview ? (
+              <FormattedMessage id="bookReview.editTitle" defaultMessage="Edit Review" />
+            ) : (
+              <FormattedMessage id="bookReview.writeTitle" defaultMessage="Write a Review" />
+            )}
           </DialogTitle>
         </DialogHeader>
         <BookReviewForm
@@ -58,6 +63,7 @@ interface BookReviewFormProps {
 
 /** Inline review form with star rating, text, and spoiler support. */
 function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const [content, setContent] = useState(existingReview?.content ?? '');
@@ -71,7 +77,7 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
     e.preventDefault();
 
     if (!content.trim() && rating === 0) {
-      toast({ title: 'Please provide either a written review or a rating', variant: 'destructive' });
+      toast({ title: intl.formatMessage({ id: 'bookReview.toast.empty', defaultMessage: 'Please provide either a written review or a rating' }), variant: 'destructive' });
       return;
     }
 
@@ -84,11 +90,15 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
 
     publishReview(review, {
       onSuccess: () => {
-        toast({ title: existingReview ? 'Review updated' : 'Review published' });
+        toast({
+          title: existingReview
+            ? intl.formatMessage({ id: 'bookReview.toast.updated', defaultMessage: 'Review updated' })
+            : intl.formatMessage({ id: 'bookReview.toast.published', defaultMessage: 'Review published' }),
+        });
         onClose?.();
       },
       onError: () => {
-        toast({ title: 'Failed to publish review', variant: 'destructive' });
+        toast({ title: intl.formatMessage({ id: 'bookReview.toast.failed', defaultMessage: 'Failed to publish review' }), variant: 'destructive' });
       },
     });
   };
@@ -99,7 +109,7 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Star rating */}
       <div className="space-y-2">
-        <Label>Rating (optional)</Label>
+        <Label><FormattedMessage id="bookReview.ratingLabel" defaultMessage="Rating (optional)" /></Label>
         <div className="flex items-center gap-2">
           <div className="flex">
             {[...Array(5)].map((_, i) => (
@@ -132,7 +142,7 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
                 className="h-6 px-2 text-xs"
                 onClick={() => setRating(0)}
               >
-                Clear
+                <FormattedMessage id="common.clear" defaultMessage="Clear" />
               </Button>
             </div>
           )}
@@ -141,10 +151,10 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
 
       {/* Review text */}
       <div className="space-y-2">
-        <Label htmlFor="review-content">Review (optional)</Label>
+        <Label htmlFor="review-content"><FormattedMessage id="bookReview.reviewLabel" defaultMessage="Review (optional)" /></Label>
         <Textarea
           id="review-content"
-          placeholder="Share your thoughts about this book..."
+          placeholder={intl.formatMessage({ id: 'bookReview.reviewPlaceholder', defaultMessage: 'Share your thoughts about this book...' })}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={5}
@@ -160,16 +170,16 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
             onCheckedChange={(checked) => setHasSpoiler(checked === true)}
           />
           <Label htmlFor="spoiler" className="text-sm cursor-pointer">
-            This review contains spoilers
+            <FormattedMessage id="bookReview.containsSpoilers" defaultMessage="This review contains spoilers" />
           </Label>
         </div>
 
         {hasSpoiler && (
           <div className="space-y-2">
-            <Label htmlFor="warning-message">Spoiler warning message</Label>
+            <Label htmlFor="warning-message"><FormattedMessage id="bookReview.spoilerMessageLabel" defaultMessage="Spoiler warning message" /></Label>
             <Input
               id="warning-message"
-              placeholder="e.g., Major plot points discussed"
+              placeholder={intl.formatMessage({ id: 'bookReview.spoilerMessagePlaceholder', defaultMessage: 'e.g., Major plot points discussed' })}
               value={contentWarning}
               onChange={(e) => setContentWarning(e.target.value)}
             />
@@ -180,10 +190,16 @@ function BookReviewForm({ isbn, existingReview, onClose }: BookReviewFormProps) 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
+          <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
         </Button>
         <Button type="submit" disabled={isPending}>
-          {isPending ? 'Publishing...' : existingReview ? 'Update Review' : 'Publish Review'}
+          {isPending ? (
+            <FormattedMessage id="bookReview.publishing" defaultMessage="Publishing..." />
+          ) : existingReview ? (
+            <FormattedMessage id="bookReview.update" defaultMessage="Update Review" />
+          ) : (
+            <FormattedMessage id="bookReview.publish" defaultMessage="Publish Review" />
+          )}
         </Button>
       </div>
     </form>

@@ -130,7 +130,7 @@ function CompactEventCard({ event }: { event: NostrEvent }) {
           </AvatarFallback>
         </Avatar>
         <span className="text-xs font-semibold truncate">{displayName}</span>
-        <span className="text-xs text-muted-foreground shrink-0">&middot; {timeAgo(event.created_at)}</span>
+        <span className="text-xs text-muted-foreground shrink-0">&middot; {timeAgo(event.created_at, intl)}</span>
       </div>
       <p className="text-[13px] text-muted-foreground leading-snug line-clamp-2">{snippet}</p>
     </Link>

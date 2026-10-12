@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { Plus, Construction } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { FormattedMessage } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -72,16 +73,21 @@ export function FloatingComposeButton({ kind = 1, href, onFabClick, icon }: Floa
               <div className="size-16 rounded-full bg-muted flex items-center justify-center">
                 <Construction className="size-8 text-muted-foreground" />
               </div>
-              <DialogTitle className="text-lg font-semibold">Coming soon</DialogTitle>
+              <DialogTitle className="text-lg font-semibold">
+                <FormattedMessage id="floatingCompose.comingSoon" defaultMessage="Coming soon" />
+              </DialogTitle>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px]">
-                Creating this type of content isn't available yet. Stay tuned!
+                <FormattedMessage
+                  id="floatingCompose.comingSoonDescription"
+                  defaultMessage="Creating this type of content isn't available yet. Stay tuned!"
+                />
               </p>
               <Button
                 variant="outline"
                 className="rounded-full mt-2"
                 onClick={() => setComingSoonOpen(false)}
               >
-                Got it
+                <FormattedMessage id="floatingCompose.gotIt" defaultMessage="Got it" />
               </Button>
             </div>
           </DialogContent>

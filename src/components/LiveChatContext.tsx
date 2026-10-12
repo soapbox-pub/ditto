@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { FormattedMessage, useIntl } from "react-intl";
 import { nip19 } from "nostr-tools";
 import { Radio } from "lucide-react";
 import type { NostrEvent } from "@nostrify/nostrify";
@@ -29,6 +30,7 @@ function parseStreamCoords(event: NostrEvent): AddrCoords | undefined {
  * nothing when the `a` tag is missing or malformed.
  */
 export function LiveChatContext({ event, className }: { event: NostrEvent; className?: string }) {
+  const intl = useIntl();
   const coords = useMemo(() => parseStreamCoords(event), [event]);
   const { data: stream } = useAddrEvent(coords);
 
@@ -42,7 +44,8 @@ export function LiveChatContext({ event, className }: { event: NostrEvent; class
 
   if (!coords || !naddr) return null;
 
-  const title = stream?.tags.find(([n]) => n === "title")?.[1]?.trim() || "a live stream";
+  const title = stream?.tags.find(([n]) => n === "title")?.[1]?.trim()
+    || intl.formatMessage({ id: "liveChatContext.fallbackTitle", defaultMessage: "a live stream" });
 
   return (
     <div
@@ -52,14 +55,23 @@ export function LiveChatContext({ event, className }: { event: NostrEvent; class
       }
     >
       <Radio className="size-3.5 shrink-0" />
-      <span className="shrink-0">in</span>
-      <Link
-        to={`/${naddr}`}
-        className="text-primary hover:underline truncate"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {title}
-      </Link>
+      <FormattedMessage
+        id="liveChatContext.inStream"
+        defaultMessage="<label>in</label> <link>{title}</link>"
+        values={{
+          title,
+          label: (chunks) => <span className="shrink-0">{chunks}</span>,
+          link: (chunks) => (
+            <Link
+              to={`/${naddr}`}
+              className="text-primary hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {chunks}
+            </Link>
+          ),
+        }}
+      />
     </div>
   );
 }

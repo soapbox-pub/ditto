@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useNavHidden } from '@/contexts/LayoutContext';
@@ -31,6 +32,7 @@ interface SubHeaderBarProps {
  * fallback arc.
  */
 export function SubHeaderBar({ children, className, innerClassName, noArc, pinned }: SubHeaderBarProps) {
+  const intl = useIntl();
   const [hover, setHover] = useState<HoverSlice | null>(null);
   const [active, setActive] = useState<HoverSlice | null>(null);
   const navHidden = useNavHidden();
@@ -180,7 +182,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
             {canScrollLeft && (
               <button
                 type="button"
-                aria-label="Scroll tabs left"
+                aria-label={intl.formatMessage({ id: 'subHeaderBar.scrollLeft', defaultMessage: 'Scroll tabs left' })}
                 onClick={() => scrollBy('left')}
                 className="hidden sidebar:flex absolute left-0 top-0 bottom-0 z-10 items-center pl-0.5 pr-1 bg-gradient-to-r from-background via-background to-transparent cursor-pointer"
               >
@@ -197,7 +199,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
             {canScrollRight && (
               <button
                 type="button"
-                aria-label="Scroll tabs right"
+                aria-label={intl.formatMessage({ id: 'subHeaderBar.scrollRight', defaultMessage: 'Scroll tabs right' })}
                 onClick={() => scrollBy('right')}
                 className="hidden sidebar:flex absolute right-0 top-0 bottom-0 z-10 items-center pr-0.5 pl-1 bg-gradient-to-l from-background via-background to-transparent cursor-pointer"
               >

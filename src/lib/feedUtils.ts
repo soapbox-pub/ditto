@@ -3,6 +3,7 @@ import { EventVerifier } from '@/lib/EventVerifier';
 import { EXTERNAL_IDENTITIES_KIND, parseExternalIdentities } from '@/lib/externalIdentities';
 import { normalizeInfoHash, TORRENT_KIND } from '@/lib/torrent';
 import { getGitRootRef } from '@/lib/gitActivity';
+import { isReplyEvent } from '@/lib/nostrEvents';
 import { isNostrId } from '@/lib/nostrId';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
@@ -555,6 +556,18 @@ export function dedupeFeedItems(items: FeedItem[]): FeedItem[] {
     }
   }
   return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+}
+
+/**
+ * Drop reply items when the user has disabled "Show replies in feed".
+ * Applies to the target event regardless of wrapper — a repost, reaction,
+ * or zap of a reply still surfaces the reply, so those are filtered too.
+ * Profile-zap fallback cards are kept: `item.event` there is the zap
+ * receipt itself (whose `e` tag would trip isReplyEvent), and the card
+ * renders the zap activity, not the unresolved target.
+ */
+export function excludeReplies(items: FeedItem[]): FeedItem[] {
+  return items.filter((item) => item.profileZapRecipient || !isReplyEvent(item.event));
 }
 
 /**

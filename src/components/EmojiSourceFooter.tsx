@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Check, Loader2, Plus } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,6 +35,7 @@ interface EmojiSourceFooterProps {
  * seen stays unnamed rather than being guessed at.
  */
 export function EmojiSourceFooter({ url, name, authorPubkey, className }: EmojiSourceFooterProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { source, isLoading } = useEmojiSource(url, authorPubkey);
   const alreadyAdded = useHasEmojiPack(source?.coord);
@@ -48,15 +50,15 @@ export function EmojiSourceFooter({ url, name, authorPubkey, className }: EmojiS
     try {
       await addPack({ pubkey: source.pubkey, identifier: source.identifier });
       setJustAdded(true);
-      toast({ title: 'Emoji pack added', description: source.name });
+      toast({ title: intl.formatMessage({ id: 'emojiSource.toast.added', defaultMessage: 'Emoji pack added' }), description: source.name });
     } catch (e) {
       toast({
-        title: "Couldn't add pack",
-        description: e instanceof Error ? e.message : 'Publishing failed.',
+        title: intl.formatMessage({ id: 'emojiSource.toast.addFailed', defaultMessage: "Couldn't add pack" }),
+        description: e instanceof Error ? e.message : intl.formatMessage({ id: 'emojiSource.toast.publishFailed', defaultMessage: 'Publishing failed.' }),
         variant: 'destructive',
       });
     }
-  }, [addPack, source, toast]);
+  }, [addPack, source, toast, intl]);
 
   if (!source) {
     if (!isLoading) return null;
@@ -67,7 +69,7 @@ export function EmojiSourceFooter({ url, name, authorPubkey, className }: EmojiS
           <CustomEmojiImg name={name} url={url} className="size-7 shrink-0 rounded object-contain" />
         )}
         <div className="min-w-0 flex-1 space-y-1">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">From</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground"><FormattedMessage id="emojiSource.from" defaultMessage="From" /></div>
           <Skeleton className="h-3.5 w-24" />
         </div>
         {user && <Skeleton className="h-8 w-14 shrink-0 rounded-md" />}
@@ -86,13 +88,13 @@ export function EmojiSourceFooter({ url, name, authorPubkey, className }: EmojiS
         />
       )}
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">From</div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground"><FormattedMessage id="emojiSource.from" defaultMessage="From" /></div>
         <div className="truncate text-sm font-medium">{source.name}</div>
       </div>
       {user && (
         isAdded ? (
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <Check className="size-3.5" /> Added
+            <Check className="size-3.5" /> <FormattedMessage id="emojiSource.added" defaultMessage="Added" />
           </span>
         ) : (
           <Button
@@ -103,7 +105,7 @@ export function EmojiSourceFooter({ url, name, authorPubkey, className }: EmojiS
             disabled={isPending}
           >
             {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-            Add
+            <FormattedMessage id="common.add" defaultMessage="Add" />
           </Button>
         )
       )}

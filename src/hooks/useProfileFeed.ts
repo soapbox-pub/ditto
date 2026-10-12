@@ -10,7 +10,7 @@ import {
   dedupeFeedItems,
   type FeedItem,
 } from '@/lib/feedUtils';
-import { isReplyEvent } from '@/lib/nostrEvents';
+import { COMMENT_KINDS, isReplyEvent } from '@/lib/nostrEvents';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
@@ -315,16 +315,23 @@ interface TabFeedPage {
  * @param filter - The fully-resolved Nostr filter. May include `search` for NIP-50 queries.
  * @param tabKey - A stable string key used to namespace the query cache (e.g. the tab label).
  * @param enabled - Whether to start fetching (set to false while the filter is still resolving).
+ * @param options.hideReplies - Drop replies, for home feed tabs that honor "Show replies in feed".
  */
 export function useTabFeed(
   filter: NostrFilter | null,
   tabKey: string,
   enabled = true,
+  options?: { hideReplies?: boolean },
 ) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
+  const hideReplies = options?.hideReplies ?? false;
 
-  const defaultKinds = getEnabledFeedKinds(feedSettings);
+  // With replies hidden, NIP-22 comment kinds (always replies) are dropped
+  // from the default kinds, as useFeed does. Kinds the filter names
+  // explicitly are left alone.
+  const settingsKinds = getEnabledFeedKinds(feedSettings);
+  const defaultKinds = hideReplies ? settingsKinds.filter((k) => !COMMENT_KINDS.has(k)) : settingsKinds;
   const defaultKindsKey = [...defaultKinds].sort().join(',');
 
   // Stable string keys for query cache invalidation
@@ -334,7 +341,7 @@ export function useTabFeed(
 
   return useInfiniteQuery<TabFeedPage, Error>({
     // publishedEventSync reads this layout; keep the two in sync.
-    queryKey: ['tab-feed', tabKey, kindsKey, authorsKey, searchKey],
+    queryKey: ['tab-feed', tabKey, kindsKey, authorsKey, searchKey, hideReplies],
     queryFn: async ({ pageParam, signal }) => {
       if (!filter) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0, fetchLimit: PAGE_SIZE };
       // An authors list that resolved to nobody (e.g. an empty pinned list)
@@ -348,9 +355,13 @@ export function useTabFeed(
 
       const kinds = (filter.kinds && filter.kinds.length > 0) ? filter.kinds : defaultKinds;
 
+      // Over-fetch when replies are filtered client-side, so a page isn't
+      // left nearly empty.
+      const fetchLimit = hideReplies ? PAGE_SIZE * OVER_FETCH_MULTIPLIER : PAGE_SIZE;
+
       const queryFilter: Record<string, unknown> = {
         kinds,
-        limit: PAGE_SIZE,
+        limit: fetchLimit,
       };
 
       if (filter.authors && filter.authors.length > 0) {
@@ -381,8 +392,18 @@ export function useTabFeed(
       if (!queryFilter.authors) {
         items = items.filter((item) => !isHiddenFromPublicFeeds(item.event));
       }
+      // Same rule as excludeReplies, except a feed that explicitly asks for
+      // a comment kind keeps those comments — otherwise it could only be empty.
+      if (hideReplies) {
+        const explicitKinds = new Set(filter.kinds);
+        items = items.filter((item) =>
+          item.profileZapRecipient ||
+          (COMMENT_KINDS.has(item.event.kind) && explicitKinds.has(item.event.kind)) ||
+          !isReplyEvent(item.event),
+        );
+      }
       const sorted = dedupeFeedItems(items);
-      return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length, fetchLimit: PAGE_SIZE };
+      return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length, fetchLimit };
     },
     getNextPageParam: (lastPage) => {
       // Relay exhausted: returned fewer events than requested.

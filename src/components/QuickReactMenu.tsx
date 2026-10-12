@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -67,6 +68,7 @@ export function QuickReactMenu({
   onReact,
   className,
 }: QuickReactMenuProps) {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutate: publishEvent } = useNostrPublish();
@@ -176,7 +178,7 @@ export function QuickReactMenu({
         className={cn('rounded-xl shadow-xl overflow-hidden bg-popover border border-border', className)}
         onClick={(e) => e.stopPropagation()}
       >
-        <Suspense fallback={<div className="w-[352px] max-w-[90vw] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}>
+        <Suspense fallback={<div className="w-[352px] max-w-[90vw] h-[400px] flex items-center justify-center text-sm text-muted-foreground"><FormattedMessage id="quickReact.loading" defaultMessage="Loading…" /></div>}>
           <EmojiPicker customEmojis={customEmojis} onSelect={handlePickerSelect} />
         </Suspense>
       </div>
@@ -206,7 +208,7 @@ export function QuickReactMenu({
               'flex items-center justify-center size-9 rounded-full text-xl transition-all focus:outline-none hover:bg-secondary hover:scale-110 active:scale-95',
               selectedEmoji === emoji && 'bg-secondary scale-110',
             )}
-            title={`React with ${isCustom ? shortcode : emoji}`}
+            title={intl.formatMessage({ id: 'quickReact.reactWith', defaultMessage: 'React with {emoji}' }, { emoji: isCustom ? shortcode : emoji })}
           >
             {customUrl ? (
               <CustomEmojiImg
@@ -228,7 +230,7 @@ export function QuickReactMenu({
           onExpandChange?.(true);
         }}
         className="flex items-center justify-center size-9 rounded-full text-muted-foreground transition-all focus:outline-none hover:bg-secondary hover:text-foreground hover:scale-110 active:scale-95"
-        title="More reactions"
+        title={intl.formatMessage({ id: 'quickReact.moreReactions', defaultMessage: 'More reactions' })}
       >
         <MoreHorizontal className="size-5" />
       </button>

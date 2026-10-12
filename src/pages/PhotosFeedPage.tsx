@@ -9,6 +9,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Camera } from "lucide-react";
+import { useIntl } from "react-intl";
 import { lazy, Suspense, useMemo, useCallback, useState } from "react";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
@@ -47,6 +48,7 @@ type FeedTab = "follows" | "global";
 
 export function PhotosFeedPage() {
   const { config } = useAppContext();
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
   const [composeOpen, setComposeOpen] = useState(false);
@@ -61,8 +63,8 @@ export function PhotosFeedPage() {
   }, []);
 
   useSeoMeta({
-    title: `Photos | ${config.appName}`,
-    description: "Photo posts on Nostr",
+    title: intl.formatMessage({ id: "photosFeed.seoTitle", defaultMessage: "Photos | {appName}" }, { appName: config.appName }),
+    description: intl.formatMessage({ id: "photosFeed.metaDescription", defaultMessage: "Photo posts on Nostr" }),
   });
   useLayoutOptions({ showFAB: true, onFabClick: handleFabClick, fabIcon: <Camera className="size-4" strokeWidth={2.5} />, hasSubHeader: true });
 
@@ -123,7 +125,7 @@ export function PhotosFeedPage() {
   return (
     <>
       <main className="">
-        <PageHeader title="Photos" icon={<Camera className="size-5" />}>
+        <PageHeader title={intl.formatMessage({ id: "photosFeed.title", defaultMessage: "Photos" })} icon={<Camera className="size-5" />}>
           <KindInfoButton
             kindDef={photosDef}
             icon={sidebarItemIcon("photos", "size-5")}
@@ -133,13 +135,13 @@ export function PhotosFeedPage() {
         {/* Tabs */}
         <SubHeaderBar>
           <TabButton
-            label="Follows"
+            label={intl.formatMessage({ id: "photosFeed.tab.follows", defaultMessage: "Follows" })}
             active={activeTab === "follows"}
             onClick={() => setActiveTab("follows")}
             disabled={!user}
           />
           <TabButton
-            label="Global"
+            label={intl.formatMessage({ id: "photosFeed.tab.global", defaultMessage: "Global" })}
             active={activeTab === "global"}
             onClick={() => setActiveTab("global")}
           />
@@ -154,8 +156,14 @@ export function PhotosFeedPage() {
             <FeedEmptyState
               message={
                 activeTab === "follows"
-                  ? "No photos yet. Follow some photographers to see their photos here."
-                  : "No photos found. Check your relay connections or come back soon."
+                  ? intl.formatMessage({
+                    id: "photosFeed.emptyFollows",
+                    defaultMessage: "No photos yet. Follow some photographers to see their photos here.",
+                  })
+                  : intl.formatMessage({
+                    id: "photosFeed.emptyGlobal",
+                    defaultMessage: "No photos found. Check your relay connections or come back soon.",
+                  })
               }
               onSwitchToGlobal={
                 activeTab === "follows" ? () => setActiveTab("global") : undefined

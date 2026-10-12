@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { FormattedMessage } from "react-intl";
 import { cn } from "@/lib/utils";
 import { openUrl } from "@/lib/downloadFile";
 
@@ -73,7 +74,7 @@ function GitSiteButton({
 					decoding="async"
 				/>
 			)}
-			View on {site.name}
+			<FormattedMessage id="gitSites.viewOn" defaultMessage="View on {site}" values={{ site: site.name }} />
 		</a>
 	);
 }

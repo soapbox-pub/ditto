@@ -144,7 +144,7 @@ export function ThemeContent({ event, expanded }: ThemeContentProps) {
           <Link to="/themes">
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
-              Edit Theme
+              <FormattedMessage id="themeContent.editTheme" defaultMessage="Edit Theme" />
             </Button>
           </Link>
         )}

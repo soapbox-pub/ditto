@@ -9,6 +9,7 @@
  */
 
 import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { hexToRgb, rgbToHex, darkenHex, blendHex } from '@/lib/colorUtils';
 import { impactMedium } from '@/lib/haptics';
 import { useEnvelopeDimensions } from '@/hooks/useEnvelopeDimensions';
@@ -493,7 +494,7 @@ export function SendAnimation({
               className="text-2xl font-bold text-foreground"
               style={{ opacity: 0, animation: 'letter-send-fade-up 0.5s ease-out 0.3s forwards' }}
             >
-              Sent a letter to {recipientName}!
+              <FormattedMessage id="letterSend.sentTo" defaultMessage="Sent a letter to {name}!" values={{ name: recipientName }} />
             </p>
           </div>
         </div>

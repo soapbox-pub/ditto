@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Bird } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -66,6 +67,7 @@ function extractScientificName(
 }
 
 export function BirdDetectionContent({ event, className }: BirdDetectionContentProps) {
+  const intl = useIntl();
   const wikidata = useMemo(() => extractWikidata(event.tags), [event.tags]);
   const altSpecies = useMemo(() => extractAltSpecies(event.tags), [event.tags]);
   const scientificName = useMemo(
@@ -85,7 +87,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
   // Prefer the Wikipedia page title for the display name when available,
   // but fall back to the species parsed from the `alt` tag so the card is
   // still meaningful while the Wikipedia fetch is in flight (or has failed).
-  const commonName = summary?.title ?? altSpecies?.common ?? 'Unknown species';
+  const commonName = summary?.title ?? altSpecies?.common ?? intl.formatMessage({ id: 'birdDetection.unknownSpecies', defaultMessage: 'Unknown species' });
   const extract = summary?.extract;
   const thumbnail = sanitizeUrl(summary?.thumbnail?.source);
 
@@ -97,7 +99,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
 
   // When the user's own freeform note exists we show it above the
   // Wikipedia-derived summary. `content` can be empty per the NIP.
-  const timeStr = new Date(event.created_at * 1000).toLocaleTimeString([], {
+  const timeStr = intl.formatTime(new Date(event.created_at * 1000), {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -107,7 +109,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
     // but render something useful rather than silently dropping the event.
     return (
       <div className={cn('mt-2 rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground', className)}>
-        Bird detection with no species reference.
+        <FormattedMessage id="birdDetection.noSpecies" defaultMessage="Bird detection with no species reference." />
       </div>
     );
   }
@@ -173,7 +175,11 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
                 </p>
               ) : (
                 <p className="text-xs italic text-muted-foreground/70">
-                  Heard at {new Date(event.created_at * 1000).toLocaleString()}.
+                  <FormattedMessage
+                    id="birdDetection.heardAt"
+                    defaultMessage="Heard at {time}."
+                    values={{ time: intl.formatDate(new Date(event.created_at * 1000), { dateStyle: 'medium', timeStyle: 'short' }) }}
+                  />
                 </p>
               )}
             </div>
@@ -192,7 +198,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
                 }}
                 className="shrink-0"
               >
-                <BirdSongPlayer title={wikipediaTitle} ariaLabel={`${commonName} recording`} />
+                <BirdSongPlayer title={wikipediaTitle} ariaLabel={intl.formatMessage({ id: 'birdDetection.recording', defaultMessage: '{name} recording' }, { name: commonName })} />
               </div>
             )}
           </div>

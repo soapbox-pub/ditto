@@ -92,3 +92,55 @@ export function putPushWorkerState(state: Omit<PushWorkerState, 'updatedAt'>): P
 export function clearPushWorkerState(): Promise<void> {
   return writeState(null);
 }
+
+// --- Notification language ---
+
+/**
+ * The record the worker words its notifications with, kept under its own key
+ * so it survives push being turned off and on, and worker restarts.
+ */
+export const PUSH_LOCALE_KEY = 'locale';
+
+/**
+ * Catalog ids the worker formats. Only these are handed over: the full
+ * catalogs are hundreds of kilobytes, and the worker is one self-contained
+ * script that can't load the page's lazily split chunks.
+ */
+export const PUSH_MESSAGE_PREFIX = 'pushNotification.';
+
+export interface PushWorkerLocale {
+  /** The app's active locale code, e.g. 'en', 'de', 'ja'. */
+  locale: string;
+  /** The `pushNotification.*` translations for `locale`; empty for English. */
+  messages: Record<string, string>;
+  /** When this record was written (ms). */
+  updatedAt: number;
+}
+
+/**
+ * Tell the worker which language the app is in, with the slice of that
+ * language's catalog it needs. Read back by `loadPushLocale()` in
+ * `src/sw/state.ts`.
+ */
+export async function putPushWorkerLocale(locale: string, catalog: Record<string, string> = {}): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+
+  const messages: Record<string, string> = {};
+  for (const [id, text] of Object.entries(catalog)) {
+    if (id.startsWith(PUSH_MESSAGE_PREFIX)) messages[id] = text;
+  }
+  const value: PushWorkerLocale = { locale, messages, updatedAt: Date.now() };
+
+  const db = await openStateDb();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(PUSH_STATE_STORE, 'readwrite');
+      tx.objectStore(PUSH_STATE_STORE).put(value, PUSH_LOCALE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } finally {
+    db.close();
+  }
+}

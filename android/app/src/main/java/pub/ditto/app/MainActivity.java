@@ -7,6 +7,12 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.RouteProcessorInstaller;
@@ -35,6 +41,24 @@ public class MainActivity extends BridgeActivity {
         // show a scrollbar.
         getBridge().getWebView().setVerticalScrollBarEnabled(false);
         getBridge().getWebView().setHorizontalScrollBarEnabled(false);
+
+        // Capacitor's SystemBars plugin pads the DecorView by the keyboard
+        // height but still passes the IME inset down the view tree. On
+        // Android 11-14 (no enforced edge-to-edge) the platform folds that IME
+        // inset into the legacy system-window insets, so the fitsSystemWindows
+        // layout under the DecorView pads for the keyboard a second time,
+        // leaving a keyboard-height blank band above the keyboard. The
+        // DecorView has already made room, so nothing below it should see the
+        // IME inset.
+        View decorChild = ((ViewGroup) getWindow().getDecorView()).getChildAt(0);
+        if (decorChild != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(decorChild, (v, insets) -> {
+                WindowInsetsCompat withoutIme = new WindowInsetsCompat.Builder(insets)
+                    .setInsets(WindowInsetsCompat.Type.ime(), Insets.NONE)
+                    .build();
+                return ViewCompat.onApplyWindowInsets(v, withoutIme);
+            });
+        }
 
         // Route SPA paths (e.g. /alex@gleasonator.com) back to index.html. Without
         // this, Capacitor treats any path with a dotted final segment as a static

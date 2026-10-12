@@ -16,6 +16,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Heart } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -212,7 +213,9 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
   if (pubkeys.length === 0) {
     return (
       <div className={cn('mt-2 px-4 py-3', className)}>
-        <p className="text-sm text-muted-foreground italic">An empty love list — hearts yet to be written.</p>
+        <p className="text-sm text-muted-foreground italic">
+          <FormattedMessage id="loveList.empty" defaultMessage="An empty love list, hearts yet to be written." />
+        </p>
       </div>
     );
   }
@@ -342,7 +345,7 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
                   transform: 'translateY(-0.06em)',
                 }}
               >
-                Love List
+                <FormattedMessage id="loveList.title" defaultMessage="Love List" />
               </span>
             </div>
 
@@ -362,7 +365,7 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
                   color: '#A05252',
                 }}
               >
-                …and {overflow} more dearly loved
+                <FormattedMessage id="loveList.overflow" defaultMessage="…and {count} more dearly loved" values={{ count: overflow }} />
               </p>
             )}
 
@@ -470,9 +473,9 @@ export function LoveListCompact({ event, className }: LoveListCompactProps) {
         <p className="flex items-center gap-1.5 text-sm" style={{ color: '#A05252' }}>
           <Heart className="size-3.5 shrink-0" style={{ fill: '#E74C3C', color: '#C0392B' }} aria-hidden />
           <span>
-            Updated their Love List
+            <FormattedMessage id="loveList.updated" defaultMessage="Updated their Love List" />
             {count > 0 && (
-              <> · <span className="font-medium" style={{ color: '#7a1a19' }}>{count} loved {count === 1 ? 'one' : 'ones'}</span></>
+              <> · <span className="font-medium" style={{ color: '#7a1a19' }}><FormattedMessage id="loveList.lovedCount" defaultMessage="{count, plural, one {# loved one} other {# loved ones}}" values={{ count }} /></span></>
             )}
           </span>
         </p>

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Music } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -53,6 +54,7 @@ interface MusicDiscoverTabProps {
  * 7. CTA — "Share Your Music on Nostr" card
  */
 export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwitchToArtists }: MusicDiscoverTabProps) {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [newTracksSort, setNewTracksSort] = useState<MusicSort>('hot');
@@ -179,7 +181,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       {/* Featured tracks horizontal scroll (hot, one per artist) */}
       {isFeaturedLoading ? (
         <>
-          <SectionHeader title="Featured" />
+          <SectionHeader title={intl.formatMessage({ id: 'musicDiscover.featured', defaultMessage: 'Featured' })} />
           <HorizontalScroll>
             {Array.from({ length: 4 }).map((_, i) => (
               <MusicTrackCardSkeleton key={i} />
@@ -188,7 +190,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
         </>
       ) : featuredTracks && featuredTracks.length > 1 ? (
         <>
-          <SectionHeader title="Featured" onSeeAll={onSwitchToTracks} />
+          <SectionHeader title={intl.formatMessage({ id: 'musicDiscover.featured', defaultMessage: 'Featured' })} onSeeAll={onSwitchToTracks} />
           <HorizontalScroll>
             {featuredTracks.slice(1, 8).map((ev) => (
               <MusicTrackCard key={ev.id} event={ev} />
@@ -200,7 +202,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       {/* Artists horizontal scroll */}
       {(isTracksLoading || featuredArtists.length > 0) && (
         <>
-          <SectionHeader title="Artists" onSeeAll={onSwitchToArtists} />
+          <SectionHeader title={intl.formatMessage({ id: 'musicDiscover.artists', defaultMessage: 'Artists' })} onSeeAll={onSwitchToArtists} />
           {isTracksLoading ? (
             <HorizontalScroll>
               {Array.from({ length: 5 }).map((_, i) => (
@@ -213,7 +215,9 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
                 <ProfileCard
                   key={a.pubkey}
                   pubkey={a.pubkey}
-                  subtitle={a.trackCount > 0 ? `${a.trackCount} track${a.trackCount !== 1 ? 's' : ''}` : undefined}
+                  subtitle={a.trackCount > 0
+                    ? intl.formatMessage({ id: 'musicDiscover.trackCount', defaultMessage: '{count, plural, one {# track} other {# tracks}}' }, { count: a.trackCount })
+                    : undefined}
                 />
               ))}
             </HorizontalScroll>
@@ -224,7 +228,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       {/* Playlists — from people the curator follows, sorted by hot */}
       {(isPlaylistsLoading || (playlists && playlists.length > 0)) && (
         <>
-          <SectionHeader title="Playlists" onSeeAll={onSwitchToPlaylists} />
+          <SectionHeader title={intl.formatMessage({ id: 'musicDiscover.playlists', defaultMessage: 'Playlists' })} onSeeAll={onSwitchToPlaylists} />
           {isPlaylistsLoading ? (
             <HorizontalScroll>
               {Array.from({ length: 3 }).map((_, i) => (
@@ -242,7 +246,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       )}
 
       {/* New Tracks — sort/scope filterable */}
-      <SectionHeader title="New Tracks" onSeeAll={onSwitchToTracks} />
+      <SectionHeader title={intl.formatMessage({ id: 'musicDiscover.newTracks', defaultMessage: 'New Tracks' })} onSeeAll={onSwitchToTracks} />
 
       <MusicSortFilterBar
         sort={newTracksSort}
@@ -261,7 +265,7 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       )}
       {isSortedError ? (
         <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-          Failed to load tracks. Check your relay connections and try again.
+          <FormattedMessage id="musicDiscover.loadFailed" defaultMessage="Failed to load tracks. Check your relay connections and try again." />
         </p>
       ) : isNewTracksLoading ? (
         <div>
@@ -278,8 +282,10 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       ) : (
         <p className="px-4 py-6 text-sm text-muted-foreground text-center">
           {newTracksScope === 'following'
-            ? 'No tracks from people you follow yet.'
-            : selectedGenre ? `No ${selectedGenre} tracks found.` : 'No music yet. Check back soon!'}
+            ? <FormattedMessage id="musicDiscover.empty.following" defaultMessage="No tracks from people you follow yet." />
+            : selectedGenre
+              ? <FormattedMessage id="musicDiscover.empty.genre" defaultMessage="No {genre} tracks found." values={{ genre: selectedGenre }} />
+              : <FormattedMessage id="musicFeed.empty" defaultMessage="No music yet. Check back soon!" />}
         </p>
       )}
 
@@ -287,8 +293,8 @@ export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwit
       <div className="pt-4">
         <ContentCTACard
           kindDef={musicDef}
-          title="Share Your Music on Nostr"
-          subtitle="Upload tracks and reach a global audience. Earn sats directly from fans."
+          title={intl.formatMessage({ id: 'musicDiscover.cta.title', defaultMessage: 'Share Your Music on Nostr' })}
+          subtitle={intl.formatMessage({ id: 'musicDiscover.cta.subtitle', defaultMessage: 'Upload tracks and reach a global audience. Earn sats directly from fans.' })}
           icon={<Music className="size-10" />}
         />
       </div>

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 /**
  * Toast description content for the signer nudge toast.
@@ -14,7 +15,7 @@ export function NudgeToastContent({
   relayOk,
   onCancel,
 }: {
-  description: string;
+  description: ReactNode;
   android: boolean;
   relayOk: boolean;
   onCancel: () => void;
@@ -66,7 +67,7 @@ function AndroidApproveRow({ onCancel }: { onCancel: () => void }) {
       {waiting ? (
         <span className="text-sm opacity-80 inline-flex items-center gap-1.5">
           <Loader2 className="size-4 animate-spin" />
-          Waiting for signer...
+          <FormattedMessage id="signerToast.waiting" defaultMessage="Waiting for signer..." />
         </span>
       ) : (
         <a
@@ -76,7 +77,7 @@ function AndroidApproveRow({ onCancel }: { onCancel: () => void }) {
             setWaiting(true);
           }}
         >
-          Approve in signer
+          <FormattedMessage id="signerToast.approve" defaultMessage="Approve in signer" />
         </a>
       )}
       {waiting ? (
@@ -85,7 +86,7 @@ function AndroidApproveRow({ onCancel }: { onCancel: () => void }) {
           onClick={onCancel}
           className="text-sm font-semibold border border-current rounded px-3 py-1.5 min-h-[44px]"
         >
-          Cancel
+          <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
         </button>
       ) : (
         <SkipButton onClick={onCancel} />
@@ -101,7 +102,7 @@ function SkipButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="text-sm bg-transparent border-none p-0 cursor-pointer opacity-80 underline underline-offset-2 min-h-[44px] inline-flex items-center"
     >
-      Skip
+      <FormattedMessage id="signerToast.skip" defaultMessage="Skip" />
     </button>
   );
 }

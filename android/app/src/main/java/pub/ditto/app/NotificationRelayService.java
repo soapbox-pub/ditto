@@ -16,7 +16,8 @@ import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
+import android.os.SystemClock;
+import android.os.HandlerThread;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -39,6 +40,10 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 
+import pub.ditto.app.relayfleet.Keepalive;
+import pub.ditto.app.relayfleet.NetworkSettle;
+
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -57,13 +62,18 @@ import okhttp3.WebSocketListener;
  *   subscription names, each with one live REQ carrying every filter aimed at
  *   that relay (plus {@code since}). Events arrive the moment a relay accepts
  *   them — no polling latency.
- * - OkHttp pingInterval keeps sockets alive through NATs and detects silent
- *   drops; failures reconnect with exponential backoff (1s → 5 min cap). A
+ * - A keepalive on one shared clock (see {@link Keepalive}) keeps sockets
+ *   alive through NATs and detects silent drops, probing each relay inside
+ *   the idle timeout it was seen to apply; failures reconnect with
+ *   exponential backoff (1s → 5 min cap). A
  *   circuit breaker quarantines a relay after three failures in a row, over
  *   at least ten minutes, that retrying can't fix (DNS, refused/TLS, HTTP
  *   error, auth wall) until the network returns, the config changes, or the
  *   app comes forward.
- * - A network callback reconnects immediately when connectivity returns.
+ * - A network callback reconnects when connectivity returns, once the
+ *   network has been quiet for {@link NetworkSettle#SETTLE_MS} (a burst of
+ *   changes at the edge of Wi-Fi costs one reconnect, not one per change)
+ *   and the default network has validated (or a grace period has passed).
  * - Config changes (login/logout/relay or preference changes) reach the
  *   service via a SharedPreferences listener. Open sockets are kept and
  *   re-REQ'd only if their filters changed; an account switch starts over.
@@ -75,6 +85,8 @@ import okhttp3.WebSocketListener;
  *   never blocked on a slow relay.
  * - Backfill after (re)connect is buffered until EOSE: small batches show
  *   individual rich notifications, large ones collapse into one summary.
+ * - All of that state is confined to one dedicated thread, not the main one
+ *   (see {@code handler}).
  *
  * Android 15+ limits dataSync foreground services to ~6h/day in the
  * background. onTimeout() stops the service cleanly (avoiding the ANR) and
@@ -107,6 +119,19 @@ public class NotificationRelayService extends Service {
     // backoff, well past any restart.
     private static final int PERMANENT_FAILURE_THRESHOLD = 3;
     private static final long QUARANTINE_AFTER_MS = 10 * 60 * 1_000;
+
+    // The keepalive probe (see Keepalive): a REQ no event can match, which the
+    // relay answers with EOSE. One fixed sub id, so a repeat replaces it.
+    static final String KEEPALIVE_SUB = "dk-keepalive";
+    static final String KEEPALIVE_PROBE = "[\"REQ\",\"" + KEEPALIVE_SUB
+            + "\",{\"ids\":[\"0000000000000000000000000000000000000000000000000000000000000000\"],\"limit\":1}]";
+    private static final String KEEPALIVE_CLOSE = "[\"CLOSE\",\"" + KEEPALIVE_SUB + "\"]";
+    // Persisted per-relay quiet limits (see Keepalive.learn), or every launch
+    // re-learns each relay's idle timeout by being dropped once.
+    private static final String KEEPALIVE_PREFS = "ditto_keepalive";
+    // A socket that ends this soon after a network change was dropped by the
+    // change, not by its relay's idle timeout.
+    private static final long NETWORK_DROP_GRACE_MS = 60_000;
 
     // Referenced-event / profile lookups resolve with whatever arrived once
     // this timeout expires, so a slow relay can't hold a notification hostage.
@@ -147,7 +172,29 @@ public class NotificationRelayService extends Service {
 
     private OkHttpClient httpClient;
     private NostrPoller poller;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /**
+     * The thread all of the service's state is confined to, and deliberately
+     * not the main one.
+     *
+     * The service shares a process with the Activity and the WebView, so a
+     * main-looper handler made every relay frame UI-thread work: a JSON parse
+     * per frame (one per relay for every event), the flood detectors' pass over
+     * {@link #FLOOD_WINDOW} events, and notification building. A backfill burst
+     * on resume landed exactly when the user was looking at the app.
+     *
+     * The single-threaded model is unchanged. Socket and HTTP callbacks already
+     * hop here with {@code handler.post}; the lifecycle callbacks, which the
+     * framework delivers on the main thread, post too. Ported from Armada.
+     */
+    private final HandlerThread handlerThread = startHandlerThread();
+    private final Handler handler = new Handler(handlerThread.getLooper());
+
+    private static HandlerThread startHandlerThread() {
+        HandlerThread thread = new HandlerThread("DittoNotifSvc");
+        thread.start();
+        return thread;
+    }
 
     private final List<RelayConnection> connections = new ArrayList<>();
 
@@ -186,9 +233,19 @@ public class NotificationRelayService extends Service {
     // (and folds) instead of deferring forever, and any held event alerts within
     // STASIS_MS of arriving.
     private final List<JSONObject> stasisBuffer = new ArrayList<>();
-    // Ids currently staged in stasisBuffer, so a duplicate cross-relay delivery
-    // is dropped before it splits one burst across two flush windows.
-    private final Set<String> stasisBufferIds = new HashSet<>();
+    // Ids currently staged in stasisBuffer → the relays that delivered them. A
+    // duplicate cross-relay delivery is dropped before it splits one burst
+    // across two flush windows, but its relay is remembered so that relay's
+    // cursor moves past the event when it flushes.
+    private final Map<String, List<String>> stasisHeldBy = new HashMap<>();
+
+    // Per relay, the newest created_at (unix seconds) that relay has delivered
+    // and the service has handled; its main REQ asks for events after it.
+    // Persisted per account in RELAY_CURSOR_PREFS. One shared cursor let relay
+    // A's events move it past what relay B had and hadn't sent yet, so B's
+    // reconnect skipped them. Handler thread.
+    private final Map<String, Long> relayCursors = new HashMap<>();
+    private static final String RELAY_CURSOR_PREFS = "ditto_relay_cursors";
     private boolean stasisScheduled = false;
     private final Runnable flushStasisRunnable = this::flushStasis;
 
@@ -204,8 +261,65 @@ public class NotificationRelayService extends Service {
     private final Map<String, Profile> bestProfile = new HashMap<>();
 
     private ConnectivityManager.NetworkCallback networkCallback;
+    // When the network last changed (elapsedRealtime, handler thread). Connects
+    // wait for NetworkSettle.SETTLE_MS of quiet after it, so a burst of changes
+    // costs one reconnect per relay instead of one per change.
+    private long lastNetworkChangeAt = 0;
+    // Registration replays onAvailable for networks already up; only one after
+    // a loss is a change.
+    private boolean sawNetworkLoss = false;
+    // When the default network was first seen unvalidated (elapsedRealtime), 0
+    // while it is validated.
+    private long unvalidatedSince = 0;
+
+    // Minimum spacing between connectivity-driven re-arms of a quarantined
+    // relay. A flapping network fires an edge every few seconds, and each
+    // re-arm is another round of doomed handshakes; an edge inside the spacing
+    // defers the re-arm to its end rather than dropping it. Ported from Armada.
+    private static final long CONNECTIVITY_REARM_SPACING_MS = 2 * 60 * 1_000;
     private SharedPreferences.OnSharedPreferenceChangeListener configListener;
     private final Runnable reloadConfigRunnable = this::loadConfigAndReconnect;
+
+    // Per relay, how long its sockets may stay quiet before a probe. Outlives
+    // the connection objects a config change rebuilds. Handler thread.
+    private final Map<String, Long> quietLimitByUrl = new HashMap<>();
+    private boolean quietLimitsLoaded = false;
+
+    private long quietLimitFor(String relayUrl) {
+        if (!quietLimitsLoaded) {
+            quietLimitsLoaded = true;
+            for (Map.Entry<String, ?> e : getSharedPreferences(KEEPALIVE_PREFS, Context.MODE_PRIVATE).getAll().entrySet()) {
+                if (e.getValue() instanceof Long) {
+                    quietLimitByUrl.put(e.getKey(), Math.max(Keepalive.MIN_QUIET_MS, (Long) e.getValue()));
+                }
+            }
+        }
+        Long limit = quietLimitByUrl.get(relayUrl);
+        return limit != null ? limit : Keepalive.DEFAULT_QUIET_MS;
+    }
+
+    // After a tick's probes had time to answer: a silent socket is dead.
+    private final Runnable keepaliveCheck = () -> {
+        long now = SystemClock.uptimeMillis();
+        for (RelayConnection rc : connections) rc.checkProbe(now);
+    };
+
+    // The shared keepalive clock: every socket is judged on the same tick, so
+    // the probes that go out leave together, and a tick with nothing due
+    // sends nothing.
+    private final Runnable keepaliveTick = new Runnable() {
+        @Override
+        public void run() {
+            long now = SystemClock.uptimeMillis();
+            boolean probed = false;
+            for (RelayConnection rc : connections) probed |= rc.keepalive(now);
+            if (probed) {
+                handler.removeCallbacks(keepaliveCheck);
+                handler.postDelayed(keepaliveCheck, Keepalive.PROBE_TIMEOUT_MS);
+            }
+            handler.postDelayed(this, Keepalive.TICK_MS);
+        }
+    };
 
     // ── Small types ───────────────────────────────────────────────────────────
 
@@ -222,7 +336,7 @@ public class NotificationRelayService extends Service {
     }
 
     private interface ProfileCallback {
-        /** Always invoked on the main handler; profile may be null. */
+        /** Always invoked on the handler thread; profile may be null. */
         void onProfile(Profile profile);
     }
 
@@ -263,21 +377,14 @@ public class NotificationRelayService extends Service {
 
         httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
-                // Keepalive pings serve two purposes: refreshing NAT mappings
-                // (idle entries get silently evicted, zombifying the socket)
-                // and dead-peer detection (a receive-only socket never learns
-                // the other side vanished; a missed pong fails the connection
-                // and triggers reconnect + since-cursor backfill).
-                //
-                // 3 minutes sits well inside typical carrier NAT TCP timeouts
-                // (15-30 min) while waking the radio ~6x less than the
-                // conventional 30s. Worst case a socket dies right after a
-                // pong and detection lags one interval — notifications arrive
-                // a few minutes late, never lost.
-                .pingInterval(3, TimeUnit.MINUTES)
+                // No per-socket pings: each runs its own timer, waking the
+                // radio once per relay per interval. The service keeps sockets
+                // alive on one shared clock instead (keepaliveTick).
+                .pingInterval(0, TimeUnit.SECONDS)
                 .build();
+        handler.postDelayed(keepaliveTick, Keepalive.TICK_MS);
 
-        poller = new NostrPoller(this);
+        poller = new NostrPoller(this, handler);
 
         registerNetworkCallback();
         registerConfigListener();
@@ -294,7 +401,7 @@ public class NotificationRelayService extends Service {
         if (svc == null) return;
         svc.handler.post(() -> {
             for (RelayConnection rc : svc.connections) {
-                if (rc.quarantined) rc.onFleetEdge();
+                if (rc.quarantined) rc.onFleetEdge(false);
             }
         });
     }
@@ -309,7 +416,7 @@ public class NotificationRelayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        loadConfigAndReconnect();
+        handler.post(this::loadConfigAndReconnect);
         return START_STICKY;
     }
 
@@ -345,13 +452,26 @@ public class NotificationRelayService extends Service {
     public void onDestroy() {
         super.onDestroy();
         if (instance == this) instance = null;
-        closeAllConnections();
         unregisterNetworkCallback();
         unregisterConfigListener();
+        // Cut the queue first, so the teardown doesn't wait behind a burst,
+        // then post the teardown: it touches the confined state. quitSafely
+        // lets it run and stops the looper after it.
         handler.removeCallbacksAndMessages(null);
-        if (httpClient != null) {
-            httpClient.dispatcher().executorService().shutdownNow();
-        }
+        handler.post(() -> {
+            closeAllConnections();
+            if (httpClient != null) {
+                httpClient.dispatcher().executorService().shutdownNow();
+            }
+        });
+        handlerThread.quitSafely();
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        // Avatars are re-fetched on demand; the service's own state is small.
+        if (level >= TRIM_MEMORY_RUNNING_LOW && poller != null) poller.trimMemory();
     }
 
     @Override
@@ -398,6 +518,7 @@ public class NotificationRelayService extends Service {
         if (previousPubkey != null && !previousPubkey.equals(userPubkey)) {
             ServiceProfiler.count("config.reload account switch");
             closeAllConnections();
+            relayCursors.clear();
         }
 
         // Otherwise reuse what's already there. Tearing every socket down on
@@ -423,7 +544,7 @@ public class NotificationRelayService extends Service {
             connections.add(rc);
             if (rc.quarantined) {
                 ServiceProfiler.count("config.reload unquarantine");
-                rc.onFleetEdge();
+                rc.onFleetEdge(false);
             } else if (rc.socketOpen && rc.ws != null
                     && !filterSignature(relayFilters.get(url)).equals(rc.reqSignature)) {
                 ServiceProfiler.count("config.reload re-REQ");
@@ -453,7 +574,7 @@ public class NotificationRelayService extends Service {
                 if (filters == null || relays == null) continue;
                 for (int r = 0; r < relays.length(); r++) {
                     String url = relays.optString(r);
-                    if (url.isEmpty()) continue;
+                    if (!isRelayUrl(url)) continue;
                     List<JSONObject> list = relayFilters.get(url);
                     if (list == null) {
                         list = new ArrayList<>();
@@ -488,6 +609,7 @@ public class NotificationRelayService extends Service {
             filter.put("#p", new JSONArray().put(userPubkey));
             if (!authors.isEmpty()) filter.put("authors", new JSONArray(authors));
             for (String url : new LinkedHashSet<>(relays)) {
+                if (!isRelayUrl(url)) continue;
                 List<JSONObject> list = new ArrayList<>();
                 list.add(filter);
                 relayFilters.put(url, list);
@@ -557,7 +679,7 @@ public class NotificationRelayService extends Service {
         handler.removeCallbacks(flushStasisRunnable);
         stasisScheduled = false;
         stasisBuffer.clear();
-        stasisBufferIds.clear();
+        stasisHeldBy.clear();
         // Fail any in-flight lookups so their notifications still fire.
         for (EventLookup lookup : new ArrayList<>(pendingEventLookups)) {
             completeEventLookup(lookup);
@@ -574,10 +696,10 @@ public class NotificationRelayService extends Service {
         WebSocket ws;
         long backoffMs = INITIAL_BACKOFF_MS;
         boolean closed = false;
-        // The current socket finished its handshake (main thread only).
+        // The current socket finished its handshake (handler thread only).
         boolean socketOpen = false;
 
-        // When the current connection attempt started (main thread only).
+        // When the current connection attempt started (handler thread only).
         // Used by endSession to distinguish "stable connection finally
         // died" (reset backoff) from "relay drops us right away" (keep growing).
         long connectAttemptAt = 0;
@@ -603,13 +725,37 @@ public class NotificationRelayService extends Service {
         // reload whether this socket needs a fresh REQ.
         String reqSignature = null;
 
+        // Keepalive (see Keepalive): when a frame last arrived, and when the
+        // outstanding probe went out (0 if none), in uptimeMillis. Written from
+        // the socket thread, read on the keepalive tick.
+        volatile long lastInboundAt = 0;
+        volatile long probeSentAt = 0;
+        // This session was ended by our own keepalive, not by the relay.
+        boolean killedByKeepalive = false;
+        // This session ended with the relay closing it (a close frame or EOF),
+        // the only ending that can be its idle timeout.
+        boolean closedByPeer = false;
+
         // Single pending reconnect, cancellable — prevents a queued reconnect
         // and the network callback from racing to open duplicate sockets.
         final Runnable reconnectRunnable = this::connect;
+        // Re-sends the main REQ after the relay CLOSED it (see scheduleResubscribe).
+        final Runnable resubscribeRunnable = () -> {
+            if (!closed && socketOpen && ws != null) {
+                ServiceProfiler.count("sub.resubscribe");
+                sendMainReq(ws);
+            }
+        };
+        // Delay before the next resubscribe; doubles per CLOSED, reset per session.
+        long subRetryBackoffMs = INITIAL_BACKOFF_MS;
+        // A connectivity re-arm deferred to the end of its spacing (see onFleetEdge).
+        final Runnable rearmRunnable = () -> onFleetEdge(false);
+        // Earliest a connectivity edge may re-arm this relay again (elapsedRealtime).
+        long nextRearmAt = 0;
 
         // Live notification subscription.
         final String subMain = "dn-" + Long.toHexString(System.nanoTime());
-        // Prefix for one-shot kind-0 profile lookups (sub id = prefix + pubkey).
+        // Prefix for one-shot kind-0 profile lookups (see profileSubId).
         final String profilePrefix = "dp-" + Long.toHexString(System.nanoTime() + 1) + "-";
         // Prefix for one-shot referenced-event lookups (sub id = prefix + nonce).
         final String eventPrefix = "de-" + Long.toHexString(System.nanoTime() + 2) + "-";
@@ -618,6 +764,9 @@ public class NotificationRelayService extends Service {
         // batched so a reconnect after hours offline doesn't buzz N times.
         final List<JSONObject> backfill = new ArrayList<>();
         boolean mainEosed = false;
+        // Newest created_at among backfill copies dropped as already handled
+        // (see dropSeenEventFrame); applied to the cursor at EOSE with the rest.
+        long backfillHigh = -1;
 
         RelayConnection(String relayUrl) {
             this.relayUrl = relayUrl;
@@ -630,6 +779,16 @@ public class NotificationRelayService extends Service {
             // first — leaked sockets keep pinging and re-failing forever.
             retryPending = false;
             if (closed || quarantined || ws != null || !isNetworkAvailable()) return;
+            long settle = Math.max(
+                    NetworkSettle.delayMs(SystemClock.elapsedRealtime(), lastNetworkChangeAt, NetworkSettle.SETTLE_MS),
+                    unvalidatedDelayMs());
+            if (settle > 0) {
+                if (ServiceProfiler.ON) ServiceProfiler.units("socket.connect held ms", settle);
+                handler.removeCallbacks(reconnectRunnable);
+                handler.postDelayed(reconnectRunnable, settle);
+                retryPending = true;
+                return;
+            }
             connectAttemptAt = System.currentTimeMillis();
             if (ServiceProfiler.ON) {
                 ServiceProfiler.count("socket.connect");
@@ -640,21 +799,26 @@ public class NotificationRelayService extends Service {
             mainWalled = false;
             deliveredAnything = false;
             backfill.clear();
+            backfillHigh = -1;
             Request request = new Request.Builder().url(relayUrl).build();
             ws = httpClient.newWebSocket(request, new WebSocketListener() {
                 @Override
                 public void onOpen(WebSocket webSocket, Response response) {
                     Log.d(TAG, "WS open: " + relayUrl);
                     ServiceProfiler.count("socket.open");
+                    lastInboundAt = SystemClock.uptimeMillis();
+                    probeSentAt = 0;
                     handler.post(() -> {
                         if (closed || webSocket != ws) return;
                         socketOpen = true;
+                        subRetryBackoffMs = INITIAL_BACKOFF_MS;
                         sendMainReq(webSocket);
                     });
                 }
 
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
+                    lastInboundAt = SystemClock.uptimeMillis();
                     if (ServiceProfiler.ON) {
                         String family = ServiceProfiler.frameFamily(text);
                         ServiceProfiler.units("frame.in " + family, text.length());
@@ -690,13 +854,19 @@ public class NotificationRelayService extends Service {
                         ServiceProfiler.count("socket.failure " + ServiceProfiler.host(relayUrl)
                                 + " " + classifyFailure(t, httpCode));
                     }
-                    handler.post(() -> endSession(webSocket, classifyFailure(t, httpCode)));
+                    handler.post(() -> {
+                        if (webSocket == ws) closedByPeer = Keepalive.isPeerClose(t);
+                        endSession(webSocket, classifyFailure(t, httpCode));
+                    });
                 }
 
                 @Override
                 public void onClosed(WebSocket webSocket, int code, String reason) {
                     ServiceProfiler.count("socket.closed");
-                    handler.post(() -> endSession(webSocket, null));
+                    handler.post(() -> {
+                        if (webSocket == ws) closedByPeer = true;
+                        endSession(webSocket, null);
+                    });
                 }
             });
         }
@@ -707,17 +877,8 @@ public class NotificationRelayService extends Service {
                 // one): its backfill buffers again until the new EOSE.
                 mainEosed = false;
                 backfill.clear();
-                long lastSeen = poller.getLastSeenTimestamp();
-                if (lastSeen == 0) {
-                    // Cold start seeds the cursor to NOW, not a rewind: a fresh
-                    // service (first launch, or after the persisted timestamp is
-                    // lost) must never dump pre-launch history the user has
-                    // already seen in-app. History is the WebView's job; this
-                    // service only announces what arrives from now forward.
-                    // Mirrors Armada's cold-start cursor (no backlog request).
-                    lastSeen = System.currentTimeMillis() / 1000;
-                    poller.setLastSeenTimestamp(lastSeen);
-                }
+                backfillHigh = -1;
+                long lastSeen = relayCursor(relayUrl);
 
                 List<JSONObject> filters = relayFilters.get(relayUrl);
                 if (filters == null || filters.isEmpty()) return;
@@ -746,6 +907,16 @@ public class NotificationRelayService extends Service {
             }
         }
 
+        /**
+         * The sub id of a kind-0 lookup for {@code pubkey}. Only a prefix of
+         * the pubkey fits: NIP-01 caps sub ids at 64 characters, and relays
+         * that enforce it (primal.net) refused the whole pubkey with
+         * "invalid subscription id length", so lookups there never answered.
+         */
+        String profileSubId(String pubkey) {
+            return profilePrefix + pubkey.substring(0, Math.min(16, pubkey.length()));
+        }
+
         /** Fire a one-shot kind-0 REQ for {@code pubkey}. */
         void fetchProfile(String pubkey) {
             if (closed || ws == null) return;
@@ -755,7 +926,7 @@ public class NotificationRelayService extends Service {
                 f.put("authors", new JSONArray().put(pubkey));
                 f.put("limit", 1);
                 ServiceProfiler.count("frame.out REQ dp");
-                ws.send(reqMessage(profilePrefix + pubkey, f));
+                ws.send(reqMessage(profileSubId(pubkey), f));
             } catch (JSONException ignored) {}
         }
 
@@ -816,6 +987,9 @@ public class NotificationRelayService extends Service {
             boolean wasOpen = socketOpen;
             socketOpen = false;
             ws = null;
+            // A resubscribe belonged to the session that just ended.
+            handler.removeCallbacks(resubscribeRunnable);
+            learnIdleDrop(wasOpen);
             long uptime = wasOpen && connectAttemptAt > 0
                     ? System.currentTimeMillis() - connectAttemptAt : 0;
             boolean permanent = failure == FailureKind.PERMANENT
@@ -853,11 +1027,85 @@ public class NotificationRelayService extends Service {
             retryPending = true;
         }
 
+        /**
+         * The relay CLOSED the main subscription for a reason other than
+         * auth-required (a restart, a rate limit, an error). The socket stays
+         * open, so nothing would ever re-send it: notifications from this relay
+         * just stopped until the socket happened to reconnect. Re-send it after
+         * a delay that doubles per CLOSED (1s → 5 min), so a relay that keeps
+         * refusing it is never hammered. Ported from Armada.
+         */
+        void scheduleResubscribe() {
+            if (closed || ws == null) return;
+            handler.removeCallbacks(resubscribeRunnable);
+            handler.postDelayed(resubscribeRunnable, subRetryBackoffMs);
+            subRetryBackoffMs = Math.min(subRetryBackoffMs * 2, MAX_BACKOFF_MS);
+        }
+
+        /**
+         * A relay that dropped an open socket while it was quiet has an idle
+         * timeout: probe its sockets inside it from now on. Not when we killed
+         * the socket ourselves, or the network just changed under it.
+         */
+        private void learnIdleDrop(boolean wasOpen) {
+            boolean ours = killedByKeepalive;
+            boolean byPeer = closedByPeer;
+            killedByKeepalive = false;
+            closedByPeer = false;
+            if (!wasOpen || ours || !byPeer || lastInboundAt == 0) return;
+            if (SystemClock.elapsedRealtime() - lastNetworkChangeAt < NETWORK_DROP_GRACE_MS) return;
+            long current = quietLimitFor(relayUrl);
+            long learned = Keepalive.learn(current, SystemClock.uptimeMillis() - lastInboundAt);
+            if (learned < current) {
+                quietLimitByUrl.put(relayUrl, learned);
+                getSharedPreferences(KEEPALIVE_PREFS, Context.MODE_PRIVATE).edit().putLong(relayUrl, learned).apply();
+                if (ServiceProfiler.ON) {
+                    ServiceProfiler.count("keepalive.learned " + ServiceProfiler.host(relayUrl) + " " + learned / 1000 + "s");
+                }
+            }
+        }
+
+        /** One keepalive tick: probe a quiet socket, drop a dead one. Whether it probed. */
+        boolean keepalive(long now) {
+            WebSocket socket = ws;
+            if (closed || socket == null || !socketOpen) return false;
+            switch (Keepalive.onTick(lastInboundAt, probeSentAt, quietLimitFor(relayUrl), now)) {
+                case PROBE:
+                    probeSentAt = now;
+                    ServiceProfiler.count("keepalive.probe");
+                    socket.send(KEEPALIVE_PROBE);
+                    return true;
+                case KILL:
+                    killUnanswered(socket);
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        /** After a tick's probes had time to answer: a silent socket is dead. */
+        void checkProbe(long now) {
+            WebSocket socket = ws;
+            if (closed || socket == null) return;
+            if (Keepalive.probeExpired(lastInboundAt, probeSentAt, now)) killUnanswered(socket);
+        }
+
+        private void killUnanswered(WebSocket socket) {
+            probeSentAt = 0;
+            killedByKeepalive = true;
+            if (ServiceProfiler.ON) ServiceProfiler.count("keepalive.dead " + ServiceProfiler.host(relayUrl));
+            Log.w(TAG, "Keepalive unanswered, dropping " + relayUrl);
+            // cancel() fails the socket, so onFailure → endSession reconnects it.
+            socket.cancel();
+        }
+
         void close() {
             closed = true;
             retryPending = false;
             socketOpen = false;
             handler.removeCallbacks(reconnectRunnable);
+            handler.removeCallbacks(rearmRunnable);
+            handler.removeCallbacks(resubscribeRunnable);
             if (ws != null) {
                 try { ws.close(1000, "service reconfigured"); } catch (Exception ignored) {}
                 ws = null;
@@ -867,10 +1115,21 @@ public class NotificationRelayService extends Service {
         /**
          * Something changed that could change the outcome — connectivity
          * returned, the config was rebuilt, or the app came forward. Clear any
-         * quarantine and backoff, and connect now if there's no socket.
+         * quarantine and backoff, and connect if there's no socket (after the
+         * network settles; see connect). A connectivity edge re-arms a
+         * quarantined relay at most once per
+         * {@link #CONNECTIVITY_REARM_SPACING_MS}; one inside the spacing is
+         * deferred to its end.
          */
-        void onFleetEdge() {
+        void onFleetEdge(boolean connectivity) {
             if (closed) return;
+            long now = SystemClock.elapsedRealtime();
+            handler.removeCallbacks(rearmRunnable);
+            if (quarantined && connectivity && now < nextRearmAt) {
+                handler.postDelayed(rearmRunnable, nextRearmAt - now);
+                return;
+            }
+            nextRearmAt = now + CONNECTIVITY_REARM_SPACING_MS;
             quarantined = false;
             consecutivePermanent = 0;
             firstPermanentAt = 0;
@@ -911,6 +1170,19 @@ public class NotificationRelayService extends Service {
         return FailureKind.TRANSIENT;
     }
 
+    /**
+     * Whether {@code url} is a ws(s) URL OkHttp can dial. Its URL builder
+     * throws on anything else, and it runs on the service's thread inside
+     * connect(), so one malformed entry would take down every relay. Ported
+     * from Armada.
+     */
+    static boolean isRelayUrl(String url) {
+        if (url == null) return false;
+        if (url.regionMatches(true, 0, "wss://", 0, 6)) return HttpUrl.parse("https://" + url.substring(6)) != null;
+        if (url.regionMatches(true, 0, "ws://", 0, 5)) return HttpUrl.parse("http://" + url.substring(5)) != null;
+        return false;
+    }
+
     /** A stable string for a relay's filter list, to detect a changed REQ. */
     private static String filterSignature(List<JSONObject> filters) {
         if (filters == null) return "";
@@ -927,18 +1199,106 @@ public class NotificationRelayService extends Service {
 
     // ── Relay message routing ─────────────────────────────────────────────────
 
+    /**
+     * The main subscription re-delivering an event the service already
+     * handled or is holding is dropped before its frame is parsed. Every event
+     * arrives once per relay, so with N relays all but one copy was a full
+     * parse for nothing. The bookkeeping a delivery implies still happens: the
+     * relay counts as delivering, and its cursor moves past the event.
+     */
+    private boolean dropSeenEventFrame(String text, RelayConnection rc) {
+        FrameHead head = FrameHead.of(text);
+        if (head == null || !rc.subMain.equals(head.sub)) return false;
+        List<String> heldBy = stasisHeldBy.get(head.id);
+        if (heldBy == null && !notifiedIds.contains(head.id)) return false;
+        rc.deliveredAnything = true;
+        if (heldBy != null) {
+            if (!heldBy.contains(rc.relayUrl)) heldBy.add(rc.relayUrl);
+        } else if (!rc.mainEosed) {
+            rc.backfillHigh = Math.max(rc.backfillHigh, head.createdAt);
+        } else {
+            advanceRelayCursor(rc.relayUrl, head.createdAt);
+        }
+        ServiceProfiler.count("event.drop seen before parse");
+        return true;
+    }
+
+    /**
+     * The subscription id, event id and created_at of an
+     * {@code ["EVENT", sub, {…}]} frame, read without parsing it; null for any
+     * other frame or anything unexpected. The event's own {@code "id":"} and
+     * {@code "created_at":} are the first occurrences of those sequences: a
+     * quote inside any JSON string is escaped, so none can spell them.
+     * Ported from Armada.
+     */
+    static final class FrameHead {
+        final String sub;
+        final String id;
+        /** -1 when the frame doesn't carry a readable one. */
+        final long createdAt;
+
+        private FrameHead(String sub, String id, long createdAt) {
+            this.sub = sub;
+            this.id = id;
+            this.createdAt = createdAt;
+        }
+
+        static FrameHead of(String text) {
+            if (!text.startsWith("[\"EVENT\"")) return null;
+            int s0 = text.indexOf('"', 8);
+            if (s0 < 0) return null;
+            int s1 = text.indexOf('"', s0 + 1);
+            if (s1 < 0) return null;
+            int at = text.indexOf("\"id\":\"", s1 + 1);
+            if (at < 0 || at + 70 >= text.length()) return null;
+            String id = text.substring(at + 6, at + 70);
+            if (text.charAt(at + 70) != '"' || !id.matches("[0-9a-f]{64}")) return null;
+            return new FrameHead(text.substring(s0 + 1, s1), id, createdAt(text, s1 + 1));
+        }
+
+        private static long createdAt(String text, int from) {
+            int at = text.indexOf("\"created_at\":", from);
+            if (at < 0) return -1;
+            int i = at + 13;
+            int end = i;
+            while (end < text.length() && end - i < 12 && text.charAt(end) >= '0' && text.charAt(end) <= '9') end++;
+            if (end == i) return -1;
+            return Long.parseLong(text.substring(i, end));
+        }
+    }
+
     private void onRelayMessage(String text, RelayConnection rc) {
+        if (dropSeenEventFrame(text, rc)) return;
         try {
             JSONArray msg = new JSONArray(text);
             String type = msg.optString(0);
+
+            // A keepalive answer did its job by arriving (onMessage stamped it).
+            // Its CLOSED (some relays refuse a kind-less filter) must not reach
+            // the main subscription's handling below.
+            if (KEEPALIVE_SUB.equals(msg.optString(1))) {
+                rc.probeSentAt = 0;
+                if ("EOSE".equals(type)) rc.closeSub(KEEPALIVE_SUB);
+                return;
+            }
 
             if ("EOSE".equals(type)) {
                 String sub = msg.optString(1);
                 if (rc.subMain.equals(sub)) {
                     rc.mainEosed = true;
+                    if (rc.backfillHigh >= 0) {
+                        advanceRelayCursor(rc.relayUrl, rc.backfillHigh);
+                        rc.backfillHigh = -1;
+                    }
                     if (!rc.backfill.isEmpty()) {
                         List<JSONObject> batch = new ArrayList<>(rc.backfill);
                         rc.backfill.clear();
+                        // The replay arrives newest first, so the cursor moves
+                        // only now: a socket dropped mid-replay must not
+                        // reconnect past the older half it never delivered.
+                        for (JSONObject event : batch) {
+                            advanceRelayCursor(rc.relayUrl, event.optLong("created_at", -1));
+                        }
                         processBatch(batch);
                     }
                 } else if (sub.startsWith(rc.profilePrefix)) {
@@ -955,8 +1315,11 @@ public class NotificationRelayService extends Service {
                 String sub = msg.optString(1);
                 String reason = msg.optString(2);
                 Log.w(TAG, "CLOSED from " + rc.relayUrl + " sub=" + sub + " reason=" + reason);
-                if (rc.subMain.equals(sub) && reason.startsWith("auth-required")) {
+                if (!rc.subMain.equals(sub)) return;
+                if (reason.startsWith("auth-required")) {
                     rc.onMainWalled();
+                } else {
+                    rc.scheduleResubscribe();
                 }
                 return;
             }
@@ -969,8 +1332,11 @@ public class NotificationRelayService extends Service {
 
             // Kind-0 from a profile lookup: newest across relays wins.
             if (sub.startsWith(rc.profilePrefix)) {
-                String pubkey = sub.substring(rc.profilePrefix.length());
                 rc.closeSub(sub);
+                // The sub id carries only a prefix of the pubkey; the event's
+                // own author is the full one, and must match it.
+                String pubkey = event.optString("pubkey");
+                if (pubkey.length() != 64 || !sub.equals(rc.profileSubId(pubkey))) return;
                 Profile parsed = parseProfile(event);
                 Profile prev = bestProfile.get(pubkey);
                 if (prev == null || parsed.ts >= prev.ts) {
@@ -996,7 +1362,7 @@ public class NotificationRelayService extends Service {
                     // Live singleton: hold non-followed senders in stasis so the
                     // crowd forms before any of the burst fires. Backfill (below)
                     // already arrives as a crowd, so it skips the hold.
-                    enqueueLiveEvent(event);
+                    enqueueLiveEvent(event, rc.relayUrl);
                 } else {
                     rc.backfill.add(event);
                 }
@@ -1015,21 +1381,34 @@ public class NotificationRelayService extends Service {
      * of the burst fires; the timer is armed by the FIRST held event and not
      * reset by later ones, so an unbroken stream still flushes on cadence.
      */
-    private void enqueueLiveEvent(JSONObject event) {
-        String sender = NostrPoller.getSenderPubkey(event);
-        if (sender.equals(userPubkey) || follows.contains(sender)) {
-            processBatch(java.util.Collections.singletonList(event));
-            return;
-        }
+    private void enqueueLiveEvent(JSONObject event, String relayUrl) {
         String id = event.optString("id");
+        if (id.isEmpty()) return;
+        long createdAt = event.optLong("created_at", -1);
         // Dedup before buffering: the same event is redelivered across relay
         // sockets, and holding N copies both wastes the flush and — worse — lets
         // a burst's copies straddle the flush boundary, splitting one crowd into
         // two sub-threshold windows that each fire unfolded. `notifiedIds` only
         // dedups at processBatch (too late), so guard on both it and the buffer.
-        if (id.isEmpty() || notifiedIds.contains(id) || stasisBufferIds.contains(id)) return;
+        if (notifiedIds.contains(id)) {
+            advanceRelayCursor(relayUrl, createdAt);
+            return;
+        }
+        List<String> heldBy = stasisHeldBy.get(id);
+        if (heldBy != null) {
+            if (!heldBy.contains(relayUrl)) heldBy.add(relayUrl);
+            return;
+        }
+        String sender = NostrPoller.getSenderPubkey(event);
+        if (sender.equals(userPubkey) || follows.contains(sender)) {
+            advanceRelayCursor(relayUrl, createdAt);
+            processBatch(java.util.Collections.singletonList(event));
+            return;
+        }
         stasisBuffer.add(event);
-        stasisBufferIds.add(id);
+        heldBy = new ArrayList<>();
+        heldBy.add(relayUrl);
+        stasisHeldBy.put(id, heldBy);
         if (!stasisScheduled) {
             stasisScheduled = true;
             handler.postDelayed(flushStasisRunnable, STASIS_MS);
@@ -1042,8 +1421,16 @@ public class NotificationRelayService extends Service {
         if (stasisBuffer.isEmpty()) return;
         if (ServiceProfiler.ON) ServiceProfiler.units("stasis.flush", stasisBuffer.size());
         List<JSONObject> batch = new ArrayList<>(stasisBuffer);
+        // Held events move their relays' cursors only now, so a service killed
+        // during the hold re-fetches them rather than skipping them.
+        for (JSONObject event : batch) {
+            List<String> heldBy = stasisHeldBy.get(event.optString("id"));
+            if (heldBy == null) continue;
+            long createdAt = event.optLong("created_at", -1);
+            for (String url : heldBy) advanceRelayCursor(url, createdAt);
+        }
         stasisBuffer.clear();
-        stasisBufferIds.clear();
+        stasisHeldBy.clear();
         processBatch(batch);
     }
 
@@ -1070,18 +1457,11 @@ public class NotificationRelayService extends Service {
         if (eventCache.size() > MAX_CACHED_EVENTS) eventCache.clear();
 
         List<JSONObject> candidates = new ArrayList<>();
-        long newestTs = poller.getLastSeenTimestamp();
-        long nowSec = System.currentTimeMillis() / 1000;
 
         for (JSONObject event : events) {
             String id = event.optString("id");
             if (id.isEmpty() || notifiedIds.contains(id)) continue;
             String sender = NostrPoller.getSenderPubkey(event);
-            long ts = event.optLong("created_at", 0);
-            // Clamp the cursor to `now` so a validly signed event carrying a
-            // far-future created_at can't jump last-seen forward and silently
-            // skip everything until then. Mirrors Armada's advanceInclusiveSince.
-            newestTs = advanceInclusiveSince(newestTs, ts, nowSec);
             if (sender.equals(userPubkey)) continue; // skip self-interactions
             // "Only from people I follow", re-checked here for when the follow
             // set was too big to send as the filters' `authors`.
@@ -1091,10 +1471,6 @@ public class NotificationRelayService extends Service {
             rememberBoundedId(notifiedIds, id, MAX_NOTIFIED_IDS);
             candidates.add(event);
         }
-
-        // Advance last-seen over everything (including self/dup events) so a
-        // reconnect doesn't re-fetch them.
-        poller.setLastSeenTimestamp(newestTs);
 
         if (candidates.isEmpty()) return;
         if (ServiceProfiler.ON) ServiceProfiler.units("batch.candidates", candidates.size());
@@ -1353,7 +1729,7 @@ public class NotificationRelayService extends Service {
         bestProfile.remove(pubkey);
         // Close any profile subs still open for this pubkey on other relays.
         for (RelayConnection rc : connections) {
-            rc.closeSub(rc.profilePrefix + pubkey);
+            rc.closeSub(rc.profileSubId(pubkey));
         }
         List<ProfileCallback> waiters = pendingProfiles.remove(pubkey);
         if (waiters == null) return;
@@ -1396,8 +1772,24 @@ public class NotificationRelayService extends Service {
                 Log.d(TAG, "Network available, reconnecting");
                 ServiceProfiler.count("network.available");
                 handler.post(() -> {
+                    if (sawNetworkLoss) lastNetworkChangeAt = SystemClock.elapsedRealtime();
                     for (RelayConnection rc : connections) {
-                        rc.onFleetEdge();
+                        rc.onFleetEdge(true);
+                    }
+                });
+            }
+
+            @Override
+            public void onCapabilitiesChanged(Network network, NetworkCapabilities caps) {
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return;
+                if (!network.equals(cm.getActiveNetwork())) return;
+                handler.post(() -> {
+                    // The default network just validated: connects held for it go now.
+                    if (unvalidatedSince == 0) return;
+                    unvalidatedSince = 0;
+                    ServiceProfiler.count("network.validated");
+                    for (RelayConnection rc : connections) {
+                        rc.onFleetEdge(true);
                     }
                 });
             }
@@ -1406,6 +1798,10 @@ public class NotificationRelayService extends Service {
             public void onLost(Network network) {
                 Log.d(TAG, "Network lost");
                 ServiceProfiler.count("network.lost");
+                handler.post(() -> {
+                    sawNetworkLoss = true;
+                    lastNetworkChangeAt = SystemClock.elapsedRealtime();
+                });
             }
         };
 
@@ -1418,6 +1814,24 @@ public class NotificationRelayService extends Service {
         if (cm != null) {
             try { cm.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) {}
         }
+    }
+
+    /**
+     * How long a connect must wait for the default network to validate, or 0.
+     * See {@link NetworkSettle#UNVALIDATED_GRACE_MS}; handler thread.
+     */
+    private long unvalidatedDelayMs() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return 0;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        boolean validated = caps == null || caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        long now = SystemClock.elapsedRealtime();
+        if (validated) {
+            unvalidatedSince = 0;
+            return 0;
+        }
+        if (unvalidatedSince == 0) unvalidatedSince = now;
+        return NetworkSettle.unvalidatedDelayMs(false, now, unvalidatedSince, NetworkSettle.UNVALIDATED_GRACE_MS);
     }
 
     private boolean isNetworkAvailable() {
@@ -1447,6 +1861,42 @@ public class NotificationRelayService extends Service {
         if (configListener == null) return;
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.unregisterOnSharedPreferenceChangeListener(configListener);
+    }
+
+    // ── Relay cursors ─────────────────────────────────────────────────────────
+
+    private String relayCursorKey(String relayUrl) {
+        return userPubkey + "|" + relayUrl;
+    }
+
+    /**
+     * The newest created_at {@code relayUrl} has delivered and the service has
+     * handled (see {@link #relayCursors}). A relay with no cursor of its own
+     * starts from the newest any relay has delivered (the cursor every relay
+     * shared before cursors were per relay), else from now: a fresh service
+     * must never dump pre-launch history the user has already seen in-app.
+     */
+    private long relayCursor(String relayUrl) {
+        Long cached = relayCursors.get(relayUrl);
+        if (cached != null) return cached;
+        long since = getSharedPreferences(RELAY_CURSOR_PREFS, Context.MODE_PRIVATE)
+                .getLong(relayCursorKey(relayUrl), 0);
+        if (since == 0) since = poller.getLastSeenTimestamp();
+        if (since == 0) since = System.currentTimeMillis() / 1000;
+        relayCursors.put(relayUrl, since);
+        return since;
+    }
+
+    /** {@code relayUrl} delivered an event the service has now handled. */
+    private void advanceRelayCursor(String relayUrl, long createdAtSec) {
+        long current = relayCursor(relayUrl);
+        long next = advanceInclusiveSince(current, createdAtSec, System.currentTimeMillis() / 1000);
+        if (next == current) return;
+        relayCursors.put(relayUrl, next);
+        getSharedPreferences(RELAY_CURSOR_PREFS, Context.MODE_PRIVATE).edit()
+                .putLong(relayCursorKey(relayUrl), next).apply();
+        // The shared cursor is where a relay new to the config starts.
+        if (next > poller.getLastSeenTimestamp()) poller.setLastSeenTimestamp(next);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

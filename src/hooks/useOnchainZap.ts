@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -93,6 +94,7 @@ export function useOnchainZap(
   const { user } = useCurrentUser();
   const { canSignPsbt, signPsbt } = useBitcoinSigner();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const intl = useIntl();
   const { toast } = useToast();
   const { config } = useAppContext();
   const { esploraApis } = config;
@@ -103,15 +105,15 @@ export function useOnchainZap(
 
   const mutation = useMutation<OnchainZapResult, Error, OnchainZapArgs>({
     mutationFn: async ({ amountSats, comment = '', feeSpeed = 'halfHour' }) => {
-      if (!user) throw new Error('You must be logged in to zap.');
-      if (user.pubkey === target.pubkey) throw new Error("You can't zap yourself.");
+      if (!user) throw new Error(intl.formatMessage({ id: 'onchainZap.error.loginToZap', defaultMessage: 'You must be logged in to zap.' }));
+      if (user.pubkey === target.pubkey) throw new Error(intl.formatMessage({ id: 'onchainZap.error.selfZap', defaultMessage: "You can't zap yourself." }));
       if (!canSignPsbt || !signPsbt) {
         throw new Error(
           "Your login doesn't support sending Bitcoin.",
         );
       }
       if (!Number.isFinite(amountSats) || amountSats <= 0) {
-        throw new Error('Invalid amount.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.invalidAmount', defaultMessage: 'Invalid amount.' }));
       }
 
       setIsZapping(true);
@@ -127,13 +129,13 @@ export function useOnchainZap(
 
       const senderAddress = nostrPubkeyToBitcoinAddress(user.pubkey);
       if (!senderAddress || !recipientAddress) {
-        throw new Error('Failed to derive Bitcoin address.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.deriveAddress', defaultMessage: 'Failed to derive Bitcoin address.' }));
       }
       // Re-validate on-chain addresses (derived or override). SP codes have no
       // client-side checksum we verify here — the SP PSBT builder fails on a
       // malformed code.
       if (!useSilentPayment && !validateBitcoinAddress(recipientAddress)) {
-        throw new Error('Recipient Bitcoin address failed validation.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.recipientInvalid', defaultMessage: 'Recipient Bitcoin address failed validation.' }));
       }
 
       // Fetch UTXOs and fee rates
@@ -143,16 +145,17 @@ export function useOnchainZap(
       ]);
 
       if (utxos.length === 0) {
-        throw new Error('Your Bitcoin wallet has no spendable funds.');
+        throw new Error(intl.formatMessage({ id: 'onchainZap.error.noFunds', defaultMessage: 'Your Bitcoin wallet has no spendable funds.' }));
       }
 
       const feeRate = feeRateForSpeed(rates, feeSpeed);
       const totalBalance = utxos.reduce((s, u) => s + u.value, 0);
       const estFee = estimateFee(utxos.length, 2, feeRate);
       if (amountSats + estFee > totalBalance) {
-        throw new Error(
-          `Insufficient funds. Need ~${(amountSats + estFee).toLocaleString()} sats, have ${totalBalance.toLocaleString()}.`,
-        );
+        throw new Error(intl.formatMessage(
+          { id: 'onchainZap.error.insufficientFunds', defaultMessage: 'Insufficient funds. Need ~{need} sats, have {have}.' },
+          { need: intl.formatNumber(amountSats + estFee), have: intl.formatNumber(totalBalance) },
+        ));
       }
 
       // Build unsigned PSBT (on-chain or silent-payment rail)
@@ -236,8 +239,11 @@ export function useOnchainZap(
         onSuccess(result);
       } else {
         toast({
-          title: 'Bitcoin zap sent!',
-          description: `Broadcast txid ${result.txid.slice(0, 12)}… (fee ${result.fee.toLocaleString()} sats)`,
+          title: intl.formatMessage({ id: 'onchainZap.toast.sentTitle', defaultMessage: 'Bitcoin zap sent!' }),
+          description: intl.formatMessage(
+            { id: 'onchainZap.toast.broadcast', defaultMessage: 'Broadcast txid {txid}… (fee {fee} sats)' },
+            { txid: result.txid.slice(0, 12), fee: intl.formatNumber(result.fee) },
+          ),
         });
       }
     },
@@ -252,7 +258,7 @@ export function useOnchainZap(
         return;
       }
       toast({
-        title: 'Bitcoin zap failed',
+        title: intl.formatMessage({ id: 'onchainZap.toast.failedTitle', defaultMessage: 'Bitcoin zap failed' }),
         description: err.message,
         variant: 'destructive',
       });

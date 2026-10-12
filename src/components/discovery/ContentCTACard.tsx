@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Music } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import type { ExtraKindDef } from '@/lib/extraKinds';
 import { cn } from '@/lib/utils';
@@ -40,7 +41,7 @@ export function ContentCTACard({ kindDef, title, subtitle, icon, className }: Co
             onClick={() => setInfoOpen(true)}
             className="mt-4 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
-            Learn More
+            <FormattedMessage id="contentCta.learnMore" defaultMessage="Learn More" />
           </button>
         </div>
       </div>

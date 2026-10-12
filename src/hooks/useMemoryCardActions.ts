@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -20,6 +21,7 @@ import {
  * key and require a logged-in signer (`canManage`).
  */
 export function useMemoryCardActions() {
+  const intl = useIntl();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
@@ -64,7 +66,10 @@ export function useMemoryCardActions() {
     async (cardId: string, image: Uint8Array, name?: string) => {
       const parsed = parseCardImage(image);
       if (!parsed) {
-        throw new Error('Not a valid PlayStation memory card image (needs a 128 KB "MC" header).');
+        throw new Error(intl.formatMessage({
+          id: 'memoryCards.error.invalidImage',
+          defaultMessage: 'Not a valid PlayStation memory card image (needs a 128 KB "MC" header).',
+        }));
       }
 
       const trimmedName = name?.trim() || undefined;
@@ -92,7 +97,7 @@ export function useMemoryCardActions() {
 
       return parsed.blocks.length + 1; // + header
     },
-    [publishEvent],
+    [publishEvent, intl],
   );
 
   /** Reconstruct and download the full 128 KB `.mcd` image. */

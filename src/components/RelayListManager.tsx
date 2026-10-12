@@ -434,7 +434,7 @@ export function RelayListManager() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            <FormattedMessage id="settings.network.yourRelaysReadDescription" defaultMessage={"Your personal relay list. Disabled by default — enable to read from your relays too. Your posts always go to your write relays, so others can find them."} /> {user ? <FormattedMessage id="settings.network.yourRelaysSynced" defaultMessage={"Your list is still synced to Nostr when logged in."} /> : <FormattedMessage id="settings.network.yourRelaysLogin" defaultMessage={"Log in to sync your list to Nostr."} />}
+            <FormattedMessage id="settings.network.yourRelaysReadDescription" defaultMessage={"Your personal relay list. Disabled by default; enable to read from your relays too. Your posts always go to your write relays, so others can find them."} /> {user ? <FormattedMessage id="settings.network.yourRelaysSynced" defaultMessage={"Your list is still synced to Nostr when logged in."} /> : <FormattedMessage id="settings.network.yourRelaysLogin" defaultMessage={"Log in to sync your list to Nostr."} />}
           </p>
         </div>
 

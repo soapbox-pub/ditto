@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type Hls from 'hls.js';
-import { useIntl } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Shrink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BLANK_POSTER } from '@/lib/blankPoster';
@@ -202,8 +202,12 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
     return (
       <div className={cn('relative lg:rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center', className)}>
         <div className="text-center space-y-2 px-4">
-          <p className="text-white/80 text-sm font-medium">Stream unavailable</p>
-          <p className="text-white/50 text-xs">The live stream could not be loaded. It may have ended or the URL is unreachable.</p>
+          <p className="text-white/80 text-sm font-medium">
+            <FormattedMessage id="liveStream.unavailable" defaultMessage="Stream unavailable" />
+          </p>
+          <p className="text-white/50 text-xs">
+            <FormattedMessage id="liveStream.unavailableDescription" defaultMessage="The live stream could not be loaded. It may have ended or the URL is unreachable." />
+          </p>
         </div>
       </div>
     );
@@ -273,7 +277,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
           <button
             onClick={togglePlay}
             className="text-white hover:text-white/80 transition-colors p-1"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-label={isPlaying ? intl.formatMessage({ id: 'liveStream.pause', defaultMessage: 'Pause' }) : intl.formatMessage({ id: 'liveStream.play', defaultMessage: 'Play' })}
           >
             {isPlaying ? <Pause className="size-5" fill="white" /> : <Play className="size-5 ml-0.5" fill="white" />}
           </button>
@@ -281,7 +285,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
           {/* LIVE badge */}
           <div className="flex items-center gap-1.5 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded">
             <div className="size-1.5 bg-white rounded-full animate-pulse" />
-            LIVE
+            <FormattedMessage id="liveStream.live" defaultMessage="LIVE" />
           </div>
 
           <div className="flex-1" />
@@ -291,7 +295,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
             <button
               onClick={toggleMute}
               className="text-white hover:text-white/80 transition-colors shrink-0"
-              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              aria-label={isMuted ? intl.formatMessage({ id: 'liveStream.unmute', defaultMessage: 'Unmute' }) : intl.formatMessage({ id: 'liveStream.mute', defaultMessage: 'Mute' })}
             >
               {isMuted || volume === 0
                 ? <VolumeX className="size-5" />
@@ -307,7 +311,7 @@ export function LiveStreamPlayer({ src, poster, className, title, artist }: Live
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               onClick={(e) => e.stopPropagation()}
-              aria-label="Volume"
+              aria-label={intl.formatMessage({ id: 'liveStream.volume', defaultMessage: 'Volume' })}
               className={cn(
                 'w-0 opacity-0 group-hover/vol:w-16 group-hover/vol:opacity-100 group-focus-within/vol:w-16 group-focus-within/vol:opacity-100',
                 'transition-all duration-200 cursor-pointer accent-white h-1',

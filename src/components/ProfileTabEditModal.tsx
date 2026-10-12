@@ -8,6 +8,7 @@
  * and multi-select Kind picker.
  */
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   Loader2, Check, Globe, Users, User, UserSearch,
 } from 'lucide-react';
@@ -25,7 +26,6 @@ import { cn } from '@/lib/utils';
 import { buildKindOptions, parseSelectedKinds } from '@/lib/feedFilterUtils';
 import {
   TAB_MEDIA_CATEGORIES,
-  TAB_MEDIA_LABELS,
   TAB_MEDIA_ICONS,
   parseMediaSearch,
   buildTabSearch,
@@ -100,12 +100,25 @@ function serializeSelectedKinds(kinds: string[]): number[] {
 
 // ─── Author Scope Options ─────────────────────────────────────────────────────
 
-const PROFILE_SCOPE_OPTIONS: ScopeOption<ProfileAuthorScope>[] = [
-  { value: 'me', label: 'Me', icon: User },
-  { value: 'contacts', label: 'Contacts', icon: Users },
-  { value: 'people', label: 'People', icon: UserSearch },
-  { value: 'global', label: 'Global', icon: Globe },
+const scopeMessages = defineMessages({
+  me: { id: 'profileTabEdit.scope.me', defaultMessage: 'Me' },
+  contacts: { id: 'profileTabEdit.scope.contacts', defaultMessage: 'Contacts' },
+  people: { id: 'profileTabEdit.scope.people', defaultMessage: 'People' },
+  global: { id: 'profileTabEdit.scope.global', defaultMessage: 'Global' },
+});
+
+const PROFILE_SCOPE_ICONS: { value: ProfileAuthorScope; icon: ScopeOption<ProfileAuthorScope>['icon'] }[] = [
+  { value: 'me', icon: User },
+  { value: 'contacts', icon: Users },
+  { value: 'people', icon: UserSearch },
+  { value: 'global', icon: Globe },
 ];
+
+const mediaMessages = defineMessages({
+  images: { id: 'profileTabEdit.media.images', defaultMessage: 'Images' },
+  videos: { id: 'profileTabEdit.media.videos', defaultMessage: 'Videos' },
+  none: { id: 'profileTabEdit.media.none', defaultMessage: 'No media' },
+});
 
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
@@ -117,7 +130,12 @@ export function ProfileTabEditModal({
   onSave,
   isPending = false,
 }: ProfileTabEditModalProps) {
-  const kindOptions = useMemo(() => buildKindOptions(), []);
+  const intl = useIntl();
+  const kindOptions = useMemo(() => buildKindOptions(intl), [intl]);
+  const scopeOptions = useMemo<ScopeOption<ProfileAuthorScope>[]>(
+    () => PROFILE_SCOPE_ICONS.map(({ value, icon }) => ({ value, icon, label: intl.formatMessage(scopeMessages[value]) })),
+    [intl],
+  );
   const { lists } = useUserLists();
   const { data: followPacks = [] } = useFollowPacks();
   const isNew = !tab;
@@ -228,18 +246,22 @@ export function ProfileTabEditModal({
       <DialogContent ref={dialogContentRef} className="max-w-sm max-h-[90dvh] overflow-y-auto">
         <PortalContainerProvider value={portalContainer}>
         <DialogHeader>
-          <DialogTitle>{isNew ? 'Add profile tab' : 'Edit tab'}</DialogTitle>
+          <DialogTitle>
+            {isNew
+              ? <FormattedMessage id="profileTabEdit.addTitle" defaultMessage="Add profile tab" />
+              : <FormattedMessage id="profileTabEdit.editTitle" defaultMessage="Edit tab" />}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 py-1">
           {/* Tab name */}
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tab name</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide"><FormattedMessage id="profileTabEdit.tabName" defaultMessage="Tab name" /></span>
             <Input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
-              placeholder="e.g. My Art, Bitcoin posts..."
+              placeholder={intl.formatMessage({ id: 'profileTabEdit.tabNamePlaceholder', defaultMessage: 'e.g. My Art, Bitcoin posts...' })}
               autoFocus
               className="h-9"
             />
@@ -249,7 +271,7 @@ export function ProfileTabEditModal({
 
           {/* Kind multi-select */}
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Content Kinds</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide"><FormattedMessage id="profileTabEdit.contentKinds" defaultMessage="Content Kinds" /></span>
             <MultiKindPicker
               selectedKinds={selectedKinds}
               options={kindOptions}
@@ -261,7 +283,7 @@ export function ProfileTabEditModal({
 
           {/* Media content type — Images/Videos combine; "No media" is exclusive */}
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Media</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide"><FormattedMessage id="sidebar.section.media" defaultMessage="Media" /></span>
             <div className="rounded-lg border border-border overflow-hidden flex">
               {TAB_MEDIA_CATEGORIES.map((value) => {
                 const Icon = TAB_MEDIA_ICONS[value];
@@ -280,21 +302,21 @@ export function ProfileTabEditModal({
                     )}
                   >
                     <Icon className="size-3.5 shrink-0" />
-                    {TAB_MEDIA_LABELS[value]}
+                    <FormattedMessage {...mediaMessages[value]} />
                   </button>
                 );
               })}
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {mediaCategories.has('none')
-                ? 'Only show posts without media.'
+                ? <FormattedMessage id="profileTabEdit.media.noneHint" defaultMessage="Only show posts without media." />
                 : mediaCategories.has('images') && mediaCategories.has('videos')
-                  ? 'Only show posts with media (images or videos).'
+                  ? <FormattedMessage id="profileTabEdit.media.anyHint" defaultMessage="Only show posts with media (images or videos)." />
                   : mediaCategories.has('images')
-                    ? 'Only show posts with images.'
+                    ? <FormattedMessage id="profileTabEdit.media.imagesHint" defaultMessage="Only show posts with images." />
                     : mediaCategories.has('videos')
-                      ? 'Only show posts with videos.'
-                      : 'Show all posts, with or without media.'}
+                      ? <FormattedMessage id="profileTabEdit.media.videosHint" defaultMessage="Only show posts with videos." />
+                      : <FormattedMessage id="profileTabEdit.media.allHint" defaultMessage="Show all posts, with or without media." />}
             </p>
           </div>
 
@@ -302,11 +324,11 @@ export function ProfileTabEditModal({
 
           {/* Filter by word */}
           <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Filter by Word</span>
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide"><FormattedMessage id="profileTabEdit.filterByWord" defaultMessage="Filter by Word" /></span>
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. photography, travel..."
+              placeholder={intl.formatMessage({ id: 'profileTabEdit.wordPlaceholder', defaultMessage: 'e.g. photography, travel...' })}
               className="bg-secondary/50 border-border focus-visible:ring-1 h-9 text-base md:text-sm"
             />
           </div>
@@ -315,8 +337,8 @@ export function ProfileTabEditModal({
 
           {/* Author scope */}
           <div className="space-y-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Authors</span>
-            <ScopeToggle<ProfileAuthorScope> value={authorScope} options={PROFILE_SCOPE_OPTIONS} onChange={handleAuthorScopeChange} size="md" />
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide"><FormattedMessage id="profileTabEdit.authors" defaultMessage="Authors" /></span>
+            <ScopeToggle<ProfileAuthorScope> value={authorScope} options={scopeOptions} onChange={handleAuthorScopeChange} size="md" />
             {authorScope === 'people' ? (
               <div className="space-y-1.5">
                 {peoplePubkeys.length > 0 && (
@@ -339,9 +361,9 @@ export function ProfileTabEditModal({
               </div>
             ) : (
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {authorScope === 'me' && 'Only show your own posts.'}
-                {authorScope === 'contacts' && 'Show posts from people you follow.'}
-                {authorScope === 'global' && 'Show posts from everyone.'}
+                {authorScope === 'me' && <FormattedMessage id="profileTabEdit.scope.meHint" defaultMessage="Only show your own posts." />}
+                {authorScope === 'contacts' && <FormattedMessage id="profileTabEdit.scope.contactsHint" defaultMessage="Show posts from people you follow." />}
+                {authorScope === 'global' && <FormattedMessage id="profileTabEdit.scope.globalHint" defaultMessage="Show posts from everyone." />}
               </p>
             )}
           </div>
@@ -352,10 +374,12 @@ export function ProfileTabEditModal({
             {isPending
               ? <Loader2 className="size-4 animate-spin" />
               : <Check className="size-4" />}
-            {isNew ? 'Add tab' : 'Save changes'}
+            {isNew
+              ? <FormattedMessage id="settings.feed.addTab" defaultMessage="Add tab" />
+              : <FormattedMessage id="profileTabEdit.saveChanges" defaultMessage="Save changes" />}
           </Button>
           <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
         </DialogFooter>
         </PortalContainerProvider>

@@ -1,6 +1,7 @@
 import { Quote, Undo2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { useRef, useState } from 'react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Slot } from '@radix-ui/react-slot';
 import { useNostr } from '@nostrify/react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -34,12 +35,16 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
   const repostEventId = useRepostStatus(event.id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const intl = useIntl();
 
   const isReposted = !!repostEventId;
 
   const handleRepost = () => {
     if (!user) {
-      toast({ title: 'Please log in to repost', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'repostMenu.loginRequired', defaultMessage: 'Please log in to repost' }),
+        variant: 'destructive',
+      });
       return;
     }
     impactLight();
@@ -72,7 +77,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       },
       {
         onSuccess: (repost) => {
-          toast({ title: 'Reposted!' });
+          toast({ title: intl.formatMessage({ id: 'repostMenu.reposted', defaultMessage: 'Reposted!' }) });
           setOpen(false);
           // The real id, so undoing right away deletes the actual repost.
           queryClient.setQueryData(['user-repost', event.id], repost.id);
@@ -85,7 +90,10 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           }, 3000);
         },
         onError: () => {
-          toast({ title: 'Failed to repost', variant: 'destructive' });
+          toast({
+            title: intl.formatMessage({ id: 'repostMenu.repostFailed', defaultMessage: 'Failed to repost' }),
+            variant: 'destructive',
+          });
           // Revert optimistic updates
           queryClient.setQueryData(['user-repost', event.id], null);
         },
@@ -106,7 +114,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       { eventId: repostEventId, eventKind: getRepostKind(event.kind) },
       {
         onSuccess: () => {
-          toast({ title: 'Repost removed' });
+          toast({ title: intl.formatMessage({ id: 'repostMenu.removed', defaultMessage: 'Repost removed' }) });
           setOpen(false);
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
@@ -114,7 +122,10 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           }, 3000);
         },
         onError: () => {
-          toast({ title: 'Failed to remove repost', variant: 'destructive' });
+          toast({
+            title: intl.formatMessage({ id: 'repostMenu.removeFailed', defaultMessage: 'Failed to remove repost' }),
+            variant: 'destructive',
+          });
           // Revert optimistic updates
           queryClient.setQueryData(['user-repost', event.id], prevRepostStatus);
         },
@@ -138,7 +149,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-accent hover:bg-secondary/60 transition-colors"
         >
           <Undo2 className="size-5" />
-          <span>Undo repost</span>
+          <span><FormattedMessage id="repostMenu.undo" defaultMessage="Undo repost" /></span>
         </button>
       ) : (
         <button
@@ -149,7 +160,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-foreground hover:bg-secondary/60 transition-colors"
         >
           <RepostIcon className="size-5" />
-          <span>Repost</span>
+          <span><FormattedMessage id="repostMenu.repost" defaultMessage="Repost" /></span>
         </button>
       )}
       <button
@@ -160,7 +171,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-foreground hover:bg-secondary/60 transition-colors"
       >
         <Quote className="size-5" />
-        <span>Quote post</span>
+        <span><FormattedMessage id="repostMenu.quote" defaultMessage="Quote post" /></span>
       </button>
     </div>
   );

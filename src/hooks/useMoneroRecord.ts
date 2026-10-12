@@ -15,6 +15,7 @@
  *    wallet, so "where does the seed live" has exactly one answer.
  */
 import { useCallback } from 'react';
+import { useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -88,6 +89,7 @@ export interface CreateMoneroRecordParams {
 }
 
 export function useMoneroRecord() {
+  const intl = useIntl();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { store } = useNostrStorage();
@@ -176,7 +178,7 @@ export function useMoneroRecord() {
   const publishRecord = useCallback(
     async (record: MoneroWalletRecord, guard: PublishGuard) => {
       if (!user) throw new Error('Not logged in');
-      if (!user.signer.nip44) throw new Error('Your signer does not support NIP-44 encryption');
+      if (!user.signer.nip44) throw new Error(intl.formatMessage({ id: 'moneroRecord.error.noNip44', defaultMessage: 'Your signer does not support NIP-44 encryption' }));
 
       const fresh = await fetchFreshEvent(
         nostr,
@@ -205,7 +207,7 @@ export function useMoneroRecord() {
         // Hand the newer event to the query cache so the app re-decrypts and
         // converges instead of retrying into the same conflict.
         queryClient.setQueryData(['monero-record-event', user.pubkey, dTag], fresh);
-        throw new Error('Your Monero wallet was updated on another device.');
+        throw new Error(intl.formatMessage({ id: 'moneroRecord.error.updatedElsewhere', defaultMessage: 'Your Monero wallet was updated on another device.' }));
       }
 
       const plaintext = JSON.stringify(record);
@@ -232,7 +234,7 @@ export function useMoneroRecord() {
 
       return { record, event: signed };
     },
-    [user, nostr, store, dTag, config.appName, config.client, queryClient],
+    [user, nostr, store, dTag, config.appName, config.client, queryClient, intl],
   );
 
   /** Create the initial record for a new or restored wallet. */
@@ -247,16 +249,16 @@ export function useMoneroRecord() {
       // and the setup screen the user is looking at is itself the product of
       // that same read.
       if (eventQuery.isError) {
-        throw new Error("Couldn't check your relays for an existing wallet. Try again.");
+        throw new Error(intl.formatMessage({ id: 'moneroRecord.error.checkFailed', defaultMessage: "Couldn't check your relays for an existing wallet. Try again." }));
       }
 
       // A local wallet cache proves this account already had a wallet on this
       // device, whatever the relays are saying right now.
       if (await hasWalletCache(user.pubkey)) {
-        throw new Error(
-          'This account already has a Monero wallet cached on this device. ' +
-            'Reload to let it load from your relays before setting up a new one.',
-        );
+        throw new Error(intl.formatMessage({
+          id: 'moneroRecord.error.cachedHere',
+          defaultMessage: 'This account already has a Monero wallet cached on this device. Reload to let it load from your relays before setting up a new one.',
+        }));
       }
 
       const record: MoneroWalletRecord = {

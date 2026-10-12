@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Bird } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { BirdexChorusButton } from '@/components/BirdexChorusButton';
@@ -50,7 +51,7 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
         )}
       >
         <Bird className="size-4" aria-hidden />
-        Empty Birdex — no confirmed species yet.
+        <FormattedMessage id="birdex.empty" defaultMessage="Empty Birdex. No confirmed species yet." />
       </div>
     );
   }
@@ -64,7 +65,7 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
             <h3 className="truncate text-[15px] font-semibold leading-tight">
               Birdex
               <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-                {entries.length} species
+                <FormattedMessage id="birdex.speciesCount" defaultMessage="{count, plural, one {# species} other {# species}}" values={{ count: entries.length }} />
               </span>
             </h3>
           </div>
@@ -113,7 +114,7 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
             Birdex
           </span>
           <span className="text-sm text-muted-foreground">
-            · {entries.length} species
+            · <FormattedMessage id="birdex.speciesCount" defaultMessage="{count, plural, one {# species} other {# species}}" values={{ count: entries.length }} />
           </span>
         </div>
 
@@ -156,10 +157,11 @@ export function BirdexContent({ event, expanded, className }: BirdexContentProps
  * avatar stacks.
  */
 function OverflowTile({ count }: { count: number }) {
+  const intl = useIntl();
   return (
     <div
       className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/60 text-muted-foreground"
-      aria-label={`${count} more species`}
+      aria-label={intl.formatMessage({ id: 'birdex.moreSpecies', defaultMessage: '{count, plural, one {# more species} other {# more species}}' }, { count })}
     >
       <span className="text-xs font-semibold sm:text-sm">
         +{count}

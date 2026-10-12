@@ -1,3 +1,5 @@
+import { defineMessage, type MessageDescriptor } from 'react-intl';
+
 import type { Theme } from '@/contexts/AppContext';
 import { deriveTokensFromCore } from '@/lib/colorUtils';
 
@@ -130,7 +132,7 @@ export const builtinThemes: Record<'light' | 'dark', CoreThemeColors> = {
 /** Metadata for a theme preset. */
 export interface ThemePreset {
   /** Display label. */
-  label: string;
+  label: MessageDescriptor;
   /** Emoji shown in compact theme pickers (dropdowns, cycle buttons). */
   emoji: string;
   /** Whether to show in compact pickers (sidebar dropdown, mobile drawer). All presets appear in settings. */
@@ -151,7 +153,7 @@ export interface ThemePreset {
  */
 export const themePresets: Record<string, ThemePreset> = {
   pink: {
-    label: 'Pink',
+    label: defineMessage({ id: 'themes.preset.pink', defaultMessage: 'Pink' }),
     emoji: '🌸',
     featured: true,
     colors: {
@@ -168,7 +170,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   toxic: {
-    label: 'Toxic',
+    label: defineMessage({ id: 'themes.preset.toxic', defaultMessage: 'Toxic' }),
     emoji: '☢️',
     colors: {
       background: '130 30% 7%',
@@ -180,7 +182,7 @@ export const themePresets: Record<string, ThemePreset> = {
 
 
   sunset: {
-    label: 'Sunset',
+    label: defineMessage({ id: 'themes.preset.sunset', defaultMessage: 'Sunset' }),
     emoji: '🌅',
     colors: {
       background: '20 40% 96%',
@@ -191,7 +193,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   skater: {
-    label: 'Skater',
+    label: defineMessage({ id: 'themes.preset.skater', defaultMessage: 'Skater' }),
     emoji: '🛹',
     featured: true,
     colors: {
@@ -208,7 +210,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   kawaii: {
-    label: 'Kawaii',
+    label: defineMessage({ id: 'themes.preset.kawaii', defaultMessage: 'Kawaii' }),
     emoji: '🌸',
     featured: true,
     colors: {
@@ -225,7 +227,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   grunge: {
-    label: 'Grunge',
+    label: defineMessage({ id: 'themes.preset.grunge', defaultMessage: 'Grunge' }),
     emoji: '🖤',
     featured: true,
     colors: {
@@ -242,7 +244,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   mspaint: {
-    label: 'MS Paint',
+    label: defineMessage({ id: 'themes.preset.mspaint', defaultMessage: 'MS Paint' }),
     emoji: '🖥️',
     featured: true,
     colors: {
@@ -259,7 +261,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   retropop: {
-    label: 'Retro Pop',
+    label: defineMessage({ id: 'themes.preset.retropop', defaultMessage: 'Retro Pop' }),
     emoji: '💿',
     featured: true,
     colors: {
@@ -276,7 +278,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   bubblegum: {
-    label: 'Bubblegum',
+    label: defineMessage({ id: 'themes.preset.bubblegum', defaultMessage: 'Bubblegum' }),
     emoji: '🍬',
     featured: true,
     colors: {
@@ -293,7 +295,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   gamer: {
-    label: 'Gamer',
+    label: defineMessage({ id: 'themes.preset.gamer', defaultMessage: 'Gamer' }),
     emoji: '⚡',
     featured: true,
     colors: {
@@ -312,7 +314,7 @@ export const themePresets: Record<string, ThemePreset> = {
   // ─── Themes inspired by MySpace Windows93 ──────────────────────────
 
   cottage: {
-    label: 'Cottage',
+    label: defineMessage({ id: 'themes.preset.cottage', defaultMessage: 'Cottage' }),
     emoji: '🌿',
     featured: true,
     colors: {
@@ -329,7 +331,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   midnight: {
-    label: 'Midnight',
+    label: defineMessage({ id: 'themes.preset.midnight', defaultMessage: 'Midnight' }),
     emoji: '🌃',
     featured: true,
     colors: {
@@ -346,7 +348,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   sky: {
-    label: 'Sky',
+    label: defineMessage({ id: 'themes.preset.sky', defaultMessage: 'Sky' }),
     emoji: '☁️',
     featured: true,
     colors: {
@@ -363,7 +365,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   motherboard: {
-    label: 'Motherboard',
+    label: defineMessage({ id: 'themes.preset.motherboard', defaultMessage: 'Motherboard' }),
     emoji: '🪟',
     featured: true,
     colors: {
@@ -380,7 +382,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   plush: {
-    label: 'Plush',
+    label: defineMessage({ id: 'themes.preset.plush', defaultMessage: 'Plush' }),
     emoji: '🧸',
     colors: {
       background: '265 55% 72%',
@@ -396,7 +398,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   galaxy: {
-    label: 'Galaxy',
+    label: defineMessage({ id: 'themes.preset.galaxy', defaultMessage: 'Galaxy' }),
     emoji: '🌌',
     featured: true,
     colors: {
@@ -413,7 +415,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   ocean: {
-    label: 'Ocean',
+    label: defineMessage({ id: 'themes.preset.ocean', defaultMessage: 'Ocean' }),
     emoji: '🌊',
     featured: true,
     colors: {
@@ -430,7 +432,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   forest: {
-    label: 'Forest',
+    label: defineMessage({ id: 'themes.preset.forest', defaultMessage: 'Forest' }),
     emoji: '🌲',
     featured: true,
     colors: {
@@ -447,7 +449,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   clearsky: {
-    label: 'Clear Sky Vibes',
+    label: defineMessage({ id: 'themes.preset.clearsky', defaultMessage: 'Clear Sky Vibes' }),
     emoji: '✨',
     featured: true,
     colors: {
@@ -464,7 +466,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   silenttorii: {
-    label: 'Silent Torii',
+    label: defineMessage({ id: 'themes.preset.silenttorii', defaultMessage: 'Silent Torii' }),
     emoji: '⛩️',
     featured: true,
     colors: {
@@ -481,7 +483,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   quiethorizon: {
-    label: 'Quiet Horizon',
+    label: defineMessage({ id: 'themes.preset.quiethorizon', defaultMessage: 'Quiet Horizon' }),
     emoji: '🌅',
     featured: true,
     colors: {
@@ -498,7 +500,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   wherepathsmeet: {
-    label: 'Where Paths Meet',
+    label: defineMessage({ id: 'themes.preset.wherepathsmeet', defaultMessage: 'Where Paths Meet' }),
     emoji: '🌉',
     featured: true,
     colors: {
@@ -515,7 +517,7 @@ export const themePresets: Record<string, ThemePreset> = {
   },
 
   once: {
-    label: 'Once',
+    label: defineMessage({ id: 'themes.preset.once', defaultMessage: 'Once' }),
     emoji: '🎲',
     featured: true,
     colors: {

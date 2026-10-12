@@ -36,7 +36,7 @@ export function EmojiSourcePopover({ name, url, imgClassName, authorPubkey }: Em
         <button
           type="button"
           aria-label={intl.formatMessage(
-            { id: 'emojiSource.inlineLabel', defaultMessage: ':{name}: emoji — show its pack' },
+            { id: 'emojiSource.inlineLabel', defaultMessage: ':{name}: emoji, show its pack' },
             { name },
           )}
           className="inline cursor-pointer rounded-sm align-text-bottom focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

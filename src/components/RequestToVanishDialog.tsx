@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
+import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -17,17 +18,26 @@ interface RequestToVanishDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const messages = defineMessages({
+  profile: { id: 'requestToVanish.item.profile', defaultMessage: 'Your profile and metadata' },
+  posts: { id: 'requestToVanish.item.posts', defaultMessage: 'All posts, replies, and reactions' },
+  messages: { id: 'requestToVanish.item.messages', defaultMessage: 'Direct messages' },
+  settings: { id: 'requestToVanish.item.settings', defaultMessage: 'Follow lists and settings' },
+  other: { id: 'requestToVanish.item.other', defaultMessage: 'All other events submitted to the network' },
+});
+
 const DELETION_ITEMS = [
-  { id: 'profile', label: 'Your profile and metadata' },
-  { id: 'posts', label: 'All posts, replies, and reactions' },
-  { id: 'messages', label: 'Direct messages' },
-  { id: 'settings', label: 'Follow lists and settings' },
-  { id: 'other', label: 'All other events submitted to the network' },
+  { id: 'profile', label: messages.profile },
+  { id: 'posts', label: messages.posts },
+  { id: 'messages', label: messages.messages },
+  { id: 'settings', label: messages.settings },
+  { id: 'other', label: messages.other },
 ] as const;
 
 type ItemId = (typeof DELETION_ITEMS)[number]['id'];
 
 export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDialogProps) {
+  const intl = useIntl();
   const { mutateAsync: requestVanish, isPending } = useRequestToVanish();
   const { logout } = useLoginActions();
 
@@ -63,16 +73,16 @@ export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDia
       await requestVanish({ relayUrls: ['ALL_RELAYS'], content: '' });
 
       toast({
-        title: 'Account deleted',
-        description: 'Your deletion request has been broadcast. You have been logged out.',
+        title: intl.formatMessage({ id: 'requestToVanish.success.title', defaultMessage: 'Account deleted' }),
+        description: intl.formatMessage({ id: 'requestToVanish.success.description', defaultMessage: 'Your deletion request has been broadcast. You have been logged out.' }),
       });
 
       onOpenChange(false);
       await logout();
     } catch {
       toast({
-        title: 'Failed to delete account',
-        description: 'Something went wrong. You can try again.',
+        title: intl.formatMessage({ id: 'requestToVanish.error.title', defaultMessage: 'Failed to delete account' }),
+        description: intl.formatMessage({ id: 'requestToVanish.error.description', defaultMessage: 'Something went wrong. You can try again.' }),
         variant: 'destructive',
       });
     }
@@ -85,10 +95,14 @@ export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDia
         <div className="mb-4">
           <AlertDialogTitle className="text-base font-bold flex items-center gap-2">
             <AlertTriangle className="size-5 text-destructive shrink-0" />
-            Delete Account
+            <FormattedMessage id="settings.deleteAccount" defaultMessage="Delete Account" />
           </AlertDialogTitle>
           <AlertDialogDescription className="text-sm text-muted-foreground mt-1">
-            This will <span className="font-semibold text-destructive">permanently delete your data</span>. Check each box to confirm you understand what will be removed:
+            <FormattedMessage
+              id="requestToVanish.description"
+              defaultMessage="This will <b>permanently delete your data</b>. Check each box to confirm you understand what will be removed:"
+              values={{ b: (chunks) => <span className="font-semibold text-destructive">{chunks}</span> }}
+            />
           </AlertDialogDescription>
         </div>
 
@@ -104,15 +118,18 @@ export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDia
                 onCheckedChange={() => toggle(item.id)}
                 className="border-destructive/60 data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
               />
-              <span className="text-sm text-muted-foreground">{item.label}</span>
+              <span className="text-sm text-muted-foreground"><FormattedMessage {...item.label} /></span>
             </label>
           ))}
         </div>
 
         {/* Warning */}
         <p className="text-xs text-muted-foreground leading-relaxed mb-5">
-          This action is <span className="font-semibold text-destructive">irreversible</span>.
-          Your account cannot be recovered after deletion. You will be logged out immediately.
+          <FormattedMessage
+            id="requestToVanish.warning"
+            defaultMessage="This action is <b>irreversible</b>. Your account cannot be recovered after deletion. You will be logged out immediately."
+            values={{ b: (chunks) => <span className="font-semibold text-destructive">{chunks}</span> }}
+          />
         </p>
 
         {/* Actions */}
@@ -123,7 +140,7 @@ export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDia
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
-            Cancel
+            <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button
             className="flex-1 gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40"
@@ -133,10 +150,10 @@ export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDia
             {isPending ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                Deleting...
+                <FormattedMessage id="articles.mine.deleting" defaultMessage="Deleting..." />
               </>
             ) : (
-              'Delete Account'
+              <FormattedMessage id="settings.deleteAccount" defaultMessage="Delete Account" />
             )}
           </Button>
         </div>

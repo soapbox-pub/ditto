@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,8 @@ interface QuizResultsListProps {
  * sorted to the top and labeled.
  */
 export function QuizResultsList({ quiz }: QuizResultsListProps) {
+  const intl = useIntl();
+  const sectionLabel = intl.formatMessage({ id: 'quizResults.label', defaultMessage: 'Quiz results' });
   const { data: results, isLoading } = useQuizResults(quiz.address);
   const { data: followList } = useFollowList();
   const { user } = useCurrentUser();
@@ -47,7 +50,7 @@ export function QuizResultsList({ quiz }: QuizResultsListProps) {
 
   if (isLoading) {
     return (
-      <section className="space-y-2" aria-label="Quiz results">
+      <section className="space-y-2" aria-label={sectionLabel}>
         <ResultsHeading />
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 rounded-xl border px-3 py-2.5">
@@ -64,24 +67,26 @@ export function QuizResultsList({ quiz }: QuizResultsListProps) {
 
   if (!results || results.length === 0) {
     return (
-      <section aria-label="Quiz results">
+      <section aria-label={sectionLabel}>
         <ResultsHeading />
         <div className="mt-2 rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-          No one has shared a result yet. Be the first!
+          <FormattedMessage id="quizResults.empty" defaultMessage="No one has shared a result yet. Be the first!" />
         </div>
       </section>
     );
   }
 
   return (
-    <section className="space-y-3" aria-label="Quiz results">
+    <section className="space-y-3" aria-label={sectionLabel}>
       <div>
         <ResultsHeading count={results.length} />
       </div>
 
       {friends.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">People you follow</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            <FormattedMessage id="quizResults.following" defaultMessage="People you follow" />
+          </p>
           {friends.map((event) => <ResultRow key={event.id} event={event} />)}
         </div>
       )}
@@ -89,7 +94,9 @@ export function QuizResultsList({ quiz }: QuizResultsListProps) {
       {others.length > 0 && (
         <div className="space-y-1.5">
           {friends.length > 0 && (
-            <p className="text-xs font-medium text-muted-foreground">Everyone else</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              <FormattedMessage id="quizResults.everyoneElse" defaultMessage="Everyone else" />
+            </p>
           )}
           {others.map((event) => <ResultRow key={event.id} event={event} />)}
         </div>
@@ -102,7 +109,7 @@ function ResultsHeading({ count }: { count?: number }) {
   return (
     <h3 className="flex items-center gap-1.5 text-sm font-semibold">
       <Users className="size-4 text-muted-foreground" />
-      Results
+      <FormattedMessage id="quizResults.heading" defaultMessage="Results" />
       {count !== undefined && (
         <span className="font-normal text-muted-foreground">({count})</span>
       )}
@@ -112,6 +119,7 @@ function ResultsHeading({ count }: { count?: number }) {
 
 /** One taker's result: avatar, name, outcome labels, age. */
 function ResultRow({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -149,7 +157,7 @@ function ResultRow({ event }: { event: NostrEvent }) {
           decoding="async"
         />
       )}
-      <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(event.created_at)}</span>
+      <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(event.created_at, intl)}</span>
     </>
   );
 

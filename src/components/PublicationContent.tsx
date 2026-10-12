@@ -12,6 +12,7 @@
  */
 
 import { useMemo } from 'react';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useQuery } from '@tanstack/react-query';
@@ -48,8 +49,8 @@ export function PublicationContent({ event, className }: PublicationContentProps
 }
 
 /** Format an original-publication timestamp. */
-function formatPublishedDate(ts: number, withDay = true): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+function formatPublishedDate(ts: number, intl: IntlShape, withDay = true): string {
+  return intl.formatDate(new Date(ts * 1000), {
     year: 'numeric',
     month: 'long',
     ...(withDay ? { day: 'numeric' } : {}),
@@ -59,6 +60,7 @@ function formatPublishedDate(ts: number, withDay = true): string {
 // ── Magazine issue / ebook (file-backed) ────────────────────────────────────
 
 function PublicationFileContent({ event, className }: PublicationContentProps) {
+  const intl = useIntl();
   const pub = useMemo(() => parsePublication(event), [event]);
   const isIssue = event.kind === MAGAZINE_ISSUE_KIND;
   const isEbook = event.kind === EBOOK_KIND;
@@ -92,12 +94,16 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
         {/* Metadata */}
         <div className="min-w-0 flex-1">
           {isIssue && pub.issue && (
-            <p className="mb-1 text-sm font-medium text-primary">Issue {pub.issue}</p>
+            <p className="mb-1 text-sm font-medium text-primary">
+              <FormattedMessage id="publication.issueNumber" defaultMessage="Issue {issue}" values={{ issue: pub.issue }} />
+            </p>
           )}
           <h1 className="mb-2 text-2xl font-bold leading-tight sm:text-3xl">{pub.title}</h1>
 
           {isEbook && pub.authors.length > 0 && (
-            <p className="mb-2 text-lg text-muted-foreground">by {pub.authors.join(', ')}</p>
+            <p className="mb-2 text-lg text-muted-foreground">
+              <FormattedMessage id="publication.byAuthors" defaultMessage="by {authors}" values={{ authors: pub.authors.join(', ') }} />
+            </p>
           )}
 
           <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
@@ -107,7 +113,7 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
             {pub.publishedAt && (
               <span className="flex items-center gap-1">
                 <Calendar className="size-3.5" aria-hidden="true" />
-                {formatPublishedDate(pub.publishedAt, isIssue)}
+                {formatPublishedDate(pub.publishedAt, intl, isIssue)}
               </span>
             )}
             {pub.language && (
@@ -125,7 +131,9 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
           </div>
 
           {isEbook && pub.isbn && (
-            <p className="mb-3 text-xs text-muted-foreground">ISBN: {pub.isbn}</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              <FormattedMessage id="publication.isbn" defaultMessage="ISBN: {isbn}" values={{ isbn: pub.isbn }} />
+            </p>
           )}
 
           {pub.topics.length > 0 && (
@@ -148,7 +156,9 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
                 <PdfViewer
                   url={pub.fileUrl}
                   title={pub.title}
-                  label={isEbook ? 'Read eBook' : 'Read Issue'}
+                  label={isEbook
+                    ? intl.formatMessage({ id: 'publication.readEbook', defaultMessage: 'Read eBook' })
+                    : intl.formatMessage({ id: 'publication.readIssue', defaultMessage: 'Read Issue' })}
                 />
               ) : (
                 <>
@@ -156,12 +166,12 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
                   <Button asChild>
                     <a href={pub.fileUrl} download target="_blank" rel="noopener noreferrer">
                       <Download className="mr-2 size-4" />
-                      Download {pub.format}
+                      <FormattedMessage id="publication.download" defaultMessage="Download {format}" values={{ format: pub.format }} />
                     </a>
                   </Button>
                   <Button variant="outline" onClick={() => void openUrl(pub.fileUrl!)}>
                     <ExternalLink className="mr-2 size-4" />
-                    Open in browser
+                    <FormattedMessage id="publication.openInBrowser" defaultMessage="Open in browser" />
                   </Button>
                 </>
               )}
@@ -230,7 +240,7 @@ function MagazineContent({ event, className }: PublicationContentProps) {
         )}
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Magazine
+            <FormattedMessage id="publication.magazine" defaultMessage="Magazine" />
           </p>
           <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{pub.title}</h1>
           {pub.topics.length > 0 && (
@@ -253,7 +263,9 @@ function MagazineContent({ event, className }: PublicationContentProps) {
 
       {/* Issues */}
       <div className="border-t pt-6">
-        <h2 className="mb-4 text-lg font-semibold">Issues</h2>
+        <h2 className="mb-4 text-lg font-semibold">
+          <FormattedMessage id="publication.issues" defaultMessage="Issues" />
+        </h2>
 
         {isLoading ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -274,7 +286,7 @@ function MagazineContent({ event, className }: PublicationContentProps) {
           <Card className="border-dashed">
             <CardContent className="px-8 py-12 text-center">
               <p className="mx-auto max-w-sm text-muted-foreground">
-                No issues published yet.
+                <FormattedMessage id="publication.noIssues" defaultMessage="No issues published yet." />
               </p>
             </CardContent>
           </Card>
@@ -305,7 +317,9 @@ function IssueGridItem({ event }: { event: NostrEvent }) {
       )}
       <div>
         {pub.issue && (
-          <p className="text-xs font-medium text-primary">Issue {pub.issue}</p>
+          <p className="text-xs font-medium text-primary">
+            <FormattedMessage id="publication.issueNumber" defaultMessage="Issue {issue}" values={{ issue: pub.issue }} />
+          </p>
         )}
         <p className="line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
           {pub.title}

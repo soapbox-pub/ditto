@@ -7,7 +7,7 @@ import {
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useNostrLogin } from '@nostrify/react/login';
-import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
+import { defineMessage, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import { saveNsec } from '@/lib/credentialManager';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
@@ -29,6 +29,7 @@ import { IntroImage } from '@/components/IntroImage';
 import { HelpTip } from '@/components/HelpTip';
 import { ImageCropDialog } from '@/components/ImageCropDialog';
 import { isAnimatedImage, METADATA_SCAN_BYTES } from '@/lib/imageMetadata';
+import { isGifBytes } from '@/lib/runGifCrop';
 import { SortableList, SortableItem } from '@/components/SortableList';
 import { PaymentTargetsEditor, type PaymentTargetsEditorHandle } from '@/components/PaymentTargetsEditor';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -627,11 +628,10 @@ export function ProfileSettings() {
     e.target.value = '';
     const field = pendingField.current;
 
-    // Animated images (GIF, APNG, animated WebP) can't survive the crop
-    // dialog's canvas round-trip, which flattens them to a single frame. Upload
-    // them byte-for-byte instead of silently killing the animation.
+    // GIFs are cropped frame by frame. Other animated images (APNG, animated
+    // WebP) would be flattened by the crop canvas; upload them as-is.
     const head = new Uint8Array(await file.slice(0, METADATA_SCAN_BYTES).arrayBuffer());
-    if (isAnimatedImage(file.type, head)) {
+    if (!isGifBytes(head) && isAnimatedImage(file.type, head)) {
       await uploadImage(file, field);
       return;
     }
@@ -649,7 +649,8 @@ export function ProfileSettings() {
     const { field, imageSrc } = cropState;
     URL.revokeObjectURL(imageSrc);
     setCropState(null);
-    const file = new File([blob], `${field}.jpg`, { type: 'image/jpeg' });
+    const gif = blob.type === 'image/gif';
+    const file = new File([blob], `${field}.${gif ? 'gif' : 'jpg'}`, { type: gif ? 'image/gif' : 'image/jpeg' });
     await uploadImage(file, field);
   };
 
@@ -1011,19 +1012,19 @@ export function ProfileSettings() {
 
 /** i18n key suffixes and English month names, in calendar order. */
 const MONTHS = [
-  { key: 'january', name: 'January' },
-  { key: 'february', name: 'February' },
-  { key: 'march', name: 'March' },
-  { key: 'april', name: 'April' },
-  { key: 'may', name: 'May' },
-  { key: 'june', name: 'June' },
-  { key: 'july', name: 'July' },
-  { key: 'august', name: 'August' },
-  { key: 'september', name: 'September' },
-  { key: 'october', name: 'October' },
-  { key: 'november', name: 'November' },
-  { key: 'december', name: 'December' },
-] as const;
+  defineMessage({ id: 'settings.profile.birthday.months.january', defaultMessage: 'January' }),
+  defineMessage({ id: 'settings.profile.birthday.months.february', defaultMessage: 'February' }),
+  defineMessage({ id: 'settings.profile.birthday.months.march', defaultMessage: 'March' }),
+  defineMessage({ id: 'settings.profile.birthday.months.april', defaultMessage: 'April' }),
+  defineMessage({ id: 'settings.profile.birthday.months.may', defaultMessage: 'May' }),
+  defineMessage({ id: 'settings.profile.birthday.months.june', defaultMessage: 'June' }),
+  defineMessage({ id: 'settings.profile.birthday.months.july', defaultMessage: 'July' }),
+  defineMessage({ id: 'settings.profile.birthday.months.august', defaultMessage: 'August' }),
+  defineMessage({ id: 'settings.profile.birthday.months.september', defaultMessage: 'September' }),
+  defineMessage({ id: 'settings.profile.birthday.months.october', defaultMessage: 'October' }),
+  defineMessage({ id: 'settings.profile.birthday.months.november', defaultMessage: 'November' }),
+  defineMessage({ id: 'settings.profile.birthday.months.december', defaultMessage: 'December' }),
+];
 
 /**
  * Standalone NIP-24 birthday editor.
@@ -1150,7 +1151,7 @@ function BirthdaySection() {
 
   const dayCount = daysInMonth(month);
 
-  const monthNames = MONTHS.map((m) => intl.formatMessage({ id: `settings.profile.birthday.months.${m.key}`, defaultMessage: m.name }));
+  const monthNames = MONTHS.map((m) => intl.formatMessage(m));
 
   return (
     <div className="space-y-3">
@@ -1159,7 +1160,7 @@ function BirthdaySection() {
         <h2 className="text-sm font-semibold"><FormattedMessage id="settings.profile.birthday.title" defaultMessage={"Birthday"} /></h2>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        <FormattedMessage id="settings.profile.birthday.description" defaultMessage={"Shown on your profile — friends get confetti and a birthday tune when they visit on the day. Every field is optional; skip the year if you'd rather keep your age private."} />
+        <FormattedMessage id="settings.profile.birthday.description" defaultMessage={"Shown on your profile. Friends get confetti and a birthday tune when they visit on the day. Every field is optional; skip the year if you'd rather keep your age private."} />
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -1282,7 +1283,7 @@ function BackupKeySection() {
       <div>
         {heading}
         <p className="text-xs text-muted-foreground leading-relaxed">
-          <FormattedMessage id="settings.profile.backupKey.extensionNote" defaultMessage={"You're signed in with a browser extension (NIP-07). Your secret key is stored there — manage or export it from the extension itself."} />
+          <FormattedMessage id="settings.profile.backupKey.extensionNote" defaultMessage={"You're signed in with a browser extension (NIP-07). Your secret key is stored there, so manage or export it from the extension itself."} />
         </p>
       </div>
     );

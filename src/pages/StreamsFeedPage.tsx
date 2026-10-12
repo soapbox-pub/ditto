@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Radio, Users, Clock } from 'lucide-react';
+import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { sidebarItemIcon } from '@/lib/sidebarItems';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { nip19 } from 'nostr-tools';
@@ -31,26 +32,35 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-/** Status badge config. */
-function getStatusConfig(status: string | undefined) {
+const statusMessages = defineMessages({
+  live: { id: 'streams.status.live', defaultMessage: 'LIVE' },
+  ended: { id: 'streams.status.ended', defaultMessage: 'ENDED' },
+  planned: { id: 'streams.status.planned', defaultMessage: 'PLANNED' },
+  unknown: { id: 'streams.status.unknown', defaultMessage: 'UNKNOWN' },
+});
+
+/** Status badge config. Unknown statuses keep their raw (uppercased) value. */
+function getStatusConfig(status: string | undefined): { label: MessageDescriptor | string; className: string } {
   switch (status) {
     case 'live':
-      return { label: 'LIVE', className: 'bg-red-600 hover:bg-red-600 text-white border-red-600' };
+      return { label: statusMessages.live, className: 'bg-red-600 hover:bg-red-600 text-white border-red-600' };
     case 'ended':
-      return { label: 'ENDED', className: 'bg-muted text-muted-foreground border-border' };
+      return { label: statusMessages.ended, className: 'bg-muted text-muted-foreground border-border' };
     case 'planned':
-      return { label: 'PLANNED', className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600' };
+      return { label: statusMessages.planned, className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600' };
     default:
-      return { label: status?.toUpperCase() || 'UNKNOWN', className: 'bg-muted text-muted-foreground border-border' };
+      return { label: status?.toUpperCase() || statusMessages.unknown, className: 'bg-muted text-muted-foreground border-border' };
   }
 }
 
 export function StreamsFeedPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
+  const pageTitle = intl.formatMessage({ id: 'streams.title', defaultMessage: 'Streams' });
 
   useSeoMeta({
-    title: `Streams | ${config.appName}`,
-    description: 'Live streams on Nostr',
+    title: `${pageTitle} | ${config.appName}`,
+    description: intl.formatMessage({ id: 'streams.metaDescription', defaultMessage: 'Live streams on Nostr' }),
   });
 
   useLayoutOptions({ showFAB: true, fabKind: 30311 });
@@ -71,7 +81,7 @@ export function StreamsFeedPage() {
 
   return (
       <main className="">
-        <PageHeader title="Streams" icon={<Radio className="size-5" />}>
+        <PageHeader title={pageTitle} icon={<Radio className="size-5" />}>
           <KindInfoButton kindDef={streamsDef} icon={sidebarItemIcon('streams', 'size-5')} />
         </PageHeader>
 
@@ -89,7 +99,10 @@ export function StreamsFeedPage() {
                 <div className="max-w-sm mx-auto space-y-2">
                   <Radio className="size-8 text-muted-foreground/40 mx-auto" />
                   <p className="text-muted-foreground">
-                    No streams found. Check your relay connections or wait for new streams to start.
+                    <FormattedMessage
+                      id="streams.empty"
+                      defaultMessage="No streams found. Check your relay connections or wait for new streams to start."
+                    />
                   </p>
                 </div>
               </CardContent>
@@ -107,12 +120,14 @@ export function StreamsFeedPage() {
 }
 
 function StreamCard({ event }: { event: NostrEvent }) {
-  const title = getTag(event.tags, 'title') || 'Untitled Stream';
+  const intl = useIntl();
+  const title = getTag(event.tags, 'title') || intl.formatMessage({ id: 'streams.untitled', defaultMessage: 'Untitled Stream' });
   const summary = getTag(event.tags, 'summary');
   const imageUrl = getTag(event.tags, 'image');
   const status = getTag(event.tags, 'status');
   const currentParticipants = getTag(event.tags, 'current_participants');
   const statusConfig = getStatusConfig(status);
+  const statusLabel = typeof statusConfig.label === 'string' ? statusConfig.label : intl.formatMessage(statusConfig.label);
 
   const naddrId = useMemo(() => {
     const dTag = getTag(event.tags, 'd') || '';
@@ -144,7 +159,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
           <div className="absolute top-2 left-2">
             <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
               {status === 'live' && <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />}
-              {statusConfig.label}
+              {statusLabel}
             </Badge>
           </div>
           {/* Viewer count overlay */}
@@ -170,7 +185,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
               {!imageUrl && (
                 <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
                   {status === 'live' && <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />}
-                  {statusConfig.label}
+                  {statusLabel}
                 </Badge>
               )}
               {!imageUrl && currentParticipants && (
@@ -181,7 +196,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
               )}
               <span className="flex items-center gap-1">
                 <Clock className="size-3" />
-                {timeAgo(event.created_at)}
+                {timeAgo(event.created_at, intl)}
               </span>
             </div>
           </div>

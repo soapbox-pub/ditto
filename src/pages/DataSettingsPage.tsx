@@ -121,7 +121,7 @@ export function DataSettingsPage() {
   const replacingRecords = importState.parsed?.unsigned.filter((record) => replacesExistingData(record.kind)) ?? [];
   const replacingKinds = [...new Set(replacingRecords.map((record) => record.kind))]
     .sort((a, b) => a - b)
-    .map((kind) => getKindLabel(kind));
+    .map((kind) => getKindLabel(intl, kind));
 
   async function handleDownload() {
     try {
@@ -175,7 +175,7 @@ export function DataSettingsPage() {
               <FormattedMessage id="settings.data.yourArchive" defaultMessage={"Your archive"} />
             </h2>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              <FormattedMessage id="settings.data.yourArchiveDescription" defaultMessage={"Nostr has no single server holding your history — it is spread across the relays you publish to. These tools gather it into one local database you can save, and push a saved archive back out to the network."} />
+              <FormattedMessage id="settings.data.yourArchiveDescription" defaultMessage={"Nostr has no single server holding your history. It is spread across the relays you publish to. These tools gather it into one local database you can save, and push a saved archive back out to the network."} />
             </p>
           </div>
         </div>
@@ -192,7 +192,7 @@ export function DataSettingsPage() {
 
           <div className="pt-4 pb-6 px-3 space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              <FormattedMessage id="settings.data.exportDescription" defaultMessage={"Reads every event you have published from each of your relays into this device's local database, then saves the result as a .jsonl file — one event per line."} />
+              <FormattedMessage id="settings.data.exportDescription" defaultMessage={"Reads every event you have published from each of your relays into this device's local database, then saves the result as a .jsonl file, one event per line."} />
             </p>
 
             <div className="flex items-center justify-between gap-4">
@@ -263,7 +263,7 @@ export function DataSettingsPage() {
 
           <div className="pt-4 pb-6 px-3 space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              <FormattedMessage id="settings.data.importDescription" defaultMessage={"Publishes events to your relays — either from a file, or from what this device already holds."} />
+              <FormattedMessage id="settings.data.importDescription" defaultMessage={"Publishes events to your relays, either from a file or from what this device already holds."} />
             </p>
 
             {/* Applies to both of the pushes below. */}
@@ -285,7 +285,7 @@ export function DataSettingsPage() {
             <h3 className="flex items-center gap-1.5 text-sm font-semibold">
               <FormattedMessage id="settings.data.fromFile" defaultMessage={"From a file"} />
               <InfoTip name={intl.formatMessage({ id: 'settings.data.fromFile', defaultMessage: "From a file" })}>
-                <FormattedMessage id="settings.data.fromFileDescription" defaultMessage={"Reads a .jsonl file, saves it to this device, and publishes it. Lines with no signature are signed with your account, so you can write events by hand — only \"kind\" is required."} />
+                <FormattedMessage id="settings.data.fromFileDescription" defaultMessage={"Reads a .jsonl file, saves it to this device, and publishes it. Lines with no signature are signed with your account, so you can write events by hand. Only \"kind\" is required."} />
               </InfoTip>
             </h3>
 
@@ -500,7 +500,7 @@ export function DataSettingsPage() {
             {publishState.status === 'done' && (
               <p className="text-xs text-muted-foreground">
                 {publishState.total === 0 ? (
-                  <FormattedMessage id="settings.data.publishEmpty" defaultMessage={"Nothing to publish — this device holds none of your events yet. Run Export first."} />
+                  <FormattedMessage id="settings.data.publishEmpty" defaultMessage={"Nothing to publish. This device holds none of your events yet. Run Export first."} />
                 ) : (
                   <FormattedMessage
                     id="settings.data.publishDone"
@@ -554,7 +554,7 @@ export function DataSettingsPage() {
                       </span>
                       {issue.eventKind !== undefined && (
                         <span className="text-[11px] text-muted-foreground">
-                          {KIND_LABELS[issue.eventKind] ?? intl.formatMessage(
+                          {KIND_LABELS[issue.eventKind] ? intl.formatMessage(KIND_LABELS[issue.eventKind]) : intl.formatMessage(
                             { id: 'settings.data.issueKind', defaultMessage: 'Kind {kind}' },
                             { kind: issue.eventKind },
                           )}

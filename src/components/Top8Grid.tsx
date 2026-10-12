@@ -101,7 +101,7 @@ export function Top8Tile({ pubkey, rank, size, static: isStatic }: Top8TileProps
         to={profileUrl}
         className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         onClick={(e) => e.stopPropagation()}
-        title={`#${rank} — ${displayName}`}
+        title={`#${rank}: ${displayName}`}
       >
         {body}
       </Link>

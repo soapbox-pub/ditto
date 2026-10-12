@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import {
   AlertTriangle,
   ArrowDownLeft,
@@ -40,6 +40,7 @@ interface MoneroWalletPanelProps {
  * in, and it's called from an effect once a wallet record exists.
  */
 export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {}) {
+  const intl = useIntl();
   const {
     hasWallet,
     isLoadingRecord,
@@ -191,7 +192,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
       {/* Balance */}
       <div className="flex flex-col items-center space-y-1">
         <span className="text-4xl font-bold tracking-tight">
-          {xmrPrice ? atomicToUSD(balance, xmrPrice) : `${formatXMR(balance)} XMR`}
+          {xmrPrice ? atomicToUSD(balance, xmrPrice, intl.locale) : `${formatXMR(balance)} XMR`}
         </span>
         <span className="text-sm text-muted-foreground">{formatXMR(balance)} XMR</span>
 
@@ -209,7 +210,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
           <span className="text-xs text-muted-foreground pt-1">
             <FormattedMessage
               id="monero.panel.cached"
-              defaultMessage="Cached balance — syncing for the latest"
+              defaultMessage="Cached balance, syncing for the latest"
             />
           </span>
         )}
@@ -239,7 +240,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
             value={passphrase}
             onChange={(e) => setPassphrase(e.target.value)}
             autoComplete="off"
-            aria-label="Monero seed passphrase"
+            aria-label={intl.formatMessage({ id: 'monero.panel.passphrase.label', defaultMessage: 'Monero seed passphrase' })}
           />
           <Button type="submit" disabled={!passphrase} size="sm" className="w-full rounded-full">
             <FormattedMessage id="monero.panel.passphrase.unlock" defaultMessage="Unlock wallet" />
@@ -264,8 +265,8 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
                 id="monero.panel.scanning"
                 defaultMessage="Scanning block {height} of {end}"
                 values={{
-                  height: progress.height.toLocaleString(),
-                  end: progress.endHeight.toLocaleString(),
+                  height: intl.formatNumber(progress.height),
+                  end: intl.formatNumber(progress.endHeight),
                 }}
               />
             ) : (
@@ -289,7 +290,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
           <FormattedMessage
             id="monero.panel.behind"
             defaultMessage="{blocks} blocks behind"
-            values={{ blocks: blocksBehind.toLocaleString() }}
+            values={{ blocks: intl.formatNumber(blocksBehind) }}
           />
         </p>
       )}
@@ -398,6 +399,7 @@ export function MoneroWalletPanel({ initialSendUri }: MoneroWalletPanelProps = {
 
 /** Single transaction row. */
 function MoneroTxRow({ tx, xmrPrice }: { tx: MoneroTxSummary; xmrPrice?: number }) {
+  const intl = useIntl();
   const amount = BigInt(tx.amount);
   const isReceive = !tx.outgoing;
 
@@ -425,7 +427,7 @@ function MoneroTxRow({ tx, xmrPrice }: { tx: MoneroTxSummary; xmrPrice?: number 
             {!tx.confirmed ? (
               <FormattedMessage id="monero.panel.pending" defaultMessage="Pending" />
             ) : (
-              formatTxDate(tx.timestamp)
+              formatTxDate(intl, tx.timestamp)
             )}
           </p>
         </div>
@@ -437,7 +439,7 @@ function MoneroTxRow({ tx, xmrPrice }: { tx: MoneroTxSummary; xmrPrice?: number 
           }`}
         >
           {isReceive ? '+' : '-'}
-          {xmrPrice ? atomicToUSD(amount, xmrPrice) : `${formatXMR(amount)} XMR`}
+          {xmrPrice ? atomicToUSD(amount, xmrPrice, intl.locale) : `${formatXMR(amount)} XMR`}
         </p>
         <p className="text-xs text-muted-foreground">{formatXMR(amount)} XMR</p>
       </div>
@@ -446,17 +448,19 @@ function MoneroTxRow({ tx, xmrPrice }: { tx: MoneroTxSummary; xmrPrice?: number 
 }
 
 /** Format a unix timestamp as a relative or absolute date. */
-function formatTxDate(timestamp?: number): string {
+function formatTxDate(intl: IntlShape, timestamp?: number): string {
   if (!timestamp) return '';
 
   const date = new Date(timestamp * 1000);
   const diffDays = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays === 0) return intl.formatMessage({ id: 'monero.panel.today', defaultMessage: 'Today' });
+  if (diffDays === 1) return intl.formatMessage({ id: 'monero.panel.yesterday', defaultMessage: 'Yesterday' });
+  if (diffDays < 7) {
+    return intl.formatMessage({ id: 'monero.panel.daysAgo', defaultMessage: '{days}d ago' }, { days: diffDays });
+  }
 
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return intl.formatDate(date, { month: 'short', day: 'numeric' });
 }
 
 /** The Monero glyph, as an inline SVG so it inherits `currentColor`. */

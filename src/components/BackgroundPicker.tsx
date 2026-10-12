@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { ImagePlus, X, Loader2 } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -22,6 +23,7 @@ export function BackgroundPicker({ value, onChange }: {
   /** Controlled onChange — called instead of applyCustomTheme() when provided. */
   onChange?: (bg: ThemeBackground | undefined) => void;
 } = {}) {
+  const intl = useIntl();
   const { theme, customTheme, applyCustomTheme } = useTheme();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
@@ -38,7 +40,11 @@ export function BackgroundPicker({ value, onChange }: {
     e.target.value = '';
 
     if (!file.type.startsWith('image/')) {
-      toast({ title: 'Invalid file', description: 'Please select an image file.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'backgroundPicker.invalidFile.title', defaultMessage: 'Invalid file' }),
+        description: intl.formatMessage({ id: 'backgroundPicker.invalidFile.description', defaultMessage: 'Please select an image file.' }),
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -74,7 +80,11 @@ export function BackgroundPicker({ value, onChange }: {
       }
     } catch (error) {
       console.error('Failed to upload background:', error);
-      toast({ title: 'Upload failed', description: 'Could not upload the image.', variant: 'destructive' });
+      toast({
+        title: intl.formatMessage({ id: 'backgroundPicker.uploadFailed.title', defaultMessage: 'Upload failed' }),
+        description: intl.formatMessage({ id: 'backgroundPicker.uploadFailed.description', defaultMessage: 'Could not upload the image.' }),
+        variant: 'destructive',
+      });
     }
   };
 
@@ -108,7 +118,7 @@ export function BackgroundPicker({ value, onChange }: {
   return (
     <div className="space-y-2">
       <span className="text-xs font-medium text-muted-foreground">
-        Background
+        <FormattedMessage id="backgroundPicker.label" defaultMessage="Background" />
       </span>
 
       {currentBg ? (
@@ -116,7 +126,7 @@ export function BackgroundPicker({ value, onChange }: {
           <div className="relative rounded-lg overflow-hidden border border-border">
             <img
               src={currentBg.url}
-              alt="Theme background"
+              alt={intl.formatMessage({ id: 'backgroundPicker.imageAlt', defaultMessage: 'Theme background' })}
               className="w-full h-24 object-cover"
               decoding="async"
             />
@@ -125,6 +135,7 @@ export function BackgroundPicker({ value, onChange }: {
               size="icon"
               className="absolute top-1.5 right-1.5 size-6 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
               onClick={handleRemove}
+              aria-label={intl.formatMessage({ id: 'backgroundPicker.remove', defaultMessage: 'Remove background' })}
             >
               <X className="size-3.5" />
             </Button>
@@ -143,7 +154,9 @@ export function BackgroundPicker({ value, onChange }: {
                     : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {mode === 'cover' ? 'Cover' : 'Tile'}
+                {mode === 'cover'
+                  ? <FormattedMessage id="backgroundPicker.mode.cover" defaultMessage="Cover" />
+                  : <FormattedMessage id="backgroundPicker.mode.tile" defaultMessage="Tile" />}
               </button>
             ))}
           </div>
@@ -159,7 +172,7 @@ export function BackgroundPicker({ value, onChange }: {
           ) : (
             <>
               <ImagePlus className="size-4" />
-              <span className="text-xs">Upload image</span>
+              <span className="text-xs"><FormattedMessage id="backgroundPicker.upload" defaultMessage="Upload image" /></span>
             </>
           )}
         </button>

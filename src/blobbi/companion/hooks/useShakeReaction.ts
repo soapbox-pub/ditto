@@ -22,6 +22,7 @@
  */
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useIntl } from 'react-intl';
 import { toast } from '@/hooks/useToast';
 import type { BlobbiVisualRecipe } from '@/blobbi/ui/lib/recipe';
 import { resolveVisualRecipe } from '@/blobbi/ui/lib/recipe';
@@ -126,6 +127,7 @@ export function useShakeReaction({
   const vomitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hungerRef = useRef(hunger);
   const toasted = useRef(false);
+  const intl = useIntl();
   const prof = useRef(profile);
   const cycleHadNauseaRef = useRef(false);
   const peakIntensity = useRef(0);
@@ -290,13 +292,13 @@ export function useShakeReaction({
         if (sick && !toasted.current) {
           toasted.current = true;
           toast({
-            title: 'Careful\u2026',
-            description: 'Blobbi is feeling sick!',
+            title: intl.formatMessage({ id: 'blobbiShake.careful', defaultMessage: 'Careful\u2026' }),
+            description: intl.formatMessage({ id: 'blobbiShake.feelingSick', defaultMessage: 'Blobbi is feeling sick!' }),
           });
         }
       }
     },
-    [clearDizzy, push, stop],
+    [clearDizzy, push, stop, intl],
   );
 
   const onDragEnd = useCallback(

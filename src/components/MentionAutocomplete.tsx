@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { nip19 } from 'nostr-tools';
 import { UserRoundCheck } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { parseProfileImeta } from '@/lib/profileImeta';
@@ -300,8 +301,9 @@ function MentionItem({
   isFollowed: boolean;
   onSelect: () => void;
 }) {
+  const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || 'Anonymous';
+  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
@@ -328,7 +330,7 @@ function MentionItem({
         {isFollowed && (
           <span
             className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
-            title="Following"
+            title={intl.formatMessage({ id: 'mentionAutocomplete.following', defaultMessage: 'Following' })}
           >
             <UserRoundCheck className="size-2 text-primary-foreground" strokeWidth={3} />
           </span>

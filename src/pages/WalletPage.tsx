@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Bitcoin, Check, Wallet, ChevronDown } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/PageHeader';
@@ -37,6 +38,7 @@ const CURRENCY_LABELS: Record<WalletCurrency, string> = {
 };
 
 export function WalletPage() {
+  const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const { currency, setCurrency } = useWalletCurrency();
@@ -81,14 +83,16 @@ export function WalletPage() {
   }, [locationState, user, navigate, location.pathname, setCurrency]);
 
   useSeoMeta({
-    title: `Wallet | ${config.appName}`,
-    description:
-      'Your Bitcoin Taproot wallet derived from your Nostr identity, and your encrypted Monero wallet.',
+    title: intl.formatMessage({ id: 'walletPage.seoTitle', defaultMessage: 'Wallet | {appName}' }, { appName: config.appName }),
+    description: intl.formatMessage({
+      id: 'walletPage.seoDescription',
+      defaultMessage: 'Your Bitcoin Taproot wallet derived from your Nostr identity, and your encrypted Monero wallet.',
+    }),
   });
 
   return (
     <main>
-      <PageHeader title="Wallet" icon={<Wallet className="size-5" />} />
+      <PageHeader title={intl.formatMessage({ id: 'walletPage.title', defaultMessage: 'Wallet' })} icon={<Wallet className="size-5" />} />
 
       {!user ? (
         <div className="py-20 px-8 flex flex-col items-center gap-6 text-center">
@@ -96,10 +100,14 @@ export function WalletPage() {
             <Bitcoin className="size-8 text-primary" />
           </div>
           <div className="space-y-2 max-w-xs">
-            <h2 className="text-xl font-bold">Your Wallet</h2>
+            <h2 className="text-xl font-bold">
+              <FormattedMessage id="walletPage.yourWallet" defaultMessage="Your Wallet" />
+            </h2>
             <p className="text-muted-foreground text-sm">
-              Log in to see your Bitcoin Taproot address derived from your Nostr identity, and to
-              set up a Monero wallet.
+              <FormattedMessage
+                id="walletPage.loggedOutDescription"
+                defaultMessage="Log in to see your Bitcoin Taproot address derived from your Nostr identity, and to set up a Monero wallet."
+              />
             </p>
           </div>
           <LoginArea className="max-w-60" />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
+import { FormattedMessage, useIntl } from 'react-intl';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBirdSong, type BirdSong } from '@/hooks/useBirdSong';
@@ -66,6 +67,7 @@ function BirdSongButton({
   className?: string;
   ariaLabel?: string;
 }) {
+  const intl = useIntl();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -101,8 +103,12 @@ function BirdSongButton({
         onClick={toggle}
         aria-label={
           isPlaying
-            ? `Pause ${ariaLabel ?? 'reference recording'}`
-            : `Play ${ariaLabel ?? 'reference recording'}`
+            ? ariaLabel
+              ? intl.formatMessage({ id: 'birdSongPlayer.pauseNamed', defaultMessage: 'Pause {name}' }, { name: ariaLabel })
+              : intl.formatMessage({ id: 'birdSongPlayer.pause', defaultMessage: 'Pause reference recording' })
+            : ariaLabel
+              ? intl.formatMessage({ id: 'birdSongPlayer.playNamed', defaultMessage: 'Play {name}' }, { name: ariaLabel })
+              : intl.formatMessage({ id: 'birdSongPlayer.play', defaultMessage: 'Play reference recording' })
         }
         aria-pressed={isPlaying}
         title={song.attribution}
@@ -141,7 +147,7 @@ function BirdSongButton({
         onPlay={() => setIsPlaying(true)}
         className="hidden"
       >
-        Your browser does not support embedded audio.
+        <FormattedMessage id="birdSongPlayer.unsupported" defaultMessage="Your browser does not support embedded audio." />
       </audio>
     </>
   );

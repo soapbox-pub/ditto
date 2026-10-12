@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
@@ -62,6 +63,7 @@ function useEventComments(event: NostrEvent | undefined) {
 // ── comment row ───────────────────────────────────────────────────────────────
 
 function CommentRow({ event }: { event: NostrEvent }) {
+  const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
@@ -91,7 +93,7 @@ function CommentRow({ event }: { event: NostrEvent }) {
               {displayName}
             </Link>
           </ProfileHoverCard>
-          <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(event.created_at)}</span>
+          <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(event.created_at, intl)}</span>
         </div>
         <p className="text-xs text-foreground/90 leading-relaxed break-words line-clamp-4">
           {event.content}

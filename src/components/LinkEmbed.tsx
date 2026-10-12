@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, MessageSquare } from 'lucide-react';
+import { FormattedMessage } from 'react-intl';
 
 import { ArchiveOrgEmbed } from '@/components/ArchiveOrgEmbed';
 import { BlueskyEmbed } from '@/components/BlueskyEmbed';
@@ -119,7 +120,7 @@ function DiscussBar({ url, showActions = true }: { url: string; showActions?: bo
           onClick={(e) => e.stopPropagation()}
         >
           <ExternalLink className="size-3" />
-          <span>Open</span>
+          <span><FormattedMessage id="linkEmbed.open" defaultMessage="Open" /></span>
         </a>
 
         {showActions && (
@@ -137,7 +138,7 @@ function DiscussBar({ url, showActions = true }: { url: string; showActions?: bo
             }}
           >
             <MessageSquare className="size-3" />
-            <span>Discuss</span>
+            <span><FormattedMessage id="linkEmbed.discuss" defaultMessage="Discuss" /></span>
           </button>
         )}
       </div>
