@@ -24,9 +24,9 @@ import {
   isZapKind,
   buildFeedItems,
   dedupeFeedItems,
+  excludeReplies,
   type FeedItem,
 } from '@/lib/feedUtils';
-import { isReplyEvent } from '@/lib/nostrEvents';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { getStorageKey } from '@/lib/storageKey';
 
@@ -41,18 +41,6 @@ const OVER_FETCH_MULTIPLIER = 3;
 
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
-
-/**
- * Drop reply items when the user has disabled "Show replies in feed".
- * Applies to the target event regardless of wrapper — a repost, reaction,
- * or zap of a reply still surfaces the reply, so those are filtered too.
- * Profile-zap fallback cards are kept: `item.event` there is the zap
- * receipt itself (whose `e` tag would trip isReplyEvent), and the card
- * renders the zap activity, not the unresolved target.
- */
-function excludeReplies(items: FeedItem[]): FeedItem[] {
-  return items.filter((item) => item.profileZapRecipient || !isReplyEvent(item.event));
-}
 
 /** Extended FeedItem with pagination metadata. */
 interface FeedPage {

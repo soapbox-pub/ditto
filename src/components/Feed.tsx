@@ -44,6 +44,7 @@ import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
 import type { FeedItem } from '@/lib/feedUtils';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { COMMENT_KINDS, isReplyEvent } from '@/lib/nostrEvents';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
@@ -536,6 +537,7 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
   const { ref: scrollRef, inView } = useInView({ threshold: 0, rootMargin: '400px' });
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
+  const { feedSettings } = useFeedSettings();
 
   // Resolve variable placeholders ($follows etc.) the same way profile tabs do
   const { filter: resolvedFilter, isLoading: isResolving } = useResolveTabFilter(
@@ -567,12 +569,14 @@ function SavedFeedContent({ feed }: { feed: SavedFeed }) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useTabFeed(augmentedFilter, `saved-${feed.id}`, !isResolving);
+  } = useTabFeed(augmentedFilter, `saved-${feed.id}`, !isResolving, {
+    hideReplies: !feedSettings.followsFeedShowReplies,
+  });
 
   const isLoading = isResolving || isFeedLoading;
 
   // Prefix key -- usePageRefresh does prefix matching, so this invalidates
-  // the full ['tab-feed', tabKey, kindsKey, authorsKey, searchKey] used by useTabFeed.
+  // the full ['tab-feed', tabKey, kindsKey, authorsKey, searchKey, hideReplies] used by useTabFeed.
   const queryKey = useMemo(
     () => ['tab-feed', `saved-${feed.id}`],
     [feed.id],
@@ -663,10 +667,13 @@ function HashtagFeedContent({ tag }: { tag: string }) {
   const { nostr } = useNostr();
   const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
-  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
+  const showReplies = feedSettings.followsFeedShowReplies;
+  const kinds = getEnabledFeedKinds(feedSettings)
+    .filter((k) => !isRepostKind(k) && (showReplies || !COMMENT_KINDS.has(k)));
   const kindsKey = [...kinds].sort().join(',');
 
-  const queryKey = useMemo(() => ['hashtag-feed', tag, kindsKey], [tag, kindsKey]);
+  // publishedEventSync reads this layout; keep the two in sync.
+  const queryKey = useMemo(() => ['hashtag-feed', tag, kindsKey, showReplies], [tag, kindsKey, showReplies]);
   const handleRefresh = usePageRefresh(queryKey);
 
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
@@ -684,8 +691,8 @@ function HashtagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
-  }, [events, isMuted]);
+    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e) && (showReplies || !isReplyEvent(e)));
+  }, [events, isMuted, showReplies]);
 
   // Retain the last non-empty list across key changes / refetches; resets when
   // the viewed hashtag changes (this component is reused across hashtag tabs).
@@ -725,10 +732,13 @@ function GeotagFeedContent({ tag }: { tag: string }) {
   const { nostr } = useNostr();
   const { isMuted } = useMuteFilter();
   const { feedSettings } = useFeedSettings();
-  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
+  const showReplies = feedSettings.followsFeedShowReplies;
+  const kinds = getEnabledFeedKinds(feedSettings)
+    .filter((k) => !isRepostKind(k) && (showReplies || !COMMENT_KINDS.has(k)));
   const kindsKey = [...kinds].sort().join(',');
 
-  const queryKey = useMemo(() => ['geotag-feed', tag, kindsKey], [tag, kindsKey]);
+  // publishedEventSync reads this layout; keep the two in sync.
+  const queryKey = useMemo(() => ['geotag-feed', tag, kindsKey, showReplies], [tag, kindsKey, showReplies]);
   const handleRefresh = usePageRefresh(queryKey);
 
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
@@ -745,8 +755,8 @@ function GeotagFeedContent({ tag }: { tag: string }) {
 
   const derivedEvents = useMemo((): NostrEvent[] => {
     if (!events) return [];
-    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e));
-  }, [events, isMuted]);
+    return events.filter((e) => !isMuted(e) && !isHiddenFromPublicFeeds(e) && (showReplies || !isReplyEvent(e)));
+  }, [events, isMuted, showReplies]);
 
   // Retain the last non-empty list across key changes / refetches; resets when
   // the viewed geotag changes (this component is reused across geotag tabs).

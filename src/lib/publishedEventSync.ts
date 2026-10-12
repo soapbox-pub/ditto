@@ -242,7 +242,7 @@ function insertSorted<Entry extends FeedItem | NostrEvent, P extends object>(
  *   Communities are other people's posts.
  * - `['profile-feed', pubkey, kindsKey, tab]` (`useProfileFeed`). The tab
  *   is filtered at render.
- * - `['tab-feed', tabKey, kindsKey, authorsKey, searchKey]` (`useTabFeed`).
+ * - `['tab-feed', tabKey, kindsKey, authorsKey, searchKey, hideReplies]` (`useTabFeed`).
  *   Only author-scoped feeds without a search, which a relay may rank or
  *   filter in ways we can't reproduce.
  */
@@ -262,7 +262,8 @@ function itemFeedIncludes(queryKey: readonly unknown[], event: NostrEvent, shown
       return pubkey === event.pubkey && hasKind(kindsKey);
     }
     case 'tab-feed': {
-      const [, , kindsKey, authorsKey, searchKey] = queryKey;
+      const [, , kindsKey, authorsKey, searchKey, hideReplies] = queryKey;
+      if (hideReplies === true && !COMMENT_KINDS.has(shown.kind) && isReplyEvent(shown)) return false;
       return !searchKey && typeof authorsKey === 'string' &&
         authorsKey.split(',').includes(event.pubkey) && hasKind(kindsKey);
     }
@@ -279,10 +280,10 @@ function itemFeedIncludes(queryKey: readonly unknown[], event: NostrEvent, shown
  *   listed as the post reacted to.
  * - `['wall-comments', pubkey, ...]` (`useWallComments`): comments on the
  *   profile.
- * - `['hashtag-feed', tag, kindsKey]` / `['geotag-feed', tag, kindsKey]` (`Feed`).
+ * - `['hashtag-feed', tag, kindsKey, showReplies]` / `['geotag-feed', tag, kindsKey, showReplies]` (`Feed`).
  */
 function eventFeedIncludes(queryKey: readonly unknown[], event: NostrEvent): boolean {
-  const [name, keyA, kindsKey] = queryKey;
+  const [name, keyA, kindsKey, showReplies] = queryKey;
   const hasKind = typeof kindsKey === 'string' && kindsKey.split(',').includes(String(event.kind));
 
   switch (name) {
@@ -293,9 +294,11 @@ function eventFeedIncludes(queryKey: readonly unknown[], event: NostrEvent): boo
     case 'wall-comments':
       return COMMENT_KINDS.has(event.kind) && event.tags.some(([n, v]) => n === 'A' && v === `0:${keyA}:`);
     case 'hashtag-feed':
+      if (showReplies === false && isReplyEvent(event)) return false;
       return hasKind && typeof keyA === 'string' &&
         event.tags.some(([n, v]) => n === 't' && v?.toLowerCase() === keyA.toLowerCase());
     case 'geotag-feed':
+      if (showReplies === false && isReplyEvent(event)) return false;
       return hasKind && event.tags.some(([n, v]) => n === 'g' && v === keyA);
     default:
       return false;
