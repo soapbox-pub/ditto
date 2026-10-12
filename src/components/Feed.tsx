@@ -220,10 +220,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return undefined;
   }, [feedTabForQuery, followData?.pubkeys, lovedPubkeys, user, excludeMuted]);
 
-  // Stream only for the core feed tabs, when not the curated Ditto query.
+  // Hot-sorted global feeds (homepage Global, `hotGlobal` kind pages) aren't
+  // chronological — refreshing wouldn't surface the streamed posts at the top,
+  // so a "new posts" pill there would be a lie. Mirrors the check in useFeed.
+  const isHotSortedGlobal = feedTabForQuery === 'global' && (!kinds || !!hotGlobal);
+
+  // Stream only for the chronological core feed tabs, when not the curated Ditto query.
   const streamEnabled =
     isCoreFeedTab &&
     !useDittoQuery &&
+    !isHotSortedGlobal &&
     (feedTabForQuery === 'follows' || feedTabForQuery === 'loved' || feedTabForQuery === 'global');
 
   const { newPostCount, reset: resetNewPosts } = useFeedStream({
