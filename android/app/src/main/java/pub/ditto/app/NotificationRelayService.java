@@ -755,7 +755,7 @@ public class NotificationRelayService extends Service {
 
         // Live notification subscription.
         final String subMain = "dn-" + Long.toHexString(System.nanoTime());
-        // Prefix for one-shot kind-0 profile lookups (sub id = prefix + pubkey).
+        // Prefix for one-shot kind-0 profile lookups (see profileSubId).
         final String profilePrefix = "dp-" + Long.toHexString(System.nanoTime() + 1) + "-";
         // Prefix for one-shot referenced-event lookups (sub id = prefix + nonce).
         final String eventPrefix = "de-" + Long.toHexString(System.nanoTime() + 2) + "-";
@@ -907,6 +907,16 @@ public class NotificationRelayService extends Service {
             }
         }
 
+        /**
+         * The sub id of a kind-0 lookup for {@code pubkey}. Only a prefix of
+         * the pubkey fits: NIP-01 caps sub ids at 64 characters, and relays
+         * that enforce it (primal.net) refused the whole pubkey with
+         * "invalid subscription id length", so lookups there never answered.
+         */
+        String profileSubId(String pubkey) {
+            return profilePrefix + pubkey.substring(0, Math.min(16, pubkey.length()));
+        }
+
         /** Fire a one-shot kind-0 REQ for {@code pubkey}. */
         void fetchProfile(String pubkey) {
             if (closed || ws == null) return;
@@ -916,7 +926,7 @@ public class NotificationRelayService extends Service {
                 f.put("authors", new JSONArray().put(pubkey));
                 f.put("limit", 1);
                 ServiceProfiler.count("frame.out REQ dp");
-                ws.send(reqMessage(profilePrefix + pubkey, f));
+                ws.send(reqMessage(profileSubId(pubkey), f));
             } catch (JSONException ignored) {}
         }
 
@@ -1322,8 +1332,11 @@ public class NotificationRelayService extends Service {
 
             // Kind-0 from a profile lookup: newest across relays wins.
             if (sub.startsWith(rc.profilePrefix)) {
-                String pubkey = sub.substring(rc.profilePrefix.length());
                 rc.closeSub(sub);
+                // The sub id carries only a prefix of the pubkey; the event's
+                // own author is the full one, and must match it.
+                String pubkey = event.optString("pubkey");
+                if (pubkey.length() != 64 || !sub.equals(rc.profileSubId(pubkey))) return;
                 Profile parsed = parseProfile(event);
                 Profile prev = bestProfile.get(pubkey);
                 if (prev == null || parsed.ts >= prev.ts) {
@@ -1716,7 +1729,7 @@ public class NotificationRelayService extends Service {
         bestProfile.remove(pubkey);
         // Close any profile subs still open for this pubkey on other relays.
         for (RelayConnection rc : connections) {
-            rc.closeSub(rc.profilePrefix + pubkey);
+            rc.closeSub(rc.profileSubId(pubkey));
         }
         List<ProfileCallback> waiters = pendingProfiles.remove(pubkey);
         if (waiters == null) return;
