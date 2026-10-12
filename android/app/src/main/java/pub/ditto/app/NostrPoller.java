@@ -16,7 +16,6 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.Person;
@@ -89,7 +88,8 @@ public class NostrPoller {
     private static final int AVATAR_PX = 128;
 
     private final Context context;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+    /** The service's confinement thread; avatar results hop back to it. */
+    private final Handler handler;
 
     /** picture URL → circle-cropped bitmap, decoded once per service lifetime. */
     private final Map<String, Bitmap> avatarCache = new HashMap<>();
@@ -124,8 +124,9 @@ public class NostrPoller {
         }
     }
 
-    public NostrPoller(Context context) {
+    public NostrPoller(Context context, Handler handler) {
         this.context = context;
+        this.handler = handler;
         createNotificationChannel();
     }
 

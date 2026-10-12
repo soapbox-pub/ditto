@@ -16,7 +16,7 @@ import android.net.NetworkRequest;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
+import android.os.HandlerThread;
 import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
@@ -75,6 +75,8 @@ import okhttp3.WebSocketListener;
  *   never blocked on a slow relay.
  * - Backfill after (re)connect is buffered until EOSE: small batches show
  *   individual rich notifications, large ones collapse into one summary.
+ * - All of that state is confined to one dedicated thread, not the main one
+ *   (see {@code handler}).
  *
  * Android 15+ limits dataSync foreground services to ~6h/day in the
  * background. onTimeout() stops the service cleanly (avoiding the ANR) and
@@ -147,7 +149,29 @@ public class NotificationRelayService extends Service {
 
     private OkHttpClient httpClient;
     private NostrPoller poller;
-    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    /**
+     * The thread all of the service's state is confined to, and deliberately
+     * not the main one.
+     *
+     * The service shares a process with the Activity and the WebView, so a
+     * main-looper handler made every relay frame UI-thread work: a JSON parse
+     * per frame (one per relay for every event), the flood detectors' pass over
+     * {@link #FLOOD_WINDOW} events, and notification building. A backfill burst
+     * on resume landed exactly when the user was looking at the app.
+     *
+     * The single-threaded model is unchanged. Socket and HTTP callbacks already
+     * hop here with {@code handler.post}; the lifecycle callbacks, which the
+     * framework delivers on the main thread, post too. Ported from Armada.
+     */
+    private final HandlerThread handlerThread = startHandlerThread();
+    private final Handler handler = new Handler(handlerThread.getLooper());
+
+    private static HandlerThread startHandlerThread() {
+        HandlerThread thread = new HandlerThread("DittoNotifSvc");
+        thread.start();
+        return thread;
+    }
 
     private final List<RelayConnection> connections = new ArrayList<>();
 
@@ -222,7 +246,7 @@ public class NotificationRelayService extends Service {
     }
 
     private interface ProfileCallback {
-        /** Always invoked on the main handler; profile may be null. */
+        /** Always invoked on the handler thread; profile may be null. */
         void onProfile(Profile profile);
     }
 
@@ -277,7 +301,7 @@ public class NotificationRelayService extends Service {
                 .pingInterval(3, TimeUnit.MINUTES)
                 .build();
 
-        poller = new NostrPoller(this);
+        poller = new NostrPoller(this, handler);
 
         registerNetworkCallback();
         registerConfigListener();
@@ -309,7 +333,7 @@ public class NotificationRelayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        loadConfigAndReconnect();
+        handler.post(this::loadConfigAndReconnect);
         return START_STICKY;
     }
 
@@ -345,13 +369,19 @@ public class NotificationRelayService extends Service {
     public void onDestroy() {
         super.onDestroy();
         if (instance == this) instance = null;
-        closeAllConnections();
         unregisterNetworkCallback();
         unregisterConfigListener();
+        // Cut the queue first, so the teardown doesn't wait behind a burst,
+        // then post the teardown: it touches the confined state. quitSafely
+        // lets it run and stops the looper after it.
         handler.removeCallbacksAndMessages(null);
-        if (httpClient != null) {
-            httpClient.dispatcher().executorService().shutdownNow();
-        }
+        handler.post(() -> {
+            closeAllConnections();
+            if (httpClient != null) {
+                httpClient.dispatcher().executorService().shutdownNow();
+            }
+        });
+        handlerThread.quitSafely();
     }
 
     @Override
@@ -574,10 +604,10 @@ public class NotificationRelayService extends Service {
         WebSocket ws;
         long backoffMs = INITIAL_BACKOFF_MS;
         boolean closed = false;
-        // The current socket finished its handshake (main thread only).
+        // The current socket finished its handshake (handler thread only).
         boolean socketOpen = false;
 
-        // When the current connection attempt started (main thread only).
+        // When the current connection attempt started (handler thread only).
         // Used by endSession to distinguish "stable connection finally
         // died" (reset backoff) from "relay drops us right away" (keep growing).
         long connectAttemptAt = 0;
