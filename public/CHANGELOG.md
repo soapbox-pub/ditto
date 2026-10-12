@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.44.3] - 2026-10-12
+
+Ditto speaks your language. The whole app now works in German and Japanese, including tarot readings, dates, money, and push notifications. Profiles get an Articles tab, articles load without jumping and can hold videos, and animated GIFs stay animated when you crop them. Getting lost now takes you to a night over Saturn. Android notifications are steadier and easier on your battery, and the keyboard no longer leaves a big blank gap on older Android phones.
+
+### Added
+- The whole app is translated into German and Japanese, including tarot readings, dates, money, and push notifications
+- Profiles have an Articles tab between Media and Likes
+- Animated GIFs keep their animation when you crop them
+- Videos embedded in articles play right in the article
+- Pages that don't exist now open onto a night sky over Saturn
+
+### Changed
+- Article images reserve their space and show a blurred preview while they load, so the page doesn't jump
+- Images you upload in the article editor carry their size and blurred preview with the article
+- Search results keep loading further back without skipping posts, and the new-posts pill only shows posts that match your search
+- Hot-sorted Global feeds no longer show a new-posts pill
+- Notifications you read on another device clear without a refresh
+- Turning off replies also hides them in saved feeds, hashtag, and location tabs
+- Page headers and spacing look the same across feed pages
+- Shared profile links show search engines the profile's latest posts
+- Android notifications run in the background without slowing the app, reconnect more gently on shaky networks, use less battery, and stop missing posts from some relays
+- Monero wallet sync saves its progress as it goes and pauses while the app is in the background
+
+### Fixed
+- The keyboard no longer leaves a keyboard-sized blank gap on Android 11 through 14
+- Android notifications show the sender's name and picture again from relays that had been dropping them
+- The followers list on a profile no longer loses its place while you scroll it
+- Archive.org embeds play instead of showing "Page not found"
+
 ## [2.44.2] - 2026-10-10
 
 Instant gratification. Everything you post, repost, react to, or delete shows up across the whole app right away, and counts move the moment you tap. Threads load a reply's earlier posts without yanking the page around, hashtag feeds scroll forever, and your drafts and articles get their own tab. The image viewer stays open when you tap or zoom, and feeds no longer stop short in the middle of a scroll.
