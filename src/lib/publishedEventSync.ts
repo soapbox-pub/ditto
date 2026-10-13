@@ -5,6 +5,7 @@ import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { feedItemKey, isReactionKind, isRepostKind, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import { COMMENT_KINDS, getParentEventId, isReplyEvent } from '@/lib/nostrEvents';
 import { addPendingStat, undoPendingStat, type StatField } from '@/lib/pendingStats';
+import { holdScrollAnchor } from '@/lib/scrollAnchor';
 
 /**
  * Keeps every cached view of the user's content in step with what they
@@ -168,6 +169,8 @@ function insertIntoFeeds(queryClient: QueryClient, event: NostrEvent, target?: N
       ? { event: target, reactedBy: { event, pubkey: event.pubkey }, sortTimestamp: event.created_at }
       : { event: target, repostedBy: event.pubkey, repostEvent: event, sortTimestamp: event.created_at };
   const key = feedItemKey(item);
+
+  holdScrollAnchor();
 
   for (const name of ITEM_FEEDS) {
     for (const query of queryClient.getQueryCache().findAll({ queryKey: [name] })) {
