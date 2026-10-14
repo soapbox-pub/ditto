@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.45.0] - 2026-10-14
+
+Say goodbye to the spam. Global is gone, and in its place is Discover: posts from the people your follows follow, ranked by how connected they are to your corner of the network. Every feed that had a Global tab, from photos and videos to themes, books, music, and emoji packs, now has Discover instead. On iOS, the feed also stays put when you react, repost, or zap.
+
+### Changed
+- Global feeds are replaced by Discover, which shows posts from the people your follows follow, ranked by how many of your connections follow them
+- Discover leaves out you and the people you already follow, so it doesn't repeat your Follows tab
+- Logged out, or before you follow anyone, Discover shows a hand-picked network of people instead
+
+### Fixed
+- The feed no longer jumps when you react, repost, or zap on iOS
+
 ## [2.44.3] - 2026-10-12
 
 Ditto speaks your language. The whole app now works in German and Japanese, including tarot readings, dates, money, and push notifications. Profiles get an Articles tab, articles load without jumping and can hold videos, and animated GIFs stay animated when you crop them. Getting lost now takes you to a night over Saturn. Android notifications are steadier and easier on your battery, and the keyboard no longer leaves a big blank gap on older Android phones.
