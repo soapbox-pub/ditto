@@ -459,7 +459,7 @@ function FeedTabsSection() {
         <div className="flex items-center justify-between py-3.5 px-3">
           <div className="min-w-0">
             <Label className="text-sm font-medium"><FormattedMessage id="settings.feed.globalFeed" defaultMessage={"Discover Feed"} /></Label>
-            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.globalFeedDescription" defaultMessage={"Show posts from the people you follow and the people they follow"} /></p>
+            <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage id="settings.feed.globalFeedDescription" defaultMessage={"Show posts from people followed by the people you follow"} /></p>
           </div>
           <Switch
             checked={showGlobalFeed}

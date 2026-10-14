@@ -42,8 +42,9 @@ function splitAuthors(authors: string): string[] {
  * 5000 pubkeys, ranked by how many people in the network follow them (see
  * `rankDiscoverNetwork`).
  *
- * Logged in, the network is the user's own. Logged out, or when the user
- * follows nobody yet, it's the curator's (`config.curatorPubkey`).
+ * Logged in, the network is the user's own, minus the user and everyone they
+ * follow, so Discover never repeats the Follows tab. Logged out, or when the
+ * user follows nobody yet, it's the curator's (`config.curatorPubkey`), whole.
  *
  * Building a network downloads hundreds of contact lists, so the result is
  * kept in localStorage and rebuilt at most once a day. Pass `enabled: false`
@@ -67,13 +68,16 @@ export function useDiscoverAuthors(enabled = true): { authors: string[] | undefi
       : followData.pubkeys.length > 0 ? user.pubkey : config.curatorPubkey
     : config.curatorPubkey;
   const waitingForFollows = !!user && followData === undefined;
+  const userPubkey = user?.pubkey;
 
   const storageKey = getStorageKey(config.appId, 'discoverNetwork');
 
   const { data, dataUpdatedAt, isError } = useQuery<string[]>({
     queryKey: ['discover-network', seed ?? ''],
     queryFn: async ({ signal }) => {
-      const authors = await fetchDiscoverNetwork(nostr, store, seed!, signal);
+      const authors = await fetchDiscoverNetwork(nostr, store, seed!, signal, {
+        excludeDirect: seed === user?.pubkey,
+      });
       try {
         const cached: CachedNetwork = { seed: seed!, updatedAt: Date.now(), authors: authors.join('') };
         localStorage.setItem(storageKey, JSON.stringify(cached));
@@ -96,11 +100,17 @@ export function useDiscoverAuthors(enabled = true): { authors: string[] | undefi
   const authors = useMemo(() => {
     // Nothing to build a network from (logged out with no curator configured).
     if (!seed && !waitingForFollows) return [];
-    if (data) return excludeMuted(data);
+    if (data) {
+      // The network is rebuilt daily; drop anyone followed since, and the
+      // user, against the live follow list.
+      const direct = new Set(followData?.pubkeys);
+      if (userPubkey) direct.add(userPubkey);
+      return excludeMuted(data).filter((pk) => !direct.has(pk));
+    }
     // Settle on an empty network so feeds show their empty state (with a
     // retry) instead of loading forever.
     return isError ? [] : undefined;
-  }, [seed, waitingForFollows, data, isError, excludeMuted]);
+  }, [seed, waitingForFollows, data, isError, excludeMuted, followData?.pubkeys, userPubkey]);
 
-  return { authors, key: `${seed ?? ''}:${dataUpdatedAt}:${mutedKey}` };
+  return { authors, key: `${seed ?? ''}:${dataUpdatedAt}:${mutedKey}:${followData?.event?.id ?? ''}` };
 }

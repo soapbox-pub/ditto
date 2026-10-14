@@ -4591,7 +4591,7 @@
   "settings.feed.follows": "フォロー",
   "settings.feed.geohashPlaceholder": "ジオハッシュ（例：u4pru）",
   "settings.feed.globalFeed": "発見フィード",
-  "settings.feed.globalFeedDescription": "フォローしている人と、その人たちがフォローしている人の投稿を表示",
+  "settings.feed.globalFeedDescription": "フォローしている人がフォローしている人の投稿を表示",
   "settings.feed.hashtagAdded": "#{tag}をフィードタブに追加しました",
   "settings.feed.hashtagAlreadyFollowed": "#{tag}はすでにフォローしています",
   "settings.feed.hashtagRemoved": "#{tag}をフィードタブから削除しました",

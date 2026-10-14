@@ -4591,7 +4591,7 @@
   "settings.feed.follows": "Gefolgte",
   "settings.feed.geohashPlaceholder": "Geohash (z. B. u4pru)",
   "settings.feed.globalFeed": "Entdecken-Feed",
-  "settings.feed.globalFeedDescription": "Beiträge von Leuten anzeigen, denen du folgst, und von Leuten, denen sie folgen",
+  "settings.feed.globalFeedDescription": "Beiträge von Leuten anzeigen, denen die Leute folgen, denen du folgst",
   "settings.feed.hashtagAdded": "#{tag} zu den Feed-Tabs hinzugefügt",
   "settings.feed.hashtagAlreadyFollowed": "#{tag} wird bereits gefolgt",
   "settings.feed.hashtagRemoved": "#{tag} aus den Feed-Tabs entfernt",

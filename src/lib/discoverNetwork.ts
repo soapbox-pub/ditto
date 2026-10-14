@@ -22,6 +22,10 @@ const CONTACT_LIST_CHUNK = 1000;
  * everyone they follow, ordered by how many of those follow lists (the seed's
  * included) name them. The seed always comes first.
  *
+ * With `excludeDirect`, the seed and everyone it follows are left out, so
+ * the network is only the people they follow — what a Follows tab doesn't
+ * already show.
+ *
  * @param seedList The seed's own contact list.
  * @param followLists Contact lists of the people the seed follows. Lists by
  *   anyone else are ignored, and only the newest list per author counts.
@@ -30,7 +34,7 @@ export function rankDiscoverNetwork(
   seed: string,
   seedList: NostrEvent,
   followLists: NostrEvent[],
-  limit = DISCOVER_NETWORK_LIMIT,
+  { excludeDirect = false, limit = DISCOVER_NETWORK_LIMIT }: { excludeDirect?: boolean; limit?: number } = {},
 ): string[] {
   const follows = new Set(contactListPubkeys(seedList));
 
@@ -45,12 +49,13 @@ export function rankDiscoverNetwork(
   for (const list of [seedList, ...newest.values()]) {
     for (const pubkey of new Set(contactListPubkeys(list))) {
       if (pubkey === seed) continue;
+      if (excludeDirect && follows.has(pubkey)) continue;
       counts.set(pubkey, (counts.get(pubkey) ?? 0) + 1);
     }
   }
 
   const ranked = [...counts].sort((a, b) => b[1] - a[1]).map(([pubkey]) => pubkey);
-  return [seed, ...ranked].slice(0, limit);
+  return (excludeDirect ? ranked : [seed, ...ranked]).slice(0, limit);
 }
 
 /**
@@ -64,6 +69,7 @@ export async function fetchDiscoverNetwork(
   store: NIndexedDB,
   seed: string,
   signal: AbortSignal,
+  opts: { excludeDirect?: boolean } = {},
 ): Promise<string[]> {
   const seedList = await fetchContactList(nostr, store, seed, { signal });
   if (!seedList) throw new Error('Contact list not found');
@@ -87,5 +93,5 @@ export async function fetchDiscoverNetwork(
     throw new Error('No follow lists found');
   }
 
-  return rankDiscoverNetwork(seed, seedList, followLists);
+  return rankDiscoverNetwork(seed, seedList, followLists, opts);
 }
