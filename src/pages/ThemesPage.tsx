@@ -34,11 +34,13 @@ export function ThemesPage() {
   const { user } = useCurrentUser();
   const { autoShareTheme, setAutoShareTheme } = useTheme();
 
-  const [activeTab, setActiveTab] = useFeedTab<ThemesTab>("themes", [
+  const [storedTab, setActiveTab] = useFeedTab<ThemesTab>("themes", [
     "my-themes",
     "follows",
     "global",
   ]);
+  // Follows and Discover are for logged-in users only.
+  const activeTab: ThemesTab = user ? storedTab : "my-themes";
 
   // Builder dialog state
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -57,12 +59,12 @@ export function ThemesPage() {
     showFAB: activeTab === "my-themes",
     onFabClick: handleFabClick,
     fabIcon: <Pencil strokeWidth={3} size={16} />,
-    hasSubHeader: true,
+    hasSubHeader: !!user,
   });
 
-  // Feed queries for follows/global tabs
+  // Feed queries for follows/Discover tabs
   const feedTab = activeTab === "follows" ? "follows" : "global";
-  const feedQuery = useThemeFeed(feedTab);
+  const feedQuery = useThemeFeed(feedTab, activeTab !== "my-themes");
 
   const {
     data: rawData,
@@ -94,28 +96,31 @@ export function ThemesPage() {
     <main>
       <PageHeader title={intl.formatMessage({ id: "settings.personalize.themes", defaultMessage: "Themes" })} icon={<Sparkles className="size-5" />} />
 
-      {/* Tabs */}
-      <SubHeaderBar>
-        <TabButton
-          label={intl.formatMessage({ id: "themesPage.tabs.mine", defaultMessage: "My Themes" })}
-          active={activeTab === "my-themes"}
-          onClick={() => setActiveTab("my-themes")}
-        />
-        <TabButton
-          label={intl.formatMessage({ id: "themesPage.tabs.follows", defaultMessage: "Follows" })}
-          active={activeTab === "follows"}
-          onClick={() => setActiveTab("follows")}
-          disabled={!user}
-        />
-        <TabButton
-          label={intl.formatMessage({ id: "themesPage.tabs.global", defaultMessage: "Global" })}
-          active={activeTab === "global"}
-          onClick={() => setActiveTab("global")}
-        />
-      </SubHeaderBar>
+      {/* Tabs (logged in) */}
+      {user && (
+        <>
+          <SubHeaderBar>
+            <TabButton
+              label={intl.formatMessage({ id: "themesPage.tabs.mine", defaultMessage: "My Themes" })}
+              active={activeTab === "my-themes"}
+              onClick={() => setActiveTab("my-themes")}
+            />
+            <TabButton
+              label={intl.formatMessage({ id: "themesPage.tabs.follows", defaultMessage: "Follows" })}
+              active={activeTab === "follows"}
+              onClick={() => setActiveTab("follows")}
+            />
+            <TabButton
+              label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
+              active={activeTab === "global"}
+              onClick={() => setActiveTab("global")}
+            />
+          </SubHeaderBar>
 
-      {/* Arc overhang spacer (matches Feed.tsx) */}
-      <div style={{ height: ARC_OVERHANG_PX }} />
+          {/* Arc overhang spacer (matches Feed.tsx) */}
+          <div style={{ height: ARC_OVERHANG_PX }} />
+        </>
+      )}
 
       {/* Tab content */}
       {activeTab === "my-themes" ? (

@@ -111,9 +111,10 @@ function useVinesFeed(tab: FeedTab) {
 		staleTime: 60 * 1000,
 	});
 
-	// For global tab: streaming hook
+	// For the Discover tab: streaming hook
 	const { events: globalEvents, isLoading: globalLoading } = useStreamKind(
 		tab === "global" ? VINE_KIND : [],
+		{ discover: tab === "global" },
 	);
 
 	if (tab === "follows") {
@@ -750,7 +751,8 @@ export function VinesFeedPage() {
 	const { config } = useAppContext();
 	const { user } = useCurrentUser();
 
-	const [tab, setTab] = useFeedTab<FeedTab>("vines", ["follows", "global"]);
+	const [storedTab, setTab] = useFeedTab<FeedTab>("vines", ["follows", "global"]);
+	const tab: FeedTab = user ? storedTab : "global";
 	const [infoOpen, setInfoOpen] = useState(false);
 
 	const { events, isLoading } = useVinesFeed(tab);
@@ -1064,20 +1066,22 @@ function VinesFloatingTabBar({
 							)}
 						</button>
 					)}
-					<button
-						className={cn(
-							"text-sm font-semibold transition-colors drop-shadow-md",
-							tab === "global"
-								? "text-white"
-								: "text-white/50 hover:text-white/70",
-						)}
-						onClick={() => onTabChange("global")}
-					>
-						<FormattedMessage id="vines.tab.global" defaultMessage="Global" />
-						{tab === "global" && (
-							<div className="h-0.5 bg-white rounded-full mt-0.5 mx-auto w-full" />
-						)}
-					</button>
+					{hasUser && (
+						<button
+							className={cn(
+								"text-sm font-semibold transition-colors drop-shadow-md",
+								tab === "global"
+									? "text-white"
+									: "text-white/50 hover:text-white/70",
+							)}
+							onClick={() => onTabChange("global")}
+						>
+							<FormattedMessage id="feed.tabs.discover" defaultMessage="Discover" />
+							{tab === "global" && (
+								<div className="h-0.5 bg-white rounded-full mt-0.5 mx-auto w-full" />
+							)}
+						</button>
+					)}
 				</div>
 
 				{/* Info button */}

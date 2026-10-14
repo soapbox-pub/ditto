@@ -1,14 +1,14 @@
 /**
  * VideosFeedPage — unified video + stream feed.
  *
- *  ┌─ Follows | Global tabs ─────────────────────┐
+ *  ┌─ Follows | Discover tabs (logged in) ───────┐
  *  ├─ Live Now horizontal strip (live-only) ──────┤
  *  ├─ Videos (kind 21) grid ──────────────────────┤
  *  ├─ Shorts (kind 22) — inline snap-scroll ──────┤
  *  │  (exactly like VinesFeedPage, within column) │
  *  └──────────────────────────────────────────────┘
  *
- * Global: sort:hot (ditto relay, limit 8/page)
+ * Discover: sort:hot from the Discover network (ditto relay, limit 8/page)
  * Follows: chronological (useFeed, limit 8/page via PAGE_SIZE override)
  * Streams: live-only query, limit 10
  */
@@ -40,6 +40,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useAuthor } from "@/hooks/useAuthor";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useFeed } from "@/hooks/useFeed";
+import { useDiscoverAuthors } from "@/hooks/useDiscoverAuthors";
 import { useFeedTab } from "@/hooks/useFeedTab";
 import { useFollowList } from "@/hooks/useFollowActions";
 import { useMuteFilter } from "@/hooks/useMuteFilter";
@@ -47,7 +48,7 @@ import { useMutedAuthorFilter } from "@/hooks/useMutedAuthorFilter";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { useInfiniteHotFeed } from "@/hooks/useTrending";
+import { useDiscoverHotFeed } from "@/hooks/useTrending";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getContentWarning } from "@/lib/contentWarning";
 import { getExtraKindDef } from "@/lib/extraKinds";
@@ -416,7 +417,8 @@ function classifyStreams(events: NostrEvent[]): ClassifiedStreams {
 
 /**
  * Returns classified streams for the given tab.
- * Global: all streams.  Follows: only streams from followed authors.
+ * Discover: streams from the Discover network.  Follows: only streams from
+ * followed authors.
  */
 function useClassifiedStreams(tab: FeedTab): {
   data: ClassifiedStreams;
@@ -426,27 +428,31 @@ function useClassifiedStreams(tab: FeedTab): {
   const { data: followData } = useFollowList();
   const followedPubkeys = followData?.pubkeys;
   const { mutedPubkeys, excludeMuted } = useMutedAuthorFilter();
+  const { authors: discoverAuthors } = useDiscoverAuthors(tab === "global");
 
   const { data: allEvents, isLoading } = useAllStreams();
 
   const classified = useMemo<ClassifiedStreams>(() => {
-    if (tab === "global") return classifyStreams(allEvents.filter((e) => !isHiddenFromPublicFeeds(e)));
-
-    // Follows tab — filter to followed authors + self (minus muted), client-side.
+    // Filter to the tab's authors (minus muted), client-side.
     // Check both the event publisher AND p-tag participants, because
     // streaming services (e.g. streamstr.net) publish kind 30311 on behalf
     // of the streamer, who appears in a p tag with role "host".
-    if (!followedPubkeys || !user) return { live: [], planned: [], past: [] };
-    const filteredFollows = excludeMuted(followedPubkeys);
-    const authorSet = new Set([...filteredFollows, user.pubkey]);
-    return classifyStreams(
+    const byAuthors = (authorSet: Set<string>) =>
       allEvents.filter((e) => {
         if (mutedPubkeys.has(e.pubkey)) return false;
         if (authorSet.has(e.pubkey)) return true;
         return e.tags.some(([name, pk]) => name === "p" && authorSet.has(pk));
-      }),
-    );
-  }, [allEvents, tab, followedPubkeys, user, mutedPubkeys, excludeMuted]);
+      });
+
+    if (tab === "global") {
+      if (!discoverAuthors) return { live: [], planned: [], past: [] };
+      return classifyStreams(byAuthors(new Set(discoverAuthors)).filter((e) => !isHiddenFromPublicFeeds(e)));
+    }
+
+    if (!followedPubkeys || !user) return { live: [], planned: [], past: [] };
+    const filteredFollows = excludeMuted(followedPubkeys);
+    return classifyStreams(byAuthors(new Set([...filteredFollows, user.pubkey])));
+  }, [allEvents, tab, discoverAuthors, followedPubkeys, user, mutedPubkeys, excludeMuted]);
 
   return { data: classified, isLoading };
 }
@@ -859,10 +865,11 @@ export function VideosFeedPage() {
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
 
-  const [feedTab, setFeedTab] = useFeedTab<FeedTab>("videos", [
+  const [storedTab, setFeedTab] = useFeedTab<FeedTab>("videos", [
     "follows",
     "global",
   ]);
+  const feedTab: FeedTab = user ? storedTab : "global";
 
   useSeoMeta({
     title: `${intl.formatMessage({ id: "videos.title", defaultMessage: "Videos" })} | ${config.appName}`,
@@ -876,7 +883,7 @@ export function VideosFeedPage() {
   useLayoutOptions({
     showFAB: false,
     noOverscroll: true,
-    hasSubHeader: !shortsOpen,
+    hasSubHeader: !shortsOpen && !!user,
   });
   useEffect(() => {
     setShowAllVideos(false);
@@ -885,8 +892,8 @@ export function VideosFeedPage() {
   // ── Follows: chronological, small page ──
   const followsQuery = useFeed("follows", { kinds: VIDEO_KINDS });
 
-  // ── Global: sort:hot, limit 8/page ──
-  const globalQuery = useInfiniteHotFeed(
+  // ── Discover: sort:hot, limit 8/page ──
+  const globalQuery = useDiscoverHotFeed(
     VIDEO_KINDS,
     feedTab === "global",
     VIDEO_PAGE_SIZE,
@@ -961,21 +968,24 @@ export function VideosFeedPage() {
         />
       </PageHeader>
 
-      {/* Follows / Global tabs */}
-      <SubHeaderBar>
-        <TabButton
-          label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
-          active={feedTab === "follows"}
-          onClick={() => setFeedTab("follows")}
-          disabled={!user}
-        />
-        <TabButton
-          label={intl.formatMessage({ id: "common.global", defaultMessage: "Global" })}
-          active={feedTab === "global"}
-          onClick={() => setFeedTab("global")}
-        />
-      </SubHeaderBar>
-      <div style={{ height: ARC_OVERHANG_PX }} />
+      {/* Follows / Discover tabs (logged in) */}
+      {user && (
+        <>
+          <SubHeaderBar>
+            <TabButton
+              label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
+              active={feedTab === "follows"}
+              onClick={() => setFeedTab("follows")}
+            />
+            <TabButton
+              label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
+              active={feedTab === "global"}
+              onClick={() => setFeedTab("global")}
+            />
+          </SubHeaderBar>
+          <div style={{ height: ARC_OVERHANG_PX }} />
+        </>
+      )}
 
       {/* Live streams strip — follows tab filters by followed authors */}
       <LiveStreamsStrip tab={feedTab} />

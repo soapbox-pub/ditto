@@ -10,7 +10,9 @@ import {
   type CardSummary,
 } from '@/lib/memorycard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { useFollowList } from '@/hooks/useFollowActions';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 /** One relay round-trip cap for memory-card queries. */
@@ -23,7 +25,7 @@ export type GalleryTab = 'mine' | 'follows' | 'global';
  * Scan the relay for memory cards (kind 38192) and group the block events into
  * cards keyed by author + card id, for the Explore gallery.
  *
- * - `global` — every card on the relay.
+ * - `global` — cards from the viewer's Discover network (see `useDiscoverAuthors`).
  * - `follows` — cards authored by the user or the people they follow.
  * - `mine` — only the logged-in user's own cards.
  */
@@ -32,20 +34,24 @@ export function useMemoryCardGallery(tab: GalleryTab = 'global') {
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
+  const discover = useDiscoverAuthors(tab === 'global');
 
-  // Author-scoped tabs need the follow list (or at least the user) resolved.
+  // Every tab needs its authors (the follow list, the user, or the network) resolved.
   const ready =
-    tab === 'global' ||
+    (tab === 'global' && discover.authors !== undefined) ||
     (tab === 'mine' && !!user) ||
     (tab === 'follows' && !!user && followList !== undefined);
 
   return useQuery<CardSummary[]>({
-    queryKey: ['memory-cards', 'gallery', tab, user?.pubkey ?? ''],
+    queryKey: ['memory-cards', 'gallery', tab, user?.pubkey ?? '', tab === 'global' ? discover.key : ''],
     enabled: ready,
     queryFn: async ({ signal }) => {
       const filter: NostrFilter = { kinds: [MEMORY_CARD_KIND], limit: 600 };
 
-      if (tab === 'mine' && user) {
+      if (tab === 'global') {
+        if (!discover.authors?.length) return [];
+        filter.authors = discover.authors;
+      } else if (tab === 'mine' && user) {
         filter.authors = [user.pubkey];
       } else if (tab === 'follows' && user) {
         const set = new Set(followList ?? []);
@@ -53,15 +59,15 @@ export function useMemoryCardGallery(tab: GalleryTab = 'global') {
         filter.authors = [...set];
       }
 
-      const events = await nostr.query(
+      const events = await (tab === 'global' ? nostr.group(DISCOVER_RELAYS) : nostr).query(
         [filter],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(QUERY_TIMEOUT)]) },
       );
       const cards = groupCards(events);
-      if (filter.authors) return cards;
+      if (tab !== 'global') return cards;
 
-      // Without an authors filter this is a public feed: drop every card
-      // with a hidden block, not just the block.
+      // Discover shows strangers' cards, so it's a public feed: drop every
+      // card with a hidden block, not just the block.
       const hidden = new Set(
         events.filter(isHiddenFromPublicFeeds).map((e) => e.pubkey + '|' + (cardIdOf(e) || '?')),
       );

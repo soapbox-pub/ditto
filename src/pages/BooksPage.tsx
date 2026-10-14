@@ -49,10 +49,11 @@ export function BooksPage() {
 
   const { user } = useCurrentUser();
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("books", [
+  const [storedTab, setActiveTab] = useFeedTab<FeedTab>("books", [
     "follows",
     "global",
   ]);
+  const activeTab: FeedTab = user ? storedTab : "global";
 
   useSeoMeta({
     title: `${booksLabel} | ${config.appName}`,
@@ -100,7 +101,7 @@ export function BooksPage() {
         />
       </PageHeader>
 
-      {/* Follows / Global tabs */}
+      {/* Follows / Discover tabs */}
       {user && (
         <SubHeaderBar>
           <TabButton
@@ -109,7 +110,7 @@ export function BooksPage() {
             onClick={() => setActiveTab("follows")}
           />
           <TabButton
-            label={intl.formatMessage({ id: "books.tab.global", defaultMessage: "Global" })}
+            label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
             active={activeTab === "global"}
             onClick={() => setActiveTab("global")}
           />

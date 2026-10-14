@@ -98,7 +98,7 @@ export function EmojiPackManager() {
           <p className="text-muted-foreground max-w-sm mx-auto">
             <FormattedMessage
               id="emojiPackManager.empty"
-              defaultMessage="No emoji packs yet. Browse the Global tab and tap Add on a pack, or create your own with the + button."
+              defaultMessage="No emoji packs yet. Browse the Discover tab and tap Add on a pack, or create your own with the + button."
             />
           </p>
         </CardContent>

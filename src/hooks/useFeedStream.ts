@@ -11,6 +11,7 @@ import { isReactionKind, isRepostKind, isZapKind, shouldHideFeedEvent } from '@/
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { APP_RELAYS, getEffectiveRelays } from '@/lib/appRelays';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { getReadRelayUrls } from '@/lib/relayHealth';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { useBackgroundQuiet } from './useBackgroundQuiet';
@@ -31,7 +32,7 @@ type StreamableTab = 'follows' | 'loved' | 'global' | 'communities';
 interface UseFeedStreamOptions {
   /** The active core feed tab. */
   tab: StreamableTab;
-  /** Pubkeys whose posts the feed shows (follows tab + own pubkey, loved, or community members). Omit for global. */
+  /** Pubkeys whose posts the feed shows (follows tab + own pubkey, loved, community members, or the Discover network). */
   authors?: string[];
   /** Override the kinds list instead of using feed settings (kind-specific pages). */
   kinds?: number[];
@@ -106,12 +107,16 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     (k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k),
   );
   const kindsKey = [...streamKinds].sort().join(',');
-  const authorsKey = authors ? [...authors].sort().join(',') : '';
+  // Memoized: a Discover network runs to thousands of pubkeys.
+  const authorsKey = useMemo(() => (authors ? [...authors].sort().join(',') : ''), [authors]);
 
   // Relays the feed effectively reads from, capped to a sane fan-out. Matches
   // the pool the home feed queries (app relays by default; user relays when
   // opted in) so stream coverage lines up with pull-to-refresh.
   const relayUrls = useMemo(() => {
+    // Discover filters are too large for most relays; useFeed reads them
+    // from the Discover relays only, so stream from the same place.
+    if (tab === 'global') return DISCOVER_RELAYS;
     const effective = getReadRelayUrls(getEffectiveRelays(
       config.relayMetadata,
       config.useAppRelays,
@@ -121,7 +126,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
       ? effective
       : APP_RELAYS.relays.filter((r) => r.read).map((r) => r.url);
     return urls.slice(0, MAX_STREAM_RELAYS);
-  }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
+  }, [tab, config.relayMetadata, config.useAppRelays, config.useUserRelays]);
   const relaysKey = relayUrls.join(',');
 
   // Keep the latest filter predicate inputs in a ref so the stream's event
@@ -132,9 +137,9 @@ export function useFeedStream(options: UseFeedStreamOptions): {
 
   useEffect(() => {
     if (!enabled || streamKinds.length === 0 || relayUrls.length === 0) return;
-    // Author-scoped tabs (follows / loved / communities) need a non-empty
-    // authors list — an empty array would match everyone.
-    if (tab !== 'global' && (!authors || authors.length === 0)) return;
+    // Every tab is author-scoped and needs a non-empty authors list — an
+    // empty array would match everyone.
+    if (!authors || authors.length === 0) return;
 
     const live = cursorRef.current.next([tab, authorsKey, kindsKey, relaysKey].join('|'), quiet);
     if (!live) return;
@@ -149,11 +154,8 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     }
 
     const filter: NostrFilter = live.resumed
-      ? { kinds: streamKinds, since: live.since, limit: RESUME_LIMIT }
-      : { kinds: streamKinds, since: live.since, limit: 0 };
-    if (tab !== 'global' && authors && authors.length > 0) {
-      filter.authors = authors;
-    }
+      ? { kinds: streamKinds, authors, since: live.since, limit: RESUME_LIMIT }
+      : { kinds: streamKinds, authors, since: live.since, limit: 0 };
 
     (async () => {
       try {
@@ -187,7 +189,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
       // Don't count the user's own posts — they already know about those.
       if (userPubkey && event.pubkey === userPubkey) return;
       // Mute filter (defense in depth — the authors filter already excludes
-      // muted follows, but the global feed has no authors filter).
+      // muted pubkeys).
       if (muted.has(event.pubkey)) return;
       // Apply the same filters the feed runs before rendering so the count
       // matches what the user will actually see after refreshing:
@@ -195,7 +197,8 @@ export function useFeedStream(options: UseFeedStreamOptions): {
       //   - user content filters
       //   - the reply toggle (feed excludes replies across all kinds when off)
       if (shouldHideFeedEvent(event)) return;
-      if (!filter.authors && isHiddenFromPublicFeeds(event)) return;
+      // useFeed hides these from Discover only.
+      if (tab === 'global' && isHiddenFromPublicFeeds(event)) return;
       if (filterEvent(event)) return;
       if (!replies && isReplyEvent(event)) return;
 

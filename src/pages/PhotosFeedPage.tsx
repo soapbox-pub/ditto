@@ -2,7 +2,8 @@
  * PhotosFeedPage — Instagram-style grid feed for NIP-68 photo events (kind 20).
  *
  * - Follows tab: useFeed (relay pool, chronological)
- * - Global tab: useInfiniteHotFeed (sort:hot via relay.ditto.pub)
+ * - Discover tab: useDiscoverHotFeed (sort:hot via relay.ditto.pub), the only
+ *   view for logged-out visitors, who see no tabs
  * - Infinite-scroll justified collage via the shared MediaCollage component
  */
 
@@ -31,7 +32,7 @@ import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { useInfiniteHotFeed } from "@/hooks/useTrending";
+import { useDiscoverHotFeed } from "@/hooks/useTrending";
 import { getEffectiveBlossomServers } from "@/lib/appBlossom";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
@@ -53,10 +54,11 @@ export function PhotosFeedPage() {
   const { isMuted } = useMuteFilter();
   const [composeOpen, setComposeOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("photos", [
+  const [storedTab, setActiveTab] = useFeedTab<FeedTab>("photos", [
     "follows",
     "global",
   ]);
+  const activeTab: FeedTab = user ? storedTab : "global";
 
   const handleFabClick = useCallback(() => {
     setComposeOpen(true);
@@ -66,13 +68,13 @@ export function PhotosFeedPage() {
     title: intl.formatMessage({ id: "photosFeed.seoTitle", defaultMessage: "Photos | {appName}" }, { appName: config.appName }),
     description: intl.formatMessage({ id: "photosFeed.metaDescription", defaultMessage: "Photo posts on Nostr" }),
   });
-  useLayoutOptions({ showFAB: true, onFabClick: handleFabClick, fabIcon: <Camera className="size-4" strokeWidth={2.5} />, hasSubHeader: true });
+  useLayoutOptions({ showFAB: true, onFabClick: handleFabClick, fabIcon: <Camera className="size-4" strokeWidth={2.5} />, hasSubHeader: !!user });
 
   // ── Follows feed (chronological) ──
   const followsQuery = useFeed("follows", { kinds: [PHOTO_KIND] });
 
-  // ── Global feed (sort:hot) ──
-  const globalQuery = useInfiniteHotFeed([PHOTO_KIND], activeTab === "global");
+  // ── Discover feed (sort:hot) ──
+  const globalQuery = useDiscoverHotFeed([PHOTO_KIND], activeTab === "global");
 
   const activeQuery = activeTab === "follows" ? followsQuery : globalQuery;
   const {
@@ -132,21 +134,24 @@ export function PhotosFeedPage() {
           />
         </PageHeader>
 
-        {/* Tabs */}
-        <SubHeaderBar>
-          <TabButton
-            label={intl.formatMessage({ id: "photosFeed.tab.follows", defaultMessage: "Follows" })}
-            active={activeTab === "follows"}
-            onClick={() => setActiveTab("follows")}
-            disabled={!user}
-          />
-          <TabButton
-            label={intl.formatMessage({ id: "photosFeed.tab.global", defaultMessage: "Global" })}
-            active={activeTab === "global"}
-            onClick={() => setActiveTab("global")}
-          />
-        </SubHeaderBar>
-        <div style={{ height: ARC_OVERHANG_PX }} />
+        {/* Tabs (logged in) */}
+        {user && (
+          <>
+            <SubHeaderBar>
+              <TabButton
+                label={intl.formatMessage({ id: "photosFeed.tab.follows", defaultMessage: "Follows" })}
+                active={activeTab === "follows"}
+                onClick={() => setActiveTab("follows")}
+              />
+              <TabButton
+                label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
+                active={activeTab === "global"}
+                onClick={() => setActiveTab("global")}
+              />
+            </SubHeaderBar>
+            <div style={{ height: ARC_OVERHANG_PX }} />
+          </>
+        )}
 
         {/* Grid */}
         <PullToRefresh onRefresh={handleRefresh}>

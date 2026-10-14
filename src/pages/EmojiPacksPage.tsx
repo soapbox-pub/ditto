@@ -36,7 +36,7 @@ type EmojiPacksTab = 'my-packs' | 'follows' | 'global';
 
 /**
  * The emoji packs page. A My Packs tab manages the packs on your kind-10030
- * list; Follows/Global tabs browse published kind-30030 packs. The pack-builder
+ * list; Follows/Discover tabs browse published kind-30030 packs. The pack-builder
  * FAB is shown on the My Packs tab, mirroring ThemesPage.
  */
 export function EmojiPacksPage() {
@@ -44,11 +44,13 @@ export function EmojiPacksPage() {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
 
-  const [activeTab, setActiveTab] = useFeedTab<EmojiPacksTab>('emojis', [
+  const [storedTab, setActiveTab] = useFeedTab<EmojiPacksTab>('emojis', [
     'my-packs',
     'follows',
     'global',
   ]);
+  // Logged out there's nothing to manage, so visitors just browse Discover.
+  const activeTab: EmojiPacksTab = user ? storedTab : 'global';
 
   const [builderOpen, setBuilderOpen] = useState(false);
 
@@ -63,7 +65,7 @@ export function EmojiPacksPage() {
     showFAB: activeTab === 'my-packs',
     fabKind: emojisDef.kind,
     onFabClick: handleFabClick,
-    hasSubHeader: true,
+    hasSubHeader: !!user,
   });
 
   const feedTab = activeTab === 'follows' ? 'follows' : 'global';
@@ -74,7 +76,7 @@ export function EmojiPacksPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useEmojiPackFeed(feedTab);
+  } = useEmojiPackFeed(feedTab, activeTab !== 'my-packs');
 
   const { scrollRef } = useInfiniteScroll({
     hasNextPage,
@@ -96,28 +98,31 @@ export function EmojiPacksPage() {
         <KindInfoButton kindDef={emojisDef} icon={icon} />
       </PageHeader>
 
-      {/* Tabs */}
-      <SubHeaderBar>
-        <TabButton
-          label={intl.formatMessage({ id: 'emojiPacks.tab.myPacks', defaultMessage: 'My Packs' })}
-          active={activeTab === 'my-packs'}
-          onClick={() => setActiveTab('my-packs')}
-        />
-        <TabButton
-          label={intl.formatMessage({ id: 'settings.feed.follows', defaultMessage: 'Follows' })}
-          active={activeTab === 'follows'}
-          onClick={() => setActiveTab('follows')}
-          disabled={!user}
-        />
-        <TabButton
-          label={intl.formatMessage({ id: 'common.global', defaultMessage: 'Global' })}
-          active={activeTab === 'global'}
-          onClick={() => setActiveTab('global')}
-        />
-      </SubHeaderBar>
+      {/* Tabs (logged in) */}
+      {user && (
+        <>
+          <SubHeaderBar>
+            <TabButton
+              label={intl.formatMessage({ id: 'emojiPacks.tab.myPacks', defaultMessage: 'My Packs' })}
+              active={activeTab === 'my-packs'}
+              onClick={() => setActiveTab('my-packs')}
+            />
+            <TabButton
+              label={intl.formatMessage({ id: 'settings.feed.follows', defaultMessage: 'Follows' })}
+              active={activeTab === 'follows'}
+              onClick={() => setActiveTab('follows')}
+            />
+            <TabButton
+              label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })}
+              active={activeTab === 'global'}
+              onClick={() => setActiveTab('global')}
+            />
+          </SubHeaderBar>
 
-      {/* Arc overhang spacer (matches Feed.tsx) */}
-      <div style={{ height: ARC_OVERHANG_PX }} />
+          {/* Arc overhang spacer (matches Feed.tsx) */}
+          <div style={{ height: ARC_OVERHANG_PX }} />
+        </>
+      )}
 
       {/* Tab content */}
       {activeTab === 'my-packs' ? (

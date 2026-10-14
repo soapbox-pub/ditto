@@ -5,7 +5,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNip85EventStats, useNip85AddrStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji } from '@/lib/customEmoji';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
@@ -200,28 +202,32 @@ export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
 }
 
 /**
- * Fetches hot-sorted events for specific kinds with infinite scroll.
- * Uses NIP-50 search extension `sort:hot` against relay.ditto.pub.
+ * Fetches hot-sorted events for specific kinds from the viewer's Discover
+ * network (see {@link useDiscoverAuthors}) with infinite scroll.
+ * Uses NIP-50 search extension `sort:hot` against the Discover relays.
  *
  * `extraFilters` allows appending additional filter objects to the REQ,
  * useful when some kinds need tag constraints (e.g. webxdc needs `#m`).
  */
-export function useInfiniteHotFeed(
+export function useDiscoverHotFeed(
   kinds: number[],
   enabled = true,
   limit = SORTED_PAGE_SIZE,
   extraFilters?: Record<string, unknown>[],
 ) {
   const { nostr } = useNostr();
+  const { authors, key: authorsKey } = useDiscoverAuthors(enabled);
   const extraKey = extraFilters ? JSON.stringify(extraFilters) : '';
 
   return useInfiniteQuery<NostrEvent[], Error>({
-    queryKey: ['infinite-hot-feed', kinds.join(','), limit, extraKey],
+    queryKey: ['infinite-hot-feed', kinds.join(','), limit, extraKey, authorsKey],
     queryFn: async ({ pageParam, signal }) => {
-      const ditto = nostr.group(DITTO_RELAYS);
+      if (!authors?.length) return [];
+      const relay = nostr.group(DISCOVER_RELAYS);
 
       const base: Record<string, unknown> = {
         search: 'sort:hot protocol:nostr',
+        authors,
         limit,
       };
       if (pageParam) base.until = pageParam;
@@ -236,7 +242,7 @@ export function useInfiniteHotFeed(
         }
       }
 
-      return ditto.query(
+      return relay.query(
         filters as { kinds: number[]; search: string; limit: number; until?: number }[],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
@@ -249,7 +255,7 @@ export function useInfiniteHotFeed(
     // Filter in `select`, not the queryFn, so the page cursor still comes from
     // the unfiltered relay page.
     select: selectPublicFeedPages,
-    enabled,
+    enabled: enabled && authors !== undefined,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: (prev) => prev,

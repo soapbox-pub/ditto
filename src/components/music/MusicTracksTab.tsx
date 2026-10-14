@@ -16,7 +16,7 @@ import { MusicTrackRow, MusicTrackRowSkeleton } from './MusicTrackRow';
  *
  * Features:
  * - **Sort**: Hot (engagement + decay), Top (total engagement), New (chronological)
- * - **Scope**: Global (all artists) or Following (user's follow list)
+ * - **Scope**: Discover (the viewer's network) or Following (user's follow list)
  * - **Genre filter**: Relay-level `#t` tag filtering via TagChips
  */
 export function MusicTracksTab() {

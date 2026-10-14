@@ -4,24 +4,27 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
+import { useDiscoverAuthors } from './useDiscoverAuthors';
 import { THEME_DEFINITION_KIND, ACTIVE_THEME_KIND } from '@/lib/themeEvent';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const PAGE_SIZE = 20;
 
 /** Hook to fetch a feed of theme-related Nostr events with infinite scroll and follows/global tabs. */
-export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
+export function useThemeFeed(tab: 'follows' | 'global' = 'global', enabled = true) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
+  const discover = useDiscoverAuthors(tab === 'global' && enabled);
 
   // For follows tab, wait until follow list is loaded
-  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
+  const followsReady = tab === 'follows' ? !!user && followList !== undefined : discover.authors !== undefined;
 
   return useInfiniteQuery({
-    queryKey: ['theme-feed', tab, user?.pubkey ?? '', mutedKey],
+    queryKey: ['theme-feed', tab, user?.pubkey ?? '', mutedKey, tab === 'global' ? discover.key : ''],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(5000);
       const baseUntil = pageParam as number | undefined;
@@ -31,6 +34,9 @@ export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
       if (tab === 'follows' && user && followList) {
         const filtered = excludeMuted(followList);
         authors = filtered.length > 0 ? [...filtered, user.pubkey] : [user.pubkey];
+      } else if (tab === 'global') {
+        authors = discover.authors;
+        if (!authors?.length) return [];
       }
 
       const shared = {
@@ -40,7 +46,7 @@ export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
       };
 
       // Query both theme kinds in a single request for efficiency
-      const events = await nostr.query(
+      const events = await (tab === 'global' ? nostr.group(DISCOVER_RELAYS) : nostr).query(
         [{ kinds: [THEME_DEFINITION_KIND, ACTIVE_THEME_KIND], ...shared }],
         { signal },
       );
@@ -49,8 +55,8 @@ export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
       const seen = new Set<string>();
       const themeEvents = events
         .filter((event) => {
-          // Without an authors filter this is a public feed.
-          if (!authors && isHiddenFromPublicFeeds(event)) return false;
+          // Discover shows strangers' posts, so it's a public feed.
+          if (tab === 'global' && isHiddenFromPublicFeeds(event)) return false;
           if (seen.has(event.id)) return false;
           seen.add(event.id);
           return true;
@@ -65,7 +71,7 @@ export function useThemeFeed(tab: 'follows' | 'global' = 'global') {
       return lastPage[lastPage.length - 1].created_at - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: followsReady,
+    enabled: enabled && followsReady,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }

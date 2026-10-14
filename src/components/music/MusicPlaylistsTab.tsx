@@ -21,7 +21,7 @@ const FILTER_LABELS = defineMessages({
  * album/playlist type filters.
  *
  * **Sort**: Hot (engagement + decay), Top (total engagement), New (chronological)
- * **Scope**: Global (all authors) or Following (user's follow list)
+ * **Scope**: Discover (the viewer's network) or Following (user's follow list)
  * **Type filter**: All / Playlists / Albums
  */
 export function MusicPlaylistsTab() {

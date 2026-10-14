@@ -3,7 +3,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useBackgroundQuiet } from './useBackgroundQuiet';
+import { useDiscoverAuthors } from './useDiscoverAuthors';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 /** Batch streamed events into one state commit per this window. */
@@ -19,9 +21,15 @@ const RESUME_LIMIT = 100;
  * events (by pubkey+kind+d).
  *
  * Accepts a single kind number or an array of kinds.
+ *
+ * Pass `discover` to restrict the stream to the viewer's Discover network
+ * (see {@link useDiscoverAuthors}); nothing loads until the network does.
  */
-export function useStreamKind(kind: number | number[]) {
+export function useStreamKind(kind: number | number[], opts: { discover?: boolean } = {}) {
   const { nostr } = useNostr();
+  const discover = !!opts.discover;
+  const { authors: discoverAuthors, key: discoverKey } = useDiscoverAuthors(discover);
+  const authors = discover ? discoverAuthors : undefined;
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,7 +56,7 @@ export function useStreamKind(kind: number | number[]) {
 
   const addEvent = useCallback((event: NostrEvent): boolean => {
     if (!kindsSet.has(event.kind)) return false;
-    // Kind streams have no authors filter, so they're public feeds.
+    // Kind streams show strangers' posts, so they're public feeds.
     if (isHiddenFromPublicFeeds(event)) return false;
 
     const now = Math.floor(Date.now() / 1000);
@@ -67,7 +75,11 @@ export function useStreamKind(kind: number | number[]) {
     eventMapRef.current = new Map();
     setEvents([]);
 
-    if (kinds.length === 0) {
+    if (discover && authors === undefined) {
+      setIsLoading(true);
+      return;
+    }
+    if (kinds.length === 0 || authors?.length === 0) {
       setIsLoading(false);
       return;
     }
@@ -78,10 +90,9 @@ export function useStreamKind(kind: number | number[]) {
 
     (async () => {
       try {
-        const results = await nostr.query(
-          [{ kinds, limit: 40 }],
-          { signal: ac.signal },
-        );
+        const results = authors
+          ? await nostr.group(DISCOVER_RELAYS).query([{ kinds, authors, limit: 40 }], { signal: ac.signal })
+          : await nostr.query([{ kinds, limit: 40 }], { signal: ac.signal });
         if (!alive) return;
         for (const event of results) addEvent(event);
         commit();
@@ -95,25 +106,28 @@ export function useStreamKind(kind: number | number[]) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, kinds, addEvent, commit]);
+  }, [nostr, kinds, discover, authors, addEvent, commit]);
 
-  // 2. Stream new events (uses pool, reuses existing connections).
+  // 2. Stream new events (uses pool, reuses existing connections; Discover
+  // streams go to the Discover relays).
   // Backgrounded the stream closes, then resumes from where it paused (see
   // @/lib/backgroundQuiet); new kinds start from now.
   const quiet = useBackgroundQuiet();
   const cursorRef = useRef(createLiveCursor());
   useEffect(() => {
     if (kinds.length === 0) return;
-    const live = cursorRef.current.next(kinds.join(','), quiet);
+    if (discover && !authors?.length) return;
+    const live = cursorRef.current.next([kinds.join(','), discoverKey].join('|'), quiet);
     if (!live) return;
 
     const ac = new AbortController();
     let alive = true;
+    const relay = authors ? nostr.group(DISCOVER_RELAYS) : nostr;
 
     (async () => {
       try {
-        for await (const msg of nostr.req(
-          [{ kinds, since: live.since, limit: live.resumed ? RESUME_LIMIT : 0 }],
+        for await (const msg of relay.req(
+          [{ kinds, ...(authors ? { authors } : {}), since: live.since, limit: live.resumed ? RESUME_LIMIT : 0 }],
           { signal: ac.signal },
         )) {
           if (!alive) break;
@@ -136,7 +150,7 @@ export function useStreamKind(kind: number | number[]) {
       // Flush anything still batched so pausing doesn't strand it.
       if (commitTimerRef.current !== undefined) commit();
     };
-  }, [nostr, kinds, addEvent, commit, quiet]);
+  }, [nostr, kinds, discover, authors, discoverKey, addEvent, commit, quiet]);
 
   return { events, isLoading };
 }

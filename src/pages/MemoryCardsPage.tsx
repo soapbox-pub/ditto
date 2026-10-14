@@ -213,12 +213,12 @@ const GALLERY_EMPTY: Record<GalleryTab, MessageDescriptor> = defineMessages({
   },
   follows: {
     id: 'memoryCards.empty.follows',
-    defaultMessage: 'None of the people you follow have shared a memory card yet. Try the Global tab.',
+    defaultMessage: 'None of the people you follow have shared a memory card yet. Try the Discover tab.',
   },
   global: {
     id: 'memoryCards.empty.global',
     defaultMessage:
-      'No memory cards found on your relays yet. Cards are published as kind 38192 events. Check back soon, or point Ditto at a relay that carries them.',
+      'No memory cards from your network yet. Cards are published as kind 38192 events. Check back soon!',
   },
 });
 
@@ -1018,7 +1018,7 @@ export function MemoryCardsPage() {
     ['mine', 'follows', 'global'],
     'global',
   );
-  // Author-scoped tabs need a logged-in user; fall back to Global otherwise.
+  // Logged out there are no tabs, just Discover.
   const activeTab: GalleryTab = user ? storedTab : 'global';
 
   useSeoMeta({
@@ -1026,7 +1026,7 @@ export function MemoryCardsPage() {
     description: intl.formatMessage({ id: 'memoryCards.metaDescription', defaultMessage: 'PlayStation 1 memory cards shared over Nostr' }),
   });
 
-  useLayoutOptions({ showFAB: false, hasSubHeader: !viewing });
+  useLayoutOptions({ showFAB: false, hasSubHeader: !viewing && !!user });
 
   return (
     <main className="flex-1 min-w-0">
@@ -1063,27 +1063,29 @@ export function MemoryCardsPage() {
         </div>
       ) : (
         <>
-          <SubHeaderBar>
-            <TabButton
-              label={intl.formatMessage({ id: 'memoryCards.tab.mine', defaultMessage: 'Mine' })}
-              active={activeTab === 'mine'}
-              onClick={() => setActiveTab('mine')}
-              disabled={!user}
-            />
-            <TabButton
-              label={intl.formatMessage({ id: 'memoryCards.tab.follows', defaultMessage: 'Follows' })}
-              active={activeTab === 'follows'}
-              onClick={() => setActiveTab('follows')}
-              disabled={!user}
-            />
-            <TabButton
-              label={intl.formatMessage({ id: 'memoryCards.tab.global', defaultMessage: 'Global' })}
-              active={activeTab === 'global'}
-              onClick={() => setActiveTab('global')}
-            />
-          </SubHeaderBar>
+          {user && (
+            <>
+              <SubHeaderBar>
+                <TabButton
+                  label={intl.formatMessage({ id: 'memoryCards.tab.mine', defaultMessage: 'Mine' })}
+                  active={activeTab === 'mine'}
+                  onClick={() => setActiveTab('mine')}
+                />
+                <TabButton
+                  label={intl.formatMessage({ id: 'memoryCards.tab.follows', defaultMessage: 'Follows' })}
+                  active={activeTab === 'follows'}
+                  onClick={() => setActiveTab('follows')}
+                />
+                <TabButton
+                  label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })}
+                  active={activeTab === 'global'}
+                  onClick={() => setActiveTab('global')}
+                />
+              </SubHeaderBar>
 
-          <div style={{ height: ARC_OVERHANG_PX }} />
+              <div style={{ height: ARC_OVERHANG_PX }} />
+            </>
+          )}
 
           <div className="p-4">
             <GalleryView tab={activeTab} />

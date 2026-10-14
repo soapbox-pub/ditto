@@ -3,7 +3,9 @@ import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
+import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import type { MusicSort, MusicScope } from '@/components/music/MusicSortFilterBar';
@@ -15,7 +17,7 @@ interface UseMusicFeedOptions {
   kind: number;
   /** Sort mode: hot, top, or new. */
   sort: MusicSort;
-  /** Scope: global or following. */
+  /** Scope: Discover network (`global`) or following. */
   scope: MusicScope;
   /** Optional genre tag for relay-level `#t` filtering. */
   genre?: string | null;
@@ -28,11 +30,13 @@ interface UseMusicFeedOptions {
  *
  * - **Sort**: Maps to Ditto NIP-50 search extensions (`sort:hot`, `sort:top`,
  *   or chronological for `new`).
- * - **Scope**: `global` queries all authors; `following` restricts to the
- *   current user's kind 3 follow list (minus any muted pubkeys).
+ * - **Scope**: `global` restricts to the viewer's Discover network (see
+ *   `useDiscoverAuthors`); `following` restricts to the current user's
+ *   kind 3 follow list. Both exclude muted pubkeys.
  *
- * Hot and Top sorts query the Ditto relay (NIP-50 required).
- * New sort queries the default relay pool (standard chronological).
+ * Hot and Top sorts query the Ditto relay (NIP-50 required), as does the
+ * Discover scope (its filters are too large for other relays). New sort on
+ * the following scope queries the default relay pool (standard chronological).
  *
  * Pagination uses `until`-based cursor on `created_at`.
  */
@@ -41,6 +45,7 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
   const { data: followData } = useFollowList();
   const followPubkeys = followData?.pubkeys;
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
+  const discover = useDiscoverAuthors(enabled && scope === 'global');
 
   // Following scope: filter out muted pubkeys before building the authors list.
   // Memoized so the array identity is stable across renders that don't change
@@ -53,10 +58,13 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
     return filtered.length > 0 ? filtered : undefined;
   }, [scope, followPubkeys, excludeMuted]);
 
-  // Following scope requires a loaded follow list with at least one non-muted author
-  const isFollowsReady = scope !== 'following' || (followingAuthors && followingAuthors.length > 0);
+  // Following scope requires a loaded follow list with at least one non-muted
+  // author; Discover requires its network.
+  const isFollowsReady = scope === 'following'
+    ? followingAuthors && followingAuthors.length > 0
+    : discover.authors !== undefined;
 
-  const queryKey = ['music-feed', kind, sort, scope, genre ?? '', scope === 'following' ? followPubkeys?.join(',') ?? '' : '', mutedKey] as const;
+  const queryKey = ['music-feed', kind, sort, scope, genre ?? '', scope === 'following' ? followPubkeys?.join(',') ?? '' : discover.key, mutedKey] as const;
 
   return useInfiniteQuery({
     queryKey,
@@ -70,9 +78,12 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
         filter.until = pageParam;
       }
 
-      // Scope: restrict to followed authors (minus muted)
+      // Scope: restrict to followed authors or the Discover network (minus muted)
       if (scope === 'following' && followingAuthors && followingAuthors.length > 0) {
         filter.authors = followingAuthors;
+      } else if (scope === 'global') {
+        if (!discover.authors?.length) return [];
+        filter.authors = discover.authors;
       }
 
       // Genre: relay-level tag filtering
@@ -87,8 +98,10 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
         filter.search = 'sort:top';
       }
 
-      // Hot/top need the Ditto relay for NIP-50; new uses default pool
-      const target = sort === 'new' ? nostr : nostr.group(DITTO_RELAYS);
+      // Hot/top need the Ditto relay for NIP-50, and Discover its large
+      // authors filter; new on the following scope uses the default pool.
+      const chronological = scope === 'global' ? nostr.group(DISCOVER_RELAYS) : nostr;
+      const target = sort === 'new' ? chronological : nostr.group(DITTO_RELAYS);
       const timeout = AbortSignal.any([signal, AbortSignal.timeout(10000)]);
 
       const events = await target.query([filter], { signal: timeout });
@@ -97,7 +110,7 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
       // for these kinds), retry chronologically from the default pool.
       if (events.length === 0 && sort !== 'new') {
         const { search: _, ...fallbackFilter } = filter;
-        return nostr.query([fallbackFilter as NostrFilter], { signal: timeout });
+        return chronological.query([fallbackFilter as NostrFilter], { signal: timeout });
       }
 
       return events;
@@ -107,9 +120,9 @@ export function useMusicFeed({ kind, sort, scope, genre, enabled = true }: UseMu
       return lastPage[lastPage.length - 1].created_at - 1;
     },
     initialPageParam: undefined as number | undefined,
-    // Without an authors filter this is a public feed. Filtered in `select`
-    // so the page cursor still comes from the unfiltered relay page.
-    select: followingAuthors
+    // Discover shows strangers' posts, so it's a public feed. Filtered in
+    // `select` so the page cursor still comes from the unfiltered relay page.
+    select: scope !== 'global'
       ? undefined
       : (data: InfiniteData<NostrEvent[], number | undefined>) => ({
         ...data,

@@ -16,6 +16,7 @@ import { LoginFlow } from '@/components/auth/LoginFlow';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
+import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { useFeedStream } from '@/hooks/useFeedStream';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
@@ -67,12 +68,12 @@ interface FeedProps {
   /** Unique identifier for this feed page, used to persist the active tab in sessionStorage. Defaults to 'home'. */
   feedId?: string;
   /**
-   * On kind/tag-specific pages, default to the Global tab (labeled "All") and
-   * render it before Follows. Used by the client feed page.
+   * On kind/tag-specific pages, default to the Discover tab and render it
+   * before Follows. Used by the client feed page.
    */
   globalFirst?: boolean;
   /**
-   * Apply `sort:hot` to the Global tab on kind-specific pages to keep spam and
+   * Apply `sort:hot` to the Discover tab on kind-specific pages to keep
    * low-quality events out of easy view (e.g. Articles, Highlights).
    */
   hotGlobal?: boolean;
@@ -184,10 +185,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     activeTab === 'follows' || activeTab === 'loved' || activeTab === 'global' || activeTab === 'communities'
       ? (activeTab as UseFeedTab)
       : 'global';
-  const feedQuery = useFeed(
-    isCoreFeedTab ? feedTabForQuery : 'global',
-    (kinds || tagFilters) ? { kinds, tagFilters, hotGlobal } : undefined,
-  );
+  const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
+  // Saved feeds, interests, and the leading tab render their own content.
+  const feedQueryEnabled = isCoreFeedTab && !useDittoQuery;
+  const feedQuery = useFeed(feedTabForQuery, { kinds, tagFilters, hotGlobal, enabled: feedQueryEnabled });
+  const { authors: discoverAuthors } = useDiscoverAuthors(feedTabForQuery === 'global' && feedQueryEnabled);
 
   // Curated Ditto feed: latest content from the curator's follow list.
   const topQuery = useCuratedDittoFeed(
@@ -196,7 +198,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
 
   // Unify the two query shapes behind a single interface
-  const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
   const activeQuery = useDittoQuery ? topQuery : feedQuery;
   const queryKey = useMemo(
     () => useDittoQuery ? ['ditto-curated-feed'] : ['feed', activeTab],
@@ -218,12 +219,15 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     if (feedTabForQuery === 'loved') {
       return excludeMuted(lovedPubkeys ?? []);
     }
-    // global / communities: communities derive authors internally in useFeed;
-    // skip streaming there to avoid a second localStorage read. Global has no authors.
+    if (feedTabForQuery === 'global') {
+      return discoverAuthors;
+    }
+    // communities: derive authors internally in useFeed; skip streaming there
+    // to avoid a second localStorage read.
     return undefined;
-  }, [feedTabForQuery, followData?.pubkeys, lovedPubkeys, user, excludeMuted]);
+  }, [feedTabForQuery, followData?.pubkeys, lovedPubkeys, discoverAuthors, user, excludeMuted]);
 
-  // Hot-sorted global feeds (homepage Global, `hotGlobal` kind pages) aren't
+  // Hot-sorted Discover feeds (homepage Discover, `hotGlobal` kind pages) aren't
   // chronological — refreshing wouldn't surface the streamed posts at the top,
   // so a "new posts" pill there would be a lie. Mirrors the check in useFeed.
   const isHotSortedGlobal = feedTabForQuery === 'global' && (!kinds || !!hotGlobal);
@@ -417,7 +421,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             <TabButton label={leadingTab.label} active={activeTab === leadingTab.id} onClick={() => handleSetActiveTab(leadingTab.id)} />
           )}
           {globalFirst && (
-            <TabButton label={intl.formatMessage({ id: 'feed.tabs.all', defaultMessage: 'All' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+            <TabButton label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {!isKindSpecificPage && hasLovedPeople && (
             <TabButton label={intl.formatMessage({ id: 'feed.tabs.loved', defaultMessage: 'Loved' })} active={activeTab === 'loved'} onClick={() => handleSetActiveTab('loved')}>
@@ -435,7 +439,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
           {!globalFirst && (isKindSpecificPage || showGlobalFeed) && (
-            <TabButton label={intl.formatMessage({ id: 'feed.tabs.global', defaultMessage: 'Global' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+            <TabButton label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
           )}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
             <TabButton

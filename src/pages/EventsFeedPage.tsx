@@ -41,10 +41,11 @@ export function EventsFeedPage() {
   const { user } = useCurrentUser();
   const { isMuted } = useMuteFilter();
 
-  const [activeTab, setActiveTab] = useFeedTab<FeedTab>("events", [
+  const [storedTab, setActiveTab] = useFeedTab<FeedTab>("events", [
     "follows",
     "global",
   ]);
+  const activeTab: FeedTab = user ? storedTab : "global";
 
   const pageTitle = intl.formatMessage({ id: "eventsFeed.title", defaultMessage: "Events" });
 
@@ -113,7 +114,7 @@ export function EventsFeedPage() {
         />
       </PageHeader>
 
-      {/* Follows / Global tabs */}
+      {/* Follows / Discover tabs */}
       {user && (
         <SubHeaderBar>
           <TabButton
@@ -122,7 +123,7 @@ export function EventsFeedPage() {
             onClick={() => setActiveTab("follows")}
           />
           <TabButton
-            label={intl.formatMessage({ id: "eventsFeed.tab.global", defaultMessage: "Global" })}
+            label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
             active={activeTab === "global"}
             onClick={() => setActiveTab("global")}
           />

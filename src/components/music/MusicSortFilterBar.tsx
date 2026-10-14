@@ -1,4 +1,5 @@
-import { Flame, TrendingUp, Clock, Globe, Users } from 'lucide-react';
+import { Flame, TrendingUp, Clock, Compass, Users } from 'lucide-react';
+import { defineMessages, FormattedMessage, type MessageDescriptor } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -13,24 +14,33 @@ interface MusicSortFilterBarProps {
   className?: string;
 }
 
-const SORT_OPTIONS: { value: MusicSort; label: string; icon: typeof Flame }[] = [
-  { value: 'hot', label: 'Hot', icon: Flame },
-  { value: 'top', label: 'Top', icon: TrendingUp },
-  { value: 'new', label: 'New', icon: Clock },
+const messages = defineMessages({
+  hot: { id: 'musicFilter.sort.hot', defaultMessage: 'Hot' },
+  top: { id: 'musicFilter.sort.top', defaultMessage: 'Top' },
+  new: { id: 'musicFilter.sort.new', defaultMessage: 'New' },
+  discover: { id: 'feed.tabs.discover', defaultMessage: 'Discover' },
+  following: { id: 'musicFilter.scope.following', defaultMessage: 'Following' },
+});
+
+const SORT_OPTIONS: { value: MusicSort; label: MessageDescriptor; icon: typeof Flame }[] = [
+  { value: 'hot', label: messages.hot, icon: Flame },
+  { value: 'top', label: messages.top, icon: TrendingUp },
+  { value: 'new', label: messages.new, icon: Clock },
 ];
 
-const SCOPE_OPTIONS: { value: MusicScope; label: string; icon: typeof Globe }[] = [
-  { value: 'global', label: 'Global', icon: Globe },
-  { value: 'following', label: 'Following', icon: Users },
+const SCOPE_OPTIONS: { value: MusicScope; label: MessageDescriptor; icon: typeof Compass }[] = [
+  { value: 'global', label: messages.discover, icon: Compass },
+  { value: 'following', label: messages.following, icon: Users },
 ];
 
 /**
  * Shared sort + scope filter bar for Music pages.
  *
  * - **Sort**: Hot (engagement + decay), Top (total engagement), New (chronological)
- * - **Scope**: Global (all artists) or Following (user's follow list)
+ * - **Scope**: Discover (the viewer's network) or Following (user's follow list)
  *
- * The "Following" option is only shown when the user is logged in.
+ * The scope options are only shown when the user is logged in; logged-out
+ * visitors always see Discover.
  */
 export function MusicSortFilterBar({
   sort,
@@ -57,16 +67,15 @@ export function MusicSortFilterBar({
             )}
           >
             <Icon className="size-3" />
-            {label}
+            <FormattedMessage {...label} />
           </button>
         ))}
       </div>
 
-      {/* Scope pills — only show Following when logged in */}
-      <div className="flex gap-1 p-1 rounded-lg bg-secondary/40">
-        {SCOPE_OPTIONS.map(({ value, label, icon: Icon }) => {
-          if (value === 'following' && !user) return null;
-          return (
+      {/* Scope pills — logged in only */}
+      {user && (
+        <div className="flex gap-1 p-1 rounded-lg bg-secondary/40">
+          {SCOPE_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               onClick={() => onScopeChange(value)}
@@ -78,11 +87,11 @@ export function MusicSortFilterBar({
               )}
             >
               <Icon className="size-3" />
-              {label}
+              <FormattedMessage {...label} />
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

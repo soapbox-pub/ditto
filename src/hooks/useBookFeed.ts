@@ -4,7 +4,9 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import { useFollowList } from './useFollowActions';
 import { useMutedAuthorFilter } from './useMutedAuthorFilter';
+import { useDiscoverAuthors } from './useDiscoverAuthors';
 import { BOOKSTR_KINDS, isBookEvent } from '@/lib/bookstr';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const PAGE_SIZE = 20;
@@ -16,12 +18,13 @@ export function useBookFeed(tab: 'follows' | 'global' = 'global') {
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
+  const discover = useDiscoverAuthors(tab === 'global');
 
   // For follows tab, wait until follow list is loaded
-  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
+  const followsReady = tab === 'follows' ? !!user && followList !== undefined : discover.authors !== undefined;
 
   return useInfiniteQuery({
-    queryKey: ['book-feed', tab, user?.pubkey ?? '', followList?.length ?? 0, mutedKey],
+    queryKey: ['book-feed', tab, user?.pubkey ?? '', followList?.length ?? 0, mutedKey, tab === 'global' ? discover.key : ''],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(5000);
       const baseUntil = pageParam as number | undefined;
@@ -31,6 +34,9 @@ export function useBookFeed(tab: 'follows' | 'global' = 'global') {
       if (tab === 'follows' && user && followList) {
         const filtered = excludeMuted(followList);
         authors = filtered.length > 0 ? [...filtered, user.pubkey] : [user.pubkey];
+      } else if (tab === 'global') {
+        authors = discover.authors;
+        if (!authors?.length) return [];
       }
 
       // Build filters — query multiple filters in one request for efficiency
@@ -50,14 +56,14 @@ export function useBookFeed(tab: 'follows' | 'global' = 'global') {
       // 4. Kind 1111 comments on books (#K: isbn)
       filters.push({ kinds: [1111], '#K': ['isbn'], ...shared });
 
-      const events = await nostr.query(filters, { signal });
+      const events = await (tab === 'global' ? nostr.group(DISCOVER_RELAYS) : nostr).query(filters, { signal });
 
       // Filter for book-related events, deduplicate, and sort
       const seen = new Set<string>();
       const bookEvents = events
         .filter(isBookEvent)
-        // Without an authors filter this is a public feed.
-        .filter((event) => authors || !isHiddenFromPublicFeeds(event))
+        // Discover shows strangers' posts, so it's a public feed.
+        .filter((event) => tab !== 'global' || !isHiddenFromPublicFeeds(event))
         .filter((event) => {
           if (seen.has(event.id)) return false;
           seen.add(event.id);

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 interface FeedEmptyStateProps {
   /** Primary empty-state message. */
   message: string;
-  /** Called when the user clicks "Switch to Global". Omit to hide the button. */
+  /** Called when the user clicks "Browse the Discover feed". Omit to hide the button. */
   onSwitchToGlobal?: () => void;
   /** Show a "Discover people" link to /packs. */
   showDiscover?: boolean;
@@ -41,7 +41,7 @@ export function FeedEmptyState({
   const { config } = useAppContext();
 
   // The /packs page defaults to the Follows tab, which is also empty when the
-  // user doesn't follow anyone. Pre-seed its saved tab to Global so the link
+  // user doesn't follow anyone. Pre-seed its saved tab to Discover so the link
   // lands on a populated view.
   const handleDiscoverClick = () => {
     try {
@@ -88,7 +88,7 @@ export function FeedEmptyState({
           )}
           {onSwitchToGlobal && (
             <Button variant="ghost" className="rounded-full" onClick={onSwitchToGlobal}>
-              <FormattedMessage id="feedEmptyState.browseGlobal" defaultMessage="Browse the Global feed" />
+              <FormattedMessage id="feedEmptyState.browseGlobal" defaultMessage="Browse the Discover feed" />
             </Button>
           )}
         </div>

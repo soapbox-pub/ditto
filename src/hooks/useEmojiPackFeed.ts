@@ -5,7 +5,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
+import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { KIND_EMOJI_SET } from '@/hooks/useEmojiPacks';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 
 const PAGE_SIZE = 20;
@@ -20,18 +22,19 @@ function hasEmoji(event: NostrEvent): boolean {
  * follows/global tabs — the discovery counterpart to the My Packs management
  * view. Mirrors `useThemeFeed`.
  */
-export function useEmojiPackFeed(tab: 'follows' | 'global' = 'global') {
+export function useEmojiPackFeed(tab: 'follows' | 'global' = 'global', enabled = true) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { excludeMuted, mutedKey } = useMutedAuthorFilter();
+  const discover = useDiscoverAuthors(tab === 'global' && enabled);
 
   // For the follows tab, wait until the follow list is loaded.
-  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
+  const followsReady = tab === 'follows' ? !!user && followList !== undefined : discover.authors !== undefined;
 
   return useInfiniteQuery({
-    queryKey: ['emoji-pack-feed', tab, user?.pubkey ?? '', mutedKey],
+    queryKey: ['emoji-pack-feed', tab, user?.pubkey ?? '', mutedKey, tab === 'global' ? discover.key : ''],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(5000);
       const baseUntil = pageParam as number | undefined;
@@ -40,9 +43,12 @@ export function useEmojiPackFeed(tab: 'follows' | 'global' = 'global') {
       if (tab === 'follows' && user && followList) {
         const filtered = excludeMuted(followList);
         authors = filtered.length > 0 ? [...filtered, user.pubkey] : [user.pubkey];
+      } else if (tab === 'global') {
+        authors = discover.authors;
+        if (!authors?.length) return [];
       }
 
-      const events = await nostr.query(
+      const events = await (tab === 'global' ? nostr.group(DISCOVER_RELAYS) : nostr).query(
         [{
           kinds: [KIND_EMOJI_SET],
           limit: PAGE_SIZE,
@@ -56,8 +62,8 @@ export function useEmojiPackFeed(tab: 'follows' | 'global' = 'global') {
       return events
         .filter((event) => {
           if (seen.has(event.id) || !hasEmoji(event)) return false;
-          // Without an authors filter this is a public feed.
-          if (!authors && isHiddenFromPublicFeeds(event)) return false;
+          // Discover shows strangers' posts, so it's a public feed.
+          if (tab === 'global' && isHiddenFromPublicFeeds(event)) return false;
           seen.add(event.id);
           return true;
         })
@@ -69,7 +75,7 @@ export function useEmojiPackFeed(tab: 'follows' | 'global' = 'global') {
       return lastPage[lastPage.length - 1].created_at - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: followsReady,
+    enabled: enabled && followsReady,
     staleTime: 2 * 60 * 1000,
   });
 }

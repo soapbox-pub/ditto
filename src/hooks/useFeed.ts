@@ -10,7 +10,9 @@ import { useMutedAuthorFilter } from './useMutedAuthorFilter';
 import { parseAuthorEvent } from './useAuthor';
 import { useNostrStorage } from './useNostrStorage';
 import { useIsScrollRestore } from './useIsScrollRestore';
+import { useDiscoverAuthors } from './useDiscoverAuthors';
 import { getEffectiveRelays } from '@/lib/appRelays';
+import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
 import { getReadRelayUrls } from '@/lib/relayHealth';
@@ -67,9 +69,15 @@ interface UseFeedOptions {
    * Highlights) the same way the homepage Global tab does.
    */
   hotGlobal?: boolean;
+  /** Whether the query should run (default: true). */
+  enabled?: boolean;
 }
 
-/** Hook to fetch the global, followed, loved, or communities feed with infinite scroll pagination. */
+/**
+ * Hook to fetch the Discover (`global`), followed, loved, or communities feed
+ * with infinite scroll pagination. Discover is limited to the viewer's
+ * friends-of-friends network (see {@link useDiscoverAuthors}).
+ */
 export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', options?: UseFeedOptions) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
@@ -89,6 +97,8 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   const { feedSettings } = useFeedSettings();
   const { store } = useNostrStorage();
   const isScrollRestore = useIsScrollRestore();
+  const enabled = options?.enabled ?? true;
+  const discover = useDiscoverAuthors(tab === 'global' && enabled);
 
   // Build the full kinds list from user settings, or use the override.
   // When replies are hidden, NIP-22 comment kinds (1111 / 1244) are dropped
@@ -107,13 +117,15 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
   // Allow query to run if not on follows tab, OR if follow list has loaded (even if empty).
-  // The loved tab gates on the love list the same way.
+  // The loved tab gates on the love list, and Discover on its network, the same way.
   const followsReady =
     tab === 'follows'
       ? !!user && followList !== undefined
       : tab === 'loved'
         ? !!user && lovedPubkeys !== undefined
-        : true;
+        : tab === 'global'
+          ? discover.authors !== undefined
+          : true;
 
   // Load community pubkeys from localStorage
   const communityPubkeys = (() => {
@@ -172,7 +184,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
     // publishedEventSync reads this layout; keep the two in sync.
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false, tab === 'global' ? discover.key : ''],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -339,24 +351,30 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         return fetchAuthorsPage(filter, pageParam as FeedCursor | undefined, signal, toFeedItems);
       } else {
-        // Global feed — all enabled kinds except reposts / reactions / zaps,
-        // which are too noisy without an author filter and require an extra
+        // Discover feed — all enabled kinds except reposts / reactions / zaps,
+        // which are too noisy across a network this size and require an extra
         // unwrap step. Users will see those overlays on the Follows tab.
+        // A communities tab with no members lands here too, and stays empty.
+        const discoverAuthors = tab === 'global' ? discover.authors : undefined;
+        if (!discoverAuthors?.length) {
+          return { items: [], oldestQueryTimestamp: now, rawCount: 0 };
+        }
+
         const globalKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k));
-        const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE, ...tagFilters };
-        // Use hot sorting on the homepage Global tab for better content quality.
-        // Kind-specific pages normally show a raw chronological global feed, but
-        // can opt into hot sorting (e.g. Articles, Highlights) to keep spam and
-        // low-quality events out of easy view.
-        if (tab === 'global' && (!options?.kinds || options?.hotGlobal)) {
+        const filter: Record<string, unknown> = { kinds: globalKinds, authors: discoverAuthors, limit: PAGE_SIZE, ...tagFilters };
+        // Use hot sorting on the homepage Discover tab for better content quality.
+        // Kind-specific pages normally show a chronological feed, but can opt
+        // into hot sorting (e.g. Articles, Highlights) to keep low-quality
+        // events out of easy view.
+        if (!options?.kinds || options?.hotGlobal) {
           filter.search = 'sort:hot protocol:nostr';
         }
         if (typeof pageParam === 'number') {
           filter.until = pageParam;
         }
 
-        const rawEvents = await nostr.query(
-          [filter as { kinds: number[]; limit: number; until?: number }],
+        const rawEvents = await nostr.group(DISCOVER_RELAYS).query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
           { signal },
         );
 
@@ -383,7 +401,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     // item without the relays being exhausted.
     getNextPageParam: (lastPage) => lastPage.nextPageParam,
     initialPageParam: undefined as number | undefined,
-    enabled: followsReady,
+    enabled: enabled && followsReady,
     staleTime: 60 * 1000,
     // No refetchInterval — automatic background refetches cause the entire
     // feed to re-sort and jump.  Users can pull-to-refresh for fresh content.

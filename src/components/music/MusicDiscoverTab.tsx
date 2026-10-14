@@ -50,7 +50,7 @@ interface MusicDiscoverTabProps {
  * 3. Artists — Horizontal scroll of curated artist profile cards
  * 4. Playlists — Horizontal scroll of playlists from curator's follows (sort:hot)
  * 5. New Tracks header + sort/scope bar + genre chips
- * 6. New Tracks — Compact track rows with Hot/Top/New sort and Global/Following scope
+ * 6. New Tracks — Compact track rows with Hot/Top/New sort and Discover/Following scope
  * 7. CTA — "Share Your Music on Nostr" card
  */
 export function MusicDiscoverTab({ onSwitchToTracks, onSwitchToPlaylists, onSwitchToArtists }: MusicDiscoverTabProps) {
