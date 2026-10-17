@@ -48,6 +48,9 @@ function enrichChildren(
           key={i}
           event={synthetic}
           as="span"
+          // Embeds (players, previews, emoji) bring their own styling; prose
+          // margins on their <video>/<img> would shift them inside their frames.
+          className="not-prose"
           preserveEdgeWhitespace
           disableNoteEmbeds={opts.inlineOnly}
           disableMediaEmbeds={opts.inlineOnly}
