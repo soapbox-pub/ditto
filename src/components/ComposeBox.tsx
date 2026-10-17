@@ -39,8 +39,9 @@ import { tryNeventEncode } from '@/lib/safeNip19';
 import { useAppContext } from '@/hooks/useAppContext';
 import { cn } from '@/lib/utils';
 import { notificationSuccess } from '@/lib/haptics';
-import { bestMime, extractVideoUrls, extractAudioUrls, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, isFileUrl, mimeFromExt } from '@/lib/mediaUrls';
-import { readFileMeta } from '@/lib/fileMetadata';
+import { bestMime, extractVideoUrls, extractAudioUrls, fileCategory, IMETA_MEDIA_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, isFileUrl, mimeFromExt } from '@/lib/mediaUrls';
+import { readFileMeta, type FileMeta } from '@/lib/fileMetadata';
+import { prepareVideo } from '@/lib/video/processVideo';
 import { extractBlossomUris, blossomImetaTag } from '@/lib/blossomUri';
 import { describePublishError } from '@/lib/publishError';
 
@@ -392,6 +393,9 @@ export function ComposeBox({
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   /** Maps uploaded file URLs to their NIP-94 tags (grouped per upload). */
   const [uploadedFileGroups, setUploadedFileGroups] = useState<Map<string, string[][]>>(new Map());
+  /** Progress (0..1) of each video being compressed before upload. */
+  const [videoJobs, setVideoJobs] = useState<Map<symbol, number>>(new Map());
+  const videoProgress = videoJobs.size > 0 ? Math.min(...videoJobs.values()) : null;
   /** Maps .xdc URLs to their generated webxdc UUIDs. */
   const [webxdcUuids, setWebxdcUuids] = useState<Map<string, string>>(new Map());
   /** Maps .xdc URLs to extracted metadata (name + icon URL). */
@@ -755,10 +759,36 @@ export function ComposeBox({
         uploadableFile = (await resizeImage(uploadableFile)).file;
       }
 
+      // Videos are compressed first, which also yields their metadata and poster.
+      let videoMeta: FileMeta | undefined;
+      if (fileCategory(mime) === 'video') {
+        const job = Symbol('video');
+        let lastPercent = -1;
+        setVideoJobs((prev) => new Map(prev).set(job, 0));
+        try {
+          const prepared = await prepareVideo(uploadableFile, {
+            onProgress: (progress) => {
+              const percent = Math.floor(progress * 100);
+              if (percent === lastPercent) return;
+              lastPercent = percent;
+              setVideoJobs((prev) => new Map(prev).set(job, progress));
+            },
+          });
+          uploadableFile = prepared.file;
+          videoMeta = prepared.meta;
+        } finally {
+          setVideoJobs((prev) => {
+            const next = new Map(prev);
+            next.delete(job);
+            return next;
+          });
+        }
+      }
+
       // Probe the file (dimensions, duration, preview render, …) while it uploads.
       const [tags, meta] = await Promise.all([
         uploadFile(uploadableFile),
-        readFileMeta(uploadableFile, mime),
+        videoMeta ?? readFileMeta(uploadableFile, mime),
       ]);
       const [[, url]] = tags;
 
@@ -1503,14 +1533,23 @@ export function ComposeBox({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploading || !user}
+                      disabled={isUploading || videoProgress !== null || !user}
                       className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all motion-safe:active:scale-90 disabled:opacity-40"
                     >
-                      {isUploading ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
+                      {isUploading || videoProgress !== null ? <Loader2 className="size-[18px] animate-spin" /> : <Paperclip className="size-[18px]" />}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent><FormattedMessage id="compose.attachFile" defaultMessage="Attach file" /></TooltipContent>
                 </Tooltip>
+                {videoProgress !== null && (
+                  <span className="pr-1 text-xs tabular-nums text-muted-foreground" role="status">
+                    <FormattedMessage
+                      id="compose.compressingVideo"
+                      defaultMessage="Compressing video… {progress, number, percent}"
+                      values={{ progress: videoProgress }}
+                    />
+                  </span>
+                )}
 
                 <input
                   ref={fileInputRef}

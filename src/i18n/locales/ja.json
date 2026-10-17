@@ -1156,6 +1156,7 @@
   "community.share": "共有",
   "community.unnamed": "名前のないコミュニティ",
   "compose.attachFile": "ファイルを添付",
+  "compose.compressingVideo": "動画を圧縮中… {progress, number, percent}",
   "compose.cwPlaceholder": "コンテンツ警告の理由（任意）",
   "compose.drop.overlay": "ドロップして添付",
   "compose.emojiGif": "絵文字 / GIF",

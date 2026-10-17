@@ -1156,6 +1156,7 @@
   "community.share": "Teilen",
   "community.unnamed": "Unbenannte Community",
   "compose.attachFile": "Datei anhängen",
+  "compose.compressingVideo": "Video wird komprimiert … {progress, number, percent}",
   "compose.cwPlaceholder": "Grund für die Inhaltswarnung (optional)",
   "compose.drop.overlay": "Zum Anhängen loslassen",
   "compose.emojiGif": "Emoji / GIF",

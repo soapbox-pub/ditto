@@ -82,7 +82,7 @@ export async function imageMeta(file: Blob): Promise<FileMeta> {
 }
 
 /** Format seconds the way NIP-71 does: decimal seconds. */
-function formatDuration(seconds: number): string | undefined {
+export function formatDuration(seconds: number): string | undefined {
   return Number.isFinite(seconds) && seconds > 0 ? String(Math.round(seconds * 1000) / 1000) : undefined;
 }
 
@@ -235,7 +235,7 @@ async function zipMeta(file: File): Promise<FileMeta> {
   return { fields: [['summary', summary.length > 500 ? `${summary.slice(0, 499)}…` : summary]] };
 }
 
-function baseName(filename: string): string {
+export function baseName(filename: string): string {
   const dot = filename.lastIndexOf('.');
   return (dot > 0 ? filename.slice(0, dot) : filename) || 'file';
 }
