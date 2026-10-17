@@ -825,6 +825,23 @@
   @apply bg-primary border-primary;
 }
 
+/* Video/audio URLs: published as a bare URL, shown as a chip while editing. */
+.milkdown-editor .milkdown-media-embed {
+  @apply my-4 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm;
+}
+
+.milkdown-editor .milkdown-media-embed.ProseMirror-selectednode {
+  @apply ring-2 ring-primary ring-offset-2 ring-offset-card;
+}
+
+.milkdown-editor .milkdown-media-embed-kind {
+  @apply shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary;
+}
+
+.milkdown-editor .milkdown-media-embed-url {
+  @apply min-w-0 truncate text-muted-foreground;
+}
+
 /* Upload placeholder */
 .milkdown-upload-placeholder {
   @apply inline-flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md text-sm text-muted-foreground;

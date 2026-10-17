@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { MilkdownToolbar } from './MilkdownToolbar';
 import { LinkDialog } from './LinkDialog';
 import { articleCommonmark, configureArticleMarkdown, remarkArticleCompat } from './milkdownMarkdown';
+import { articleMedia } from './milkdownMedia';
 
 /** Shows `text` in the first paragraph while the document is empty. */
 function placeholderPlugin(text: string) {
@@ -52,6 +53,10 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
   const lastExternalValue = useRef(value);
   const onUploadImageRef = useRef(onUploadImage);
   const uploadingLabel = intl.formatMessage({ id: 'milkdownEditor.uploading', defaultMessage: 'Uploading…' });
+  const mediaLabels = {
+    video: intl.formatMessage({ id: 'milkdownEditor.videoEmbed', defaultMessage: 'Video' }),
+    audio: intl.formatMessage({ id: 'milkdownEditor.audioEmbed', defaultMessage: 'Audio' }),
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,6 +111,7 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
       .use(articleCommonmark)
       .use(gfm)
       .use(remarkArticleCompat)
+      .use(articleMedia(mediaLabels))
       .use(placeholderPlugin(placeholder ?? ''))
       .use(history)
       .use(clipboard)
