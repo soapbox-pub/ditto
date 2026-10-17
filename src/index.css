@@ -807,6 +807,14 @@
   @apply mt-0;
 }
 
+/* Images display as blocks (Tailwind preflight), so ProseMirror's inline
+   cursor helpers around them would each add a line, plus prose image margins,
+   leaving a big gap under every image. */
+.milkdown-editor .ProseMirror img.ProseMirror-separator,
+.milkdown-editor .ProseMirror img:not(.ProseMirror-separator) ~ br.ProseMirror-trailingBreak {
+  display: none;
+}
+
 .milkdown-editor .ProseMirror img.ProseMirror-selectednode {
   @apply ring-2 ring-primary ring-offset-2 ring-offset-card;
 }

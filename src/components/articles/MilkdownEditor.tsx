@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { MilkdownToolbar } from './MilkdownToolbar';
 import { LinkDialog } from './LinkDialog';
 import { articleCommonmark, configureArticleMarkdown, remarkArticleCompat } from './milkdownMarkdown';
-import { articleMedia } from './milkdownMedia';
+import { articleMedia, imageBlock, insertMediaBlock } from './milkdownMedia';
 
 /** Shows `text` in the first paragraph while the document is empty. */
 function placeholderPlugin(text: string) {
@@ -91,8 +91,8 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
               if (!file.type.startsWith('image/') || !onUploadImageRef.current) continue;
               try {
                 const url = await onUploadImageRef.current(file);
-                const node = url ? schema.nodes.image.createAndFill({ src: url }) : null;
-                if (node) nodes.push(node);
+                // Each image gets a line of its own instead of joining the text.
+                if (url) nodes.push(schema.nodes.paragraph.create(null, schema.nodes.image.create({ src: url })));
               } catch (error) {
                 console.error('Failed to upload image:', error);
               }
@@ -217,12 +217,8 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
 
     try {
       const view = editor.ctx.get(editorViewCtx);
-      const { state, dispatch } = view;
-      const node = state.schema.nodes.image.createAndFill({ src: url });
-      if (node) {
-        dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
-        view.focus();
-      }
+      insertMediaBlock(view, imageBlock(view, url));
+      view.focus();
     } catch (error) {
       console.error('Failed to insert image:', error);
     }

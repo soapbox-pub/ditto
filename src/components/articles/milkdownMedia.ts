@@ -1,5 +1,7 @@
 import type { MilkdownPlugin } from '@milkdown/ctx';
-import { Plugin, PluginKey } from '@milkdown/prose/state';
+import type { Node as ProseNode } from '@milkdown/prose/model';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/prose/state';
+import type { EditorView } from '@milkdown/prose/view';
 import { $nodeSchema, $prose, $remark } from '@milkdown/utils';
 
 import { isAudioUrl, isImageUrl, isVideoUrl } from '@/lib/mediaTypeDetection';
@@ -36,6 +38,44 @@ function singleUrl(text: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Inserts a media block on a line of its own: it replaces the current line
+ * when that's empty, and otherwise goes after (or splits) it rather than
+ * sitting inline next to the text. Leaves the cursor on a fresh line below.
+ */
+export function insertMediaBlock(view: EditorView, block: ProseNode): void {
+  const { state } = view;
+  const { selection } = state;
+  const { $from } = selection;
+  const tr = state.tr;
+
+  let end: number;
+  if (selection.empty && $from.parent.isTextblock && $from.parent.content.size === 0) {
+    tr.replaceWith($from.before(), $from.after(), block);
+    end = $from.before() + block.nodeSize;
+  } else {
+    tr.replaceSelectionWith(block);
+    // Walk out of whatever the selection landed in to the block boundary.
+    const $to = tr.selection.$to;
+    end = $to.depth > 0 && $to.parent.isTextblock ? $to.before() : $to.pos;
+    const before = tr.doc.resolve(end).nodeBefore;
+    if (before !== null && !before.eq(block)) end = $to.pos;
+  }
+
+  if (!tr.doc.resolve(end).nodeAfter?.isTextblock) {
+    tr.insert(end, state.schema.nodes.paragraph.create());
+  }
+  tr.setSelection(TextSelection.near(tr.doc.resolve(end + 1)));
+
+  view.dispatch(tr.scrollIntoView());
+}
+
+/** An image wrapped in its own paragraph, ready for {@link insertMediaBlock}. */
+export function imageBlock(view: EditorView, src: string): ProseNode {
+  const { schema } = view.state;
+  return schema.nodes.paragraph.create(null, schema.nodes.image.create({ src }));
 }
 
 /** The subset of mdast this module touches. */
@@ -145,11 +185,9 @@ export function articleMedia(labels: MediaEmbedLabels): MilkdownPlugin[] {
         const kind = url ? mediaKind(url) : undefined;
         if (!url || !kind || view.state.selection.$from.parent.type.spec.code) return false;
 
-        const { schema, tr } = view.state;
-        const node = kind === 'image'
-          ? schema.nodes.image.create({ src: url })
-          : schema.nodes.media_embed.create({ src: url, kind });
-        view.dispatch(tr.replaceSelectionWith(node).scrollIntoView());
+        insertMediaBlock(view, kind === 'image'
+          ? imageBlock(view, url)
+          : view.state.schema.nodes.media_embed.create({ src: url, kind }));
         return true;
       },
     },
