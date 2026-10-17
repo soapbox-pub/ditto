@@ -35,7 +35,8 @@ import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseImetaEntries } from '@/lib/imeta';
-import { type FileEncryption } from '@/lib/encryptedFile';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { DecryptedImage } from '@/components/DecryptedImage';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { Top8Grid } from '@/components/Top8Grid';
@@ -113,6 +114,8 @@ interface MediaItem {
   dim?: string;
   /** MIME type from the imeta `m` field, e.g. "video/mp4". */
   mime?: string;
+  /** A video's poster frame (imeta `image`/`thumb`). */
+  thumbnail?: string;
   /** Present when `url` serves ciphertext that must be decrypted to render. */
   encryption?: FileEncryption;
 }
@@ -130,7 +133,7 @@ function extractVideoUrls(content: string): string[] {
 }
 
 /** Extract url, blurhash, dim, and mime from the first matching imeta tag for a given URL (or the first tag if no URL given). */
-function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string; mime?: string; encryption?: FileEncryption } {
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string; dim?: string; mime?: string; thumbnail?: string; encryption?: FileEncryption } {
   for (const entry of parseImetaEntries(event.tags)) {
     if (matchUrl && entry.url !== matchUrl) continue;
     return {
@@ -138,6 +141,7 @@ function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: strin
       blurhash: entry.blurhash,
       dim: entry.dim,
       mime: entry.mime,
+      thumbnail: entry.thumbnail,
       encryption: entry.encryption,
     };
   }
@@ -161,12 +165,13 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const { url: rawUrl, blurhash, dim, mime, encryption } = extractImetaFields(event);
+      const { url: rawUrl, blurhash, dim, mime, thumbnail: rawThumbnail, encryption } = extractImetaFields(event);
       const url = rawUrl ? resolveBlossomUrl(rawUrl, blossomServers) : undefined;
+      const thumbnail = rawThumbnail ? resolveBlossomUrl(rawThumbnail, blossomServers) : undefined;
       if (url && !seen.has(url)) {
         seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url, blurhash, dim, mime, encryption, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, dim, mime, thumbnail, encryption, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
@@ -177,8 +182,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        const { blurhash, dim, mime, encryption } = extractImetaFields(event, url);
-        items.push({ url, blurhash, dim, mime, encryption, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash, dim, mime, thumbnail, encryption } = extractImetaFields(event, url);
+        items.push({ url, blurhash, dim, mime, thumbnail: thumbnail ? resolveBlossomUrl(thumbnail, blossomServers) : undefined, encryption, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
 
@@ -190,8 +195,8 @@ function extractMedia(events: NostrEvent[], cwPolicy: string, blossomServers: st
       const [url] = resolveBlossomUri(uri, blossomServers);
       if (!url || seen.has(url)) continue;
       seen.add(url);
-      const { blurhash, dim, encryption } = extractImetaFields(event, raw);
-      items.push({ url, blurhash, dim, mime, encryption, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+      const { blurhash, dim, thumbnail, encryption } = extractImetaFields(event, raw);
+      items.push({ url, blurhash, dim, mime, thumbnail: thumbnail ? resolveBlossomUrl(thumbnail, blossomServers) : undefined, encryption, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
     }
   }
 
@@ -216,11 +221,13 @@ function MediaTile({ item }: { item: MediaItem }) {
   const { config } = useAppContext();
   // Content-addressed Blossom URLs get automatic fallback across servers.
   const fallback = useBlossomFallback(item.url);
+  const isVideo = isVideoItem(item);
+  // A poster stands in for a video that isn't meant to play in place.
+  const poster = isVideo && !config.autoplayVideos ? item.thumbnail : undefined;
   // Encrypted blobs are fetched and decrypted to an object URL instead.
-  const decrypted = useDecryptedFile(item.url, item.encryption);
+  const decrypted = useDecryptedFile(item.url, item.encryption, { enabled: !poster });
   const src = decrypted.encrypted ? decrypted.src : fallback.src;
   const onError = decrypted.encrypted ? undefined : fallback.onError;
-  const isVideo = isVideoItem(item);
 
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
@@ -230,7 +237,7 @@ function MediaTile({ item }: { item: MediaItem }) {
 
   return (
     <div className="relative w-full h-full">
-      {decrypted.encrypted && !decrypted.src && (
+      {decrypted.encrypted && !poster && !decrypted.src && (
         <EncryptedFileNotice
           fill
           loading={decrypted.loading}
@@ -248,7 +255,18 @@ function MediaTile({ item }: { item: MediaItem }) {
           <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )
       )}
-      {isVideo ? (
+      {poster ? (
+        <DecryptedImage
+          url={poster}
+          encryption={item.encryption ? companionEncryption(item.encryption) : undefined}
+          noticeFill
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+        />
+      ) : isVideo ? (
         <video
           src={src}
           data-no-native-poster=""

@@ -114,7 +114,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
       onClick={(e) => e.stopPropagation()}
     >
       {viewing3d && format ? (
-        <div className="relative">
+        <div className="relative" data-lightbox-no-swipe="">
           <Suspense
             fallback={
               <div className="flex aspect-[4/3] items-center justify-center bg-muted">

@@ -15,6 +15,9 @@ import { type FileEncryption } from '@/lib/encryptedFile';
 import { downloadDecryptedUrl } from '@/lib/downloadFile';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { FileAttachmentCard } from '@/components/FileAttachmentCard';
+import type { ImetaEntry } from '@/lib/imeta';
+import type { MediaType } from '@/lib/mediaUtils';
 import { AudioVisualizer } from '@/components/AudioVisualizer';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
@@ -326,6 +329,10 @@ export interface LightboxMediaMeta {
   pubkey?: string;
   /** Present when the slot URL serves ciphertext that must be decrypted. */
   encryption?: FileEncryption;
+  /** A video's poster frame (imeta `image`/`thumb`). */
+  thumbnail?: string;
+  /** The slot's full imeta, for file slots: name, size, preview. */
+  imeta?: ImetaEntry;
 }
 
 export interface LightboxProps {
@@ -334,8 +341,8 @@ export interface LightboxProps {
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
-  /** Per-slot media types — 'image' | 'video' | 'audio'. Defaults to all 'image'. */
-  mediaTypes?: ('image' | 'video' | 'audio')[];
+  /** Per-slot media types. Defaults to all 'image'. */
+  mediaTypes?: MediaType[];
   /** Per-slot NIP-94 metadata (mime, dim, blurhash). */
   mediaMeta?: LightboxMediaMeta[];
   /** Custom content rendered on the left side of the top bar (replaces default counter). */
@@ -461,6 +468,8 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
     if (animating.current) return;
     // Pinch gesture — don't start a swipe
     if (e.touches.length >= 2) { dragX.current = null; dragY.current = null; return; }
+    // Content with its own drag gestures, like a 3D model viewer.
+    if ((e.target as HTMLElement).closest('[data-lightbox-no-swipe]')) { dragX.current = null; dragY.current = null; return; }
     dragX.current = e.touches[0].clientX;
     dragY.current = e.touches[0].clientY;
     axis.current = null;
@@ -1133,7 +1142,7 @@ function LightboxSlot({
 }: {
   url: string;
   fitClassName?: string;
-  type: 'image' | 'video' | 'audio';
+  type: MediaType;
   meta?: LightboxMediaMeta;
   isActive: boolean;
   isLoaded: boolean;
@@ -1157,11 +1166,19 @@ function LightboxSlot({
       <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
         <VideoPlayer
           src={url}
+          poster={meta?.thumbnail}
           encryption={meta?.encryption}
           dim={meta?.dim}
           blurhash={meta?.blurhash}
           className="w-full max-w-lg"
         />
+      </div>
+    );
+  }
+  if (type === 'file') {
+    return (
+      <div className="w-full flex items-center justify-center px-4" onClick={(e) => e.stopPropagation()}>
+        <FileAttachmentCard url={url} imeta={meta?.imeta} className="my-0 max-w-lg" />
       </div>
     );
   }

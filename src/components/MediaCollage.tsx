@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Images, Play, ShieldAlert } from 'lucide-react';
+import { File as FileIcon, Images, Play, Rotate3d, ShieldAlert } from 'lucide-react';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { isValidBlurhash } from '@/lib/blurhash';
@@ -17,11 +17,14 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Lightbox, LOADING_SENTINEL } from '@/components/ImageGallery';
 import { PhotoBottomBar } from '@/components/PhotoBottomBar';
 import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
+import { DecryptedImage } from '@/components/DecryptedImage';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
-import { type FileEncryption } from '@/lib/encryptedFile';
+import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import type { ImetaEntry } from '@/lib/imeta';
+import { modelFormat, urlExtension } from '@/lib/mediaUrls';
 import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -101,8 +104,10 @@ interface FlatEntry {
   mime?: string;
   dim?: string;
   blurhash?: string;
+  thumbnail?: string;
   /** Present when `url` serves ciphertext that must be decrypted before display. */
   encryption?: FileEncryption;
+  imeta?: ImetaEntry;
   pubkey: string;
   event: NostrEvent;
   indexInEvent: number;
@@ -132,11 +137,31 @@ function AudioThumb({ pubkey }: { pubkey: string }) {
   );
 }
 
+// ── File thumbnail — for files with no preview image ─────────────────────────
+
+function FileThumb({ item }: { item: MediaItem }) {
+  const Icon = modelFormat(item.mime) ? Rotate3d : FileIcon;
+  const name = item.alt?.trim() || urlExtension(item.url).toUpperCase();
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-muted-foreground">
+      <Icon className="size-8" />
+      {name && <span className="max-w-full truncate text-xs font-medium">{name}</span>}
+    </div>
+  );
+}
+
 // ── Grid thumbnail ────────────────────────────────────────────────────────────
 
 function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
   const { config } = useAppContext();
+  // A poster stands in for a video unless it's meant to play in place, and is
+  // all a file tile shows: the file itself can run to tens of megabytes.
+  const poster = item.type === 'video' || item.type === 'file' ? item.thumbnail : undefined;
+  const posterEncryption = item.encryption ? companionEncryption(item.encryption) : undefined;
+  const showVideo = item.type === 'video' && (!poster || config.autoplayVideos);
+  const needsFile = item.type === 'image' || item.type === 'audio' || showVideo;
   // Content-addressed Blossom URLs get automatic fallback across servers.
   const fallback = useBlossomFallback(item.url);
   // Encrypted blobs are fetched and decrypted to an object URL instead, since
@@ -144,7 +169,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
   // Only decrypt tiles the user can see — a collage would otherwise pull every
   // attachment on screen into memory at once.
   const { ref: inViewRef, inView } = useInView({ rootMargin: '400px', skip: !item.encryption });
-  const decrypted = useDecryptedFile(item.url, item.encryption, { enabled: inView });
+  const decrypted = useDecryptedFile(item.url, item.encryption, { enabled: inView && needsFile });
   const src = decrypted.encrypted ? decrypted.src : fallback.src;
   const onError = decrypted.encrypted ? undefined : fallback.onError;
   const hasCW = item.contentWarning !== undefined;
@@ -162,22 +187,44 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
       {isValidBlurhash(item.blurhash) && (
         <BlurhashPlaceholder hash={item.blurhash} className={cn('absolute inset-0 transition-opacity duration-300', loaded && !showBlur ? 'opacity-0' : 'opacity-100')} />
       )}
-      {!isValidBlurhash(item.blurhash) && !loaded && item.type !== 'audio' && (
+      {!isValidBlurhash(item.blurhash) && !loaded && item.type !== 'audio' && (item.type !== 'file' || poster) && (
         <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
       )}
 
-      {item.type === 'video' && !showBlur && (
+      {poster && !showBlur && (
+        <DecryptedImage
+          url={poster}
+          encryption={posterEncryption}
+          enabled={inView}
+          noticeFill
+          alt={item.alt ?? ''}
+          className={cn(
+            'absolute inset-0 w-full h-full transition-all duration-300 group-hover:scale-[1.04]',
+            // Model renders and font specimens are drawn whole, often on transparency.
+            item.type === 'file' ? 'object-contain p-3' : 'object-cover',
+            loaded ? 'opacity-100' : 'opacity-0',
+          )}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+        />
+      )}
+      {item.type === 'file' && !poster && !showBlur && (
+        <FileThumb item={item} />
+      )}
+
+      {showVideo && !showBlur && (
         <video
           src={src}
           data-no-native-poster=""
           poster={BLANK_POSTER}
-          className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', loaded ? 'opacity-100' : 'opacity-0')}
+          className={cn('absolute inset-0 w-full h-full object-cover transition-opacity duration-300 group-hover:scale-[1.04]', videoReady ? 'opacity-100' : 'opacity-0')}
           muted
           autoPlay={config.autoplayVideos}
           loop
           playsInline
           preload="metadata"
-          onLoadedData={() => setLoaded(true)}
+          onLoadedData={() => { setLoaded(true); setVideoReady(true); }}
           onError={onError}
         />
       )}
@@ -196,7 +243,7 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
         <AudioThumb pubkey={item.event.pubkey} />
       )}
 
-      {decrypted.encrypted && !decrypted.src && !showBlur && (
+      {decrypted.encrypted && needsFile && !decrypted.src && !showBlur && (
         <EncryptedFileNotice
           fill
           loading={decrypted.loading}
@@ -226,6 +273,11 @@ function MediaThumb({ item, onClick }: { item: MediaItem; onClick: () => void })
         </div>
       )}
 
+      {item.type === 'file' && poster && !showBlur && (
+        <div className="absolute top-1.5 left-1.5 bg-black/60 text-white rounded p-0.5">
+          {modelFormat(item.mime) ? <Rotate3d className="size-3.5" /> : <FileIcon className="size-3.5" />}
+        </div>
+      )}
       {item.hasMultiple && item.type === 'image' && !showBlur && (
         <div className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded p-0.5">
           <Images className="size-3.5" />
@@ -333,10 +385,12 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
       item.allUrls.map((url, indexInEvent) => ({
         url,
         type: item.allTypes[indexInEvent] ?? item.type,
-        mime: item.mime,
+        mime: item.allImeta[indexInEvent]?.mime ?? item.mime,
         dim: item.allDims[indexInEvent] ?? item.dim,
-        blurhash: item.blurhash,
+        blurhash: item.allImeta[indexInEvent]?.blurhash ?? item.blurhash,
+        thumbnail: item.allImeta[indexInEvent]?.thumbnail,
         encryption: item.allEncryption[indexInEvent] ?? item.encryption,
+        imeta: item.allImeta[indexInEvent],
         pubkey: item.event.pubkey,
         event: item.event,
         indexInEvent,
@@ -398,9 +452,9 @@ export function MediaCollage({ events, className, initialOpenUrl, onInitialOpenC
     return urls;
   }, [flat, hasNextPage]);
 
-  const mediaTypes = useMemo(() => flat.map((e) => e.type as 'image' | 'video' | 'audio'), [flat]);
+  const mediaTypes = useMemo(() => flat.map((e) => e.type), [flat]);
   const mediaMeta = useMemo(
-    () => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, pubkey: e.pubkey, encryption: e.encryption })),
+    () => flat.map((e) => ({ mime: e.mime, dim: e.dim, blurhash: e.blurhash, thumbnail: e.thumbnail, pubkey: e.pubkey, encryption: e.encryption, imeta: e.imeta })),
     [flat],
   );
 

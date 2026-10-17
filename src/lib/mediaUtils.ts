@@ -2,25 +2,33 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { extractBlossomUris, resolveBlossomUri, resolveBlossomUrl } from '@/lib/blossomUri';
 import { type FileEncryption } from '@/lib/encryptedFile';
-import { parseImetaEntries } from '@/lib/imeta';
+import { parseImetaEntries, type ImetaEntry } from '@/lib/imeta';
 import { getContentWarning } from '@/lib/contentWarning';
-import { mimeFromExt } from '@/lib/mediaUrls';
+import { fileCategory, mimeFromExt, urlExtension } from '@/lib/mediaUrls';
 
-export type MediaType = 'image' | 'video' | 'audio';
+/** `file` is anything a browser can't show as media: 3D models, PDFs, fonts, …. */
+export type MediaType = 'image' | 'video' | 'audio' | 'file';
 
 /** Event kinds that are inherently video content (vines, horizontal video, vertical video). */
 const VIDEO_KINDS = new Set([34235, 34236, 21, 22]);
 /** Event kinds that are inherently audio content (music tracks, podcast episodes/trailers). */
 const AUDIO_KINDS = new Set([36787, 34139, 30054, 30055, 1222]);
 
+/** MIME types that say nothing about what a file is. */
+const GENERIC_MIME = /^(application|binary)\/octet-stream$/i;
+
+function mediaCategory(mime: string): MediaType {
+  const category = fileCategory(mime);
+  return category === 'image' || category === 'video' || category === 'audio' ? category : 'file';
+}
+
 function detectType(url: string, mime?: string, eventKind?: number): MediaType {
-  if (mime) {
-    if (mime.startsWith('video/')) return 'video';
-    if (mime.startsWith('audio/')) return 'audio';
-    if (mime.startsWith('image/')) return 'image';
-  }
+  if (mime && !GENERIC_MIME.test(mime)) return mediaCategory(mime);
   if (/\.(mp4|webm|mov|qt|m3u8)(\?.*)?$/i.test(url)) return 'video';
   if (/\.(mp3|mpga|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
+  const ext = urlExtension(url);
+  const extMime = ext ? mimeFromExt(ext) : undefined;
+  if (extMime && !GENERIC_MIME.test(extMime)) return mediaCategory(extMime);
   // Fall back to event kind for extensionless URLs (e.g. Blossom content-addressed URLs)
   if (eventKind !== undefined) {
     if (VIDEO_KINDS.has(eventKind)) return 'video';
@@ -50,6 +58,8 @@ export interface MediaItem {
   dim?: string;
   alt?: string;
   mime?: string;
+  /** Poster or preview image (imeta `image`/`thumb`). */
+  thumbnail?: string;
   /** Present when `url` serves ciphertext that must be decrypted before display. */
   encryption?: FileEncryption;
   allUrls: string[];
@@ -57,6 +67,8 @@ export interface MediaItem {
   allDims: (string | undefined)[];
   /** Per-URL encryption, aligned with `allUrls`. */
   allEncryption: (FileEncryption | undefined)[];
+  /** Per-URL imeta, aligned with `allUrls`; undefined for URLs found only in the content. */
+  allImeta: (ImetaEntry | undefined)[];
   event: NostrEvent;
   hasMultiple: boolean;
   /** NIP-36 content warning reason, or empty string if flagged with no reason, or undefined if clean. */
@@ -92,7 +104,8 @@ function extractBlossomMediaUrls(content: string, blossomServers: string[]): str
 export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = []): MediaItem | null {
   const imeta = parseImetaEntries(event.tags).flatMap((entry) => {
     const url = resolveBlossomUrl(entry.url, blossomServers);
-    return url ? [{ ...entry, url }] : [];
+    const thumbnail = entry.thumbnail ? resolveBlossomUrl(entry.thumbnail, blossomServers) : undefined;
+    return url ? [{ ...entry, url, thumbnail }] : [];
   });
   const cw = getContentWarning(event);
   if (imeta.length > 0) {
@@ -105,11 +118,13 @@ export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = [
       dim: first.dim,
       alt: first.alt,
       mime: first.mime,
+      thumbnail: first.thumbnail,
       encryption: first.encryption,
       allUrls: imeta.map((e) => e.url),
       allTypes: imeta.map((e) => detectType(e.url, e.mime, event.kind)),
       allDims: imeta.map((e) => e.dim),
       allEncryption: imeta.map((e) => e.encryption),
+      allImeta: imeta,
       event,
       hasMultiple: imeta.length > 1,
       contentWarning: cw,
@@ -129,6 +144,7 @@ export function eventToMediaItem(event: NostrEvent, blossomServers: string[] = [
         allTypes: types,
         allDims: urls.map(() => undefined),
         allEncryption: urls.map(() => undefined),
+        allImeta: urls.map(() => undefined),
         event,
         hasMultiple: urls.length > 1,
         contentWarning: cw,
