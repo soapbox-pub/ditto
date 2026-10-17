@@ -127,6 +127,7 @@
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.8.0",
+    "mdast-util-to-markdown": "^2.2.0",
     "mediabunny": "^1.60.0",
     "micromark": "^4.0.3",
     "micromark-extension-gfm": "^3.0.0",

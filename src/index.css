@@ -794,141 +794,36 @@
 }
 
 /* ── Milkdown Editor Styles ─────────────────────────────────────────────────── */
-
-.milkdown-editor .milkdown {
-  @apply outline-none;
-}
-
-.milkdown-editor .editor {
-  @apply outline-none min-h-[400px] p-3;
-  font-size: 1.125rem;
-  line-height: 1.75;
-}
+/* Typography comes from ARTICLE_PROSE_CLASSES (shared with the reader), so
+   these rules only cover what's specific to editing. */
 
 .milkdown-editor .ProseMirror {
-  @apply outline-none min-h-[400px];
+  @apply outline-none min-h-[350px] px-4 py-3;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
-.milkdown-editor .ProseMirror:focus {
-  @apply outline-none;
+.milkdown-editor .ProseMirror > :first-child {
+  @apply mt-0;
 }
 
-/* Headings */
-.milkdown-editor h1 {
-  @apply text-3xl font-bold mt-6 mb-4;
+.milkdown-editor .ProseMirror img.ProseMirror-selectednode {
+  @apply ring-2 ring-primary ring-offset-2 ring-offset-card;
 }
 
-.milkdown-editor h2 {
-  @apply text-2xl font-semibold mt-5 mb-3;
+/* GFM task lists */
+.milkdown-editor li[data-item-type="task"] {
+  @apply list-none relative;
 }
 
-.milkdown-editor h3 {
-  @apply text-xl font-semibold mt-4 mb-2;
+.milkdown-editor li[data-item-type="task"]::before {
+  @apply absolute -left-6 top-[0.3em] size-4 rounded border border-muted-foreground/60;
+  content: '';
 }
 
-.milkdown-editor h4 {
-  @apply text-lg font-medium mt-3 mb-2;
+.milkdown-editor li[data-item-type="task"][data-checked="true"]::before {
+  @apply bg-primary border-primary;
 }
-
-/* Inline styles */
-.milkdown-editor strong {
-  @apply font-bold;
-}
-
-.milkdown-editor em {
-  @apply italic;
-}
-
-.milkdown-editor del {
-  @apply line-through text-muted-foreground;
-}
-
-.milkdown-editor code {
-  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
-}
-
-/* Block elements */
-.milkdown-editor p {
-  @apply my-1.5;
-}
-
-.milkdown-editor blockquote {
-  @apply border-l-4 border-primary/40 pl-4 my-4 italic text-muted-foreground;
-}
-
-.milkdown-editor pre {
-  @apply bg-muted rounded-lg p-4 my-4 overflow-x-auto;
-}
-
-.milkdown-editor pre code {
-  @apply bg-transparent p-0 font-mono;
-  font-size: 0.875rem;
-}
-
-/* Lists */
-.milkdown-editor ul {
-  @apply list-disc list-inside my-3 space-y-1;
-}
-
-.milkdown-editor ol {
-  @apply list-decimal list-inside my-3 space-y-1;
-}
-
-.milkdown-editor li {
-  @apply pl-1;
-}
-
-.milkdown-editor li p {
-  @apply inline my-0;
-}
-
-/* Task lists (GFM) */
-.milkdown-editor ul.task-list {
-  @apply list-none pl-0;
-}
-
-.milkdown-editor li.task-list-item {
-  @apply flex items-start gap-2 pl-0;
-}
-
-.milkdown-editor li.task-list-item input[type="checkbox"] {
-  @apply mt-1.5 h-4 w-4 rounded border-border;
-}
-
-/* Links */
-.milkdown-editor a {
-  @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
-}
-
-/* Horizontal rule */
-.milkdown-editor hr {
-  @apply my-6 border-border;
-}
-
-/* Images */
-.milkdown-editor img {
-  @apply max-w-full h-auto rounded-lg my-4;
-}
-
-/* Tables (GFM) */
-.milkdown-editor table {
-  @apply w-full border-collapse my-4;
-}
-
-.milkdown-editor th,
-.milkdown-editor td {
-  @apply border border-border px-3 py-2 text-left;
-}
-
-.milkdown-editor th {
-  @apply bg-muted font-semibold;
-}
-
-.milkdown-editor tr:nth-child(even) {
-  @apply bg-muted/30;
-}
-
-
 
 /* Upload placeholder */
 .milkdown-upload-placeholder {
@@ -937,18 +832,13 @@
 
 .milkdown-upload-placeholder::before {
   content: '';
-  @apply w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin;
+  @apply w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full motion-safe:animate-spin;
 }
 
-/* Placeholder — only when unfocused AND content is empty. */
-.milkdown-editor .ProseMirror:not(:focus):not(.has-content) > p:first-child::before {
+/* Placeholder for an empty document (decoration from placeholderPlugin). */
+.milkdown-editor .is-empty::before {
   @apply text-muted-foreground pointer-events-none float-left h-0;
-  content: var(--ph, '');
-}
-
-/* Milkdown content area */
-.milkdown-editor .milkdown-content .ProseMirror {
-  @apply min-h-[350px];
+  content: attr(data-placeholder);
 }
 
 /* Blobbi idle animations — speed/intensity driven by happiness via inline style */

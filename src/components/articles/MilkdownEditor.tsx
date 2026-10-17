@@ -1,16 +1,39 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from '@milkdown/core';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { commonmark, toggleStrongCommand, toggleEmphasisCommand, wrapInBlockquoteCommand, insertHrCommand, turnIntoTextCommand, wrapInHeadingCommand, toggleInlineCodeCommand, wrapInBulletListCommand, wrapInOrderedListCommand } from '@milkdown/preset-commonmark';
+import { toggleStrongCommand, toggleEmphasisCommand, wrapInBlockquoteCommand, insertHrCommand, turnIntoTextCommand, wrapInHeadingCommand, toggleInlineCodeCommand, wrapInBulletListCommand, wrapInOrderedListCommand } from '@milkdown/preset-commonmark';
 import { gfm, toggleStrikethroughCommand } from '@milkdown/preset-gfm';
 import { history } from '@milkdown/plugin-history';
 import { clipboard } from '@milkdown/plugin-clipboard';
 import { listener, listenerCtx } from '@milkdown/plugin-listener';
 import { upload, uploadConfig } from '@milkdown/plugin-upload';
-import { Decoration } from '@milkdown/prose/view';
-import { replaceAll, callCommand } from '@milkdown/utils';
+import type { Node as ProseNode } from '@milkdown/prose/model';
+import { Plugin, PluginKey } from '@milkdown/prose/state';
+import { Decoration, DecorationSet } from '@milkdown/prose/view';
+import { $prose, replaceAll, callCommand } from '@milkdown/utils';
+
+import { ARTICLE_PROSE_CLASSES } from '@/lib/articleHelpers';
+import { cn } from '@/lib/utils';
 import { MilkdownToolbar } from './MilkdownToolbar';
 import { LinkDialog } from './LinkDialog';
+import { articleCommonmark, configureArticleMarkdown, remarkArticleCompat } from './milkdownMarkdown';
+
+/** Shows `text` in the first paragraph while the document is empty. */
+function placeholderPlugin(text: string) {
+  return $prose(() => new Plugin({
+    key: new PluginKey('ARTICLE_PLACEHOLDER'),
+    props: {
+      decorations: ({ doc }) => {
+        const first = doc.firstChild;
+        if (!text || doc.childCount !== 1 || !first?.isTextblock || first.content.size > 0) return null;
+        return DecorationSet.create(doc, [
+          Decoration.node(0, first.nodeSize, { class: 'is-empty', 'data-placeholder': text }),
+        ]);
+      },
+    },
+  }));
+}
 
 interface MilkdownEditorInnerProps {
   value: string;
@@ -24,10 +47,11 @@ interface MilkdownEditorInnerProps {
 }
 
 function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placeholder, showToolbar = true, sourceMode, onToggleSource }: MilkdownEditorInnerProps) {
+  const intl = useIntl();
   const initialValueRef = useRef(value);
-  const editorRef = useRef<Editor | null>(null);
   const lastExternalValue = useRef(value);
   const onUploadImageRef = useRef(onUploadImage);
+  const uploadingLabel = intl.formatMessage({ id: 'milkdownEditor.uploading', defaultMessage: 'Uploading…' });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,72 +72,41 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
       .config((ctx) => {
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, initialValueRef.current);
+        configureArticleMarkdown(ctx);
         ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
           lastExternalValue.current = markdown;
           onChange(markdown);
         });
 
-        // Configure upload plugin
+        // Dropped and pasted images upload to Blossom; anything else is ignored.
         ctx.set(uploadConfig.key, {
           uploader: async (files, schema) => {
-            const images: File[] = [];
-
-            for (let i = 0; i < files.length; i++) {
-              const file = files.item(i);
-              if (!file) continue;
-
-              // Only handle images
-              if (!file.type.includes('image')) continue;
-
-              images.push(file);
-            }
-
-            const nodes: ReturnType<typeof schema.nodes.image.createAndFill>[] = [];
-
-            for (const image of images) {
+            const nodes: ProseNode[] = [];
+            for (const file of Array.from(files)) {
+              if (!file.type.startsWith('image/') || !onUploadImageRef.current) continue;
               try {
-                // Use the upload handler if provided
-                if (onUploadImageRef.current) {
-                  const url = await onUploadImageRef.current(image);
-                  if (url) {
-                    const node = schema.nodes.image.createAndFill({
-                      src: url,
-                      alt: image.name,
-                    });
-                    if (node) nodes.push(node);
-                  }
-                } else {
-                  // Fallback to base64 if no upload handler
-                  const reader = new FileReader();
-                  const dataUrl = await new Promise<string>((resolve) => {
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.readAsDataURL(image);
-                  });
-                  const node = schema.nodes.image.createAndFill({
-                    src: dataUrl,
-                    alt: image.name,
-                  });
-                  if (node) nodes.push(node);
-                }
+                const url = await onUploadImageRef.current(file);
+                const node = url ? schema.nodes.image.createAndFill({ src: url }) : null;
+                if (node) nodes.push(node);
               } catch (error) {
                 console.error('Failed to upload image:', error);
               }
             }
-
-            return nodes.filter((node): node is NonNullable<typeof node> => node !== null);
+            return nodes;
           },
           enableHtmlFileUploader: true,
           uploadWidgetFactory: (pos, spec) => {
-            // Create a placeholder widget while uploading
             const widgetEl = document.createElement('span');
             widgetEl.className = 'milkdown-upload-placeholder';
-            widgetEl.textContent = 'Uploading...';
+            widgetEl.textContent = uploadingLabel;
             return Decoration.widget(pos, widgetEl, spec);
           },
         });
       })
-      .use(commonmark)
+      .use(articleCommonmark)
       .use(gfm)
+      .use(remarkArticleCompat)
+      .use(placeholderPlugin(placeholder ?? ''))
       .use(history)
       .use(clipboard)
       .use(listener)
@@ -121,33 +114,6 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
 
     return editor;
   });
-
-  // Store editor reference
-  useEffect(() => {
-    editorRef.current = get() ?? null;
-  }, [get]);
-
-  // Toggle `has-content` class on blur so CSS can hide the placeholder
-  // when the editor has real content (including trailing whitespace that
-  // ProseMirror collapses out of the DOM).
-  useEffect(() => {
-    const editor = get();
-    if (!editor) return;
-    let dom: HTMLElement;
-    try {
-      dom = editor.ctx.get(editorViewCtx).dom;
-    } catch {
-      return;
-    }
-    const check = () => {
-      const hasContent = !!lastExternalValue.current.replace(/\n/g, '');
-      dom.classList.toggle('has-content', hasContent);
-    };
-    // Set initial state
-    check();
-    dom.addEventListener('blur', check);
-    return () => dom.removeEventListener('blur', check);
-  }, [get]);
 
   // Handle external value changes (e.g., loading a draft).
   // In source mode, just keep lastExternalValue in sync so the guard works
@@ -233,6 +199,8 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
 
   const handleImageFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    // Reset so the same file can be re-selected
+    e.target.value = '';
     if (!file || !onUploadImageRef.current) return;
 
     const url = await onUploadImageRef.current(file);
@@ -244,19 +212,14 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
     try {
       const view = editor.ctx.get(editorViewCtx);
       const { state, dispatch } = view;
-      const { schema } = state;
-      const node = schema.nodes.image.createAndFill({ src: url, alt: file.name });
+      const node = state.schema.nodes.image.createAndFill({ src: url });
       if (node) {
-        const { from } = state.selection;
-        dispatch(state.tr.insert(from, node));
+        dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
         view.focus();
       }
     } catch (error) {
       console.error('Failed to insert image:', error);
     }
-
-    // Reset so the same file can be re-selected
-    e.target.value = '';
   }, [get]);
 
   // Handle toolbar commands
@@ -346,9 +309,8 @@ function MilkdownEditorInner({ value, onChange, onBlur, onUploadImage, placehold
       ) : (
         <div
           dir="auto"
-          className="milkdown-content"
+          className={cn('milkdown-content', ARTICLE_PROSE_CLASSES)}
           onBlur={onBlur}
-          style={placeholder ? { '--ph': `"${placeholder.replace(/"/g, '\\"')}"` } as React.CSSProperties : undefined}
         >
           <Milkdown />
         </div>

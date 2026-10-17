@@ -7,6 +7,12 @@ import type { IntlShape } from 'react-intl';
  */
 export const ARTICLE_KINDS = new Set([30023, 30024]);
 
+/**
+ * Typography for article bodies. Shared by the reader and the editor so
+ * what you write looks the way it will read.
+ */
+export const ARTICLE_PROSE_CLASSES = 'prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground';
+
 /** Fields shared by drafts and published articles. */
 export interface ArticleFields {
   title: string;
