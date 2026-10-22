@@ -1187,3 +1187,65 @@ video[data-no-native-poster]::-internal-media-controls-overlay-cast-button {
   from { filter: hue-rotate(0deg); }
   to { filter: hue-rotate(300deg); }
 }
+
+/* Poll arena (PollArena): little voters running to their answer. Each voter
+   is a flat sprite standing on a 3D floor, always facing the camera, so its
+   parts never cut through each other. Timings are set inline per voter, so
+   the whole run plays out in CSS with no React re-renders. These animate the
+   individual `translate` / `rotate` / `scale` properties so they stack on
+   each part's static placement (in the sprite's 2× local pixels), one animation per element so Chrome can run
+   them all on the compositor. */
+
+/* Drop in at the starting spot. Not a scale-up: Chrome rasterizes a layer
+   at the scale its animation starts from, which would leave voters blurry. */
+@keyframes poll-pop {
+  from { opacity: 0; translate: 0 -28px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+/* Run from the start spot to the voter's place on the floor. */
+@keyframes poll-run {
+  from { translate: var(--poll-from-x) 0 var(--poll-from-z); }
+  to { translate: var(--poll-to-x) 0 var(--poll-to-z); }
+}
+
+/* Lean into the run, then straighten up on arrival. */
+@keyframes poll-lean {
+  0%, 90% { rotate: var(--poll-lean); }
+  100% { rotate: 0deg; }
+}
+
+/* One stride: each leg lifts once, half a stride apart. */
+@keyframes poll-step-a {
+  0%, 50%, 100% { translate: 0 0; }
+  25% { translate: 0 -6px; }
+}
+@keyframes poll-step-b {
+  0%, 50%, 100% { translate: 0 0; }
+  75% { translate: 0 -6px; }
+}
+
+/* Arms pump from the shoulder; starts and ends at rest. */
+@keyframes poll-arm-pump {
+  0%, 100% { rotate: 0deg; }
+  25% { rotate: 28deg; }
+  75% { rotate: -28deg; }
+}
+
+/* Body bounce, twice per stride. */
+@keyframes poll-run-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+
+/* Arms thrown up and out into a V on arrival. `--side` is -1 / 1 for left / right. */
+@keyframes poll-cheer-arm {
+  0%, 100% { rotate: 0deg; }
+  25%, 75% { rotate: calc(var(--side) * -135deg); }
+}
+
+/* Two little hops of joy on arrival. */
+@keyframes poll-hop {
+  0%, 50%, 100% { translate: 0 0; }
+  25%, 75% { translate: 0 -12px; }
+}

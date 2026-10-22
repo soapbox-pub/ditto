@@ -3738,6 +3738,7 @@
   "poll.ended": "終了",
   "poll.multipleChoice": "複数選択",
   "poll.noVotes": "まだ投票はありません",
+  "poll.seeVoters": "投票した人を見る",
   "poll.singleChoice": "単一選択",
   "poll.vote": "投票する",
   "poll.voteCount": "{count, plural, other {#票}}",

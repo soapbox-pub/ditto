@@ -3738,6 +3738,7 @@
   "poll.ended": "Beendet",
   "poll.multipleChoice": "Mehrfachauswahl",
   "poll.noVotes": "Noch keine Stimmen",
+  "poll.seeVoters": "Zeig, wer abgestimmt hat",
   "poll.singleChoice": "Einfachauswahl",
   "poll.vote": "Abstimmen",
   "poll.voteCount": "{count, plural, one {# Stimme} other {# Stimmen}}",

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { BarChart3, CheckCircle2, Clock, X, ChevronRight } from 'lucide-react';
+import { BarChart3, Clock, X, ChevronRight } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
@@ -10,6 +10,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { NoteContent } from '@/components/NoteContent';
+import { PollArena } from '@/components/PollArena';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -261,47 +262,37 @@ export function PollContent({ event }: { event: NostrEvent }) {
           </span>
         )}
 
-        {/* Voter avatars + count pushed to the right */}
-        {showResults && totalVotes > 0 && (
-          <VoterAvatarsButton
-            votes={votes ?? []}
-            totalVotes={totalVotes}
-            authorsMap={authorsMap}
+        {/* Total vote count pushed to the right */}
+        {showResults && (
+          <button
             onClick={() => openVotersModal(null)}
-            className="ml-auto"
-          />
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count: totalVotes }} />
+          </button>
         )}
       </div>
 
+      {/* Results: voters walk to the side or slice they picked */}
+      {showResults && (
+        <PollArena
+          options={options}
+          votes={votes ?? []}
+          tally={tally}
+          totalVotes={totalVotes}
+          pollType={pollType}
+          userPubkey={user?.pubkey}
+          authorsMap={authorsMap}
+          onOpenVoters={openVotersModal}
+        />
+      )}
+
       {/* Options */}
-      <div className="mt-3 space-y-2">
+      {!showResults && <div className="mt-3 space-y-2">
         {options.map((opt) => {
-          const count = tally.get(opt.id) ?? 0;
-          const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-          const isMyVote = userVote?.tags.some(([n, id]) => n === 'response' && id === opt.id);
           const isSelected = selectedOption === opt.id;
 
-          return showResults ? (
-            <div key={opt.id} className="relative overflow-hidden rounded-lg border border-border">
-              {/* Background fill bar */}
-              <div
-                className={cn(
-                  'absolute inset-0 transition-all duration-500',
-                  isMyVote ? 'bg-primary/15' : 'bg-secondary/40',
-                )}
-                style={{ width: `${pct}%` }}
-              />
-              <div className="relative flex items-center justify-between px-3 py-2.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  {isMyVote && <CheckCircle2 className="size-4 text-primary shrink-0" />}
-                  <span className={cn('text-sm break-words', isMyVote && 'font-semibold')}>{opt.label}</span>
-                </div>
-                <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
-                  {pct}%
-                </span>
-              </div>
-            </div>
-          ) : (
+          return (
             <button
               key={opt.id}
               onClick={() => setSelectedOption(opt.id)}
@@ -316,7 +307,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
             </button>
           );
         })}
-      </div>
+      </div>}
 
       {/* Vote button + voter avatars (voting mode only) */}
       {!showResults && (
