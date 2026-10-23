@@ -1485,6 +1485,15 @@ function ProfilePageInner() {
     return user?.pubkey;
   }, [npub, user, isNip05Param, nip05Pubkey]);
 
+  // This component stays mounted when navigating between profiles (including
+  // browser back/forward), so close the followers modal when the profile
+  // changes. Adjusted during render so the next profile never paints with it open.
+  const [modalPubkey, setModalPubkey] = useState(pubkey);
+  if (modalPubkey !== pubkey) {
+    setModalPubkey(pubkey);
+    setFollowersModalOpen(false);
+  }
+
   // Custom profile tabs from kind 16769
   const profileTabsQuery = useProfileTabs(pubkey);
 
