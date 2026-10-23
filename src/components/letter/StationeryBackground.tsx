@@ -10,7 +10,7 @@
  * Frame styles overlay on top.
  */
 
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   FRAME_PRESETS,
   DEFAULT_STATIONERY_COLOR,
@@ -21,6 +21,8 @@ import {
 } from '@/lib/letterTypes';
 import { ColorPaletteDisplay, type PaletteLayout } from './ColorPaletteDisplay';
 import { hexLuminance, darkenHex } from '@/lib/colorUtils';
+import { layoutFrame } from '@/lib/frameLayout';
+import { sanitizeEmoji } from '@/lib/sanitizeEmoji';
 
 export type { PaletteLayout } from './ColorPaletteDisplay';
 
@@ -33,13 +35,16 @@ function frameTintColor(resolved: ResolvedStationery): string {
 }
 
 interface EmojiFrameProps {
+  /** Seeds the garland layout, so the same frame always lays out the same way. */
+  id?: string;
   tint: string | null;
   thickness: number;
   emojis: string[];
   defaultBg: string;
   /**
    * Jitter positions, rotations, and sizes for a hand-scattered look
-   * (deterministic, so the frame renders identically every time).
+   * (deterministic, so the frame renders identically every time) instead of
+   * the garland following the frame's rounded outline.
    */
   scatter?: boolean;
   /**
@@ -56,61 +61,100 @@ function jitter(i: number, salt: number): number {
   return x - Math.floor(x);
 }
 
+const FRAME_RADIUS = 32;
+
+interface PlacedEmoji {
+  emoji: string;
+  left: number | string;
+  top: number | string;
+  size: number;
+  rot: number;
+  jx: number;
+  jy: number;
+}
+
+function scatterLayout(emojis: string[], t: number): PlacedEmoji[] {
+  const gap = 40;
+  const row1 = 8;
+  const row2 = t - 4;
+
+  const items: PlacedEmoji[] = [];
+  let ei = 0;
+  const next = () => emojis[ei++ % emojis.length];
+
+  const place = (left: string, top: string) => {
+    const i = items.length;
+    items.push({
+      emoji: next(),
+      left,
+      top,
+      size: 26 + jitter(i, 1) * 18,
+      rot: (jitter(i, 2) - 0.5) * 60,
+      jx: (jitter(i, 3) - 0.5) * 14,
+      jy: (jitter(i, 4) - 0.5) * 14,
+    });
+  };
+
+  for (const d of [row1, row2]) {
+    for (let x = 8; x < 800; x += gap) place(`${x}px`, `${d}px`);
+    for (let x = 8; x < 800; x += gap) place(`${x}px`, `calc(100% - ${d}px)`);
+  }
+  for (const d of [row1, row2]) {
+    for (let y = t + gap; y < 800; y += gap) place(`${d}px`, `${y}px`);
+    for (let y = t + gap; y < 800; y += gap) place(`calc(100% - ${d}px)`, `${y}px`);
+  }
+  return items;
+}
+
 /**
  * Emoji border band (also reused by LoveListContent for its hearts frame).
  * Positions itself at `inset: -thickness` of its nearest positioned ancestor
  * with `zIndex: -1` — render it inside a `relative isolate` wrapper that has
  * `thickness` of surrounding padding to expose the band.
+ *
+ * Letter frames lay their emoji out as a garland following the frame's
+ * rounded outline: one row of big emoji, evenly spaced at any size and drawn
+ * in shuffled order so no emoji sits next to itself.
  */
-export function EmojiFrame({ tint, thickness, emojis, defaultBg, scatter, keepDefaultBg }: EmojiFrameProps) {
+export function EmojiFrame({ id = '', tint, thickness, emojis, defaultBg, scatter, keepDefaultBg }: EmojiFrameProps) {
   const t = thickness;
   const bgColor = tint && !keepDefaultBg ? darkenHex(tint, 0.45) : defaultBg;
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<[number, number]>([0, 0]);
 
-  const flowers = useMemo(() => {
-    const gap = scatter ? 40 : 48;
-    const row1 = 8;
-    const row2 = t - 4;
+  // Measured before paint, so the garland never shows up bare
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || scatter) return;
+    const measure = () => setSize((prev) =>
+      prev[0] === el.offsetWidth && prev[1] === el.offsetHeight ? prev : [el.offsetWidth, el.offsetHeight]);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [scatter]);
 
-    const items: { emoji: string; left: string; top: string; size: number; rot: number; jx: number; jy: number }[] = [];
-    let ei = 0;
-    const next = () => emojis[ei++ % emojis.length];
-
-    const place = (left: string, top: string) => {
-      const i = items.length;
-      items.push(scatter
-        ? {
-          emoji: next(),
-          left,
-          top,
-          size: 26 + jitter(i, 1) * 18,
-          rot: (jitter(i, 2) - 0.5) * 60,
-          jx: (jitter(i, 3) - 0.5) * 14,
-          jy: (jitter(i, 4) - 0.5) * 14,
-        }
-        : { emoji: next(), left, top, size: 40, rot: 0, jx: 0, jy: 0 });
-    };
-
-    for (const d of [row1, row2]) {
-      for (let x = 8; x < 800; x += gap) place(`${x}px`, `${d}px`);
-      for (let x = 8; x < 800; x += gap) place(`${x}px`, `calc(100% - ${d}px)`);
-    }
-    for (const d of [row1, row2]) {
-      for (let y = t + gap; y < 800; y += gap) place(`${d}px`, `${y}px`);
-      for (let y = t + gap; y < 800; y += gap) place(`calc(100% - ${d}px)`, `${y}px`);
-    }
-
-    return items;
-  }, [emojis, t, scatter]);
+  const flowers = useMemo((): PlacedEmoji[] => {
+    if (scatter) return scatterLayout(emojis, t);
+    // Wider than the border, so they tuck under the letter and run off the frame's edge
+    return layoutFrame(size[0], size[1], emojis, id, [
+      { inset: t * 0.55, radius: FRAME_RADIUS, spacing: 38, size: 42 },
+    ]).map((f) => ({ emoji: f.emoji, left: f.x, top: f.y, size: f.size, rot: f.rot, jx: 0, jy: 0 }));
+  }, [scatter, emojis, t, size, id]);
 
   return (
     <div
+      ref={ref}
       className="absolute pointer-events-none select-none overflow-hidden"
       aria-hidden
       style={{
         inset: -t,
-        borderRadius: '2rem',
+        borderRadius: FRAME_RADIUS,
         zIndex: -1,
         backgroundColor: bgColor,
+        // Its own layer: a few hundred emoji glyphs are costly to paint, and
+        // drawers sliding above the letter would otherwise repaint them each frame.
+        willChange: 'transform',
       }}
     >
       {flowers.map((f, i) => (
@@ -121,7 +165,9 @@ export function EmojiFrame({ tint, thickness, emojis, defaultBg, scatter, keepDe
             left: f.left,
             top: f.top,
             fontSize: `${f.size}px`,
-            transform: `translate(${f.jx}px, ${f.jy}px) rotate(${f.rot}deg) translate(-50%, -50%)`,
+            transform: scatter
+              ? `translate(${f.jx}px, ${f.jy}px) rotate(${f.rot}deg) translate(-50%, -50%)`
+              : `translate(-50%, -50%) rotate(${f.rot}deg)`,
             lineHeight: 1,
           }}
         >
@@ -141,10 +187,6 @@ export function EmojiFrame({ tint, thickness, emojis, defaultBg, scatter, keepDe
       )}
     </div>
   );
-}
-
-function sanitizeEmoji(raw: string): string {
-  return [...raw].filter((ch) => /\p{Emoji_Presentation}|\p{Extended_Pictographic}/u.test(ch)).join('').slice(0, 8);
 }
 
 function EmojiBacksplash({ emoji }: { emoji: string }) {
@@ -186,7 +228,7 @@ interface StationeryBackgroundProps {
 function FrameRenderer({ frame, tint, thickness }: { frame: FrameStyle; tint: string | null; thickness: number }) {
   const preset = FRAME_PRESETS.find(f => f.id === frame);
   if (!preset?.emojis || !preset.bgColor) return null;
-  return <EmojiFrame key={frame} tint={tint} thickness={thickness} emojis={preset.emojis} defaultBg={preset.bgColor} />;
+  return <EmojiFrame key={frame} id={frame} tint={tint} thickness={thickness} emojis={preset.emojis} defaultBg={preset.bgColor} />;
 }
 
 export function StationeryBackground({

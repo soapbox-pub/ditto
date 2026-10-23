@@ -36,6 +36,18 @@ function StickerMedia({ sticker, sizeCqw, className }: { sticker: LetterSticker;
       />
     );
   }
+  if (sticker.emoji) {
+    return (
+      <span
+        role="img"
+        aria-label={sticker.emoji}
+        style={{ width: sizeCqw, height: sizeCqw, fontSize: `calc(${sizeCqw} * 0.85)`, lineHeight: 1 }}
+        className={`flex items-center justify-center select-none ${className ?? ''}`}
+      >
+        {sticker.emoji}
+      </span>
+    );
+  }
   if (!isSafeUrl(sticker.url)) return null;
   return (
     <img

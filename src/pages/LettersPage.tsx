@@ -21,7 +21,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { EnvelopeCard } from '@/components/letter/EnvelopeCard';
 import { LetterDetailSheet } from '@/components/letter/LetterDetailSheet';
-import type { Letter } from '@/lib/letterTypes';
+import { DEFAULT_FRIENDS_ONLY_INBOX, type Letter } from '@/lib/letterTypes';
 
 type Tab = 'inbox' | 'sent';
 
@@ -55,17 +55,20 @@ export function LettersPage() {
   const followedPubkeys = followListData.data?.pubkeys;
   const { excludeMuted } = useMutedAuthorFilter();
 
-  // If friendsOnlyInbox is enabled, only show letters from followed users
-  // (minus any muted pubkeys — viewer's mute list always wins).
-  const inboxFilter = prefs.friendsOnlyInbox && followedPubkeys
-    ? excludeMuted(followedPubkeys)
+  // Friends only (the default) shows letters from followed users alone, minus
+  // any muted pubkeys — the viewer's mute list always wins. Strangers' letters
+  // stay out until the user turns it off in letter preferences.
+  const friendsOnlyInbox = prefs.friendsOnlyInbox ?? DEFAULT_FRIENDS_ONLY_INBOX;
+  const waitingForFollows = friendsOnlyInbox && !followedPubkeys && followListData.isLoading;
+  const inboxFilter = friendsOnlyInbox
+    ? excludeMuted(followedPubkeys ?? [])
     : undefined;
 
   const inboxQuery = useInbox(inboxFilter);
   const sentQuery = useSentLetters();
 
   const inbox = inboxQuery.data;
-  const inboxLoading = inboxQuery.isLoading;
+  const inboxLoading = inboxQuery.isLoading || waitingForFollows;
   const sent = sentQuery.data;
   const sentLoading = sentQuery.isLoading;
 
@@ -126,7 +129,7 @@ export function LettersPage() {
       {/* Envelope grid */}
       <div className="px-4 py-3">
         {isLoading && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sidebar:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <EnvelopeSkeleton key={i} index={i} />
             ))}
@@ -140,7 +143,7 @@ export function LettersPage() {
             </div>
             <p className="text-muted-foreground text-sm">
               {tab === 'inbox' ? (
-                prefs.friendsOnlyInbox ? (
+                friendsOnlyInbox ? (
                   <FormattedMessage id="letters.empty.friends" defaultMessage="no letters from friends yet" />
                 ) : (
                   <FormattedMessage id="letters.empty.inbox" defaultMessage="no letters yet" />
@@ -159,7 +162,7 @@ export function LettersPage() {
 
         {!isLoading && activeLetters && activeLetters.length > 0 && (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sidebar:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {activeLetters.map((letter, i) => (
                 <EnvelopeCard
                   key={letter.event.id}

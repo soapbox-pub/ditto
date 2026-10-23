@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useEncryptedSettings } from './useEncryptedSettings';
-import type { LetterPreferences } from '@/lib/letterTypes';
+import { frameOrNone, parseSeal, type LetterPreferences } from '@/lib/letterTypes';
 
 /**
  * Persists per-user letter preferences in the encrypted settings event (NIP-78 kind 30078).
@@ -11,8 +11,18 @@ import type { LetterPreferences } from '@/lib/letterTypes';
 export function useLetterPreferences() {
   const { settings, updateSettings } = useEncryptedSettings();
 
-  // Raw saved prefs — stationery may be undefined if never set
-  const prefs: LetterPreferences = settings?.letterPreferences ?? {};
+  // Saved prefs — stationery may be undefined if never set. The seal and frame
+  // are checked, so a malformed synced seal or a retired frame can't break compose.
+  const raw = settings?.letterPreferences;
+  const prefs: LetterPreferences = useMemo(() => {
+    if (!raw) return {};
+    const { seal, frame, ...rest } = raw;
+    return {
+      ...rest,
+      ...(frame !== undefined && { frame: frameOrNone(frame) }),
+      ...(seal !== undefined && { seal: parseSeal(seal) }),
+    };
+  }, [raw]);
 
   /** True when no stationery has been explicitly saved — use the active Ditto theme. */
   const isThemeDefault = !prefs.stationery;

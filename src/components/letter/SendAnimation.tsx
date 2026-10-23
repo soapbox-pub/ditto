@@ -1,20 +1,22 @@
 /**
  * SendAnimation
  *
- * Full-screen overlay: letter slides into envelope, flap closes, wax seal
- * stamps with the Ditto logo, floats away, then shows "Sent a letter to <name>!"
+ * Full-screen overlay: letter slides into envelope, flap closes, the letter's
+ * wax seal stamps on, it floats away, then shows "Sent a letter to <name>!"
  *
  * Envelope colors are derived from the letter's stationery (theme colors).
- * The wax seal uses the stationery's primary color and the Ditto logo.
  */
 
-import { useId, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { hexToRgb, rgbToHex, darkenHex, blendHex } from '@/lib/colorUtils';
 import { impactMedium } from '@/lib/haptics';
 import { useEnvelopeDimensions } from '@/hooks/useEnvelopeDimensions';
 import { FallbackImage } from '@/components/FallbackImage';
 import type { ImetaEntry } from '@/lib/imeta';
+import { defaultSeal, type WaxSeal as WaxSealData } from '@/lib/letterTypes';
+import { stampPose } from '@/lib/stampPose';
+import { WaxSeal } from './WaxSeal';
 
 // ---------------------------------------------------------------------------
 // Easing + animation driver
@@ -67,11 +69,6 @@ function envelopeColors(bgHex: string, primaryHex: string) {
     inner,
     stroke: darkenHex(body, 0.20),
     corner: darkenHex(body, 0.12),
-    // Seal: use primary color
-    sealBase:   primaryHex,
-    sealDark:   darkenHex(primaryHex, 0.12),
-    sealDarker: darkenHex(primaryHex, 0.22),
-    sealEdge:   darkenHex(primaryHex, 0.18),
   };
 }
 
@@ -123,10 +120,12 @@ interface SendAnimationProps {
   recipientPictureImeta?: ImetaEntry;
   /** Background hex color of the stationery (used for envelope) */
   bgColor: string;
-  /** Primary hex color of the stationery (used for wax seal) */
+  /** Primary hex color of the stationery (used for confetti and the default seal) */
   primaryColor: string;
   /** Text/foreground color of the stationery (used for V-fold crease lines) */
   textColor: string;
+  /** Seal stamped on the envelope (defaults to the Ditto logo in the primary color) */
+  seal?: WaxSealData;
   onComplete: () => void;
 }
 
@@ -137,11 +136,10 @@ interface SendAnimationProps {
 export function SendAnimation({
   letterElement, letterWidth,
   recipientName, recipientPicture, recipientPictureImeta,
-  bgColor, primaryColor, textColor,
+  bgColor, primaryColor, textColor, seal,
   onComplete,
 }: SendAnimationProps) {
   const d = useEnvelopeDimensions();
-  const splatId = useId();
 
   const [t, setT] = useState(0);
   const cancelRef = useRef<(() => void) | undefined>(undefined);
@@ -176,16 +174,10 @@ export function SendAnimation({
   const flapDeg   = flapClose * 180;
 
   // Seal
-  const sealVisible  = sealP > 0;
-  const sealDropY    = (1 - sealP) * -120;
-  const impactT      = Math.max(0, (sealP - 0.75) / 0.25);
-  const sealScaleX   = impactT === 0 ? 1 : impactT < 0.4 ? 1 + impactT / 0.4 * 0.08 : 1.08 - (impactT - 0.4) / 0.6 * 0.08;
-  const sealScaleY   = impactT === 0 ? 1 : impactT < 0.4 ? 1 - impactT / 0.4 * 0.06 : 0.94 + (impactT - 0.4) / 0.6 * 0.06;
-  const splatScale   = impactT < 0.3 ? impactT / 0.3 : 1;
-  const sealShadowBlur = (1 - sealP) * 24 + 4;
-  const sealShadowY    = (1 - sealP) * 30 + 2;
+  const sealVisible = sealP > 0;
+  const sealPose    = stampPose(sealP, 120);
 
-  if (impactT > 0 && !sealHapticFired.current) {
+  if (sealPose.impact > 0 && !sealHapticFired.current) {
     sealHapticFired.current = true;
     haptic();
   }
@@ -197,7 +189,6 @@ export function SendAnimation({
 
   const sealSize = Math.round(d.envW * 0.19);
   const sealHalf = sealSize / 2;
-  const splatSize = Math.round(sealSize * 1.3);
 
   const stageH = d.letterH + d.flapTriH + d.envH + 60;
 
@@ -343,85 +334,20 @@ export function SendAnimation({
 
               {/* Wax seal */}
               {sealVisible && (
-                <div
-                  className="absolute"
+                <WaxSeal
+                  seal={seal ?? defaultSeal(primaryColor)}
+                  size={sealSize}
+                  splat={sealPose.splat}
+                  dropShadow={sealPose.shadow}
                   style={{
+                    position: 'absolute',
                     left: d.envW / 2 - sealHalf,
-                    top:  d.vY - sealHalf,
-                    width: sealSize, height: sealSize,
+                    top: d.vY - sealHalf,
                     zIndex: 5,
-                    transform: `translateY(${sealDropY}px) scaleX(${sealScaleX}) scaleY(${sealScaleY})`,
+                    transform: `translateY(${sealPose.y}px) scaleX(${sealPose.scaleX}) scaleY(${sealPose.scaleY})`,
                     transformOrigin: 'center center',
                   }}
-                >
-                  {/* Splat blob on impact */}
-                  {impactT > 0 && (
-                    <svg
-                      className="absolute"
-                      width={splatSize} height={splatSize}
-                      viewBox="0 0 84 84"
-                      style={{
-                        left: -(splatSize - sealSize) / 2,
-                        top:  -(splatSize - sealSize) / 2,
-                        transform: `scale(${0.88 + splatScale * 0.12})`,
-                      }}
-                    >
-                      <defs>
-                        <radialGradient id={splatId}>
-                          <stop offset="0%"   stopColor={C.sealBase} />
-                          <stop offset="50%"  stopColor={C.sealDark} />
-                          <stop offset="85%"  stopColor={C.sealDarker} />
-                          <stop offset="100%" stopColor={C.sealDarker} stopOpacity="0.6" />
-                        </radialGradient>
-                      </defs>
-                      <path
-                        d="M42 3 C50 2, 58 7, 64 13 C69 18, 76 24, 78 33 C80 41, 82 48, 77 56 C73 62, 66 70, 56 73 C48 76, 40 78, 32 74 C24 71, 14 66, 9 58 C5 50, 2 42, 4 34 C6 26, 12 18, 19 12 C26 6, 34 4, 42 3 Z"
-                        fill={`url(#${splatId})`}
-                      />
-                      <path
-                        d="M42 3 C50 2, 58 7, 64 13 C69 18, 76 24, 78 33 C80 41, 82 48, 77 56 C73 62, 66 70, 56 73 C48 76, 40 78, 32 74 C24 71, 14 66, 9 58 C5 50, 2 42, 4 34 C6 26, 12 18, 19 12 C26 6, 34 4, 42 3 Z"
-                        fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1"
-                      />
-                    </svg>
-                  )}
-
-                  {/* Seal disc */}
-                  <div
-                    className="absolute rounded-full"
-                    style={{
-                      inset: 2,
-                      background: `
-                        radial-gradient(ellipse at 35% 30%, rgba(255,255,255,0.22) 0%, transparent 50%),
-                        radial-gradient(ellipse at 65% 70%, rgba(0,0,0,0.14) 0%, transparent 50%),
-                        radial-gradient(circle at 50% 50%, ${C.sealBase} 0%, ${C.sealDark} 55%, ${C.sealDarker} 100%)
-                      `,
-                      boxShadow: `
-                        0 ${sealShadowY}px ${sealShadowBlur}px rgba(0,0,0,0.28),
-                        0 1px 3px rgba(0,0,0,0.14),
-                        inset 0 1.5px 2px rgba(255,255,255,0.18),
-                        inset 0 -1.5px 2px rgba(0,0,0,0.18)
-                      `,
-                      border: `2px solid ${C.sealEdge}`,
-                    }}
-                  />
-
-                  {/* Ditto logo */}
-                  <div
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ zIndex: 1 }}
-                  >
-                    <img
-                      src="/logo.svg"
-                      alt=""
-                      style={{
-                        width: sealSize * 0.58,
-                        height: sealSize * 0.58,
-                        filter: 'brightness(0) invert(1) opacity(0.85)',
-                      }}
-                      decoding="async"
-                    />
-                  </div>
-                </div>
+                />
               )}
 
               {/* Contact shadow */}

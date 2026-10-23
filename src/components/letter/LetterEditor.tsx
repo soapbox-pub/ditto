@@ -18,12 +18,15 @@ import {
   formatFontLabel,
   type Stationery,
   type FrameStyle,
+  type WaxSeal as WaxSealData,
 } from '@/lib/letterTypes';
 import { loadBundledFont } from '@/lib/fonts';
 import { StationeryBackground } from './StationeryBackground';
 import { useStationeryColors } from '@/hooks/useStationeryColors';
 import { StationeryPicker } from './StationeryPicker';
 import { FramePicker } from './FramePicker';
+import { SealPicker } from './SealPicker';
+import { WaxSeal } from './WaxSeal';
 import { resolveFont } from '@/lib/letterUtils';
 import {
   Select,
@@ -54,7 +57,7 @@ export function FrameIcon({ className, strokeWidth = 2 }: { className?: string; 
 // Overlay types — base set shared by all consumers
 // ---------------------------------------------------------------------------
 
-export type BaseOverlay = 'none' | 'font' | 'stationery' | 'frame';
+export type BaseOverlay = 'none' | 'font' | 'stationery' | 'frame' | 'seal';
 
 // ---------------------------------------------------------------------------
 // LetterEditor types
@@ -79,6 +82,10 @@ export interface LetterEditorState {
   setClosing: (v: string) => void;
   signature: string;
   setSignature: (v: string) => void;
+  seal: WaxSealData;
+  setSeal: (s: WaxSealData) => void;
+  /** What the seal picker's reset goes back to */
+  defaultSeal: WaxSealData;
 }
 
 interface LetterEditorProps {
@@ -92,7 +99,7 @@ interface LetterEditorProps {
   renderToolbarButtons: (buttons: ReactNode, drawer: ReactNode) => ReactNode;
   /** Extra buttons appended after the base Aa/paintbrush/frame buttons. */
   extraButtons?: ReactNode;
-  /** Extra drawer panels for overlays beyond 'font'/'stationery'/'frame'. */
+  /** Extra drawer panels for overlays beyond 'font'/'stationery'/'frame'/'seal'. */
   extraDrawerContent?: ReactNode;
   /** Current overlay — managed externally so callers can add custom overlays. */
   overlay: string;
@@ -131,6 +138,7 @@ export function LetterEditor({
     frameTint, setFrameTint,
     closing, setClosing,
     signature, setSignature,
+    seal, setSeal, defaultSeal,
   } = state;
 
   // Presets are inserted in the writer's locale. Keep a previously chosen
@@ -175,7 +183,7 @@ export function LetterEditor({
   const { text: stationeryTextColor, line: stationeryLineColor, fontFamily: themeFont } = useStationeryColors(stationery);
   const resolvedFontFamily = resolveFont(selectedFont.family, themeFont);
 
-  const isBaseOverlay = (o: string): o is BaseOverlay => ['none', 'font', 'stationery', 'frame'].includes(o);
+  const isBaseOverlay = (o: string): o is BaseOverlay => ['none', 'font', 'stationery', 'frame', 'seal'].includes(o);
   const drawerOpen = overlay !== 'none';
 
   // The toolbar buttons — passed to renderToolbarButtons so the caller
@@ -203,6 +211,13 @@ export function LetterEditor({
       >
         <FrameIcon className="h-5 w-5" strokeWidth={2.5} />
       </TabButton>
+      <TabButton
+        label={intl.formatMessage({ id: 'letterEditor.seal', defaultMessage: 'Wax seal' })}
+        active={overlay === 'seal'}
+        onClick={() => setOverlay(overlay === 'seal' ? 'none' : 'seal')}
+      >
+        <WaxSeal seal={seal} size={24} splat={1} dropShadow={{ y: 1, blur: 2 }} />
+      </TabButton>
       {extraButtons}
     </>
   );
@@ -212,7 +227,7 @@ export function LetterEditor({
       className="bg-background/90 backdrop-blur-sm"
       style={{
         overflow: 'hidden',
-        maxHeight: drawerOpen ? (overlay === 'draw' ? '600px' : '400px') : '0',
+        maxHeight: drawerOpen ? (overlay === 'draw' || overlay === 'seal' || overlay === 'sticker' ? '600px' : '400px') : '0',
         transition: 'max-height 0.25s ease-in-out',
       }}
     >
@@ -245,6 +260,9 @@ export function LetterEditor({
             onFrameSelect={setFrame}
             onFrameTintChange={setFrameTint}
           />
+        )}
+        {overlay === 'seal' && (
+          <SealPicker seal={seal} onChange={setSeal} defaultSeal={defaultSeal} />
         )}
         {!isBaseOverlay(overlay) && extraDrawerContent}
       </div>

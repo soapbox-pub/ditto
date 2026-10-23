@@ -16,7 +16,8 @@
  *
  * The closed flap shows the real StationeryBackground (images, palettes, emoji).
  * Below the V crease is the opaque paper body with corner folds and subtle shading.
- * Avatar wax seal at the V vertex.
+ * The letter's wax seal at the V vertex (the other person's avatar for
+ * letters sent before seals existed).
  * Label: name left-aligned, shorthand time right-aligned.
  */
 
@@ -29,6 +30,7 @@ import { useDecryptLetter } from '@/hooks/useLetters';
 import { resolveStationery, DEFAULT_STATIONERY_COLOR, type Letter } from '@/lib/letterTypes';
 import { hexLuminance, darkenHex, lightenHex, blendHex } from '@/lib/colorUtils';
 import { StationeryBackground } from './StationeryBackground';
+import { WaxSeal } from './WaxSeal';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 
 interface EnvelopeCardProps {
@@ -98,6 +100,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
   const timeStr = shortTimeAgo(letter.timestamp, intl);
 
   const stationery = decrypted?.stationery;
+  const seal = decrypted?.content.seal;
   const resolved = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
   const bgColor = resolved.color;
   const primaryColor = resolved.primaryColor ?? resolved.colors?.[0] ?? bgColor;
@@ -200,7 +203,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
           </div>
         )}
 
-        {/* Layer 3: Avatar wax seal — positioned above V vertex */}
+        {/* Layer 3: Wax seal — positioned above V vertex */}
         <div
           className="absolute z-10"
           style={{
@@ -209,33 +212,42 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
             transform: 'translate(-50%, -50%)',
           }}
         >
-          <div
-            className="rounded-full transition-transform duration-200 group-hover:scale-110 overflow-hidden"
-            style={{
-              width: 40,
-              height: 40,
-              boxShadow: `0 3px 10px ${C.shadow}77, 0 1px 3px ${C.shadow}44, inset 0 1.5px 3px rgba(255,255,255,0.3)`,
-              border: `3px solid ${darkenHex(primaryColor, 0.18)}`,
-              background: `
-                radial-gradient(ellipse at 35% 30%, rgba(255,255,255,0.22) 0%, transparent 50%),
-                radial-gradient(ellipse at 65% 70%, rgba(0,0,0,0.12) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, ${primaryColor}, ${darkenHex(primaryColor, 0.18)})
-              `,
-            }}
-          >
-            {avatar ? (
-              <FallbackImage src={avatar} imeta={author.data?.imeta?.picture} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <img
-                  src="/logo.svg"
-                  alt=""
-                  style={{ width: 22, height: 22, filter: 'brightness(0) invert(1) opacity(0.85)' }}
-                  decoding="async"
-                />
-              </div>
-            )}
-          </div>
+          {seal ? (
+            <WaxSeal
+              seal={seal}
+              size={42}
+              splat={1}
+              className="transition-transform duration-200 group-hover:scale-110"
+            />
+          ) : (
+            <div
+              className="rounded-full transition-transform duration-200 group-hover:scale-110 overflow-hidden"
+              style={{
+                width: 40,
+                height: 40,
+                boxShadow: `0 3px 10px ${C.shadow}77, 0 1px 3px ${C.shadow}44, inset 0 1.5px 3px rgba(255,255,255,0.3)`,
+                border: `3px solid ${darkenHex(primaryColor, 0.18)}`,
+                background: `
+                  radial-gradient(ellipse at 35% 30%, rgba(255,255,255,0.22) 0%, transparent 50%),
+                  radial-gradient(ellipse at 65% 70%, rgba(0,0,0,0.12) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, ${primaryColor}, ${darkenHex(primaryColor, 0.18)})
+                `,
+              }}
+            >
+              {avatar ? (
+                <FallbackImage src={avatar} imeta={author.data?.imeta?.picture} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <img
+                    src="/logo.svg"
+                    alt=""
+                    style={{ width: 22, height: 22, filter: 'brightness(0) invert(1) opacity(0.85)' }}
+                    decoding="async"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Layer 5: Overflow menu trigger — lower right corner */}

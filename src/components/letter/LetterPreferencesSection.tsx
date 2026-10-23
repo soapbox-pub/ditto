@@ -11,9 +11,13 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
+  DEFAULT_FRIENDS_ONLY_INBOX,
   FONT_OPTIONS,
+  defaultSeal,
+  resolveStationery,
   type Stationery,
   type FrameStyle,
+  type WaxSeal,
 } from '@/lib/letterTypes';
 import { LetterEditor, type BaseOverlay } from './LetterEditor';
 
@@ -45,9 +49,19 @@ export function LetterPreferencesSection() {
   );
   const [frame, setFrame] = useState<FrameStyle>(() => prefs.frame ?? 'none');
   const [frameTint, setFrameTint] = useState(() => prefs.frameTint ?? false);
-  const [friendsOnlyInbox, setFriendsOnlyInbox] = useState(() => prefs.friendsOnlyInbox ?? false);
+  const [friendsOnlyInbox, setFriendsOnlyInbox] = useState(() => prefs.friendsOnlyInbox ?? DEFAULT_FRIENDS_ONLY_INBOX);
   const [friendsOnlySearch, setFriendsOnlySearch] = useState(() => prefs.friendsOnlySearch ?? false);
   const [overlay, setOverlay] = useState<BaseOverlay>('none');
+  // Without a saved seal, letters get the Ditto logo in the stationery's primary color
+  const [pickedSeal, setPickedSeal] = useState<WaxSeal | undefined>(() => prefs.seal);
+  const primary = resolveStationery(stationery);
+  const fallbackSeal = defaultSeal(primary.primaryColor ?? primary.colors?.[0]);
+  const seal = pickedSeal ?? fallbackSeal;
+
+  // Encrypted settings load after mount; adopt the synced seal when it arrives
+  useEffect(() => {
+    if (prefs.seal) setPickedSeal((current) => current ?? prefs.seal);
+  }, [prefs.seal]);
 
   // Keep preview in sync with the live theme when no custom stationery is saved
   useEffect(() => {
@@ -80,6 +94,12 @@ export function LetterPreferencesSection() {
     updatePrefs({ stationery: toSerializable(s) });
   };
 
+  const handleSetSeal = (next: WaxSeal) => {
+    setPickedSeal(next);
+    if (!user) return;
+    updatePrefs({ seal: next });
+  };
+
   if (!user) {
     return (
       <div className="px-5 py-8 text-center text-sm text-muted-foreground">
@@ -98,6 +118,8 @@ export function LetterPreferencesSection() {
           frameTint, setFrameTint,
           closing, setClosing,
           signature, setSignature,
+          seal, setSeal: handleSetSeal,
+          defaultSeal: fallbackSeal,
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as BaseOverlay)}
@@ -182,7 +204,7 @@ export function LetterPreferencesSection() {
             >
               <FormattedMessage
                 id="letterPreferences.previewHint"
-                defaultMessage="Pick a font, stationery, and frame above. Choose a closing and sign your name below."
+                defaultMessage="Pick a font, stationery, frame, and wax seal above. Choose a closing and sign your name below."
               />
             </p>
           </div>

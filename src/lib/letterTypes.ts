@@ -2,6 +2,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { defineMessage, defineMessages, type IntlShape, type MessageDescriptor } from 'react-intl';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { sanitizeCssString } from '@/lib/fontLoader';
+import { sanitizeEmoji } from '@/lib/sanitizeEmoji';
 
 export const LETTER_KIND = 8211;
 export const COLOR_MOMENT_KIND = 3367;
@@ -9,6 +10,9 @@ export const THEME_KIND = 36767;
 
 /** Default stationery background color (parchment). */
 export const DEFAULT_STATIONERY_COLOR = '#F5E6D3';
+
+/** Inboxes show only friends' letters until the user turns it off, so strangers can't land in them. */
+export const DEFAULT_FRIENDS_ONLY_INBOX = true;
 
 /** Ratio of ruled-line height to card width. Used across letter rendering components. */
 export const LINE_HEIGHT_RATIO = 0.084;
@@ -29,6 +33,8 @@ export interface LetterSticker {
   scale?: number;
   /** Raw SVG markup for hand-drawn stickers. When present, rendered inline instead of url. */
   svg?: string;
+  /** Native unicode emoji for emoji stickers (shortcode "emoji", url ""). Rendered as text. */
+  emoji?: string;
 }
 
 export interface LetterContent {
@@ -40,6 +46,111 @@ export interface LetterContent {
   stickers?: LetterSticker[];
   /** Visual stationery — all rendering attributes plus optional source event */
   stationery?: Stationery;
+  /** Wax seal stamped on the envelope. Untrusted on receive — read through parseSeal(). */
+  seal?: WaxSeal;
+}
+
+// ---------------------------------------------------------------------------
+// Wax seal
+// ---------------------------------------------------------------------------
+
+/** Built-in stamp designs. Paths live in WaxSeal.tsx. */
+export type SealIcon =
+  | 'leaf' | 'heart' | 'star' | 'moon' | 'flower' | 'crown' | 'sun' | 'ditto'
+  // Unlocked by using other Nostr apps
+  | 'treasures' | 'espy' | 'surveil' | 'nostrdamus';
+
+/** Earned by having published any of `kinds` — i.e. by having used `app`. */
+export interface SealUnlock {
+  app: string;
+  url: string;
+  kinds: number[];
+  /** What to do to earn it, e.g. "hide or find a treasure" */
+  hint: MessageDescriptor;
+}
+
+export const SEAL_ICONS: { id: SealIcon; name: MessageDescriptor; unlock?: SealUnlock }[] = [
+  { id: 'ditto', name: defineMessage({ id: 'letterSeal.icon.ditto', defaultMessage: 'Ditto' }) },
+  { id: 'leaf', name: defineMessage({ id: 'letterSeal.icon.leaf', defaultMessage: 'Leaf' }) },
+  { id: 'heart', name: defineMessage({ id: 'letterSeal.icon.heart', defaultMessage: 'Heart' }) },
+  { id: 'star', name: defineMessage({ id: 'letterSeal.icon.star', defaultMessage: 'Star' }) },
+  { id: 'moon', name: defineMessage({ id: 'letterSeal.icon.moon', defaultMessage: 'Moon' }) },
+  { id: 'flower', name: defineMessage({ id: 'letterSeal.icon.flower', defaultMessage: 'Flower' }) },
+  { id: 'crown', name: defineMessage({ id: 'letterSeal.icon.crown', defaultMessage: 'Crown' }) },
+  { id: 'sun', name: defineMessage({ id: 'letterSeal.icon.sun', defaultMessage: 'Sun' }) },
+  // Geocache listing, found log, verified find (NIP-GC)
+  { id: 'treasures', name: defineMessage({ id: 'letterSeal.icon.treasures', defaultMessage: 'Treasures' }), unlock: { app: 'Treasures', url: 'https://treasures.to', kinds: [37516, 7516, 7517], hint: defineMessage({ id: 'letterSeal.unlock.treasures', defaultMessage: 'hide or find a treasure' }) } },
+  // Color moment
+  { id: 'espy', name: defineMessage({ id: 'letterSeal.icon.espy', defaultMessage: 'Espy' }), unlock: { app: 'Espy', url: 'https://espy.you', kinds: [COLOR_MOMENT_KIND], hint: defineMessage({ id: 'letterSeal.unlock.espy', defaultMessage: 'capture a color moment' }) } },
+  // Magic deck
+  { id: 'surveil', name: defineMessage({ id: 'letterSeal.icon.surveil', defaultMessage: 'Surveil' }), unlock: { app: 'Surveil', url: 'https://surveil.cards', kinds: [37381], hint: defineMessage({ id: 'letterSeal.unlock.surveil', defaultMessage: 'build a deck' }) } },
+  // Tarot reading (NIP-TR)
+  { id: 'nostrdamus', name: defineMessage({ id: 'letterSeal.icon.nostrdamus', defaultMessage: 'Nostrdamus' }), unlock: { app: 'Nostrdamus', url: 'https://nostrdamus.me', kinds: [2256], hint: defineMessage({ id: 'letterSeal.unlock.nostrdamus', defaultMessage: 'draw a tarot reading' }) } },
+];
+
+export const WAX_COLORS: { name: MessageDescriptor; color: string }[] = [
+  { name: defineMessage({ id: 'letterSeal.wax.violet', defaultMessage: 'Violet' }), color: '#7C52E0' },
+  { name: defineMessage({ id: 'letterSeal.wax.forest', defaultMessage: 'Forest' }), color: '#438060' },
+  { name: defineMessage({ id: 'letterSeal.wax.crimson', defaultMessage: 'Crimson' }), color: '#9B1B30' },
+  { name: defineMessage({ id: 'letterSeal.wax.burgundy', defaultMessage: 'Burgundy' }), color: '#6D1A2A' },
+  { name: defineMessage({ id: 'letterSeal.wax.blush', defaultMessage: 'Blush' }), color: '#C9677D' },
+  { name: defineMessage({ id: 'letterSeal.wax.copper', defaultMessage: 'Copper' }), color: '#A0522D' },
+  { name: defineMessage({ id: 'letterSeal.wax.gold', defaultMessage: 'Gold' }), color: '#B8892B' },
+  { name: defineMessage({ id: 'letterSeal.wax.teal', defaultMessage: 'Teal' }), color: '#2A7F8F' },
+  { name: defineMessage({ id: 'letterSeal.wax.navy', defaultMessage: 'Navy' }), color: '#1F3A68' },
+  { name: defineMessage({ id: 'letterSeal.wax.plum', defaultMessage: 'Plum' }), color: '#5E2A5E' },
+  { name: defineMessage({ id: 'letterSeal.wax.ink', defaultMessage: 'Ink' }), color: '#2A2626' },
+];
+
+/** The emblem pressed into the wax: a built-in icon, a native emoji, or 1–3 initials. */
+export type SealEmblem =
+  | { type: 'icon'; value: SealIcon }
+  | { type: 'emoji'; value: string }
+  | { type: 'initials'; value: string };
+
+export interface WaxSeal {
+  /** Wax color (hex). */
+  color: string;
+  emblem: SealEmblem;
+}
+
+export const SEAL_INITIALS_MAX = 3;
+
+/** Wax color of the default seal when the stationery has no usable primary color. */
+const DEFAULT_WAX_COLOR = '#7C52E0';
+
+/** The seal a letter gets when none was chosen: the Ditto logo, in the stationery's primary color. */
+export function defaultSeal(primaryColor?: string): WaxSeal {
+  return { color: isHexColor(primaryColor) ? primaryColor : DEFAULT_WAX_COLOR, emblem: { type: 'icon', value: 'ditto' } };
+}
+
+/** Validate an untrusted seal (from a decrypted letter or synced prefs). */
+export function parseSeal(raw: unknown): WaxSeal | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const { color, emblem } = raw as { color?: unknown; emblem?: { type?: unknown; value?: unknown } };
+  if (!isHexColor(color)) return undefined;
+  if (!emblem || typeof emblem !== 'object' || typeof emblem.value !== 'string') return undefined;
+  const value = emblem.value;
+  switch (emblem.type) {
+    case 'icon':
+      return SEAL_ICONS.some((i) => i.id === value) ? { color, emblem: { type: 'icon', value: value as SealIcon } } : undefined;
+    case 'emoji': {
+      const emoji = sanitizeEmoji(value);
+      return emoji ? { color, emblem: { type: 'emoji', value: emoji } } : undefined;
+    }
+    case 'initials': {
+      const initials = [...value.trim()].slice(0, SEAL_INITIALS_MAX).join('');
+      return initials ? { color, emblem: { type: 'initials', value: initials } } : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+export function sealsEqual(a: WaxSeal, b: WaxSeal): boolean {
+  return a.color.toLowerCase() === b.color.toLowerCase()
+    && a.emblem.type === b.emblem.type
+    && a.emblem.value === b.emblem.value;
 }
 
 /**
@@ -78,6 +189,8 @@ export interface Stationery {
   imageUrl?: string;
   /** @deprecated Read from event tags instead. */
   imageMode?: 'cover' | 'tile';
+  /** @deprecated Read from event tags instead. */
+  colors?: string[];
 }
 
 /** All rendering attributes for a stationery, fully resolved from event + fallbacks. */
@@ -131,6 +244,7 @@ export function resolveStationery(s: Stationery): ResolvedStationery {
   if (event?.kind === THEME_KIND) {
     const colorTags = event.tags.filter(([n]) => n === 'c');
     for (const [, hex, marker] of colorTags) {
+      if (!isHexColor(hex)) continue;
       if (marker === 'text') base.textColor = hex;
       if (marker === 'primary') base.primaryColor = hex;
     }
@@ -158,6 +272,7 @@ export function resolveStationery(s: Stationery): ResolvedStationery {
   base.layout = s.layout;
   base.imageUrl = sanitizeUrl(s.imageUrl);
   base.imageMode = s.imageMode ?? 'cover';
+  base.colors = s.colors;
   return base;
 }
 
@@ -176,7 +291,7 @@ export type FrameStyle =
   | 'garden'
   | 'winter'
   | 'fruit'
-  | 'sparkle';
+  | 'halloween';
 
 export interface FramePreset {
   id: FrameStyle;
@@ -192,13 +307,123 @@ export const FRAME_PRESETS: FramePreset[] = [
   { id: 'flowers', name: defineMessage({ id: 'letterFrame.flowers', defaultMessage: 'Flowers' }), emojis: ['🌸', '🌺', '🌼', '🌷', '🌻', '🌹'], bgColor: '#3a7a3a' },
   { id: 'autumn', name: defineMessage({ id: 'letterFrame.autumn', defaultMessage: 'Autumn' }), emojis: ['🍂', '🍁', '🍃', '🌾', '🍄', '🌰'], bgColor: '#8b5e3c' },
   { id: 'ocean', name: defineMessage({ id: 'letterFrame.ocean', defaultMessage: 'Ocean' }), emojis: ['🐚', '🌊', '🐠', '🐙', '🦀', '🐬'], bgColor: '#1a5276' },
-  { id: 'celestial', name: defineMessage({ id: 'letterFrame.celestial', defaultMessage: 'Celestial' }), emojis: ['🪐', '🌙', '⭐', '🌕', '☄️', '🔭'], bgColor: '#1a1a3e' },
+  { id: 'celestial', name: defineMessage({ id: 'letterFrame.celestial', defaultMessage: 'Celestial' }), emojis: ['🪐', '🌙', '⭐', '🌕', '☄️', '✨'], bgColor: '#1a1a3e' },
   { id: 'hearts', name: defineMessage({ id: 'letterFrame.hearts', defaultMessage: 'Hearts' }), emojis: ['❤️', '💕', '💗', '💖', '💝', '💘'], bgColor: '#8b2252' },
   { id: 'garden', name: defineMessage({ id: 'letterFrame.garden', defaultMessage: 'Garden' }), emojis: ['🦋', '🐝', '🌿', '🌱', '🐞', '🍀'], bgColor: '#2d5a27' },
-  { id: 'winter', name: defineMessage({ id: 'letterFrame.winter', defaultMessage: 'Winter' }), emojis: ['❄️', '⛄', '🌨️', '🏔️', '🎿', '🧣'], bgColor: '#4a6d8c' },
+  { id: 'winter', name: defineMessage({ id: 'letterFrame.winter', defaultMessage: 'Winter' }), emojis: ['🎄', '🎁', '⛄', '❄️', '🔔', '🎅'], bgColor: '#4a6d8c' },
   { id: 'fruit', name: defineMessage({ id: 'letterFrame.fruit', defaultMessage: 'Fruit' }), emojis: ['🍊', '🍋', '🍓', '🍑', '🍒', '🫐'], bgColor: '#6b4226' },
-  { id: 'sparkle', name: defineMessage({ id: 'letterFrame.sparkle', defaultMessage: 'Sparkle' }), emojis: ['✨', '💎', '🔮', '🪩', '⚡', '🌈'], bgColor: '#4a2d6b' },
+  { id: 'halloween', name: defineMessage({ id: 'letterFrame.halloween', defaultMessage: 'Halloween' }), emojis: ['🎃', '👻', '🦇', '🕸️', '💀', '🕯️'], bgColor: '#4a2a5a' },
 ];
+
+/** A known frame ID, or 'none' (for saved choices of frames since retired). */
+export function frameOrNone(id: unknown): FrameStyle {
+  return FRAME_PRESETS.find((f) => f.id === id)?.id ?? 'none';
+}
+
+// ---------------------------------------------------------------------------
+// Validation of decrypted letters (anyone can send one)
+// ---------------------------------------------------------------------------
+
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+const MAX_STICKERS = 100;
+const MAX_TEXT = 20_000;
+
+export function isHexColor(value: unknown): value is string {
+  return typeof value === 'string' && HEX_COLOR.test(value);
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const str = (v: unknown, max = MAX_TEXT) => (typeof v === 'string' ? v.slice(0, max) : undefined);
+const num = (v: unknown, min: number, max: number) =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined;
+
+function parseSourceEvent(raw: unknown): NostrEvent | undefined {
+  if (!isObject(raw)) return undefined;
+  const { id, pubkey, sig, kind, created_at, content, tags } = raw;
+  if (typeof kind !== 'number' || typeof content !== 'string' || !Array.isArray(tags)) return undefined;
+  if (!tags.every((t) => Array.isArray(t) && t.every((v) => typeof v === 'string'))) return undefined;
+  return {
+    id: typeof id === 'string' ? id : '',
+    pubkey: typeof pubkey === 'string' ? pubkey : '',
+    sig: typeof sig === 'string' ? sig : '',
+    created_at: typeof created_at === 'number' ? created_at : 0,
+    kind,
+    content,
+    tags: tags as string[][],
+  };
+}
+
+function parseStationery(raw: unknown): Stationery | undefined {
+  if (!isObject(raw) || !isHexColor(raw.color)) return undefined;
+  const emoji = typeof raw.emoji === 'string' ? sanitizeEmoji(raw.emoji) : undefined;
+  const fontFamily = str(raw.fontFamily, 200);
+  const colors = Array.isArray(raw.colors) ? raw.colors.filter(isHexColor).slice(0, 12) : undefined;
+  const event = parseSourceEvent(raw.event);
+  const imageUrl = typeof raw.imageUrl === 'string' ? sanitizeUrl(raw.imageUrl) : undefined;
+  return {
+    color: raw.color,
+    ...(emoji && { emoji }),
+    ...((raw.emojiMode === 'tile' || raw.emojiMode === 'emblem') && { emojiMode: raw.emojiMode }),
+    ...(fontFamily && !/[;{}<>]/.test(fontFamily) && { fontFamily }),
+    ...(FRAME_PRESETS.some((f) => f.id === raw.frame) && { frame: raw.frame as FrameStyle }),
+    ...(typeof raw.frameTint === 'boolean' && { frameTint: raw.frameTint }),
+    ...(event && { event }),
+    ...(isHexColor(raw.textColor) && { textColor: raw.textColor }),
+    ...(isHexColor(raw.primaryColor) && { primaryColor: raw.primaryColor }),
+    ...(typeof raw.layout === 'string' && { layout: raw.layout.slice(0, 50) }),
+    ...(imageUrl && { imageUrl }),
+    ...((raw.imageMode === 'cover' || raw.imageMode === 'tile') && { imageMode: raw.imageMode }),
+    ...(colors && colors.length > 0 && { colors }),
+  };
+}
+
+function parseSticker(raw: unknown): LetterSticker | undefined {
+  if (!isObject(raw)) return undefined;
+  const x = num(raw.x, 0, 100);
+  const y = num(raw.y, 0, 100);
+  if (x === undefined || y === undefined) return undefined;
+  const svg = str(raw.svg, 256 * 1024);
+  const emoji = typeof raw.emoji === 'string' ? sanitizeEmoji(raw.emoji) : undefined;
+  const url = str(raw.url, 2000) ?? '';
+  if (!svg && !emoji && !url) return undefined;
+  const scale = num(raw.scale, 0.5, 4);
+  return {
+    url,
+    shortcode: str(raw.shortcode, 100) ?? '',
+    x,
+    y,
+    rotation: num(raw.rotation, -180, 180) ?? 0,
+    ...(scale !== undefined && { scale }),
+    ...(svg && { svg }),
+    ...(emoji && { emoji }),
+  };
+}
+
+/**
+ * Validate a decrypted letter. Anyone can write to anyone, so every field is
+ * untrusted: wrong types would crash rendering for the whole inbox. Returns
+ * undefined unless the letter has a body or at least one sticker.
+ */
+export function parseLetterContent(raw: unknown): LetterContent | undefined {
+  if (!isObject(raw)) return undefined;
+  const body = str(raw.body);
+  const stickers = Array.isArray(raw.stickers)
+    ? raw.stickers.slice(0, MAX_STICKERS).map(parseSticker).filter((s): s is LetterSticker => !!s)
+    : [];
+  if (!body?.trim() && stickers.length === 0) return undefined;
+  const stationery = parseStationery(raw.stationery);
+  const seal = parseSeal(raw.seal);
+  const closing = str(raw.closing, 200);
+  const signature = str(raw.signature, 200);
+  return {
+    ...(body && { body }),
+    ...(closing && { closing }),
+    ...(signature && { signature }),
+    ...(stickers.length > 0 && { stickers }),
+    ...(stationery && { stationery }),
+    ...(seal && { seal }),
+  };
+}
 
 export interface Letter {
   event: NostrEvent;
@@ -223,6 +448,12 @@ export const STATIONERY_PRESETS: Record<string, { name: MessageDescriptor; color
   peach: { name: defineMessage({ id: 'letterStationery.peach', defaultMessage: 'Peach' }), color: '#FFE0CC', emoji: '🍑' },
   mint: { name: defineMessage({ id: 'letterStationery.mint', defaultMessage: 'Mint' }), color: '#E0F2E9', emoji: '🍃' },
   lavender: { name: defineMessage({ id: 'letterStationery.lavender', defaultMessage: 'Lavender' }), color: '#EDE7F6', emoji: '💜' },
+  // Seasonal
+  spring: { name: defineMessage({ id: 'letterStationery.spring', defaultMessage: 'Spring' }), color: '#F0F4C3', emoji: '🐣' },
+  birthday: { name: defineMessage({ id: 'letterStationery.birthday', defaultMessage: 'Birthday' }), color: '#FFF3D6', emoji: '🎂' },
+  pumpkin: { name: defineMessage({ id: 'letterStationery.pumpkin', defaultMessage: 'Pumpkin' }), color: '#FFE0B2', emoji: '🎃' },
+  snowfall: { name: defineMessage({ id: 'letterStationery.snowfall', defaultMessage: 'Snowfall' }), color: '#E3F2FD', emoji: '❄️' },
+  holly: { name: defineMessage({ id: 'letterStationery.holly', defaultMessage: 'Holly' }), color: '#F9E0E0', emoji: '🎄' },
 };
 
 /**
@@ -290,17 +521,19 @@ export interface LetterPreferences {
   closing?: string;
   /** Default signature (e.g. 'Chad') */
   signature?: string;
-  /** Only show letters from friends in the inbox */
+  /** Only show letters from friends in the inbox (default {@link DEFAULT_FRIENDS_ONLY_INBOX}) */
   friendsOnlyInbox?: boolean;
   /** Only show friends in search suggestions */
   friendsOnlySearch?: boolean;
+  /** Default wax seal for new letters */
+  seal?: WaxSeal;
 }
 
 /** Build a Stationery from a preset key */
 export function presetToStationery(key: string): Stationery | undefined {
   const preset = STATIONERY_PRESETS[key];
   if (!preset) return undefined;
-  return { color: preset.color, emoji: preset.emoji };
+  return { color: preset.color, emoji: preset.emoji, ...(preset.emoji && { emojiMode: 'emblem' as const }) };
 }
 
 /** Build a Stationery from a kind 3367 color moment event. */

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FormattedMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
+import { ChevronDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -22,7 +23,8 @@ import {
   presetToStationery,
   resolveStationery,
 } from '@/lib/letterTypes';
-import { useColorMomentsPage, useThemesPage } from '@/hooks/useStationery';
+import { useColorMomentsPage, useThemesPage, type StationeryScope } from '@/hooks/useStationery';
+import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { StationeryPreview } from './StationeryBackground';
@@ -43,24 +45,75 @@ const SCOPE_LABELS = defineMessages({
 });
 
 // ---------------------------------------------------------------------------
+// Scroll box that fades its edges while there's more to scroll to
+// ---------------------------------------------------------------------------
+
+const FADE = 36;
+
+function ScrollFadeBox({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const top = el.scrollTop > 1;
+    const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    setEdges((prev) => prev.top === top && prev.bottom === bottom ? prev : { top, bottom });
+  }, []);
+
+  // Content grows as pages load in, so watch it as well as the box
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => ro.disconnect();
+  }, [update]);
+
+  const mask = `linear-gradient(to bottom, ${edges.top ? 'transparent' : 'black'}, black ${FADE}px, black calc(100% - ${FADE}px), ${edges.bottom ? 'transparent' : 'black'})`;
+
+  return (
+    <div className="relative">
+      <div
+        ref={ref}
+        onScroll={update}
+        className="overflow-y-auto rounded-xl"
+        style={{ height: 208, maskImage: mask, WebkitMaskImage: mask }}
+      >
+        {children}
+      </div>
+      {edges.bottom && (
+        <ChevronDown
+          className="absolute bottom-0.5 left-1/2 -translate-x-1/2 size-5 text-muted-foreground pointer-events-none"
+          aria-hidden
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Paginated color moments grid with infinite scroll
 // ---------------------------------------------------------------------------
 
 function ColorMomentsGrid({
   selectedStationery,
   onSelect,
-  authors,
+  scope,
 }: {
   selectedStationery?: Stationery;
   onSelect: (s: Stationery) => void;
-  authors?: string[];
+  scope: StationeryScope;
 }) {
   const [pages, setPages] = useState<NostrEvent[][]>([]);
   const [until, setUntil] = useState<number | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
   const lastUntilRef = useRef<number | 'init' | undefined>('init');
 
-  const { data: page, isLoading } = useColorMomentsPage(PAGE_SIZE, until, authors);
+  const { data: page, isPending: isLoading } = useColorMomentsPage(PAGE_SIZE, until, scope);
 
   useEffect(() => {
     if (!page || isLoading) return;
@@ -109,7 +162,7 @@ function ColorMomentsGrid({
   }
 
   return (
-    <div className="overflow-y-auto rounded-xl" style={{ height: 160 }}>
+    <ScrollFadeBox>
       <div className="grid grid-cols-5 gap-2">
         {allItems.map((event) => {
           const stationery = colorMomentToStationery(event);
@@ -138,7 +191,7 @@ function ColorMomentsGrid({
           </div>
         )}
       </div>
-    </div>
+    </ScrollFadeBox>
   );
 }
 
@@ -149,18 +202,18 @@ function ColorMomentsGrid({
 function ThemesGrid({
   selectedStationery,
   onSelect,
-  authors,
+  scope,
 }: {
   selectedStationery?: Stationery;
   onSelect: (s: Stationery) => void;
-  authors?: string[];
+  scope: StationeryScope;
 }) {
   const [pages, setPages] = useState<NostrEvent[][]>([]);
   const [until, setUntil] = useState<number | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
   const lastUntilRef = useRef<number | 'init' | undefined>('init');
 
-  const { data: page, isLoading } = useThemesPage(PAGE_SIZE, until, authors);
+  const { data: page, isPending: isLoading } = useThemesPage(PAGE_SIZE, until, scope);
 
   useEffect(() => {
     if (!page || isLoading) return;
@@ -209,7 +262,7 @@ function ThemesGrid({
   }
 
   return (
-    <div className="overflow-y-auto rounded-xl" style={{ height: 160 }}>
+    <ScrollFadeBox>
       <div className="grid grid-cols-5 gap-2">
         {allItems.map((event) => {
           const stationery = themeToStationery(event);
@@ -238,7 +291,7 @@ function ThemesGrid({
           </div>
         )}
       </div>
-    </div>
+    </ScrollFadeBox>
   );
 }
 
@@ -266,16 +319,23 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
   const followList = useMemo(() => new Set(followPubkeyArray ?? []), [followPubkeyArray]);
   const { excludeMuted } = useMutedAuthorFilter();
 
-  const scopedAuthors = useMemo(() => {
-    if (scope === 'mine') return user ? [user.pubkey] : undefined;
-    if (scope === 'friends') {
-      if (followList.size === 0) return undefined;
+  const isMomentsTab = tab === 'colors';
+  const isThemesTab = tab === 'themes';
+  const showInfoButton = isMomentsTab || isThemesTab;
+
+  // "everyone" is Discover: the friends-of-friends network, not the whole relay
+  const discover = useDiscoverAuthors(showInfoButton && scope === 'everyone');
+
+  const stationeryScope = useMemo((): StationeryScope => {
+    if (scope === 'mine' && user) return { authors: [user.pubkey], key: `mine:${user.pubkey}` };
+    if (scope === 'friends' && followList.size > 0) {
       // Subtract muted pubkeys so the viewer's mute list wins over follow.
-      const filtered = excludeMuted(Array.from(followList));
-      return filtered.length > 0 ? filtered : undefined;
+      const authors = excludeMuted(Array.from(followList));
+      if (authors.length > 0) return { authors, key: `friends:${authors.join(',')}` };
     }
-    return undefined;
-  }, [scope, user, followList, excludeMuted]);
+    if (scope === 'everyone') return { authors: discover.authors, key: `discover:${discover.key}`, discover: true };
+    return { key: 'all' };
+  }, [scope, user, followList, excludeMuted, discover.authors, discover.key]);
 
   const resolved = selected ? resolveStationery(selected) : undefined;
   const emojiMode = selected?.emojiMode ?? 'tile';
@@ -302,6 +362,9 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
     }
   };
 
+  // A new pick keeps the emblem switch where it was, on unless turned off
+  const pick = (s: Stationery) => onSelect({ ...s, emojiMode: selected?.emojiMode ?? 'emblem' });
+
   const toggleEmojiMode = () => {
     if (!selected) return;
     onSelect({ ...selected, emojiMode: emojiMode === 'tile' ? 'emblem' : 'tile' });
@@ -312,10 +375,6 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
     { id: 'colors',  label: TAB_LABELS.colors },
     { id: 'themes',  label: TAB_LABELS.themes },
   ];
-
-  const isMomentsTab = tab === 'colors';
-  const isThemesTab = tab === 'themes';
-  const showInfoButton = isMomentsTab || isThemesTab;
 
   return (
     <div className="space-y-3">
@@ -370,7 +429,7 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
                 return (
                   <button
                     key={key}
-                    onClick={() => onSelect(presetToStationery(key) ?? stationery)}
+                    onClick={() => pick(presetToStationery(key) ?? stationery)}
                     title={intl.formatMessage(preset.name)}
                     className="relative aspect-square rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95"
                   >
@@ -386,8 +445,8 @@ export function StationeryPicker({ selected, onSelect }: StationeryPickerProps) 
           </div>
         )}
 
-        {tab === 'colors' && <ColorMomentsGrid key={scope} selectedStationery={selected} onSelect={onSelect} authors={scopedAuthors} />}
-        {tab === 'themes' && <ThemesGrid key={scope} selectedStationery={selected} onSelect={onSelect} authors={scopedAuthors} />}
+        {tab === 'colors' && <ColorMomentsGrid key={stationeryScope.key} selectedStationery={selected} onSelect={pick} scope={stationeryScope} />}
+        {tab === 'themes' && <ThemesGrid key={stationeryScope.key} selectedStationery={selected} onSelect={onSelect} scope={stationeryScope} />}
       </div>
 
       {((hasEmoji && !isTheme) || isColorMoment || isFlatMode) && (

@@ -17,15 +17,18 @@ import {
   FONT_OPTIONS,
   LINE_HEIGHT_RATIO,
   DEFAULT_STATIONERY_COLOR,
+  SEAL_ICONS,
+  defaultSeal,
   resolveStationery,
   type Stationery,
+  type WaxSeal,
   type FrameStyle,
   type LetterContent,
   type LetterSticker,
 } from '@/lib/letterTypes';
 import { useLetterPreferences } from '@/hooks/useLetterPreferences';
 import { useThemeStationery } from '@/hooks/useThemeStationery';
-import { useCustomEmojis } from '@/hooks/useCustomEmojis';
+import { useUnlockedSeals } from '@/hooks/useUnlockedSeals';
 import { LetterEditor } from './LetterEditor';
 import { LetterStickers } from './LetterStickers';
 import { StickerPicker } from './StickerPicker';
@@ -118,7 +121,7 @@ function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () =
   );
 }
 
-type Overlay = 'none' | 'font' | 'stationery' | 'frame' | 'sticker' | 'draw';
+type Overlay = 'none' | 'font' | 'stationery' | 'frame' | 'seal' | 'sticker' | 'draw';
 
 interface ComposeLetterSheetProps {
   onClose: () => void;
@@ -173,7 +176,9 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   const [frameTint, setFrameTint] = useState(() => prefs.frameTint ?? false);
   const [overlay, setOverlay] = useState<Overlay>('none');
   const [stickers, setStickers] = useState<LetterSticker[]>([]);
-  const { emojis: customEmojis } = useCustomEmojis();
+  // A seal picked while composing; until then the letter takes the default.
+  const [pickedSeal, setPickedSeal] = useState<WaxSeal>();
+  const { data: unlockedSeals } = useUnlockedSeals();
   const [sealing, setSealing] = useState(false);
   const [sendAnimationContent, setSendAnimationContent] = useState<LetterContent | null>(null);
   const envDims = useEnvelopeDimensions();
@@ -236,6 +241,38 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     setOverlay('none');
   }, []);
 
+  const handleAddEmoji = useCallback((emoji: string) => {
+    setStickers((prev) => [
+      ...prev,
+      {
+        url: '',
+        shortcode: 'emoji',
+        emoji,
+        x: 20 + Math.random() * 60,
+        y: 20 + Math.random() * 60,
+        rotation: -15 + Math.random() * 30,
+      },
+    ]);
+    setOverlay('none');
+  }, []);
+
+  // A sticker dragged out of the picker lands where it's released, if that's on the letter
+  const handleDropSticker = useCallback((emoji: { shortcode: string; url: string }, x: number, y: number) => {
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (!rect || x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return;
+    const clamp = (v: number) => Math.max(5, Math.min(95, v));
+    setStickers((prev) => [
+      ...prev,
+      {
+        url: emoji.url,
+        shortcode: emoji.shortcode,
+        x: clamp(((x - rect.left) / rect.width) * 100),
+        y: clamp(((y - rect.top) / rect.height) * 100),
+        rotation: -15 + Math.random() * 30,
+      },
+    ]);
+  }, []);
+
   const handleAddDrawing = useCallback((svg: string) => {
     setStickers((prev) => [
       ...prev,
@@ -259,6 +296,23 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
     setStickers((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
+  const bgColor = resolvedSt.color ?? DEFAULT_STATIONERY_COLOR;
+  const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
+  const textColor = resolvedSt.textColor ?? backgroundTextColor(bgColor);
+
+  // The preferred seal, unless its stamp is locked for this account; otherwise
+  // the Ditto logo in the stationery's primary color.
+  const baseSeal = useMemo(() => {
+    const preferred = prefs.seal;
+    if (preferred) {
+      const icon = preferred.emblem.type === 'icon' ? SEAL_ICONS.find((i) => i.id === preferred.emblem.value) : undefined;
+      if (!icon?.unlock || unlockedSeals?.has(icon.id)) return preferred;
+    }
+    return defaultSeal(resolvedSt.primaryColor ?? resolvedSt.colors?.[0]);
+  }, [prefs.seal, unlockedSeals, resolvedSt.primaryColor, resolvedSt.colors]);
+  const seal = pickedSeal ?? baseSeal;
+
   const buildLetterContent = useCallback((): LetterContent => {
     const finalStationery: Stationery = {
       ...stationery,
@@ -274,8 +328,9 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       ...(signature.trim() ? { signature: signature.trim() } : {}),
       ...(stickers.length > 0 ? { stickers } : {}),
       stationery: finalStationery,
+      seal,
     };
-  }, [body, closing, signature, stickers, stationery, selectedFont, frame, frameTint]);
+  }, [body, closing, signature, stickers, stationery, selectedFont, frame, frameTint, seal]);
 
   const handleSend = async () => {
     if (!canSend || !user || !resolvedRecipient) return;
@@ -317,10 +372,6 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
       ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
       : intl.formatMessage({ id: 'composeLetter.friend', defaultMessage: 'friend' }));
 
-  const resolvedSt = useMemo(() => resolveStationery(stationery ?? { color: DEFAULT_STATIONERY_COLOR }), [stationery]);
-  const bgColor = resolvedSt.color ?? DEFAULT_STATIONERY_COLOR;
-  const primaryColor = resolvedSt.primaryColor ?? '#7c52e0';
-  const textColor = resolvedSt.textColor ?? backgroundTextColor(bgColor);
 
   // Memoize the animation letter element — only recompute when content or width changes.
   // Uses sendAnimationContent directly (not a ref) so deps are exhaustive.
@@ -347,6 +398,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
           bgColor={bgColor}
           primaryColor={primaryColor}
           textColor={textColor}
+          seal={sendAnimationContent.seal}
           onComplete={onClose}
         />
       )}
@@ -363,6 +415,8 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
           frameTint, setFrameTint,
           closing, setClosing,
           signature, setSignature,
+          seal, setSeal: setPickedSeal,
+          defaultSeal: baseSeal,
         }}
         overlay={overlay}
         setOverlay={(o) => setOverlay(o as Overlay)}
@@ -383,15 +437,13 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         )}
         extraButtons={
           <>
-            {customEmojis.length > 0 && (
-              <TabButton
-                label={intl.formatMessage({ id: 'composeLetter.stickers', defaultMessage: 'Stickers' })}
-                active={overlay === 'sticker'}
-                onClick={() => setOverlay(overlay === 'sticker' ? 'none' : 'sticker')}
-              >
-                <Sticker className="h-5 w-5" strokeWidth={2.5} />
-              </TabButton>
-            )}
+            <TabButton
+              label={intl.formatMessage({ id: 'composeLetter.stickers', defaultMessage: 'Stickers' })}
+              active={overlay === 'sticker'}
+              onClick={() => setOverlay(overlay === 'sticker' ? 'none' : 'sticker')}
+            >
+              <Sticker className="h-5 w-5" strokeWidth={2.5} />
+            </TabButton>
             <TabButton
               label={intl.formatMessage({ id: 'composeLetter.draw', defaultMessage: 'Draw' })}
               active={overlay === 'draw'}
@@ -403,7 +455,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
         }
         extraDrawerContent={
           <>
-            {overlay === 'sticker' && <StickerPicker onSelect={handleAddSticker} />}
+            {overlay === 'sticker' && <StickerPicker onSelect={handleAddSticker} onSelectEmoji={handleAddEmoji} onDrop={handleDropSticker} />}
             {overlay === 'draw' && <DrawingCanvas onConfirm={handleAddDrawing} onCancel={() => setOverlay('none')} />}
           </>
         }
