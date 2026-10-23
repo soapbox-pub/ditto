@@ -1,10 +1,13 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import {
+	BookMarked,
 	CircleCheck,
 	CircleDashed,
 	CircleDot,
 	CircleX,
+	FileCode,
 	FileText,
+	GitBranch,
 	GitPullRequest,
 	GitPullRequestArrow,
 } from "lucide-react";
@@ -28,6 +31,12 @@ interface KindMeta {
  */
 function kindMeta(kind: number, intl: IntlShape): KindMeta {
 	switch (kind) {
+		case 30617:
+			return { icon: BookMarked, label: intl.formatMessage({ id: "embeddedGitCard.repository", defaultMessage: "Repository" }), iconClassName: "text-muted-foreground" };
+		case 30618:
+			return { icon: GitBranch, label: intl.formatMessage({ id: "embeddedGitCard.repositoryState", defaultMessage: "Repository update" }), iconClassName: "text-muted-foreground" };
+		case 30817:
+			return { icon: FileCode, label: intl.formatMessage({ id: "embeddedGitCard.customNip", defaultMessage: "Custom NIP" }), iconClassName: "text-sky-600 dark:text-sky-400" };
 		case 1617:
 			return { icon: FileText, label: intl.formatMessage({ id: "embeddedGitCard.patch", defaultMessage: "Patch" }), iconClassName: "text-orange-500 dark:text-orange-400" };
 		case 1618:
@@ -47,11 +56,34 @@ function kindMeta(kind: number, intl: IntlShape): KindMeta {
 	}
 }
 
+/** Title, description, and repo line for the card body, per kind. */
+function cardText(event: NostrEvent): { title?: string; description?: string; repoName?: string } {
+	const tag = (name: string) => event.tags.find(([n]) => n === name)?.[1]?.trim();
+	switch (event.kind) {
+		case 30617:
+			return { title: tag("name") || tag("d"), description: tag("description") };
+		case 30618:
+			return { repoName: tag("d") };
+		case 30817:
+			return { title: tag("title") || tag("d") };
+		case 1619:
+		case 1630:
+		case 1631:
+		case 1632:
+		case 1633:
+			// Content is a short comment (may be empty).
+			return { title: event.content.split("\n")[0]?.trim(), repoName: getGitRepoRef(event)?.identifier };
+		default:
+			return { title: getGitTicketSubject(event), repoName: getGitRepoRef(event)?.identifier };
+	}
+}
+
 /**
- * Compact inline card for quoted/embedded NIP-34 git events (patches,
- * PRs, PR updates, issues, and status events). Without this, git events
- * quoted via nevent fall through to the generic embed, which shows only
- * the `alt` tag or tombstones as "not supported".
+ * Compact inline card for quoted/embedded NIP-34 git events (repositories,
+ * repository state, patches, PRs, PR updates, issues, and status events)
+ * and kind 30817 custom NIPs. Without this, these events fall through to
+ * the generic embed, which shows only the `alt` tag or tombstones as "not
+ * supported".
  */
 export function EmbeddedGitCard({
 	event,
@@ -63,26 +95,22 @@ export function EmbeddedGitCard({
 	disableHoverCards?: boolean;
 }) {
 	const intl = useIntl();
-	const neventId = useMemo(
-		() => nip19.neventEncode({ id: event.id, author: event.pubkey }),
-		[event.id, event.pubkey],
-	);
+	const navigateTo = useMemo(() => {
+		if (event.kind >= 30000 && event.kind < 40000) {
+			const identifier = event.tags.find(([n]) => n === "d")?.[1] ?? "";
+			return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier });
+		}
+		return nip19.neventEncode({ id: event.id, author: event.pubkey });
+	}, [event]);
 
 	const { icon: Icon, label, iconClassName } = kindMeta(event.kind, intl);
-	const repoName = getGitRepoRef(event)?.identifier;
-	const isStatus = event.kind >= 1630 && event.kind <= 1633;
-	// Status/PR-update events: content is a short comment (may be empty).
-	// Tickets: derive the subject line.
-	const title =
-		event.kind === 1619 || isStatus
-			? event.content.split("\n")[0]?.trim()
-			: getGitTicketSubject(event);
+	const { title, description, repoName } = cardText(event);
 
 	return (
 		<EmbeddedCardShell
 			pubkey={event.pubkey}
 			createdAt={event.created_at}
-			navigateTo={neventId}
+			navigateTo={navigateTo}
 			className={className}
 			disableHoverCards={disableHoverCards}
 		>
@@ -93,6 +121,11 @@ export function EmbeddedGitCard({
 			{title && (
 				<p className="mt-1 text-sm font-medium leading-snug line-clamp-2 break-words">
 					{title}
+				</p>
+			)}
+			{description && (
+				<p className="mt-0.5 text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
+					{description}
 				</p>
 			)}
 			{repoName && (

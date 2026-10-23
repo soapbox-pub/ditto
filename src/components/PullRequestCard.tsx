@@ -73,7 +73,7 @@ export function PullRequestCard({
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
-			<div className="rounded-2xl border border-border-subtle overflow-hidden">
+			<div className="object-card">
 				<div className="px-3.5 py-3 space-y-2">
 					{/* Title + branch info */}
 					<div className="flex items-start gap-2.5">
@@ -130,7 +130,7 @@ export function PullRequestCard({
 
 					{/* Clone URL */}
 					{cloneUrls[0] && (
-						<div className="group/clone flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+						<div className="group/clone flex items-center gap-2 inset-well px-2.5 py-1.5">
 							<code className="flex-1 text-[11px] font-mono text-muted-foreground truncate select-all">
 								{cloneUrls[0]}
 							</code>
@@ -150,6 +150,45 @@ export function PullRequestCard({
 										: <FormattedMessage id="pullRequestCard.copy" defaultMessage="Copy" />}
 								</span>
 							</Button>
+						</div>
+					)}
+
+					{/* Branch & commit metadata -- detail view only */}
+					{!preview && (commitTip || mergeBase || branchName) && (
+						<div className="inset-well divide-y divide-border/50 overflow-hidden">
+							{branchName && (
+								<div className="flex items-center gap-2 px-2.5 py-1.5">
+									<GitBranch className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										<FormattedMessage id="pullRequestCard.branch" defaultMessage="Branch" />
+									</span>
+									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+										{branchName}
+									</code>
+								</div>
+							)}
+							{commitTip && (
+								<div className="flex items-center gap-2 px-2.5 py-1.5">
+									<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										<FormattedMessage id="pullRequestCard.tip" defaultMessage="Tip" />
+									</span>
+									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+										{commitTip.slice(0, 12)}
+									</code>
+								</div>
+							)}
+							{mergeBase && (
+								<div className="flex items-center gap-2 px-2.5 py-1.5">
+									<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										<FormattedMessage id="pullRequestCard.base" defaultMessage="Base" />
+									</span>
+									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+										{mergeBase.slice(0, 12)}
+									</code>
+								</div>
+							)}
 						</div>
 					)}
 
@@ -173,50 +212,8 @@ export function PullRequestCard({
 				</div>
 			</div>
 
-			{/* Detail sections -- outside card, only in detail view */}
-
-			{/* Branch & commit metadata */}
-			{!preview && (commitTip || mergeBase || branchName) && (
-				<div className="rounded-2xl border border-border-subtle overflow-hidden divide-y divide-border">
-					{branchName && (
-						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
-							<GitBranch className="size-3.5 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground text-xs">
-								<FormattedMessage id="pullRequestCard.branch" defaultMessage="Branch" />
-							</span>
-							<code className="ml-auto text-xs font-mono text-muted-foreground">
-								{branchName}
-							</code>
-						</div>
-					)}
-					{commitTip && (
-						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
-							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground text-xs">
-								<FormattedMessage id="pullRequestCard.tip" defaultMessage="Tip" />
-							</span>
-							<code className="ml-auto text-xs font-mono text-muted-foreground">
-								{commitTip.slice(0, 12)}
-							</code>
-						</div>
-					)}
-					{mergeBase && (
-						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
-							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground text-xs">
-								<FormattedMessage id="pullRequestCard.base" defaultMessage="Base" />
-							</span>
-							<code className="ml-auto text-xs font-mono text-muted-foreground">
-								{mergeBase.slice(0, 12)}
-							</code>
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* PR description */}
+			{/* PR description -- on the page below the card, only in detail view */}
 			{!preview && hasDescription && (
-			<div className="rounded-2xl border border-border-subtle overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
 				<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
 					<Markdown
 						rehypePlugins={[rehypeSanitize]}
@@ -225,7 +222,6 @@ export function PullRequestCard({
 						{event.content}
 					</Markdown>
 				</div>
-			</div>
 			)}
 		</div>
 	);

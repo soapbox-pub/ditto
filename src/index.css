@@ -150,10 +150,27 @@
     overflow: visible;
   }
 
-  /* Embedded previews (links, quotes, articles) are tinted bubbles instead of
-     outlined boxes inside each post. */
+  /* ── Surfaces ─────────────────────────────────────────────────────────────
+     Content sits on one of four levels (see "Surfaces" in AGENTS.md):
+     page (no box), object, reference, and inset. Nest at most two deep. */
+
+  /* Object: a kind's own structured body inside its post (repo, issue, NIP,
+     track, poll, app). Outline only, no fill or shadow. */
+  .object-card {
+    @apply rounded-2xl border border-border-subtle overflow-hidden;
+  }
+
+  /* Reference: anything quoted or previewed from elsewhere (quotes, links,
+     articles, zaps). A tinted bubble with the same soft outline. */
   .embed-bubble {
+    @apply border border-border-subtle;
     background-color: hsl(var(--secondary) / 0.45);
+  }
+
+  /* Inset: a well inside an object (clone URL, commit list, stats). Fill
+     only, never outlined. */
+  .inset-well {
+    @apply rounded-lg bg-muted/50;
   }
 }
 

@@ -71,7 +71,7 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 	});
 
 	return (
-		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
+		<div className="mt-2 object-card">
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Title + repo */}
 				<div className="flex items-start gap-2.5">
@@ -115,7 +115,7 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 
 				{/* New tip commit */}
 				{commitTip && (
-					<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+					<div className="flex items-center gap-2 inset-well px-2.5 py-1.5">
 						<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 						<span className="text-[11px] text-muted-foreground">
 							<FormattedMessage id="prUpdateCard.newTip" defaultMessage="New tip" />
@@ -128,7 +128,7 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 
 				{/* Merge base -- detail view only */}
 				{!preview && mergeBase && (
-					<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+					<div className="flex items-center gap-2 inset-well px-2.5 py-1.5">
 						<GitCommitHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 						<span className="text-[11px] text-muted-foreground">
 							<FormattedMessage id="prUpdateCard.mergeBase" defaultMessage="Merge base" />

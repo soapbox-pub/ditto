@@ -45,25 +45,22 @@ function statusMeta(
 		case 1630:
 			return {
 				icon: CircleDot,
-				className:
-					"border-green-500/30 text-green-700 dark:text-green-400 bg-green-500/5",
+				className: "text-green-700 dark:text-green-400 bg-green-500/10",
 			};
 		case 1631:
 			return {
 				icon: rootKind === 1617 || rootKind === 1618 ? GitMerge : CircleCheck,
-				className:
-					"border-purple-500/30 text-purple-700 dark:text-purple-400 bg-purple-500/5",
+				className: "text-purple-700 dark:text-purple-400 bg-purple-500/10",
 			};
 		case 1632:
 			return {
 				icon: CircleX,
-				className:
-					"border-red-500/30 text-red-700 dark:text-red-400 bg-red-500/5",
+				className: "text-red-700 dark:text-red-400 bg-red-500/10",
 			};
 		default:
 			return {
 				icon: CircleDashed,
-				className: "border-border text-muted-foreground bg-muted/40",
+				className: "text-muted-foreground bg-secondary",
 			};
 	}
 }
@@ -148,12 +145,12 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
-			<div className="rounded-2xl border border-border-subtle overflow-hidden">
+			<div className="object-card">
 				<div className="px-3.5 py-3 space-y-2.5">
 					{/* Status badge + noun */}
 					<div className="flex items-center gap-2 flex-wrap">
 						<span
-							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize shrink-0 ${badgeClass}`}
+							className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize shrink-0 ${badgeClass}`}
 						>
 							<StatusIcon className="size-3" />
 							{gitLabel(verb, intl)}
@@ -200,7 +197,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 
 					{/* Merge/apply commit metadata */}
 					{mergeCommit && (
-						<div className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+						<div className="flex items-center gap-2 inset-well px-2.5 py-1.5">
 							<GitMerge className="size-3.5 text-muted-foreground shrink-0" />
 							<span className="text-[11px] text-muted-foreground">
 								<FormattedMessage
@@ -214,7 +211,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 						</div>
 					)}
 					{!preview && appliedCommits.length > 0 && (
-						<div className="rounded-lg bg-muted/50 divide-y divide-border/50 overflow-hidden">
+						<div className="inset-well divide-y divide-border/50 overflow-hidden">
 							{appliedCommits.map((commit) => (
 								<div
 									key={commit}
@@ -253,17 +250,15 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 				</div>
 			</div>
 
-			{/* Full comment -- outside card, only in detail view */}
+			{/* Full comment -- on the page below the card, only in detail view */}
 			{!preview && comment && (
-				<div className="rounded-2xl border border-border-subtle overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
-					<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
-						<Markdown
-							rehypePlugins={[rehypeSanitize]}
-							components={buildMarkdownComponents(event)}
-						>
-							{comment}
-						</Markdown>
-					</div>
+				<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
+					<Markdown
+						rehypePlugins={[rehypeSanitize]}
+						components={buildMarkdownComponents(event)}
+					>
+						{comment}
+					</Markdown>
 				</div>
 			)}
 		</div>

@@ -1438,7 +1438,7 @@ function MaybeHoverCard({ pubkey, disabled, children }: { pubkey: string; disabl
 
 function EmbeddedNoteSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn('rounded-2xl embed-bubble border border-border-subtle overflow-hidden', className)}>
+    <div className={cn('rounded-2xl embed-bubble overflow-hidden', className)}>
       <div className="px-3.5 py-2.5 space-y-2">
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />

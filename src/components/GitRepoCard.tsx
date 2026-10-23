@@ -58,7 +58,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	const shakespeareUrl = `https://shakespeare.diy/clone?url=${encodeURIComponent(nostrCloneUrl)}`;
 
 	return (
-		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
+		<div className="mt-2 object-card">
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Name + fork badge */}
 				<div className="flex items-center gap-2 min-w-0">
@@ -78,7 +78,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 						{displayName}
 					</span>
 					{isPersonalFork && (
-						<span className="shrink-0 rounded-full border border-border px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
+						<span className="shrink-0 rounded-full bg-secondary px-2 py-0 text-[11px] text-muted-foreground leading-relaxed">
 							<FormattedMessage id="gitRepo.fork" defaultMessage="Fork" />
 						</span>
 					)}
@@ -92,7 +92,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 				)}
 
 				{/* Nostr clone URI */}
-				<div className="group/nostr flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+				<div className="group/nostr flex items-center gap-2 inset-well px-2.5 py-1.5">
 						<code className="flex-1 text-[11px] font-mono text-muted-foreground truncate select-all">
 							{nostrCloneUrl}
 						</code>

@@ -89,7 +89,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
-			<div className="rounded-2xl border border-border-subtle overflow-hidden">
+			<div className="object-card">
 				<div className="px-3.5 py-3 space-y-2">
 					{/* Title + status badges */}
 					<div className="flex items-start gap-2.5">
@@ -101,16 +101,16 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 								</span>
 								{isRoot && (
 									<Badge
-										variant="outline"
-										className="text-[10px] px-1.5 py-0 font-medium border-orange-500/30 text-orange-600 dark:text-orange-400"
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 font-medium border-0 bg-orange-500/10 text-orange-700 dark:text-orange-400"
 									>
 										<FormattedMessage id="patchCard.root" defaultMessage="root" />
 									</Badge>
 								)}
 								{isRevision && (
 									<Badge
-										variant="outline"
-										className="text-[10px] px-1.5 py-0 font-medium border-orange-500/30 text-orange-600 dark:text-orange-400"
+										variant="secondary"
+										className="text-[10px] px-1.5 py-0 font-medium border-0 bg-orange-500/10 text-orange-700 dark:text-orange-400"
 									>
 										<FormattedMessage id="patchCard.revision" defaultMessage="revision" />
 									</Badge>
@@ -145,6 +145,50 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 						</div>
 					)}
 
+					{/* Commit metadata -- detail view only */}
+					{!preview && (commitId || parentCommit || committerTag) && (
+						<div className="inset-well divide-y divide-border/50 overflow-hidden">
+							{commitId && (
+								<div className="flex items-center gap-2 px-2.5 py-1.5">
+									<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										<FormattedMessage id="patchCard.commit" defaultMessage="Commit" />
+									</span>
+									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+										{commitId.slice(0, 12)}
+									</code>
+								</div>
+							)}
+							{parentCommit && (
+								<div className="flex items-center gap-2 px-2.5 py-1.5">
+									<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										<FormattedMessage id="patchCard.parent" defaultMessage="Parent" />
+									</span>
+									<code className="ml-auto text-[11px] font-mono text-muted-foreground">
+										{parentCommit.slice(0, 12)}
+									</code>
+								</div>
+							)}
+							{committerTag && (
+								<div className="flex items-center gap-2 px-2.5 py-1.5">
+									<User className="size-3.5 text-muted-foreground shrink-0" />
+									<span className="text-[11px] text-muted-foreground">
+										<FormattedMessage id="patchCard.committer" defaultMessage="Committer" />
+									</span>
+									<span className="ml-auto text-[11px] truncate">
+										{committerTag[1]}
+									</span>
+									{committerTag[2] && (
+										<span className="text-[11px] text-muted-foreground truncate">
+											&lt;{committerTag[2]}&gt;
+										</span>
+									)}
+								</div>
+							)}
+						</div>
+					)}
+
 					{/* Shakespeare action */}
 					{hasShakespeare && (
 						<button
@@ -165,64 +209,16 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 				</div>
 			</div>
 
-			{/* Detail sections -- outside card, only in detail view */}
-
-			{/* Commit metadata */}
-			{!preview && (commitId || parentCommit || committerTag) && (
-				<div className="rounded-2xl border border-border-subtle overflow-hidden divide-y divide-border">
-					{commitId && (
-						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
-							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground text-xs">
-								<FormattedMessage id="patchCard.commit" defaultMessage="Commit" />
-							</span>
-							<code className="ml-auto text-xs font-mono text-muted-foreground">
-								{commitId.slice(0, 12)}
-							</code>
-						</div>
-					)}
-					{parentCommit && (
-						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
-							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground text-xs">
-								<FormattedMessage id="patchCard.parent" defaultMessage="Parent" />
-							</span>
-							<code className="ml-auto text-xs font-mono text-muted-foreground">
-								{parentCommit.slice(0, 12)}
-							</code>
-						</div>
-					)}
-					{committerTag && (
-						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
-							<User className="size-3.5 text-muted-foreground shrink-0" />
-							<span className="text-muted-foreground text-xs">
-								<FormattedMessage id="patchCard.committer" defaultMessage="Committer" />
-							</span>
-							<span className="ml-auto text-xs">
-								{committerTag[1]}
-							</span>
-							{committerTag[2] && (
-								<span className="text-xs text-muted-foreground">
-									&lt;{committerTag[2]}&gt;
-								</span>
-							)}
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Commit message */}
+			{/* Commit message -- on the page below the card, only in detail view */}
 			{!preview && commitMessage && (
-				<div className="rounded-2xl border border-border-subtle overflow-hidden px-3.5 py-3">
-					<p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
-						{commitMessage}
-					</p>
-				</div>
+				<p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
+					{commitMessage}
+				</p>
 			)}
 
 			{/* Diff */}
 			{!preview && diff && (
-				<div className="rounded-2xl border border-border-subtle overflow-hidden">
+				<div className="inset-well overflow-hidden">
 					<div className="overflow-x-auto">
 						<pre className="px-3.5 py-3 text-xs font-mono leading-relaxed">
 							{diff.split("\n").map((line, i) => {

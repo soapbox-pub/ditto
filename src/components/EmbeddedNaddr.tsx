@@ -13,6 +13,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
+import { EmbeddedGitCard } from '@/components/EmbeddedGitCard';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
@@ -263,6 +264,12 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   // fall through to the generic naddr card, which renders the NIP-31 `alt`.
   if (event.kind === CLASSIFIED_LISTING_KIND && parseClassifiedListing(event)) {
     return <EmbeddedClassifiedListingCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // NIP-34 repositories and repository state, and kind 30817 custom NIPs, get
+  // the same compact card as quoted git events.
+  if (event.kind === 30617 || event.kind === 30618 || event.kind === 30817) {
+    return <EmbeddedGitCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Long-form articles (NIP-23) get a rich link-preview-style card: cover

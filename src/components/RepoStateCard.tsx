@@ -73,7 +73,7 @@ export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 	const remainingTags = tags.length - shownTags.length;
 
 	return (
-		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
+		<div className="mt-2 object-card">
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Repo name */}
 				<div className="flex items-center gap-2 min-w-0">
@@ -89,7 +89,7 @@ export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 
 				{/* Branches */}
 				{shownBranches.length > 0 && (
-					<div className="rounded-lg bg-muted/50 divide-y divide-border/50 overflow-hidden">
+					<div className="inset-well divide-y divide-border/50 overflow-hidden">
 						{shownBranches.map((branch) => (
 							<div
 								key={branch.name}
@@ -133,7 +133,7 @@ export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 						{shownTags.map((tag) => (
 							<span
 								key={tag.name}
-								className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-mono text-muted-foreground"
+								className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-mono text-muted-foreground"
 							>
 								<Tag className="size-3" />
 								{tag.name}
