@@ -2546,11 +2546,13 @@ function ProfilePageInner() {
               </DropdownMenu>
             )}
 
-            {/* Wish happy birthday — lower right of the banner (someone else's birthday only) */}
+            {/* Wish happy birthday — top left of the banner (someone else's birthday only),
+                clear of the theme button in the top right and the status bubble and
+                avatar along the bottom edge. */}
             {!isOwnProfile && birthdayNpub && (
               <Button
                 variant="outline"
-                className="absolute bottom-3 right-3 z-10 max-w-[calc(100%-1.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                className="absolute top-3 left-3 z-10 max-w-[calc(100%-4.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
                 onClick={() => setBirthdayComposeOpen(true)}
                 disabled={!user}
                 title={user ? undefined : intl.formatMessage({ id: 'profile.birthday.loginHint', defaultMessage: 'Log in to wish a happy birthday' })}
@@ -2565,7 +2567,7 @@ function ProfilePageInner() {
           </div>
 
           {/* Profile info */}
-          <div className="px-4 pb-4">
+          <div className="@container px-4 pb-4">
           {author.isLoading ? (
             <>
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
@@ -2605,14 +2607,19 @@ function ProfilePageInner() {
                     </div>
                   )}
 
-                  {/* NIP-38 thought bubble — floats beside the avatar over the banner.
+                  {/* NIP-38 status pill — floats beside the avatar over the banner.
                       `w-max` is load-bearing: `left` puts this past the right edge of its
                       relative parent, so the available width for shrink-to-fit clamps to 0
-                      and a status that is only a custom-emoji image collapses to nothing. */}
+                      and a status that is only a custom-emoji image collapses to nothing.
+                      The max width is measured against the profile info container (cqw) so
+                      the pill never runs off the right edge of the column. */}
                   {feedSettings.showUserStatuses !== false && profileStatus.status && (
-                    <div className="absolute top-3 md:top-4 left-[calc(100%+8px)] z-10 w-max max-w-[280px] md:max-w-[360px] animate-in fade-in slide-in-from-left-1 duration-300">
-                      <div className="relative bg-background/90 backdrop-blur-sm border border-border rounded-xl px-3 py-1.5 shadow-lg">
-                        <p className="text-xs md:text-sm text-foreground italic truncate">
+                    <div className="absolute top-3 md:top-4 left-[calc(100%+12px)] z-10 w-max max-w-[min(280px,calc(100cqw-6rem-12px))] md:max-w-[min(360px,calc(100cqw-8rem-12px))] animate-in fade-in slide-in-from-left-1 duration-300 [filter:drop-shadow(0_0_1px_hsl(var(--foreground)/0.3))_drop-shadow(0_4px_10px_rgb(0_0_0/0.18))]">
+                      {/* Pill and tail are one borderless silhouette; the drop-shadow filter on
+                          the wrapper outlines and lifts them together, so there's no seam where
+                          the tail joins. */}
+                      <div className="relative bg-background rounded-full px-4 py-1.5">
+                        <p className="text-sm md:text-base font-medium text-foreground truncate">
                           {profileStatus.url ? (
                             <a href={profileStatus.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
                               <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
@@ -2621,9 +2628,12 @@ function ProfilePageInner() {
                             <EmojifiedText tags={profileStatus.tags}>{profileStatus.status}</EmojifiedText>
                           )}
                         </p>
-                        {/* Speech bubble triangle tail — bottom-left corner, points diagonally down-left toward avatar */}
-                        <div className="absolute -bottom-[7px] left-1 size-0 border-t-[8px] border-t-border border-r-[8px] border-r-transparent" />
-                        <div className="absolute -bottom-[5.5px] left-1 size-0 border-t-[7px] border-t-background border-r-[7px] border-r-transparent" />
+                        {/* Speech tail — hangs from the bottom-left edge and curves down-left
+                            toward the avatar. Its base reaches up into the pill so it meets the
+                            rounded corner wherever it falls. */}
+                        <svg aria-hidden="true" className="absolute top-[calc(100%-6px)] left-1 w-5 h-[18px]" viewBox="0 -6 20 18">
+                          <path d="M18 -6V0Q15 8.5 0 11Q6.5 6 5.5 0V-6Z" className="fill-background" />
+                        </svg>
                       </div>
                     </div>
                   )}
