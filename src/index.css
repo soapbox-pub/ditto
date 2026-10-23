@@ -154,23 +154,24 @@
      Content sits on one of four levels (see "Surfaces" in AGENTS.md):
      page (no box), object, reference, and inset. Nest at most two deep. */
 
-  /* Object: a kind's own structured body inside its post (repo, issue, NIP,
-     track, poll, app). Outline only, no fill or shadow. */
-  .object-card {
-    @apply rounded-2xl border border-border-subtle overflow-hidden;
-  }
-
-  /* Reference: anything quoted or previewed from elsewhere (quotes, links,
-     articles, zaps). A tinted bubble with the same soft outline. */
+  /* Object and reference share one boxed surface: a light tint with a soft
+     outline, no shadow. Object is a kind's own structured body inside its
+     post (repo, issue, NIP, track, poll, app); reference is anything quoted
+     or previewed from elsewhere (quotes, links, articles, zaps). */
+  .object-card,
   .embed-bubble {
     @apply border border-border-subtle;
     background-color: hsl(var(--secondary) / 0.45);
   }
 
-  /* Inset: a well inside an object (clone URL, commit list, stats). Fill
-     only, never outlined. */
+  .object-card {
+    @apply rounded-2xl overflow-hidden;
+  }
+
+  /* Inset: a well inside a surface (clone URL, commit list, stats). The full
+     secondary tint, one step deeper than its parent, never outlined. */
   .inset-well {
-    @apply rounded-lg bg-muted/50;
+    @apply rounded-lg bg-secondary;
   }
 }
 

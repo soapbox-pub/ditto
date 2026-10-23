@@ -235,7 +235,7 @@ export function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJso
                   : <FormattedMessage id="eventJson.relaysFound" defaultMessage="On {found} of {total}" values={{ found, total: rows.length }} />}
               </p>
             </div>
-            <ul className="max-h-40 overflow-auto rounded-lg border border-border-subtle divide-y divide-border">
+            <ul className="max-h-40 overflow-auto rounded-lg border border-border-subtle divide-y divide-border-subtle">
               {rows.map((row) => <RelayPresenceRow key={row.url} row={row} />)}
             </ul>
           </div>

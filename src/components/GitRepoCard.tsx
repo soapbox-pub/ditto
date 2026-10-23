@@ -134,7 +134,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 					{isApp && (
 						<button
 							type="button"
-							className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
+							className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60"
 							onClick={(e) => {
 								e.stopPropagation();
 								openUrl(webUrls[0]);

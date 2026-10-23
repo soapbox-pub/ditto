@@ -153,7 +153,7 @@ export function AddToBlobbiRoomDialog({ event, name, open, onOpenChange }: AddTo
                     className={cn(
                       'flex items-center gap-2 rounded-xl border border-border-subtle px-3 py-3 text-sm font-medium transition-colors',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border hover:bg-secondary/60 text-muted-foreground',
+                      selected ? 'border-primary bg-primary/10 text-foreground' : 'border-border-subtle hover:bg-secondary/60 text-muted-foreground',
                     )}
                   >
                     <meta.icon className="size-4 shrink-0" />

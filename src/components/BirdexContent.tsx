@@ -160,7 +160,7 @@ function OverflowTile({ count }: { count: number }) {
   const intl = useIntl();
   return (
     <div
-      className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-border-subtle bg-muted/60 text-muted-foreground"
+      className="flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-secondary text-muted-foreground"
       aria-label={intl.formatMessage({ id: 'birdex.moreSpecies', defaultMessage: '{count, plural, one {# more species} other {# more species}}' }, { count })}
     >
       <span className="text-xs font-semibold sm:text-sm">

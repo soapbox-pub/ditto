@@ -87,8 +87,8 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border border-border-subtle overflow-hidden',
-        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
+        'mt-3 object-card',
+        isNowPlaying && 'border-primary bg-primary/5',
       )}
     >
       {/* Cover artwork — clicking anywhere here plays/pauses */}
@@ -142,7 +142,7 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
   const trackCount = parsed.trackRefs.length;
 
   return (
-    <div className="mt-3 rounded-2xl border border-border-subtle overflow-hidden cursor-pointer">
+    <div className="mt-3 object-card cursor-pointer">
       {/* Cover artwork — clicks bubble up to NoteCard for navigation */}
       {parsed.artwork ? (
         <div className="aspect-video max-h-[200px] w-full overflow-hidden">
@@ -207,8 +207,8 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border border-border-subtle overflow-hidden',
-        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
+        'mt-3 object-card',
+        isNowPlaying && 'border-primary bg-primary/5',
       )}
     >
       {/* Cover artwork — clicking anywhere here plays/pauses */}
@@ -285,8 +285,8 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border border-border-subtle overflow-hidden',
-        isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
+        'mt-3 object-card',
+        isNowPlaying && 'border-primary bg-primary/5',
       )}
     >
       {/* Compact header — clicking anywhere here plays/pauses */}

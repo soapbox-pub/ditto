@@ -147,7 +147,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 
 					{/* Commit metadata -- detail view only */}
 					{!preview && (commitId || parentCommit || committerTag) && (
-						<div className="inset-well divide-y divide-border/50 overflow-hidden">
+						<div className="inset-well divide-y divide-border-subtle overflow-hidden">
 							{commitId && (
 								<div className="flex items-center gap-2 px-2.5 py-1.5">
 									<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
@@ -218,7 +218,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 
 			{/* Diff */}
 			{!preview && diff && (
-				<div className="inset-well overflow-hidden">
+				<div className="object-card">
 					<div className="overflow-x-auto">
 						<pre className="px-3.5 py-3 text-xs font-mono leading-relaxed">
 							{diff.split("\n").map((line, i) => {

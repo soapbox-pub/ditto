@@ -89,7 +89,7 @@ export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 
 				{/* Branches */}
 				{shownBranches.length > 0 && (
-					<div className="inset-well divide-y divide-border/50 overflow-hidden">
+					<div className="inset-well divide-y divide-border-subtle overflow-hidden">
 						{shownBranches.map((branch) => (
 							<div
 								key={branch.name}

@@ -133,7 +133,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
   );
 
   return (
-    <div className={cn('mt-2 rounded-xl border border-border-subtle overflow-hidden', className)}>
+    <div className={cn('mt-2 object-card', className)}>
       {compact ? (
         /* ── Compact feed card matching reference design ── */
         <>

@@ -88,7 +88,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
       {/* Banner */}
       <div
         className={cn(
-          'relative w-full overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-primary/15 via-primary/5 to-secondary',
+          'relative w-full overflow-hidden rounded-2xl border border-border-subtle bg-gradient-to-br from-primary/15 via-primary/5 to-secondary',
           expanded ? 'aspect-[16/8]' : 'aspect-[16/9]',
         )}
       >

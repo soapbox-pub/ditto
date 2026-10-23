@@ -155,7 +155,7 @@ export function PullRequestCard({
 
 					{/* Branch & commit metadata -- detail view only */}
 					{!preview && (commitTip || mergeBase || branchName) && (
-						<div className="inset-well divide-y divide-border/50 overflow-hidden">
+						<div className="inset-well divide-y divide-border-subtle overflow-hidden">
 							{branchName && (
 								<div className="flex items-center gap-2 px-2.5 py-1.5">
 									<GitBranch className="size-3.5 text-muted-foreground shrink-0" />

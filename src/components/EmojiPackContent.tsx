@@ -165,7 +165,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
 
       {/* Emoji grid preview */}
       {showEmojis.length > 0 && (
-        <div className="rounded-xl border border-border-subtle bg-secondary/30 p-3">
+        <div className="object-card p-3">
           <div className="flex flex-wrap gap-1.5">
             {showEmojis.map((emoji) => (
               <div

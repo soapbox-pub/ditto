@@ -455,7 +455,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
         <Link
           to={latestReleasePath}
           onClick={(e) => e.stopPropagation()}
-          className="block rounded-xl border border-border-subtle p-3 space-y-1.5 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="block inset-well p-3 space-y-1.5 hover:bg-secondary/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <div className="flex items-center gap-2 text-sm font-medium">
             <Package className="size-4 text-primary" />

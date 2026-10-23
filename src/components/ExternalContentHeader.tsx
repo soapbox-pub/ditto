@@ -239,7 +239,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
             {post.images && post.images.length > 0 && (
               <div
                 className={cn(
-                  'mt-3 rounded-xl overflow-hidden border border-border-subtle',
+                  'mt-3 rounded-2xl overflow-hidden border border-border-subtle',
                   post.images.length === 1 && 'grid grid-cols-1',
                   post.images.length === 2 && 'grid grid-cols-2 gap-0.5',
                   post.images.length === 3 && 'grid grid-cols-2 gap-0.5',
@@ -270,7 +270,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
 
             {/* External link embed */}
             {post.external && post.external.thumb && (
-              <div className="mt-3 rounded-xl border border-border-subtle overflow-hidden bg-secondary/30">
+              <div className="mt-3 embed-bubble rounded-2xl overflow-hidden">
                 <div className="aspect-[2/1] overflow-hidden bg-secondary">
                   <img
                     src={post.external.thumb}
@@ -816,7 +816,7 @@ export function CountryContentHeader({ code }: { code: string }) {
             <img
               src={wiki.thumbnail.source}
               alt={info.subdivisionName ?? info.subdivision}
-              className="size-16 sm:size-20 rounded-md object-cover shadow-sm border border-border"
+              className="size-16 sm:size-20 rounded-md object-cover border border-border-subtle"
               decoding="async"
             />
           ) : (

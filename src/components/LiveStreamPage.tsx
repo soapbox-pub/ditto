@@ -214,7 +214,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
               title={title}
             />
           ) : (
-            <div className="aspect-video lg:rounded-2xl bg-muted flex items-center justify-center border-y lg:border border-border">
+            <div className="aspect-video lg:rounded-2xl bg-muted flex items-center justify-center border-y lg:border border-border-subtle">
               <div className="text-center space-y-2">
                 <Radio className="size-8 text-muted-foreground/40 mx-auto" />
                 <p className="text-sm text-muted-foreground">

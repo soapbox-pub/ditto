@@ -57,7 +57,7 @@ export function ExternalIdentitiesContent({ event, expanded }: ExternalIdentitie
       </div>
 
       {expanded ? (
-        <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border-subtle">
+        <ul className="object-card divide-y divide-border-subtle">
           {identities.map((identity) => (
             <ExternalIdentityRow key={`${identity.platform}:${identity.identity}`} identity={identity} />
           ))}

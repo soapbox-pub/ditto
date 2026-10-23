@@ -66,7 +66,7 @@ export function EmbeddedMemoryCardCard({ event, className, disableHoverCards }: 
         {isSave ? (
           <MemoryCardIcon frames={visual.frames} size={48} />
         ) : (
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-muted-foreground">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground">
             <FileCog className="size-5" />
           </div>
         )}

@@ -496,7 +496,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
             {showRefs.map((ref) => {
               const badge = badgeMap.get(ref.aTag);
               if (!badge) return (
-                <div key={ref.aTag} className="size-8 rounded-md border border-border bg-background flex items-center justify-center shrink-0">
+                <div key={ref.aTag} className="size-8 rounded-md bg-secondary flex items-center justify-center shrink-0">
                   <Award className="size-4 text-muted-foreground" />
                 </div>
               );

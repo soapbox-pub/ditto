@@ -103,7 +103,7 @@ function ProfileSnapshotCard({
         'group relative rounded-xl border border-border-subtle p-4 transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
-          : 'border-border hover:border-primary/20 hover:bg-secondary/30',
+          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
       )}
     >
       {/* Top-right action: "Current" badge or "Restore" button */}
@@ -189,7 +189,7 @@ function ThemeSnapshotCard({
         'group relative rounded-xl border border-border-subtle overflow-hidden transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
-          : 'border-border hover:border-primary/20',
+          : 'border-border-subtle hover:border-primary/20',
       )}
     >
       {/* Top-right action: "Current" badge or "Restore" button.
@@ -289,7 +289,7 @@ function FollowsSnapshotCard({
         'group relative rounded-xl border border-border-subtle p-4 transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
-          : 'border-border hover:border-primary/20 hover:bg-secondary/30',
+          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
       )}
     >
       {/* Top-right action: "Current" badge or "Restore" button */}

@@ -197,7 +197,7 @@ function MemoryCardTile({ card }: { card: CardSummary }) {
             <AuthorRow pubkey={card.pubkey} />
           </div>
         </div>
-        <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+        <span className="shrink-0 rounded-md bg-secondary px-2 py-1 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
           {used}/15
         </span>
         <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

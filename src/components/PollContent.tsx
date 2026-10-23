@@ -300,7 +300,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
                 'w-full text-left rounded-lg border border-border-subtle px-3 py-2.5 text-sm transition-colors',
                 isSelected
                   ? 'border-primary bg-primary/10 font-semibold'
-                  : 'border-border hover:bg-secondary/40',
+                  : 'border-border-subtle hover:bg-secondary/40',
               )}
             >
               {opt.label}
@@ -415,7 +415,7 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
               onClick={() => setActiveFilter(null)}
               className={cn(
                 'relative w-full overflow-hidden rounded-lg border border-border-subtle transition-colors text-left',
-                activeFilter === null ? 'border-primary' : 'border-border hover:border-muted-foreground/40',
+                activeFilter === null ? 'border-primary' : 'border-border-subtle hover:border-muted-foreground/40',
               )}
             >
               <div
@@ -446,7 +446,7 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
                   onClick={() => setActiveFilter(opt.id)}
                   className={cn(
                     'relative w-full overflow-hidden rounded-lg border border-border-subtle transition-colors text-left',
-                    isActive ? 'border-primary' : 'border-border hover:border-muted-foreground/40',
+                    isActive ? 'border-primary' : 'border-border-subtle hover:border-muted-foreground/40',
                   )}
                 >
                   <div

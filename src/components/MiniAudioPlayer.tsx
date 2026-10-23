@@ -70,7 +70,7 @@ export function MiniAudioPlayer({ src, label, className }: MiniAudioPlayerProps)
   }, [duration]);
 
   return (
-    <div className={cn('flex items-center gap-2.5 rounded-lg border border-border-subtle bg-muted/30 px-3 py-2', className)}>
+    <div className={cn('flex items-center gap-2.5 object-card px-3 py-2', className)}>
       <audio ref={audioRef} preload="metadata" className="hidden">
         <source src={src} />
       </audio>

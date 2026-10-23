@@ -183,7 +183,7 @@ function MuteSnapshotCard({
         'group relative rounded-xl border border-border-subtle p-4 transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
-          : 'border-border hover:border-primary/20 hover:bg-secondary/30',
+          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
       )}
     >
       {isCurrent && (

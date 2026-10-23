@@ -538,7 +538,7 @@ function EmbeddedPollCard({
           {previewOptions.map((label, i) => (
             <div
               key={i}
-              className="rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground bg-secondary/20 break-words line-clamp-1"
+              className="rounded-md bg-secondary px-2.5 py-1.5 text-xs text-foreground break-words line-clamp-1"
             >
               {label}
             </div>

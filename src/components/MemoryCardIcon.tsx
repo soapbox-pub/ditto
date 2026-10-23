@@ -46,7 +46,7 @@ export function MemoryCardIcon({ frames, size = 60, className, frameMs = 280 }: 
       height={16}
       style={{ width: size, height: size, imageRendering: 'pixelated' }}
       className={cn(
-        'shrink-0 rounded-md border border-border bg-muted',
+        'shrink-0 rounded-md bg-secondary',
         !frames && 'opacity-40',
         className,
       )}

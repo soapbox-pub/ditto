@@ -154,7 +154,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           )}
         </div>
       ) : badges.length > 0 ? (
-        <div className="rounded-xl border border-border-subtle bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
+        <div className="object-card p-4 text-center text-sm text-muted-foreground">
           <FormattedMessage
             id="badgeSet.definitionsFailed"
             defaultMessage="{count, plural, one {# badge} other {# badges}} referenced but definitions could not be loaded."

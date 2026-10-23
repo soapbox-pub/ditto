@@ -84,7 +84,7 @@ function RelayListDetail({ relays }: { relays: RelayListEntry[] }) {
   const overflow = relays.slice(DETAIL_ROW_LIMIT);
 
   return (
-    <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border-subtle">
+    <div className="object-card divide-y divide-border-subtle">
       {rows.map((entry) => (
         <RelayListRow key={entry.url} entry={entry} fetchInfo />
       ))}

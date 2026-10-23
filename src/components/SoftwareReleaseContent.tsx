@@ -655,7 +655,7 @@ export function SoftwareAssetContent({ event, compact }: SoftwareAssetContentPro
       )}
 
       {/* Metadata grid */}
-      <div className="rounded-xl border border-border-subtle divide-y divide-border">
+      <div className="inset-well divide-y divide-border-subtle overflow-hidden">
         {size && (
           <MetaRow label={intl.formatMessage({ id: 'softwareRelease.fileSize', defaultMessage: 'File Size' })} value={size} />
         )}
@@ -738,7 +738,7 @@ export function SoftwareAssetSkeleton() {
         </div>
       </div>
       <Skeleton className="h-8 w-28 rounded-md" />
-      <div className="rounded-xl border border-border-subtle divide-y divide-border">
+      <div className="inset-well divide-y divide-border-subtle overflow-hidden">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex items-start gap-4 px-3 py-2">
             <Skeleton className="h-3 w-28 mt-0.5 shrink-0" />

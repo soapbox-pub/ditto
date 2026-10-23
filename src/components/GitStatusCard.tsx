@@ -211,7 +211,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 						</div>
 					)}
 					{!preview && appliedCommits.length > 0 && (
-						<div className="inset-well divide-y divide-border/50 overflow-hidden">
+						<div className="inset-well divide-y divide-border-subtle overflow-hidden">
 							{appliedCommits.map((commit) => (
 								<div
 									key={commit}
