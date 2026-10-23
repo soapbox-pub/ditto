@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --radius: 0.75rem;
+    --radius: 1rem;
     --success: 142 72% 29%;
     --success-foreground: 138 60% 94%;
     /* Mobile chrome dimensions — referenced by layout utility classes below */
@@ -106,6 +106,54 @@
 @keyframes preloader-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@layer components {
+  /* ── Planet horizon ───────────────────────────────────────────────────────
+     A profile is a planet: the banner's bottom edge curves down like a
+     horizon seen from orbit, hanging lowest in the middle. The banner image
+     extends --horizon-depth below the box and is masked to a rectangle plus a
+     curve; the box's bottom margin makes room for it.
+     `.planet-horizon-rim` traces the curve as a thin glow of atmosphere. */
+  .planet-horizon-banner {
+    --horizon-depth: 1.5rem;
+    margin-bottom: var(--horizon-depth);
+  }
+
+  @media (min-width: 768px) {
+    .planet-horizon-banner {
+      --horizon-depth: 2rem;
+    }
+  }
+
+  /* Two mask layers: the box itself (overlapping the curve by 1px so no seam
+     shows), and an SVG curve stretched across the depth below it. SVG keeps
+     the edge smooth where a radial gradient would alias. */
+  .planet-horizon {
+    position: absolute;
+    inset: 0 0 calc(-1 * var(--horizon-depth)) 0;
+    --horizon-curve: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 1' preserveAspectRatio='none'%3E%3Cpath d='M0 0H100Q50 2 0 0Z'/%3E%3C/svg%3E");
+    -webkit-mask:
+      linear-gradient(#000, #000) top / 100% calc(100% - var(--horizon-depth) + 1px) no-repeat,
+      var(--horizon-curve) bottom / 100% var(--horizon-depth) no-repeat;
+    mask:
+      linear-gradient(#000, #000) top / 100% calc(100% - var(--horizon-depth) + 1px) no-repeat,
+      var(--horizon-curve) bottom / 100% var(--horizon-depth) no-repeat;
+  }
+
+  .planet-horizon-rim {
+    position: absolute;
+    inset: 100% 0 auto 0;
+    width: 100%;
+    height: var(--horizon-depth);
+    overflow: visible;
+  }
+
+  /* Embedded previews (links, quotes, articles) are tinted bubbles instead of
+     outlined boxes inside each post. */
+  .embed-bubble {
+    background-color: hsl(var(--secondary) / 0.45);
   }
 }
 

@@ -60,8 +60,8 @@ export function LinkPreview({ url, className, hideImage, navigateToComments, sho
       target={navigateToComments ? undefined : '_blank'}
       rel={navigateToComments ? undefined : 'noopener noreferrer'}
       className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors',
+        'group block rounded-2xl embed-bubble overflow-hidden',
+        'hover:bg-secondary/70 transition-colors',
         className,
       )}
       onClick={handleClick}
@@ -147,7 +147,7 @@ export function LinkPreview({ url, className, hideImage, navigateToComments, sho
 
 function LinkPreviewSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
+    <div className={cn('rounded-2xl embed-bubble overflow-hidden', className)}>
       <Skeleton className="w-full h-[180px] rounded-none" />
       <div className="px-3.5 py-2.5 space-y-1.5">
         <Skeleton className="h-3 w-24" />

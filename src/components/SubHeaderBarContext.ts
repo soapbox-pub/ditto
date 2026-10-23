@@ -59,22 +59,40 @@ export function useActiveTabIndicator(active: boolean, elRef: React.RefObject<HT
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // Re-report position when the scroll container scrolls or resizes,
-  // so the SVG clip-path stays aligned with the visually shifted tab.
+  // Re-report position whenever the active tab could have moved: the scroll
+  // container scrolls or resizes, any tab changes size (relabelled, a theme
+  // font loads, siblings sharing spare width), or tabs are added or removed.
+  // Updates are batched into one report per frame.
   useEffect(() => {
     if (!active) return;
     const container = scrollContainerRef.current;
     if (!container) return;
+    let frame = 0;
     const update = () => {
-      const s = reportSlice();
-      if (s) onActive(s);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const s = reportSlice();
+        if (s) onActive(s);
+      });
     };
-    container.addEventListener('scroll', update, { passive: true });
     const ro = new ResizeObserver(update);
-    ro.observe(container);
+    const observeTabs = () => {
+      ro.disconnect();
+      ro.observe(container);
+      for (const child of Array.from(container.children)) ro.observe(child);
+    };
+    observeTabs();
+    const mo = new MutationObserver(() => {
+      observeTabs();
+      update();
+    });
+    mo.observe(container, { childList: true, subtree: true, characterData: true });
+    container.addEventListener('scroll', update, { passive: true });
     return () => {
+      cancelAnimationFrame(frame);
       container.removeEventListener('scroll', update);
       ro.disconnect();
+      mo.disconnect();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);

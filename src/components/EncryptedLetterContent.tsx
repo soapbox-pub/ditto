@@ -477,8 +477,8 @@ export function EncryptedLetterCompact({ event, className }: EncryptedLetterComp
   return (
     <div
       className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        'group block rounded-2xl embed-bubble overflow-hidden',
+        'hover:bg-secondary/70 transition-colors cursor-pointer',
         className,
       )}
       role="link"

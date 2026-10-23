@@ -38,6 +38,8 @@ interface ArcBackgroundProps {
   variant: 'down' | 'up' | 'up-subtle' | 'rect';
   /** Extra classes on the <svg> element. */
   className?: string;
+  /** Fill classes for the shape. Default: `fill-background/85`. */
+  fillClassName?: string;
 }
 
 /**
@@ -45,7 +47,7 @@ interface ArcBackgroundProps {
  * MobileBottomNav. Draws a semi-transparent filled shape (rectangle + optional
  * curved arc) as a single path so there are no sub-pixel seams between layers.
  */
-export function ArcBackground({ variant, className }: ArcBackgroundProps) {
+export function ArcBackground({ variant, className, fillClassName = 'fill-background/85' }: ArcBackgroundProps) {
   const path = variant === 'down' ? ARC_DOWN_PATH : variant === 'up' ? ARC_UP_PATH : variant === 'up-subtle' ? ARC_UP_SUBTLE_PATH : RECT_PATH;
   const hasArc = variant !== 'rect';
   const isUpVariant = variant === 'up' || variant === 'up-subtle';
@@ -63,7 +65,7 @@ export function ArcBackground({ variant, className }: ArcBackgroundProps) {
       preserveAspectRatio="none"
       style={hasArc ? (variant === 'up' ? arcUpHeightStyle : variant === 'up-subtle' ? arcUpSubtleHeightStyle : arcDownHeightStyle) : fullHeightStyle}
     >
-      <path d={path} className="fill-background/85" />
+      <path d={path} className={fillClassName} />
       {variant === 'down' && <path d="M0,44 Q50,64 100,44" fill="none" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
       {variant === 'up' && <path d="M0,30 Q50,0 100,30" fill="none" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
       {variant === 'up-subtle' && <path d="M0,12 Q50,2 100,12" fill="none" className="stroke-border" strokeWidth="1" vectorEffect="non-scaling-stroke" />}

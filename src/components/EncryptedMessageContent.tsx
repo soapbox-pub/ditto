@@ -87,7 +87,7 @@ export function EncryptedMessageContent({ event, compact: _compact, className }:
 
   return (
     <div className={cn('mt-2', className)}>
-      <div className="rounded-2xl border border-border px-5 py-4">
+      <div className="rounded-2xl embed-bubble px-5 py-4">
         {/* Description */}
         <p className="text-sm text-muted-foreground text-center mb-3">
           <FormattedMessage
@@ -157,8 +157,8 @@ export function EncryptedMessageCompact({ event, className }: EncryptedMessageCo
   return (
     <div
       className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        'group block rounded-2xl embed-bubble overflow-hidden',
+        'hover:bg-secondary/70 transition-colors cursor-pointer',
         className,
       )}
       role="link"

@@ -2349,26 +2349,31 @@ function ProfilePageInner() {
         </div>
       )}
       <PullToRefresh onRefresh={handleRefresh}>
-        {/* Banner */}
-          <div className="h-36 md:h-48 bg-secondary relative">
-            {author.isLoading ? (
-              <Skeleton className="w-full h-full rounded-none" />
-            ) : (
-              <>
-              {isValidBlurhash(bannerImeta?.blurhash) && (
-                <BlurhashPlaceholder hash={bannerImeta.blurhash} className="absolute inset-0" />
+        {/* Banner — the sky above the profile's planet horizon */}
+          <div className="planet-horizon-banner h-36 md:h-48 relative">
+            <div className="planet-horizon bg-secondary">
+              {author.isLoading ? (
+                <Skeleton className="w-full h-full rounded-none" />
+              ) : (
+                <>
+                {isValidBlurhash(bannerImeta?.blurhash) && (
+                  <BlurhashPlaceholder hash={bannerImeta.blurhash} className="absolute inset-0" />
+                )}
+                <FallbackImage
+                  src={metadata?.banner}
+                  imeta={bannerImeta}
+                  placeholder={null}
+                  className="relative w-full h-full object-cover cursor-pointer"
+                  onClick={() => setLightboxImage(metadata!.banner!)}
+                  decoding="async"
+                  fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
+                />
+                </>
               )}
-              <FallbackImage
-                src={metadata?.banner}
-                imeta={bannerImeta}
-                placeholder={null}
-                className="relative w-full h-full object-cover cursor-pointer"
-                onClick={() => setLightboxImage(metadata!.banner!)}
-                decoding="async"
-                fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
-              />
-              </>
-            )}
+            </div>
+            <svg className="planet-horizon-rim pointer-events-none" viewBox="0 0 100 1" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0 0Q50 2 100 0" fill="none" className="stroke-primary/45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+            </svg>
 
             {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
             {profileHasTheme && !isOwnProfile && (
@@ -2864,7 +2869,7 @@ function ProfilePageInner() {
         )}
 
         {/* Tabs */}
-        <SubHeaderBar pinned>
+        <SubHeaderBar pinned soft>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
@@ -2885,7 +2890,7 @@ function ProfilePageInner() {
                   selectTab(tabId);
                   if (tab.label === 'Media') setSidebarMediaUrl(null);
                 }}
-                className="flex-initial shrink-0 px-4"
+                className="grow shrink-0 px-4"
               />
             );
           })}

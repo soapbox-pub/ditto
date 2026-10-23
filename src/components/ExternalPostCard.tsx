@@ -81,8 +81,8 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
   return (
     <div
       className={cn(
-        'group block rounded-2xl border border-border overflow-hidden',
-        'hover:bg-secondary/40 transition-colors cursor-pointer',
+        'group block rounded-2xl embed-bubble overflow-hidden',
+        'hover:bg-secondary/70 transition-colors cursor-pointer',
         className,
       )}
       role="link"
@@ -233,7 +233,7 @@ export function ExternalPostCard({ post, hideImage, className }: ExternalPostCar
 
 export function ExternalPostCardSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
+    <div className={cn('rounded-2xl embed-bubble overflow-hidden', className)}>
       <div className="px-3 py-2.5 space-y-2">
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />

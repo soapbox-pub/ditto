@@ -77,6 +77,10 @@ export default {
 				}
 			},
 			borderRadius: {
+				// Scale with --radius so the whole app rounds together.
+				'3xl': 'calc(var(--radius) * 2)',
+				'2xl': 'calc(var(--radius) * 4 / 3)',
+				xl: 'var(--radius)',
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)',
