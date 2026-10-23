@@ -37,8 +37,8 @@ interface VideoPlayerProps {
    */
   encryption?: FileEncryption;
   /**
-   * CSS length capping the player's height, e.g. "320px". The player keeps its
-   * aspect ratio by narrowing (and centering) instead of cropping, so tall
+   * CSS length capping the player's height, e.g. "320px". The player still
+   * fills its container's width and letterboxes the video inside, so tall
    * vertical videos don't dominate compact surfaces like embeds.
    */
   maxHeight?: string;
@@ -309,13 +309,15 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
       ref={containerRef}
       className={cn(
         'relative mt-3 rounded-2xl overflow-hidden border border-border-subtle bg-black group',
-        maxHeight && 'mx-auto',
+        // An explicit width keeps max-height from transferring through the
+        // aspect ratio into a narrower box.
+        maxHeight && 'w-full',
         className,
         isFullscreen && 'm-0 w-full h-full max-w-none max-h-none rounded-none border-0',
       )}
-      // Capping the width at maxHeight × (w / h) caps the height through the
-      // aspect ratio without cropping.
-      style={isFullscreen ? undefined : { aspectRatio, maxWidth: maxHeight ? `calc(${maxHeight} * (${aspectRatio}))` : undefined }}
+      // The width stays full; max-height clamps the ratio-derived height, and
+      // the video letterboxes inside (see object-contain below).
+      style={isFullscreen ? undefined : { aspectRatio, maxHeight }}
       onMouseMove={revealControls}
       onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
       onClick={(e) => e.stopPropagation()}
@@ -343,8 +345,9 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
           // fills it.
           'absolute inset-0 h-full',
           // A fullscreen player has the screen's aspect ratio, not the video's,
-          // so cover would crop it.
-          isFullscreen ? 'object-contain' : 'object-cover',
+          // so cover would crop it. A height-capped player isn't the video's
+          // ratio either once the cap applies.
+          isFullscreen || maxHeight ? 'object-contain' : 'object-cover',
           // Likewise when the bare video is fullscreen (the native fallback):
           // contain it, and reset the positioning/size constraints from normal
           // layout so the frame centers within the viewport.
@@ -403,7 +406,8 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
           alt=""
           aria-hidden
           className={cn(
-            'absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-150',
+            'absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-150',
+            maxHeight ? 'object-contain' : 'object-cover',
             posterLoaded ? 'opacity-100' : 'opacity-0',
           )}
           onLoad={(e) => {

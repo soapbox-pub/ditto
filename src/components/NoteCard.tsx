@@ -1,4 +1,5 @@
 import type { NostrEvent } from "@nostrify/nostrify";
+import { EmbedExpandContext } from '@/contexts/EmbedExpandContext';
 import {
   Award,
   Bird,
@@ -1776,9 +1777,18 @@ function TruncatedNoteContent({
   );
   const truncated = overflows || clipped;
 
+  // Set once a quote inside a post that fit expands: the post keeps fitting
+  // instead of clipping the quote the user just opened.
+  const embedExpandedRef = useRef(false);
+  const onEmbedExpand = useCallback(() => {
+    if (!truncatedRef.current) embedExpandedRef.current = true;
+  }, []);
+  const truncatedRef = useRef(false);
+  truncatedRef.current = overflows || clipped;
+
   const measure = useCallback(() => {
     const el = contentRef.current;
-    if (el) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
+    if (el && !embedExpandedRef.current) setOverflows(!mediaDominant && el.scrollHeight > MAX_HEIGHT);
   }, [mediaDominant]);
 
   // Measure whenever the content's box changes — first layout, expanding a
@@ -1806,7 +1816,9 @@ function TruncatedNoteContent({
         className="relative"
       >
         <div ref={innerRef}>
-          <NoteContent event={shownEvent} className="text-[15px] leading-relaxed" />
+          <EmbedExpandContext.Provider value={onEmbedExpand}>
+            <NoteContent event={shownEvent} className="text-[15px] leading-relaxed" />
+          </EmbedExpandContext.Provider>
         </div>
         {!expanded && truncated && (
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />

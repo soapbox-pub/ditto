@@ -1,9 +1,9 @@
-import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { Award, BarChart3, Image, Film, Music, ExternalLink, Blocks, MessageSquareOff, Quote, Zap, Clock, ClipboardCheck } from 'lucide-react';
+import { Award, BarChart3, MessageSquareOff, Quote, Zap, Clock, ClipboardCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrokenEventFallback } from '@/components/BrokenEventFallback';
@@ -11,6 +11,7 @@ import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { EmbeddedGitCard } from '@/components/EmbeddedGitCard';
 import { EMBEDDED_GIT_KINDS } from '@/lib/gitActivity';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { EmbedExpandContext } from '@/contexts/EmbedExpandContext';
 import { VanishCardCompact } from '@/components/VanishEventContent';
 import { EncryptedMessageCompact } from '@/components/EncryptedMessageContent';
 import { EncryptedLetterCompact } from '@/components/EncryptedLetterContent';
@@ -63,7 +64,7 @@ import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
-import { IMAGE_URL_REGEX, IMETA_MEDIA_URL_TEST_REGEX, extractVideoUrls, extractAudioUrls } from '@/lib/mediaUrls';
+import { IMAGE_URL_REGEX, extractVideoUrls } from '@/lib/mediaUrls';
 import { parseImetaEntries, parseImetaMap } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { getContentWarning } from '@/lib/contentWarning';
@@ -977,8 +978,6 @@ function EmbeddedNoteCard({
     [event.id, event.pubkey],
   );
 
-  const [contentOverflows, setContentOverflows] = useState(false);
-  const [contentExpanded, setContentExpanded] = useState(false);
 
   const isBlobbiState = event.kind === 31124;
   const isPhoto = event.kind === 20;
@@ -994,22 +993,6 @@ function EmbeddedNoteCard({
   // NIP-35 torrent comment, which works exactly like kind 1.
   const isContentKind =
     event.kind === 1 || event.kind === 11 || event.kind === 1111 || event.kind === TORRENT_COMMENT_KIND || isPhoto;
-
-  // Attachment counts for indicator chips
-  const attachments = useMemo(() => {
-    if (isBlobbiState) return { imgs: 0, vids: 0, auds: 0, apps: 0, links: 0, photos: 0 };
-    if (isPhoto) {
-      const photoCount = event.tags.filter(([n]) => n === 'imeta').length;
-      return { imgs: 0, vids: 0, auds: 0, apps: 0, links: 0, photos: photoCount };
-    }
-    const imgs = (event.content.match(new RegExp(IMAGE_URL_REGEX.source, 'gi')) || []).length;
-    const vids = extractVideoUrls(event.content).length;
-    const auds = extractAudioUrls(event.content).length;
-    const apps = (event.content.match(/https?:\/\/[^\s]+\.xdc(\?[^\s]*)?/gi) || []).length;
-    const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
-    const links = allUrls.filter((u) => !IMETA_MEDIA_URL_TEST_REGEX.test(u)).length;
-    return { imgs, vids, auds, apps, links, photos: 0 };
-  }, [event.content, event.tags, isPhoto, isBlobbiState]);
 
   // imeta map (dim/blurhash/poster) for sizing media previews
   const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
@@ -1099,12 +1082,6 @@ function EmbeddedNoteCard({
     hasMediaPreview && !isBlobbiState && !tagMeta && !isUnknownKind && !isKnownKindWithoutPreview &&
     !(hasCW && config.contentWarningPolicy === 'blur');
 
-  const hasChips = !hasCW && (
-    attachments.photos > 0 || attachments.imgs > 0 || attachments.vids > 0 ||
-    attachments.auds > 0 || attachments.apps > 0 || attachments.links > 0 ||
-    (kindMeta && !isKnownKindWithoutPreview)
-  );
-  const hasFooter = hasChips || contentOverflows;
 
   return (
     <EmbeddedCardShell
@@ -1155,7 +1132,7 @@ function EmbeddedNoteCard({
           })()}
           {/* Text body (media URLs are stripped here and rendered as a
               gallery/player below). Empty content renders nothing. */}
-          <EmbedTruncatedContent event={event} expanded={contentExpanded} onOverflowChange={setContentOverflows} highlightText={highlightText} />
+          <EmbedTruncatedContent event={event} highlightText={highlightText} />
           {showMediaPreview && (
             <MediaGate className="mt-1.5">
             <div onClick={(e) => e.stopPropagation()}>
@@ -1170,6 +1147,7 @@ function EmbeddedNoteCard({
               ) : previewMedia.video ? (
                 <div className="mt-1.5">
                   <VideoPlayer
+                    className="mt-0"
                     src={previewMedia.video}
                     maxHeight="320px"
                     poster={imetaMap.get(previewMedia.video)?.thumbnail}
@@ -1185,79 +1163,19 @@ function EmbeddedNoteCard({
         </MediaGateProvider>
       )}
 
-      {/* Attachment / kind indicator chips + Read more toggle */}
-      {hasFooter && (
-        <div className="flex items-center gap-2 flex-wrap">
-          {kindMeta && !isKnownKindWithoutPreview && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              {kindMeta.Icon && <kindMeta.Icon className="size-3 shrink-0" />}
-              {kindMeta.label}
-            </span>
-          )}
-          {attachments.photos > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Image className="size-3" />
-              <FormattedMessage id="embeddedNote.photos" defaultMessage="{count, plural, one {Photo} other {# photos}}" values={{ count: attachments.photos }} />
-            </span>
-          )}
-          {attachments.imgs > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Image className="size-3" />
-              <FormattedMessage id="embeddedNote.images" defaultMessage="{count, plural, one {Image} other {# images}}" values={{ count: attachments.imgs }} />
-            </span>
-          )}
-          {attachments.vids > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Film className="size-3" />
-              <FormattedMessage id="embeddedNote.videos" defaultMessage="{count, plural, one {Video} other {# videos}}" values={{ count: attachments.vids }} />
-            </span>
-          )}
-          {attachments.auds > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Music className="size-3" />
-              <FormattedMessage id="embeddedNote.audios" defaultMessage="{count, plural, one {Audio} other {# audio files}}" values={{ count: attachments.auds }} />
-            </span>
-          )}
-          {attachments.apps > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Blocks className="size-3" />
-              <FormattedMessage id="embeddedNote.app" defaultMessage="App" />
-            </span>
-          )}
-          {attachments.links > 0 && (
-            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-              <ExternalLink className="size-3" />
-              <FormattedMessage id="embeddedNote.links" defaultMessage="{count, plural, one {Link} other {# links}}" values={{ count: attachments.links }} />
-            </span>
-          )}
-          {contentOverflows && (
-            <button
-              className="ml-auto text-xs text-primary hover:underline shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                setContentExpanded((v) => !v);
-              }}
-            >
-              {contentExpanded
-                ? <FormattedMessage id="embeddedNote.showLess" defaultMessage="Show less" />
-                : <FormattedMessage id="embeddedNote.readMore" defaultMessage="Read more" />}
-            </button>
-          )}
-        </div>
-      )}
     </EmbeddedCardShell>
   );
 }
 
-/** Truncated content area with overflow detection. Toggle is rendered externally. */
-function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightText }: {
+/** Height-capped content area with a fade and a Read more toggle when it overflows. */
+function EmbedTruncatedContent({ event, highlightText }: {
   event: NostrEvent;
-  expanded: boolean;
-  onOverflowChange: (overflows: boolean) => void;
   highlightText?: string;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const onEmbedExpand = useContext(EmbedExpandContext);
   // When clipped, how far the inner content is shifted up so the highlighted
   // excerpt stays inside the visible window. 0 means "anchored at the top".
   const [highlightOffset, setHighlightOffset] = useState(0);
@@ -1267,7 +1185,6 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
     if (!el) return;
     const doesOverflow = el.scrollHeight > EMBED_MAX_HEIGHT;
     setOverflows(doesOverflow);
-    onOverflowChange(doesOverflow);
 
     // For NIP-84 highlights, the marked excerpt may sit far below the top of a
     // long source note. Clipping rigidly from the top would hide the entire
@@ -1303,7 +1220,7 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
       : markTop - (EMBED_MAX_HEIGHT - markHeight) / 2;
     const maxOffset = el.scrollHeight - EMBED_MAX_HEIGHT;
     setHighlightOffset(Math.max(0, Math.min(desired, maxOffset)));
-  }, [onOverflowChange, highlightText]);
+  }, [highlightText]);
 
   // Measure whenever the content's box changes — first layout, width changes,
   // images and custom emoji loading in. ResizeObserver reports after layout,
@@ -1321,23 +1238,37 @@ function EmbedTruncatedContent({ event, expanded, onOverflowChange, highlightTex
   // Reset the offset to 0 when the user expands so all content is reachable.
   const offset = clipped ? highlightOffset : 0;
 
+  // Fade the clipped edges with a mask rather than a painted gradient, so the
+  // fade matches whatever surface the embed sits on.
+  const mask = clipped
+    ? `linear-gradient(to bottom, ${offset > 0 ? 'transparent, black 2rem' : 'black'}, black calc(100% - 2.5rem), transparent)`
+    : undefined;
+
   return (
-    <div
-      className="relative overflow-hidden"
-      style={clipped ? { maxHeight: EMBED_MAX_HEIGHT } : undefined}
-    >
-      <div style={offset > 0 ? { marginTop: -offset } : undefined}>
-        <div ref={contentRef}>
-          <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
+    <div>
+      <div
+        className="overflow-hidden"
+        style={clipped ? { maxHeight: EMBED_MAX_HEIGHT, maskImage: mask, WebkitMaskImage: mask } : undefined}
+      >
+        <div style={offset > 0 ? { marginTop: -offset } : undefined}>
+          <div ref={contentRef}>
+            <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
+          </div>
         </div>
       </div>
-      {/* Top fade — only shown when content is clipped above the window. */}
-      {clipped && offset > 0 && (
-        <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-background to-transparent pointer-events-none" />
-      )}
-      {/* Bottom fade — shown when there is still content below the window. */}
-      {clipped && (
-        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      {overflows && (
+        <button
+          className="mt-0.5 text-xs font-medium text-primary hover:underline"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!expanded) onEmbedExpand?.();
+            setExpanded((v) => !v);
+          }}
+        >
+          {expanded
+            ? <FormattedMessage id="embeddedNote.showLess" defaultMessage="Show less" />
+            : <FormattedMessage id="embeddedNote.readMore" defaultMessage="Read more" />}
+        </button>
       )}
     </div>
   );
