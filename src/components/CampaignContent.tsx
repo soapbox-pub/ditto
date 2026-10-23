@@ -345,7 +345,7 @@ function DonateButton({ event, wallets, title }: DonateButtonProps) {
           <button
             type="button"
             onClick={copy}
-            className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="group flex w-full min-w-0 items-center gap-2 rounded-lg border border-border-subtle bg-secondary/40 px-3 py-2 text-left text-xs font-mono hover:bg-secondary motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label={intl.formatMessage({ id: 'campaign.copyAddress', defaultMessage: 'Copy payment address' })}
           >
             <span className="truncate min-w-0 flex-1 text-foreground">{bip21}</span>

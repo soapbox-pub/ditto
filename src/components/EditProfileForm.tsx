@@ -549,7 +549,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                   control={form.control}
                   name="bot"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border-subtle p-3">
                       <div className="space-y-0.5">
                         <FormLabel className="text-sm"><FormattedMessage id="editProfile.bot.label" defaultMessage={"Bot Account"} /></FormLabel>
                         <FormDescription className="text-xs">

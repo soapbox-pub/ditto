@@ -63,7 +63,7 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
             src={quiz.image}
             alt=""
             loading="lazy"
-            className="max-h-64 w-full rounded-xl border object-cover"
+            className="max-h-64 w-full rounded-xl border border-border-subtle object-cover"
             decoding="async"
           />
         )}
@@ -93,7 +93,7 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
         <img
           src={quiz.image}
           alt=""
-          className="max-h-80 w-full rounded-xl border object-cover"
+          className="max-h-80 w-full rounded-xl border border-border-subtle object-cover"
           decoding="async"
         />
       )}

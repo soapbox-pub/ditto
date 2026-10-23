@@ -112,7 +112,7 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
   return (
     <div
       className={cn(
-        'rounded-2xl border border-border overflow-hidden',
+        'rounded-2xl border border-border-subtle overflow-hidden',
         expanded ? 'mt-3' : 'mt-2',
         className,
       )}
@@ -266,7 +266,7 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
             {/* Raw JSON */}
             <div>
               <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.rawJson" defaultMessage="Raw JSON" /></p>
-              <div className="relative max-h-64 overflow-auto rounded-lg border border-border bg-muted">
+              <div className="relative max-h-64 overflow-auto rounded-lg border border-border-subtle bg-muted">
                 <div className="sticky right-2 top-2 float-right">
                   <CopyButton text={jsonText} label={intl.formatMessage({ id: 'unknownKind.eventJson', defaultMessage: 'Event JSON' })} />
                 </div>

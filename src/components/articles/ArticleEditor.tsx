@@ -777,7 +777,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
           onBlur={handleBlurSave}
           onUploadImage={handleImageUpload}
           placeholder={intl.formatMessage({ id: 'articleEditor.contentPlaceholder', defaultMessage: 'Start writing your article...' })}
-          className={`rounded-xl border border-border bg-card ${
+          className={`rounded-xl border border-border-subtle bg-card ${
             isMobile && keyboardVisible ? 'min-h-[150px]' : 'min-h-[250px] sm:min-h-[400px]'
           }`}
         />

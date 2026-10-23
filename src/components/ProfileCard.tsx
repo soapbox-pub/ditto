@@ -195,7 +195,7 @@ export function ProfileCard({
     onExtraFieldsChange?.((extraFields ?? []).map((f, idx) => idx === i ? { ...f, [key]: val } : f));
 
   return (
-    <div className="bg-card border rounded-xl overflow-hidden">
+    <div className="bg-card border border-border-subtle rounded-xl overflow-hidden">
 
       {/* Banner */}
       <div

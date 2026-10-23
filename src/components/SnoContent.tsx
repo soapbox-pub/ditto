@@ -49,7 +49,7 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
   // Hidden at a place in cyberspace (DECK-0003 §3.4): only a preview is public.
   if (isEncryptedSno(event)) {
     return (
-      <div className={cn('mt-2 flex items-start gap-3 rounded-xl border border-border bg-secondary/30 p-4', className)}>
+      <div className={cn('mt-2 flex items-start gap-3 rounded-xl border border-border-subtle bg-secondary/30 p-4', className)}>
         <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
           <Lock className="size-5" />
         </div>
@@ -79,7 +79,7 @@ export function SnoContent({ event, expanded, className }: SnoContentProps) {
 
   return (
     <div
-      className={cn('mt-2 w-full overflow-hidden rounded-xl border border-border bg-card', className)}
+      className={cn('mt-2 w-full overflow-hidden rounded-xl border border-border-subtle bg-card', className)}
       onClick={(e) => e.stopPropagation()}
     >
       {viewing && root ? (

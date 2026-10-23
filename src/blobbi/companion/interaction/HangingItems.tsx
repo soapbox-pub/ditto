@@ -1026,7 +1026,7 @@ export function HangingItems({
           )}
           style={{ zIndex: 10003 }}
         >
-          <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border">
+          <div className="bg-background/95 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border border-border-subtle">
             <p className="text-sm text-muted-foreground text-center">
               <FormattedMessage
                 id="hangingItems.empty"

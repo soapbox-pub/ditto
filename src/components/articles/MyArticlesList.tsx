@@ -126,7 +126,7 @@ export function MyArticlesList() {
                   key={draft.id}
                   role="button"
                   tabIndex={0}
-                  className="group p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-card transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group p-4 rounded-xl border border-border-subtle hover:border-primary/30 hover:bg-card transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => handleOpenDraft(draft)}
                   onKeyDown={(e) => {
                     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
@@ -192,7 +192,7 @@ export function MyArticlesList() {
                 <button
                   key={pub.id}
                   type="button"
-                  className="block w-full text-left group p-4 rounded-xl border border-border hover:border-green-500/30 hover:bg-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="block w-full text-left group p-4 rounded-xl border border-border-subtle hover:border-green-500/30 hover:bg-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => handleEditPublished(pub.slug)}
                 >
                   <div className="flex items-start justify-between gap-3">

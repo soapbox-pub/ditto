@@ -179,7 +179,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
             {images.length > 0 && (
               <div
                 className={cn(
-                  'mt-3 rounded-xl overflow-hidden border border-border',
+                  'mt-3 rounded-xl overflow-hidden border border-border-subtle',
                   images.length === 1 && 'grid grid-cols-1',
                   images.length === 2 && 'grid grid-cols-2 gap-0.5',
                   images.length === 3 && 'grid grid-cols-2 gap-0.5',
@@ -210,7 +210,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
 
             {/* External link embed */}
             {externalEmbed && (
-              <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
+              <div className="mt-3 rounded-xl border border-border-subtle overflow-hidden bg-secondary/30">
                 {externalEmbed.thumb && (
                   <div className="aspect-[2/1] overflow-hidden bg-secondary">
                     <img

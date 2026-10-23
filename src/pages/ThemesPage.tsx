@@ -132,7 +132,7 @@ export function ThemesPage() {
 
           {/* Sync theme toggle */}
           {user && (
-            <div className="rounded-xl border border-border bg-card p-4">
+            <div className="rounded-xl border border-border-subtle bg-card p-4">
               <div className="flex items-center justify-between gap-4">
                 <Label
                   htmlFor="auto-share-theme"

@@ -678,7 +678,7 @@ export function SearchPage() {
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     <FormattedMessage id="search.from" defaultMessage="From" />
                   </span>
-                  <div className="flex rounded-lg border border-border overflow-hidden">
+                  <div className="flex rounded-lg border border-border-subtle overflow-hidden">
                     {([
                       ['anyone', AUTHOR_SCOPE_LABELS.anyone, Globe],
                       ['follows', AUTHOR_SCOPE_LABELS.follows, Users],
@@ -743,7 +743,7 @@ export function SearchPage() {
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     <FormattedMessage id="search.sort" defaultMessage="Sort" />
                   </span>
-                  <div className="flex rounded-lg border border-border overflow-hidden">
+                  <div className="flex rounded-lg border border-border-subtle overflow-hidden">
                     {([
                       ['new', SORT_LABELS.new, Clock],
                       ['hot', SORT_LABELS.hot, Flame],

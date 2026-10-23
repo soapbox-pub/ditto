@@ -116,7 +116,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
   return (
     <div className="mt-2 space-y-2">
       {/* Thumbnail / placeholder with status overlay */}
-      <div className="rounded-xl overflow-hidden border border-border">
+      <div className="rounded-xl overflow-hidden border border-border-subtle">
         {imageUrl ? (
           <div className="relative w-full aspect-video overflow-hidden bg-muted">
             <img

@@ -322,7 +322,7 @@ export function MultiKindPicker({ selectedKinds, options, onChange }: {
         <PopoverTrigger asChild>
           <button
             className={cn(
-              'w-full h-9 px-3 rounded-lg border bg-secondary/50 text-sm flex items-center gap-2 text-left transition-colors hover:bg-secondary border-border',
+              'w-full h-9 px-3 rounded-lg border bg-secondary/50 text-sm flex items-center gap-2 text-left transition-colors hover:bg-secondary border-border-subtle',
               open && 'border-ring ring-1 ring-ring',
             )}
           >
@@ -514,7 +514,7 @@ export function ScopeToggle<T extends string>({
   const useGrid = options.length > 3;
   return (
     <div className={cn(
-      'rounded-lg border border-border overflow-hidden',
+      'rounded-lg border border-border-subtle overflow-hidden',
       useGrid ? 'grid grid-cols-2' : 'flex',
     )}>
       {options.map(({ value: scope, label, icon: Icon }) => (
@@ -793,7 +793,7 @@ export function SavedFeedFiltersEditor({
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               <FormattedMessage id="feedFilters.from" defaultMessage="From" />
             </span>
-            <div className="flex rounded-lg border border-border overflow-hidden">
+            <div className="flex rounded-lg border border-border-subtle overflow-hidden">
               {([
                 ['anyone', intl.formatMessage({ id: 'feedFilters.scope.anyone', defaultMessage: 'Anyone' }), Globe],
                 ['people', intl.formatMessage({ id: 'feedFilters.scope.people', defaultMessage: 'People' }), UserSearch],

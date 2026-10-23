@@ -3362,7 +3362,7 @@ function ProfilePageInner() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center justify-between rounded-lg border border-border-subtle p-3">
                 <div className="space-y-0.5 flex-1">
                   <span className="text-sm font-medium">
                     <FormattedMessage id="settings.content.showCustomThemes" defaultMessage="Show custom profile themes" />
@@ -3743,11 +3743,11 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
                 <FallbackImage
                   src={badge?.image}
                   alt={badge?.name}
-                  className="size-16 rounded-xl object-cover border border-border bg-secondary/30 transition-transform group-hover:scale-105"
+                  className="size-16 rounded-xl object-cover border border-border-subtle bg-secondary/30 transition-transform group-hover:scale-105"
                   loading="lazy"
                   decoding="async"
                   fallback={(
-                    <div className="size-16 rounded-xl border border-border bg-secondary/30 flex items-center justify-center transition-transform group-hover:scale-105">
+                    <div className="size-16 rounded-xl border border-border-subtle bg-secondary/30 flex items-center justify-center transition-transform group-hover:scale-105">
                       <Award className="size-7 text-muted-foreground" />
                     </div>
                   )}

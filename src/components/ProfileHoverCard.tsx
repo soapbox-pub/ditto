@@ -227,7 +227,7 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
         side="bottom"
         align="start"
         sideOffset={8}
-        className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
+        className="w-72 p-0 rounded-2xl overflow-hidden border border-border-subtle shadow-xl"
         onClick={(e) => e.stopPropagation()}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}

@@ -50,7 +50,7 @@ export function Top8Content({ event, compact, className }: Top8ContentProps) {
     <div className={cn('mt-3', className)}>
       <div
         className={cn(
-          'rounded-xl border bg-gradient-to-br from-primary/10 via-background to-background',
+          'rounded-xl border border-border-subtle bg-gradient-to-br from-primary/10 via-background to-background',
           'shadow-sm motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-md',
           compact ? 'p-4' : 'p-5 sm:p-6',
         )}
@@ -116,7 +116,7 @@ export function Top8Compact({ event, className }: Top8CompactProps) {
   return (
     <div
       className={cn(
-        'group block rounded-2xl border overflow-hidden cursor-pointer transition-colors',
+        'group block rounded-2xl border border-border-subtle overflow-hidden cursor-pointer transition-colors',
         'bg-gradient-to-br from-primary/10 to-background hover:border-primary/40',
         className,
       )}

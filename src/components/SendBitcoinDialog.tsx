@@ -1374,7 +1374,7 @@ function SelectedRecipientChip({
     : `${address.slice(0, 12)}…${address.slice(-8)}`;
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 pl-2 pr-2 py-1.5 w-full min-w-0 max-w-full">
+    <div className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-muted/40 pl-2 pr-2 py-1.5 w-full min-w-0 max-w-full">
       {pubkey ? (
         <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
           <AvatarImage src={metadata?.picture} imeta={parseProfileImeta(tags, metadata)?.picture} alt={displayName} />

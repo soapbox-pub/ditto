@@ -295,7 +295,7 @@ export function AudioVisualizer({
     <div
       ref={containerRef}
       className={cn(
-        'relative mt-3 rounded-2xl overflow-hidden border border-border bg-background group',
+        'relative mt-3 rounded-2xl overflow-hidden border border-border-subtle bg-background group',
         className,
       )}
       style={{ aspectRatio: '16 / 9' }}

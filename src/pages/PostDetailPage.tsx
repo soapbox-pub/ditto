@@ -1020,7 +1020,7 @@ function EventNotFound({
         )}
 
         {/* Context details */}
-        <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+        <div className="rounded-xl border border-border-subtle bg-secondary/30 p-4 space-y-2 text-sm">
           <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">
             <FormattedMessage id="postDetail.eventDetails" defaultMessage="Event details" />
           </p>
@@ -2174,7 +2174,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 url={resolved.url}
                 name={resolved.name}
                 authorPubkey={event.pubkey}
-                className="mt-2 rounded-xl border border-border bg-secondary/30 px-3 py-2.5"
+                className="mt-2 rounded-xl border border-border-subtle bg-secondary/30 px-3 py-2.5"
               />
             );
           })()}
@@ -2889,7 +2889,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <NsiteCard event={event} autoPlayKey={nsiteAutoPlayKey} />
               </div>
             ) : isSoftwareApp ? (
-              <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
+              <div className="mt-3 rounded-xl border border-border-subtle overflow-hidden px-4 pt-4 pb-4">
                 <SoftwareAppContent event={event} />
               </div>
             ) : isSoftwareRelease ? (
@@ -2899,7 +2899,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 </Suspense>
               </div>
             ) : isSoftwareAsset ? (
-              <div className="mt-3 rounded-xl border border-border overflow-hidden px-4 pt-4 pb-4">
+              <div className="mt-3 rounded-xl border border-border-subtle overflow-hidden px-4 pt-4 pb-4">
                 <Suspense fallback={<SoftwareAssetSkeleton />}>
                   <SoftwareAssetContent event={event} />
                 </Suspense>

@@ -100,8 +100,8 @@ export function GameControls({ webxdcHandle, className }: GameControlsProps) {
         <div className="relative size-[132px]">
           {/* Cross background */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-11 h-full rounded-lg bg-muted/80 backdrop-blur-sm border border-border/50" />
-            <div className="absolute w-full h-11 rounded-lg bg-muted/80 backdrop-blur-sm border border-border/50" />
+            <div className="w-11 h-full rounded-lg bg-muted/80 backdrop-blur-sm border border-border-subtle" />
+            <div className="absolute w-full h-11 rounded-lg bg-muted/80 backdrop-blur-sm border border-border-subtle" />
           </div>
           {/* Up */}
           <button

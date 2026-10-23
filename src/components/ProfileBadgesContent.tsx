@@ -107,7 +107,7 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
                 {badge ? (
                   <BadgeThumbnail badge={badge} size={48} />
                 ) : (
-                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center">
+                  <div className="size-12 rounded-lg border border-border-subtle bg-background flex items-center justify-center">
                     <Award className="size-6 text-muted-foreground" />
                   </div>
                 )}
@@ -129,7 +129,7 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
           )}
         </div>
       ) : badgeRefs.length > 0 ? (
-        <div className="rounded-xl border border-border bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border-subtle bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
           <FormattedMessage
             id="profileBadges.definitionsFailed"
             defaultMessage="{count, plural, one {# badge} other {# badges}} referenced but definitions could not be loaded."

@@ -414,7 +414,7 @@ export function LoveListCompact({ event, className }: LoveListCompactProps) {
   return (
     <div
       className={cn(
-        'group block rounded-2xl border overflow-hidden cursor-pointer transition-colors',
+        'group block rounded-2xl border border-border-subtle overflow-hidden cursor-pointer transition-colors',
         className,
       )}
       style={{

@@ -58,7 +58,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
       return (
         <section
           aria-label={intl.formatMessage({ id: 'quizTaker.yourResultLabel', defaultMessage: 'Your quiz result' })}
-          className="rounded-2xl border bg-card p-4 sm:p-5"
+          className="rounded-2xl border border-border-subtle bg-card p-4 sm:p-5"
         >
           <ResultSummary
             quiz={quiz}
@@ -95,7 +95,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
   return (
     <section
       aria-label={intl.formatMessage({ id: 'quizTaker.takeLabel', defaultMessage: 'Take this quiz' })}
-      className="rounded-2xl border bg-card p-4 sm:p-5"
+      className="rounded-2xl border border-border-subtle bg-card p-4 sm:p-5"
     >
       <div className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
         <span>
@@ -120,7 +120,7 @@ export function QuizTaker({ quiz }: QuizTakerProps) {
           <Label
             key={option.id}
             htmlFor={`${quiz.event.id}-${question.id}-${option.id}`}
-            className="flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-normal transition-colors hover:bg-secondary/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-border-subtle px-4 py-3 text-sm font-normal transition-colors hover:bg-secondary/50 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5"
           >
             <RadioGroupItem
               id={`${quiz.event.id}-${question.id}-${option.id}`}
@@ -214,7 +214,7 @@ function QuizResultScreen({
   return (
     <section
       aria-label={intl.formatMessage({ id: 'quizTaker.yourResultLabel', defaultMessage: 'Your quiz result' })}
-      className="rounded-2xl border bg-card p-4 sm:p-5"
+      className="rounded-2xl border border-border-subtle bg-card p-4 sm:p-5"
     >
       <ResultSummary quiz={quiz} outcomes={outcomes} scores={resultScores} />
 
@@ -292,7 +292,7 @@ function ResultSummary({
                 <img
                   src={outcome.image}
                   alt={outcome.label}
-                  className="mb-2 max-h-56 w-full rounded-xl border object-cover"
+                  className="mb-2 max-h-56 w-full rounded-xl border border-border-subtle object-cover"
                   decoding="async"
                 />
               )}

@@ -156,7 +156,7 @@ function MemoryCardTile({ card }: { card: CardSummary }) {
   return (
     <Link
       to={href}
-      className="group block rounded-2xl border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group block rounded-2xl border border-border-subtle bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {/* Plastic memory-card body */}
       <div className="overflow-hidden rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-800 to-slate-950 shadow-inner">
@@ -245,7 +245,7 @@ function GalleryView({ tab }: { tab: GalleryTab }) {
     content = (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border p-3">
+          <div key={i} className="rounded-2xl border border-border-subtle p-3">
             <Skeleton className="h-[132px] w-full rounded-xl" />
             <div className="mt-3 flex items-center gap-2">
               <Skeleton className="size-5 rounded-full" />
@@ -531,7 +531,7 @@ function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
 
   if (isContinuation || !visual) {
     return (
-      <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border bg-secondary/20 p-3">
+      <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border-subtle bg-secondary/20 p-3">
         <span className="absolute right-2.5 top-2 font-mono text-[11px] text-muted-foreground/70">#{index}</span>
         <p className="text-sm text-muted-foreground">
           ↳ <FormattedMessage id="memoryCards.block.continuation" defaultMessage="continuation" />
@@ -548,7 +548,7 @@ function BlockSlot({ index, event, onCopy, onDownload }: BlockSlotProps) {
     || intl.formatMessage({ id: 'memoryCards.block.untitled', defaultMessage: '(untitled save)' });
 
   return (
-    <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border bg-card p-3">
+    <div className="group relative flex min-h-[132px] flex-col rounded-xl border border-border-subtle bg-card p-3">
       <span className="absolute right-2.5 top-2 font-mono text-[11px] text-muted-foreground/70">#{index}</span>
       <div className="flex gap-2.5">
         <MemoryCardIcon frames={visual.frames} size={48} />
@@ -656,8 +656,8 @@ function CardGrid({ pubkey, card }: { pubkey: string; card: ResolvedCard }) {
   return (
     <div className="space-y-5">
       {/* Banner */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-gradient-to-b from-secondary/40 to-card p-4">
-        <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-[10px] font-bold tracking-wide text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border-subtle bg-gradient-to-b from-secondary/40 to-card p-4">
+        <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-muted text-[10px] font-bold tracking-wide text-muted-foreground">
           {used}/15
         </div>
         <div className="min-w-0 flex-1">

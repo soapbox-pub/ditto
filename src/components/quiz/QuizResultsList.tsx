@@ -53,7 +53,7 @@ export function QuizResultsList({ quiz }: QuizResultsListProps) {
       <section className="space-y-2" aria-label={sectionLabel}>
         <ResultsHeading />
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-xl border px-3 py-2.5">
+          <div key={i} className="flex items-center gap-3 rounded-xl border border-border-subtle px-3 py-2.5">
             <Skeleton className="size-8 rounded-full" />
             <div className="space-y-1">
               <Skeleton className="h-3.5 w-28" />
@@ -153,7 +153,7 @@ function ResultRow({ event }: { event: NostrEvent }) {
           src={outcomeImage}
           alt=""
           loading="lazy"
-          className="size-10 shrink-0 rounded-lg border object-cover"
+          className="size-10 shrink-0 rounded-lg border border-border-subtle object-cover"
           decoding="async"
         />
       )}
@@ -161,7 +161,7 @@ function ResultRow({ event }: { event: NostrEvent }) {
     </>
   );
 
-  const className = 'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors hover:bg-secondary/50';
+  const className = 'flex w-full items-center gap-3 rounded-xl border border-border-subtle px-3 py-2.5 text-left transition-colors hover:bg-secondary/50';
 
   if (!nevent) {
     return <div className={className}>{row}</div>;

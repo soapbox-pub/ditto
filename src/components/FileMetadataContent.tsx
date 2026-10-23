@@ -228,7 +228,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
 
   return (
     <div className="mt-3">
-      <div className="rounded-2xl border border-border overflow-hidden">
+      <div className="rounded-2xl border border-border-subtle overflow-hidden">
         <div className="flex items-center gap-3.5 p-4">
           <div className="flex items-center justify-center size-12 rounded-xl bg-muted shrink-0">
             <FileIcon className="size-6 text-muted-foreground" />

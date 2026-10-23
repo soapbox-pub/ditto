@@ -123,7 +123,7 @@ export function BackgroundPicker({ value, onChange }: {
 
       {currentBg ? (
         <div className="space-y-2">
-          <div className="relative rounded-lg overflow-hidden border border-border">
+          <div className="relative rounded-lg overflow-hidden border border-border-subtle">
             <img
               src={currentBg.url}
               alt={intl.formatMessage({ id: 'backgroundPicker.imageAlt', defaultMessage: 'Theme background' })}
@@ -142,7 +142,7 @@ export function BackgroundPicker({ value, onChange }: {
           </div>
 
           {/* Mode toggle */}
-          <div className="flex gap-1 rounded-lg border border-border p-0.5 w-fit">
+          <div className="flex gap-1 rounded-lg border border-border-subtle p-0.5 w-fit">
             {(['cover', 'tile'] as const).map((mode) => (
               <button
                 key={mode}

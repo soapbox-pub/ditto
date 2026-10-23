@@ -213,7 +213,7 @@ export function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJso
           <p className="text-xs font-medium text-muted-foreground mb-1">
             <FormattedMessage id="eventJson.rawJson" defaultMessage="Raw JSON" />
           </p>
-          <div className="relative flex-1 min-h-0 overflow-auto rounded-lg bg-muted border border-border">
+          <div className="relative flex-1 min-h-0 overflow-auto rounded-lg bg-muted border border-border-subtle">
             <div className="sticky top-2 right-2 float-right mr-2">
               <CopyButton text={jsonText} label={intl.formatMessage({ id: 'unknownKind.eventJson', defaultMessage: 'Event JSON' })} />
             </div>
@@ -235,7 +235,7 @@ export function EventJsonDialog({ event, nip19Id, open, onOpenChange }: EventJso
                   : <FormattedMessage id="eventJson.relaysFound" defaultMessage="On {found} of {total}" values={{ found, total: rows.length }} />}
               </p>
             </div>
-            <ul className="max-h-40 overflow-auto rounded-lg border border-border divide-y divide-border">
+            <ul className="max-h-40 overflow-auto rounded-lg border border-border-subtle divide-y divide-border">
               {rows.map((row) => <RelayPresenceRow key={row.url} row={row} />)}
             </ul>
           </div>

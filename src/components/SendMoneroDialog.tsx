@@ -465,7 +465,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                   any of it can be verified.
                 */}
                 {prepared && (
-                  <dl className="grid gap-2 rounded-lg border p-3 text-xs">
+                  <dl className="grid gap-2 rounded-lg border border-border-subtle p-3 text-xs">
                     <div className="flex justify-between gap-3">
                       <dt className="text-muted-foreground">
                         <FormattedMessage id="monero.send.confirm.amount" defaultMessage="Amount" />
@@ -978,7 +978,7 @@ function SelectedRecipientChip({
     : intl.formatMessage({ id: 'monero.send.addressLabel', defaultMessage: 'Monero address' });
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-2 py-1.5 w-full min-w-0 max-w-full">
+    <div className="flex items-center gap-3 rounded-2xl border border-border-subtle bg-muted/40 px-2 py-1.5 w-full min-w-0 max-w-full">
       {pubkey ? (
         <Avatar shape={getAvatarShape(metadata)} className="size-9 shrink-0">
           <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />

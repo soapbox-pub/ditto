@@ -1301,7 +1301,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarImeta, avatarFallback
       href={src}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 my-2 px-3 py-2 rounded-lg border bg-muted/40 hover:bg-muted text-primary break-all"
+      className="inline-flex items-center gap-2 my-2 px-3 py-2 rounded-lg border border-border-subtle bg-muted/40 hover:bg-muted text-primary break-all"
       onClick={(e) => e.stopPropagation()}
     >
       <span className="font-medium"><FormattedMessage id="noteContent.blossomFile" defaultMessage="Blossom file" /></span>

@@ -73,7 +73,7 @@ export function RepoStateCard({ event, preview = true }: RepoStateCardProps) {
 	const remainingTags = tags.length - shownTags.length;
 
 	return (
-		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
+		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Repo name */}
 				<div className="flex items-center gap-2 min-w-0">

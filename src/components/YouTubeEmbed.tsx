@@ -92,7 +92,7 @@ export function YouTubeEmbed({ videoId, className }: YouTubeEmbedProps) {
 
   return (
     <div
-      className={cn('rounded-2xl overflow-hidden border border-border', className)}
+      className={cn('rounded-2xl overflow-hidden border border-border-subtle', className)}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>

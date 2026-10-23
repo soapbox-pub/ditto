@@ -80,7 +80,7 @@ function Top8Row({ pubkey, rank, onRemove }: Top8RowProps) {
         transition,
       }}
       className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-xl border bg-background',
+        'flex items-center gap-3 px-3 py-2 rounded-xl border border-border-subtle bg-background',
         isDragging && 'z-50 shadow-lg opacity-90',
       )}
       {...attributes}
@@ -320,7 +320,7 @@ export function Top8Page() {
         {isLoading && published.length === 0 ? (
           <ul className="space-y-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <li key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl border">
+              <li key={i} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border-subtle">
                 <Skeleton className="size-5 shrink-0" />
                 <Skeleton className="size-7 rounded-full shrink-0" />
                 <Skeleton className="size-10 rounded-full shrink-0" />

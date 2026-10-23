@@ -394,7 +394,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
 
   if (isLoading) {
     return (
-      <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+      <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border-subtle">
         <Skeleton className="w-10 h-14 rounded shrink-0" />
         <div className="flex-1 min-w-0 space-y-1.5">
           <Skeleton className="h-4 w-3/4" />
@@ -408,7 +408,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
     return (
       <Link
         to={`/i/isbn:${isbn}`}
-        className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted/80 transition-colors"
+        className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border-subtle hover:bg-muted/80 transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-14 rounded bg-muted flex items-center justify-center shrink-0">
@@ -426,7 +426,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
   return (
     <Link
       to={`/i/isbn:${isbn}`}
-      className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted/80 transition-colors group/book"
+      className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border-subtle hover:bg-muted/80 transition-colors group/book"
       onClick={(e) => e.stopPropagation()}
     >
       {book.coverUrl ? (
@@ -471,7 +471,7 @@ export function BookFeedItemSkeleton() {
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-4/5" />
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border-subtle">
             <Skeleton className="w-10 h-14 rounded shrink-0" />
             <div className="flex-1 min-w-0 space-y-1.5">
               <Skeleton className="h-4 w-3/4" />

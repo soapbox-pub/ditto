@@ -288,7 +288,7 @@ export function MoneroZapContent({ method, target, onSuccess }: MoneroZapContent
         assurance, and a Monero payment can't be checked afterwards.
       */}
       {prepared && (
-        <dl className="grid gap-1.5 rounded-lg border p-3 text-xs">
+        <dl className="grid gap-1.5 rounded-lg border border-border-subtle p-3 text-xs">
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">
               <FormattedMessage id="monero.zap.confirm.sending" defaultMessage="Sending" />

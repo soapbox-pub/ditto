@@ -573,7 +573,7 @@ function ShakespeareLink({ children }: { children: React.ReactNode }) {
 
 function DorkErrorBanner({ face, heading, body }: { face: string; heading: string; body: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-secondary/60 border border-border px-4 py-4 text-sm space-y-2">
+    <div className="rounded-2xl bg-secondary/60 border border-border-subtle px-4 py-4 text-sm space-y-2">
       <p className="font-medium text-foreground">
         <code className="text-base font-mono text-primary leading-none whitespace-pre">{face}</code>
         {' '}{heading}

@@ -86,7 +86,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
 
       {/* Theme swatch card */}
       <div
-        className="rounded-xl overflow-hidden border border-border"
+        className="rounded-xl overflow-hidden border border-border-subtle"
         style={{
           background: `linear-gradient(135deg, ${hexColors.background}ee, ${hexColors.primary}15)`,
         }}

@@ -1016,7 +1016,7 @@ function EditBadgeForm({
       <div>
         <Label className="text-sm font-medium mb-1.5 block"><FormattedMessage id="blobbiRoom.frame.image" defaultMessage="Image" /></Label>
         <div
-          className="relative w-24 h-24 rounded-xl overflow-hidden border border-border cursor-pointer group"
+          className="relative w-24 h-24 rounded-xl overflow-hidden border border-border-subtle cursor-pointer group"
           onClick={() => fileInputRef.current?.click()}
         >
           {imagePreview ? (

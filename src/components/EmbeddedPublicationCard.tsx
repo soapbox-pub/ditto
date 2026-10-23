@@ -67,7 +67,7 @@ export function EmbeddedPublicationCard({
   return (
     <div
       className={cn(
-        'group flex gap-3 rounded-2xl border border-border p-3',
+        'group flex gap-3 rounded-2xl border border-border-subtle p-3',
         'cursor-pointer transition-colors hover:bg-secondary/40',
         className,
       )}
@@ -98,7 +98,7 @@ export function EmbeddedPublicationCard({
             loading="lazy"
             decoding="async"
             className={cn(
-              'rounded-lg border object-cover',
+              'rounded-lg border border-border-subtle object-cover',
               isMagazine ? 'size-16' : 'h-24 w-16 aspect-[2/3]',
             )}
             onError={(e) => {
@@ -108,7 +108,7 @@ export function EmbeddedPublicationCard({
         ) : (
           <div
             className={cn(
-              'flex items-center justify-center rounded-lg border bg-muted',
+              'flex items-center justify-center rounded-lg border border-border-subtle bg-muted',
               isMagazine ? 'size-16' : 'h-24 w-16',
             )}
           >

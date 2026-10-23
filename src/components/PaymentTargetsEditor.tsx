@@ -172,7 +172,7 @@ export const PaymentTargetsEditor = forwardRef<PaymentTargetsEditorHandle>(
                 return (
                   <div
                     key={draft.key}
-                    className="flex items-center gap-3 rounded-lg border bg-card/50 p-3"
+                    className="flex items-center gap-3 rounded-lg border border-border-subtle bg-card/50 p-3"
                   >
                     <div className="flex items-center gap-2 w-28 shrink-0 text-sm font-medium">
                       <PaymentMethodIcon method={method} className="text-muted-foreground" />

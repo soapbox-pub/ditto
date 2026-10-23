@@ -125,7 +125,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
     return (
       <>
       <div className="mt-2">
-        <div className="rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+        <div className="rounded-xl border border-border-subtle overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
           {/* Banner hero */}
           {banner && (
             <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
@@ -243,7 +243,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
   // Full detail view
   return (
     <div className="mt-3">
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="rounded-xl border border-border-subtle overflow-hidden">
         {/* Banner hero */}
         {banner && (
           <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
@@ -363,7 +363,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
 export function AppHandlerSkeleton() {
   return (
     <div className="mt-3">
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="rounded-xl border border-border-subtle overflow-hidden">
         <Skeleton className="aspect-[2/1] w-full" />
         <div className="px-4 pb-4 space-y-3">
           <div className="-mt-10">

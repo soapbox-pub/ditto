@@ -183,7 +183,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
 
         {/* Reason quote (if provided) */}
         {reason && (
-          <div className="mt-4 rounded-lg border border-border/50 bg-background/50 p-4">
+          <div className="mt-4 rounded-lg border border-border-subtle bg-background/50 p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-2">
               <FormattedMessage id="vanish.finalWords" defaultMessage="Final words" />
             </p>
@@ -195,7 +195,7 @@ export function VanishEventContent({ event, compact }: VanishEventContentProps) 
 
         {/* Relay targets (if specific relays listed) */}
         {!isGlobal && relayList.length > 0 && (
-          <div className="mt-4 rounded-lg border border-border/50 bg-background/50 p-4">
+          <div className="mt-4 rounded-lg border border-border-subtle bg-background/50 p-4">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-2">
               <FormattedMessage id="vanish.targetRelays" defaultMessage="Target relays" />
             </p>

@@ -1028,7 +1028,7 @@ export function VideosFeedPage() {
                 </div>
                 {!showAllVideos && normalVideos.length > initialVideoCount && (
                   <button
-                    className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border border-border rounded-lg"
+                    className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2 border border-border-subtle rounded-lg"
                     onClick={() => setShowAllVideos(true)}
                   >
                     <FormattedMessage

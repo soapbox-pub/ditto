@@ -71,7 +71,7 @@ export function PrUpdateCard({ event, preview = true }: PrUpdateCardProps) {
 	});
 
 	return (
-		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
+		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Title + repo */}
 				<div className="flex items-start gap-2.5">

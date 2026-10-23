@@ -54,7 +54,7 @@ export function RedditEmbed({ url, className }: RedditEmbedProps) {
   }, []);
 
   return (
-    <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
+    <div className={cn('rounded-2xl border border-border-subtle overflow-hidden', className)}>
       <iframe
         ref={iframeRef}
         src={embedUrl}

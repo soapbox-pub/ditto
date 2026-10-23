@@ -126,7 +126,7 @@ export function MinimizedAudioBar() {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      <div className="flex items-center gap-2 rounded-2xl bg-background/95 backdrop-blur-md border border-border shadow-lg px-2 py-1.5 min-w-[280px] max-w-[360px]">
+      <div className="flex items-center gap-2 rounded-2xl bg-background/95 backdrop-blur-md border border-border-subtle shadow-lg px-2 py-1.5 min-w-[280px] max-w-[360px]">
         {/* Drag handle */}
         <div data-drag-handle className="cursor-grab active:cursor-grabbing shrink-0 p-1 -ml-0.5 text-muted-foreground/50 hover:text-muted-foreground">
           <GripVertical className="size-4" />

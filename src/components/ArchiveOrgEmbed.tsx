@@ -109,7 +109,7 @@ export function ArchiveOrgEmbed({ identifier, className }: ArchiveOrgEmbedProps)
   return (
     <div
       ref={containerRef}
-      className={cn('rounded-2xl overflow-hidden border border-border', className)}
+      className={cn('rounded-2xl overflow-hidden border border-border-subtle', className)}
       onClick={(e) => e.stopPropagation()}
     >
       {activated ? (

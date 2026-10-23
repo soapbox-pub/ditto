@@ -176,7 +176,7 @@ function WaveformPlayer({
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border border-border bg-muted/30 p-3 flex items-center gap-3',
+        'mt-3 rounded-2xl border border-border-subtle bg-muted/30 p-3 flex items-center gap-3',
         className,
       )}
       onClick={(e) => e.stopPropagation()}

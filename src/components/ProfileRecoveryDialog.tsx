@@ -100,7 +100,7 @@ function ProfileSnapshotCard({
   return (
     <div
       className={cn(
-        'group relative rounded-xl border p-4 transition-all',
+        'group relative rounded-xl border border-border-subtle p-4 transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
           : 'border-border hover:border-primary/20 hover:bg-secondary/30',
@@ -186,7 +186,7 @@ function ThemeSnapshotCard({
   return (
     <div
       className={cn(
-        'group relative rounded-xl border overflow-hidden transition-all',
+        'group relative rounded-xl border border-border-subtle overflow-hidden transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
           : 'border-border hover:border-primary/20',
@@ -286,7 +286,7 @@ function FollowsSnapshotCard({
   return (
     <div
       className={cn(
-        'group relative rounded-xl border p-4 transition-all',
+        'group relative rounded-xl border border-border-subtle p-4 transition-all',
         isCurrent
           ? 'border-primary/40 bg-primary/5'
           : 'border-border hover:border-primary/20 hover:bg-secondary/30',
@@ -350,7 +350,7 @@ function SnapshotSkeleton() {
   return (
     <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border p-4 space-y-3">
+        <div key={i} className="rounded-xl border border-border-subtle p-4 space-y-3">
           <div className="flex items-start gap-3">
             <Skeleton className="size-11 rounded-full shrink-0" />
             <div className="space-y-2 flex-1">

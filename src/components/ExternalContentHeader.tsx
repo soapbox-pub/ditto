@@ -84,7 +84,7 @@ function WikidataEntityHeader({ id, url }: { id: string; url: string }) {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-border overflow-hidden">
+      <div className="rounded-2xl border border-border-subtle overflow-hidden">
         <Skeleton className="w-full aspect-[16/9]" />
         <div className="p-5 space-y-3">
           <Skeleton className="h-3 w-24" />
@@ -239,7 +239,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
             {post.images && post.images.length > 0 && (
               <div
                 className={cn(
-                  'mt-3 rounded-xl overflow-hidden border border-border',
+                  'mt-3 rounded-xl overflow-hidden border border-border-subtle',
                   post.images.length === 1 && 'grid grid-cols-1',
                   post.images.length === 2 && 'grid grid-cols-2 gap-0.5',
                   post.images.length === 3 && 'grid grid-cols-2 gap-0.5',
@@ -270,7 +270,7 @@ function BlueskyPostHeader({ author, rkey, url }: { author: string; rkey: string
 
             {/* External link embed */}
             {post.external && post.external.thumb && (
-              <div className="mt-3 rounded-xl border border-border overflow-hidden bg-secondary/30">
+              <div className="mt-3 rounded-xl border border-border-subtle overflow-hidden bg-secondary/30">
                 <div className="aspect-[2/1] overflow-hidden bg-secondary">
                   <img
                     src={post.external.thumb}
@@ -392,7 +392,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-border overflow-hidden">
+      <div className="rounded-2xl border border-border-subtle overflow-hidden">
         <Skeleton className="w-full aspect-[16/9]" />
         <div className="p-5 space-y-3">
           <Skeleton className="h-3 w-24" />
@@ -418,7 +418,7 @@ function WikipediaArticleHeader({ title, url }: { title: string; url: string }) 
   const heroImage = wikimediaImageUrl(wiki.thumbnail?.source, 960, wiki.originalImage?.width);
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       {/* Hero image */}
       {heroImage && (
         <div className="relative w-full overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
@@ -548,7 +548,7 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-border overflow-hidden p-5">
+      <div className="rounded-2xl border border-border-subtle overflow-hidden p-5">
         <div className="flex gap-5">
           <Skeleton className="w-[120px] h-[180px] rounded-lg shrink-0" />
           <div className="flex-1 space-y-3">
@@ -571,7 +571,7 @@ export function BookContentHeader({ isbn }: { isbn: string }) {
   const publishers = book?.publishers?.map((p) => p.name).join(', ');
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       <div className="p-5">
         <div className="flex gap-5">
           {coverUrl ? (
@@ -744,7 +744,7 @@ function WeatherWidget({ code }: { code: string }) {
   if (!weather) return null;
 
   return (
-    <div className="mt-5 rounded-xl bg-gradient-to-br from-secondary/60 to-secondary/30 border border-border/50 p-4 transition-all hover:border-border">
+    <div className="mt-5 rounded-xl bg-gradient-to-br from-secondary/60 to-secondary/30 border border-border-subtle p-4 transition-all hover:border-border">
       <div className="flex items-center gap-4">
         {/* Weather icon + temperature */}
         <div className="flex items-center gap-3">
@@ -798,7 +798,7 @@ export function CountryContentHeader({ code }: { code: string }) {
 
   if (!info) {
     return (
-      <div className="rounded-2xl border border-border p-5 text-center">
+      <div className="rounded-2xl border border-border-subtle p-5 text-center">
         <MapPin className="size-8 mx-auto mb-2 text-muted-foreground/40" />
         <p className="text-muted-foreground">
           <FormattedMessage id="externalContent.unknownCountry" defaultMessage="Unknown country code: {code}" values={{ code }} />
@@ -808,7 +808,7 @@ export function CountryContentHeader({ code }: { code: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       {/* Flag + name */}
       <div className="p-6 sm:p-8">
         <div className="flex items-center gap-4">

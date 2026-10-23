@@ -87,7 +87,7 @@ export function MusicTrackContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border overflow-hidden',
+        'mt-3 rounded-2xl border border-border-subtle overflow-hidden',
         isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
     >
@@ -142,7 +142,7 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
   const trackCount = parsed.trackRefs.length;
 
   return (
-    <div className="mt-3 rounded-2xl border border-border overflow-hidden cursor-pointer">
+    <div className="mt-3 rounded-2xl border border-border-subtle overflow-hidden cursor-pointer">
       {/* Cover artwork — clicks bubble up to NoteCard for navigation */}
       {parsed.artwork ? (
         <div className="aspect-video max-h-[200px] w-full overflow-hidden">
@@ -207,7 +207,7 @@ export function PodcastEpisodeContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border overflow-hidden',
+        'mt-3 rounded-2xl border border-border-subtle overflow-hidden',
         isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
     >
@@ -285,7 +285,7 @@ export function PodcastTrailerContent({ event }: { event: NostrEvent }) {
   return (
     <div
       className={cn(
-        'mt-3 rounded-2xl border overflow-hidden',
+        'mt-3 rounded-2xl border border-border-subtle overflow-hidden',
         isNowPlaying ? 'border-primary bg-primary/5' : 'border-border',
       )}
     >

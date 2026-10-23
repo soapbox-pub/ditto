@@ -58,7 +58,7 @@ export function GitRepoCard({ event }: GitRepoCardProps) {
 	const shakespeareUrl = `https://shakespeare.diy/clone?url=${encodeURIComponent(nostrCloneUrl)}`;
 
 	return (
-		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
+		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
 			<div className="px-3.5 py-3 space-y-2">
 				{/* Name + fork badge */}
 				<div className="flex items-center gap-2 min-w-0">

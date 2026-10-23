@@ -187,7 +187,7 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
       <div
         className={cn(
           'relative mx-auto w-full max-w-md overflow-hidden text-center',
-          'rounded-xl border shadow-sm',
+          'rounded-xl border border-border-subtle shadow-sm',
           'bg-gradient-to-br from-[#33db98]/10 via-background to-[#59fcb3]/[0.06]',
           className,
         )}
@@ -282,7 +282,7 @@ export function VectorInviteEmbed({ invite, className, variant = 'embed' }: Vect
     <div
       className={cn(
         'group relative block max-w-sm w-full my-2.5 overflow-hidden',
-        'rounded-lg border shadow-sm',
+        'rounded-lg border border-border-subtle shadow-sm',
         'bg-gradient-to-br from-[#33db98]/10 via-background to-[#59fcb3]/[0.06]',
         className,
       )}

@@ -454,7 +454,7 @@ function EmojiPackForm({ editEvent, onDone }: { editEvent?: NostrEvent; onDone: 
             aria-label={intl.formatMessage({ id: 'emojiPackDialog.packIcon', defaultMessage: 'Pack icon' })}
             disabled={busy}
             className={cn(
-              'flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border transition-colors',
+              'flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-subtle transition-colors',
               icon
                 ? 'border-transparent'
                 : 'border-dashed border-border text-muted-foreground hover:border-muted-foreground/60 hover:bg-foreground/5',

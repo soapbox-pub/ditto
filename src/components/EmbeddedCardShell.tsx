@@ -52,7 +52,7 @@ export function EmbeddedCardShell({
   return (
     <div
       className={cn(
-        'group block rounded-2xl embed-bubble overflow-hidden',
+        'group block rounded-2xl embed-bubble border border-border-subtle overflow-hidden',
         'hover:bg-secondary/70 transition-colors cursor-pointer',
         className,
       )}

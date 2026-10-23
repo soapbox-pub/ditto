@@ -49,7 +49,7 @@ export function MemoryCardContent({ event }: { event: NostrEvent }) {
   const isHeader = block === 0 || state === 'header';
 
   const body = (
-    <div className="mt-2 flex items-center gap-3 rounded-xl border border-border bg-secondary/30 p-3 transition-colors hover:bg-secondary/50">
+    <div className="mt-2 flex items-center gap-3 rounded-xl border border-border-subtle bg-secondary/30 p-3 transition-colors hover:bg-secondary/50">
       {isSave ? (
         <MemoryCardIcon frames={visual.frames} size={56} />
       ) : (

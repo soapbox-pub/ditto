@@ -284,7 +284,7 @@ export function ProfileTabEditModal({
           {/* Media content type — Images/Videos combine; "No media" is exclusive */}
           <div className="space-y-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide"><FormattedMessage id="sidebar.section.media" defaultMessage="Media" /></span>
-            <div className="rounded-lg border border-border overflow-hidden flex">
+            <div className="rounded-lg border border-border-subtle overflow-hidden flex">
               {TAB_MEDIA_CATEGORIES.map((value) => {
                 const Icon = TAB_MEDIA_ICONS[value];
                 const active = mediaCategories.has(value);

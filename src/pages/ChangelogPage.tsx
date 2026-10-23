@@ -214,7 +214,7 @@ function ChangelogEntryCard({ entry }: { entry: ChangelogEntry }) {
   }, [measure]);
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       {/* Version header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <a
@@ -325,7 +325,7 @@ function ChangelogSkeleton() {
   return (
     <div className="space-y-4 pt-1">
       {[1, 2].map((i) => (
-        <div key={i} className="rounded-2xl border border-border overflow-hidden">
+        <div key={i} className="rounded-2xl border border-border-subtle overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
             <Skeleton className="size-4 rounded" />
             <Skeleton className="h-4 w-16" />

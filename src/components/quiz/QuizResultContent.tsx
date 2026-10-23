@@ -63,7 +63,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
         </p>
       )}
 
-      <div className="rounded-2xl border bg-card p-4">
+      <div className="rounded-2xl border border-border-subtle bg-card p-4">
         <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <ClipboardCheck className="size-3" />
           <FormattedMessage id="quizResult.label" defaultMessage="Quiz result" />
@@ -98,7 +98,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
                       alt={outcome.label}
                       loading="lazy"
                       className={cn(
-                        'mb-2 w-full rounded-xl border object-cover',
+                        'mb-2 w-full rounded-xl border border-border-subtle object-cover',
                         expanded ? 'max-h-64' : 'max-h-44',
                       )}
                       decoding="async"

@@ -431,7 +431,7 @@ export function CreateQuizPage() {
 
             <div className="space-y-3">
               {question.options.map((option, oi) => (
-                <div key={option.key} className="rounded-xl border p-3">
+                <div key={option.key} className="rounded-xl border border-border-subtle p-3">
                   <div className="flex items-center gap-2">
                     <Input
                       value={option.label}
@@ -539,7 +539,7 @@ export function CreateQuizPage() {
           {scoring === 'argmax' && (
             <div className="space-y-3">
               {dimensions.map((dim, di) => (
-                <div key={dim.key} className="rounded-xl border p-3">
+                <div key={dim.key} className="rounded-xl border border-border-subtle p-3">
                   <p className="text-xs font-medium text-muted-foreground">
                     <FormattedMessage id="createQuiz.ifWins" defaultMessage="If {name} wins…" values={{ name: dimName(dim, di) }} />
                   </p>
@@ -608,7 +608,7 @@ export function CreateQuizPage() {
           {scoring === 'ranges' && (
             <div className="space-y-3">
               {rangeOutcomes.map((outcome, i) => (
-                <div key={outcome.key} className="space-y-2 rounded-xl border p-3">
+                <div key={outcome.key} className="space-y-2 rounded-xl border border-border-subtle p-3">
                   <div className="flex items-center gap-2">
                     <Input
                       value={outcome.label}

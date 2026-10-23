@@ -89,7 +89,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
-			<div className="rounded-2xl border border-border overflow-hidden">
+			<div className="rounded-2xl border border-border-subtle overflow-hidden">
 				<div className="px-3.5 py-3 space-y-2">
 					{/* Title + status badges */}
 					<div className="flex items-start gap-2.5">
@@ -169,7 +169,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 
 			{/* Commit metadata */}
 			{!preview && (commitId || parentCommit || committerTag) && (
-				<div className="rounded-2xl border border-border overflow-hidden divide-y divide-border">
+				<div className="rounded-2xl border border-border-subtle overflow-hidden divide-y divide-border">
 					{commitId && (
 						<div className="flex items-center gap-2.5 px-3.5 py-2 text-sm">
 							<GitCommit className="size-3.5 text-muted-foreground shrink-0" />
@@ -213,7 +213,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 
 			{/* Commit message */}
 			{!preview && commitMessage && (
-				<div className="rounded-2xl border border-border overflow-hidden px-3.5 py-3">
+				<div className="rounded-2xl border border-border-subtle overflow-hidden px-3.5 py-3">
 					<p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
 						{commitMessage}
 					</p>
@@ -222,7 +222,7 @@ export function PatchCard({ event, preview = true }: PatchCardProps) {
 
 			{/* Diff */}
 			{!preview && diff && (
-				<div className="rounded-2xl border border-border overflow-hidden">
+				<div className="rounded-2xl border border-border-subtle overflow-hidden">
 					<div className="overflow-x-auto">
 						<pre className="px-3.5 py-3 text-xs font-mono leading-relaxed">
 							{diff.split("\n").map((line, i) => {

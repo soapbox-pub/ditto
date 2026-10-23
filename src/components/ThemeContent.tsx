@@ -200,7 +200,7 @@ function ThemeMockup({
   const tokens = useMemo(() => coreToTokens(colors), [colors]);
 
   return (
-    <div className="rounded-xl overflow-hidden border border-border">
+    <div className="rounded-xl overflow-hidden border border-border-subtle">
       {/* Scaled mockup — same 4:3 aspect, elements ~4x the ThemeSelector sizes */}
       <div
         className="aspect-[4/3] relative"

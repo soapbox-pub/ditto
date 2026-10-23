@@ -468,7 +468,7 @@ export function MoneroSetupDialog({ isOpen, onClose, onComplete }: MoneroSetupDi
               </p>
             </div>
 
-            <div className="rounded-lg border bg-muted/40 p-3">
+            <div className="rounded-lg border border-border-subtle bg-muted/40 p-3">
               <p className="font-mono text-sm leading-relaxed break-words select-all">{step.seed}</p>
             </div>
 

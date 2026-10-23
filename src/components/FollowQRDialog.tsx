@@ -91,12 +91,12 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
           <img
             src={qrDataUrl}
             alt={intl.formatMessage({ id: 'followQr.qrAlt', defaultMessage: 'Follow QR code' })}
-            className="w-full rounded-xl border border-border"
+            className="w-full rounded-xl border border-border-subtle"
             style={{ imageRendering: 'pixelated' }}
             decoding="async"
           />
         ) : (
-          <div className="w-full aspect-square rounded-xl border border-border bg-muted animate-pulse" />
+          <div className="w-full aspect-square rounded-xl border border-border-subtle bg-muted animate-pulse" />
         )}
 
         {/* Copy link */}

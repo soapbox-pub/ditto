@@ -188,7 +188,7 @@ function ArticleCard({ page, badge, badgeIcon }: {
   return (
     <Link
       to={dittoWikiUrl(page, locale)}
-      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+      className="group block rounded-2xl border border-border-subtle overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       {/* Thumbnail */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
@@ -238,7 +238,7 @@ function FeaturedArticleCard({ page }: { page: WikiPage }) {
   return (
     <Link
       to={dittoWikiUrl(page, locale)}
-      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+      className="group block rounded-2xl border border-border-subtle overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10">
         {page.thumbnail ? (
@@ -280,7 +280,7 @@ function OnThisDayCard({ event }: { event: OnThisDayEvent }) {
   const mainPage = event.pages[0];
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-card">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden bg-card">
       <div className="flex items-start gap-3 p-4">
         {/* Year pill */}
         <div className="shrink-0 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-bold tabular-nums">
@@ -332,7 +332,7 @@ function NewsCard({ item }: { item: NewsItem }) {
   const mainLink = item.links[0];
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden bg-card">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden bg-card">
       <div className="flex items-start gap-3 p-4">
         <div className="shrink-0 mt-0.5">
           <Newspaper className="size-4 text-primary" />
@@ -562,7 +562,7 @@ function WikipediaLoadingSkeleton() {
   return (
     <div className="px-4 pt-4 pb-4 space-y-6">
       {/* Featured skeleton */}
-      <div className="rounded-2xl border border-border overflow-hidden bg-card">
+      <div className="rounded-2xl border border-border-subtle overflow-hidden bg-card">
         <Skeleton className="aspect-[16/9] w-full" />
         <div className="p-4 space-y-2">
           <Skeleton className="h-5 w-2/3" />
@@ -574,7 +574,7 @@ function WikipediaLoadingSkeleton() {
       {/* Grid skeleton */}
       <div className="grid grid-cols-2 gap-3 sidebar:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border overflow-hidden bg-card">
+          <div key={i} className="rounded-2xl border border-border-subtle overflow-hidden bg-card">
             <Skeleton className="aspect-[4/3] w-full" />
             <div className="p-3 space-y-1">
               <Skeleton className="h-4 w-3/4" />
@@ -587,7 +587,7 @@ function WikipediaLoadingSkeleton() {
       {/* List skeleton */}
       <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-2xl border border-border p-4">
+          <div key={i} className="rounded-2xl border border-border-subtle p-4">
             <div className="flex items-start gap-3">
               <Skeleton className="w-10 h-6 rounded-lg" />
               <div className="flex-1 space-y-2">

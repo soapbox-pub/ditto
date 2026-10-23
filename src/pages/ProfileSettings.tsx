@@ -945,7 +945,7 @@ export function ProfileSettings() {
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-3">
-                <div className="rounded-xl border bg-card/50 overflow-hidden">
+                <div className="rounded-xl border border-border-subtle bg-card/50 overflow-hidden">
                   <ProfileRightSidebar
                     fields={previewFields}
                     className="relative w-full flex flex-col h-auto max-h-[60vh] overflow-y-auto"
@@ -983,7 +983,7 @@ export function ProfileSettings() {
                 control={form.control}
                 name="bot"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <FormItem className="flex items-center justify-between rounded-lg border border-border-subtle p-3">
                     <div>
                       <FormLabel className="text-sm"><FormattedMessage id="settings.profile.bot.label" defaultMessage={"Bot Account"} /></FormLabel>
                       <FormDescription className="text-xs"><FormattedMessage id="settings.profile.bot.description" defaultMessage={"Mark this account as automated"} /></FormDescription>

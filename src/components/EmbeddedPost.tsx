@@ -27,7 +27,7 @@ export function EmbeddedPost({ event, className, disableHoverCards }: EmbeddedPo
   // Kind 0 (profile) — show a profile card instead of trying to render the raw JSON content
   if (event.kind === 0) {
     return (
-      <div className={cn('rounded-xl border border-border bg-secondary/30 overflow-hidden', className)}>
+      <div className={cn('rounded-xl border border-border-subtle bg-secondary/30 overflow-hidden', className)}>
         <ProfilePreview pubkey={event.pubkey} />
       </div>
     );

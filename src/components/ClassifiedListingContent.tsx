@@ -212,7 +212,7 @@ function ListingFeedCard({ listing, className }: { listing: ParsedClassifiedList
   return (
     <div
       className={cn(
-        'isolate my-2.5 relative rounded-2xl border border-border overflow-hidden @container',
+        'isolate my-2.5 relative rounded-2xl border border-border-subtle overflow-hidden @container',
         className,
       )}
     >

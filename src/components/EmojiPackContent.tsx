@@ -152,7 +152,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
         <FallbackImage
           src={pack.picture}
           alt={pack.name}
-          className="size-12 rounded-lg object-cover shrink-0 border border-border"
+          className="size-12 rounded-lg object-cover shrink-0 border border-border-subtle"
           decoding="async"
         />
         <div className="flex-1 min-w-0">
@@ -165,7 +165,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
 
       {/* Emoji grid preview */}
       {showEmojis.length > 0 && (
-        <div className="rounded-xl border border-border bg-secondary/30 p-3">
+        <div className="rounded-xl border border-border-subtle bg-secondary/30 p-3">
           <div className="flex flex-wrap gap-1.5">
             {showEmojis.map((emoji) => (
               <div

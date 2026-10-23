@@ -161,7 +161,7 @@ export function NsitePermissionPrompt({
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-sm rounded-xl border bg-card shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-sm rounded-xl border border-border-subtle bg-card shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-5 pb-3">
           <div className="flex items-center justify-center size-10 rounded-full bg-muted">
@@ -208,7 +208,7 @@ export function NsitePermissionPrompt({
 
           {/* Event content preview (signEvent only) */}
           {prompt.type === 'signEvent' && eventContent && (
-            <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="rounded-lg border border-border-subtle bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground mb-1">
                 <FormattedMessage id="nsite.prompt.content" defaultMessage="Content" />
               </p>
@@ -232,7 +232,7 @@ export function NsitePermissionPrompt({
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <pre className="mt-2 rounded-lg border bg-muted/30 p-3 text-xs font-mono max-h-40 overflow-auto whitespace-pre-wrap break-all">
+                <pre className="mt-2 rounded-lg border border-border-subtle bg-muted/30 p-3 text-xs font-mono max-h-40 overflow-auto whitespace-pre-wrap break-all">
                   {eventJson}
                 </pre>
               </CollapsibleContent>

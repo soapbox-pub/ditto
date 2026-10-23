@@ -191,7 +191,7 @@ export function EditPeopleListDialog({ event, open, onOpenChange }: EditPeopleLi
               />
             </div>
             {previewUrl ? (
-              <div className="rounded-lg overflow-hidden border border-border bg-muted">
+              <div className="rounded-lg overflow-hidden border border-border-subtle bg-muted">
                 <img
                   src={previewUrl}
                   alt={intl.formatMessage({ id: 'editPeopleList.coverPreview', defaultMessage: 'Cover preview' })}

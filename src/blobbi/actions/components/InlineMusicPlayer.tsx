@@ -118,7 +118,7 @@ export function InlineMusicPlayer({
   return (
     <div className="mx-4 sm:mx-6 mb-4">
       <div className={cn(
-        "rounded-xl border bg-card/80 backdrop-blur-sm overflow-hidden",
+        "rounded-xl border border-border-subtle bg-card/80 backdrop-blur-sm overflow-hidden",
         "shadow-sm transition-all",
         isPlaying && "ring-2 ring-pink-500/30"
       )}>

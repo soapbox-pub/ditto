@@ -58,7 +58,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           letterboxed at a wide aspect ratio with a dark gradient so the
           title and description remain legible on top. */}
       {image ? (
-        <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-black">
+        <div className="relative isolate overflow-hidden rounded-2xl border border-border-subtle bg-black">
           <div className="aspect-[3/1] w-full">
             <FallbackImage
               src={image}
@@ -86,7 +86,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/5 via-transparent to-primary/5 px-5 py-6">
+        <div className="rounded-2xl border border-border-subtle bg-gradient-to-br from-primary/5 via-transparent to-primary/5 px-5 py-6">
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             <Award className="size-3.5" />
             <FormattedMessage id="badgeSet.label" defaultMessage="Badge set" />
@@ -132,7 +132,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
                 {badge ? (
                   <BadgeThumbnail badge={badge} size={48} />
                 ) : (
-                  <div className="size-12 rounded-lg border border-border bg-background flex items-center justify-center">
+                  <div className="size-12 rounded-lg border border-border-subtle bg-background flex items-center justify-center">
                     <Award className="size-6 text-muted-foreground" />
                   </div>
                 )}
@@ -154,7 +154,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
           )}
         </div>
       ) : badges.length > 0 ? (
-        <div className="rounded-xl border border-border bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border-subtle bg-secondary/30 p-4 text-center text-sm text-muted-foreground">
           <FormattedMessage
             id="badgeSet.definitionsFailed"
             defaultMessage="{count, plural, one {# badge} other {# badges}} referenced but definitions could not be loaded."

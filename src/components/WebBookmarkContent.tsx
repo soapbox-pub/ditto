@@ -77,7 +77,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
       {/* Rich link-preview card, built from the event's own metadata tags. */}
       <div
         className={cn(
-          'group overflow-hidden rounded-xl border border-border',
+          'group overflow-hidden rounded-xl border border-border-subtle',
           url && 'cursor-pointer transition-colors hover:bg-secondary/40',
         )}
         role={url ? 'link' : undefined}

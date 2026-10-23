@@ -852,19 +852,19 @@ const NoteCardImpl = memo(function NoteCardImpl({
         ) : isNsite ? (
           <NsiteCard event={event} />
         ) : isSoftwareApp ? (
-          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+          <div className="mt-2 rounded-xl border border-border-subtle overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
               <SoftwareAppContent event={event} compact />
             </div>
           </div>
         ) : isSoftwareRelease ? (
-          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+          <div className="mt-2 rounded-xl border border-border-subtle overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
               <SoftwareReleaseContent event={event} compact />
             </div>
           </div>
         ) : isSoftwareAsset ? (
-          <div className="mt-2 rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
+          <div className="mt-2 rounded-xl border border-border-subtle overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20">
             <div className="px-3.5 pb-3.5 pt-3">
               <SoftwareAssetContent event={event} compact />
             </div>
@@ -2129,7 +2129,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2 space-y-2">
       {/* Stream player / thumbnail */}
-      <div className="rounded-xl overflow-hidden border border-border">
+      <div className="rounded-xl overflow-hidden border border-border-subtle">
         {isLive ? (
           // Inline live player — clicks on the player are intercepted so they don't navigate away
           <div className="relative" onClick={(e) => e.stopPropagation()}>

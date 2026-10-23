@@ -83,7 +83,7 @@ export function BadgeShowcaseGrid({
                 <BadgeThumbnail badge={item.badge} size={thumbnailSize} />
               ) : (
                 <div
-                  className="rounded-lg border border-border bg-background flex items-center justify-center"
+                  className="rounded-lg border border-border-subtle bg-background flex items-center justify-center"
                   style={{ width: thumbnailSize, height: thumbnailSize }}
                 >
                   <Award className="size-6 text-muted-foreground" />

@@ -1280,7 +1280,7 @@ function QuizResultOutcomeLine({ event }: { event: NostrEvent }) {
           navigate(`/${nevent}`);
         }
       }}
-      className="mx-4 mb-3 mt-1 rounded-lg border bg-card px-3 py-2 cursor-pointer hover:bg-secondary/50 transition-colors"
+      className="mx-4 mb-3 mt-1 rounded-lg border border-border-subtle bg-card px-3 py-2 cursor-pointer hover:bg-secondary/50 transition-colors"
     >
       <p className="text-sm font-semibold text-foreground line-clamp-2">{summary}</p>
     </div>
@@ -1407,12 +1407,12 @@ function BadgeAwardNotificationGroup({ group }: { group: GroupedNotificationItem
             : undefined;
 
           return (
-            <div key={actor.event.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-2">
+            <div key={actor.event.id} className="flex items-center gap-3 rounded-lg border border-border-subtle bg-muted/30 p-2">
               <Link to={badgeNaddr ? `/${badgeNaddr}` : '#'} className="flex items-center gap-3 flex-1 min-w-0 transition-colors hover:opacity-80">
                 {badge ? (
                   <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
                 ) : (
-                  <div className="shrink-0 size-9 rounded-lg border border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
+                  <div className="shrink-0 size-9 rounded-lg border border-border-subtle bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
                     <Award className="size-4 text-primary/30" />
                   </div>
                 )}

@@ -196,7 +196,7 @@ export function PlayMusicModal({
         <div className="px-6 py-4 border-t bg-muted/30">
           {/* Preview Controls */}
           {selectedTrack && (
-            <div className="mb-4 p-3 rounded-lg bg-card border">
+            <div className="mb-4 p-3 rounded-lg bg-card border border-border-subtle">
               <div className="flex items-center gap-3">
                 <Button
                   size="icon"

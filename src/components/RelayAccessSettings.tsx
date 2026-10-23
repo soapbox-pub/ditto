@@ -185,7 +185,7 @@ export function RelayAccessSettings() {
             <p className="pb-1 text-xs font-medium text-muted-foreground">
               <FormattedMessage id="settings.network.relayAuth.allowedList" defaultMessage="Always signed in to" />
             </p>
-            <div className="divide-y rounded-lg border">
+            <div className="divide-y rounded-lg border border-border-subtle">
               {allowed.map((url) => (
                 <RelayRow
                   key={url}
@@ -203,7 +203,7 @@ export function RelayAccessSettings() {
             <p className="pb-1 text-xs font-medium text-muted-foreground">
               <FormattedMessage id="settings.network.relayAuth.deniedList" defaultMessage="Never signed in to" />
             </p>
-            <div className="divide-y rounded-lg border">
+            <div className="divide-y rounded-lg border border-border-subtle">
               {denied.map((url) => (
                 <RelayRow
                   key={url}
@@ -269,7 +269,7 @@ export function RelayAccessSettings() {
         )}
 
         {blockedRelays && blockedRelays.length > 0 && (
-          <div className="divide-y rounded-lg border">
+          <div className="divide-y rounded-lg border border-border-subtle">
             {blockedRelays.map((url) => (
               <RelayRow
                 key={url}

@@ -305,7 +305,7 @@ export function DataSettingsPage() {
             )}
 
             {importState.parsed && (
-              <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+              <div className="rounded-lg border border-border-subtle bg-muted/30 p-3 space-y-3">
                 <div className="flex items-center gap-2">
                   <FileText className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 truncate text-xs font-medium" title={importState.filename}>

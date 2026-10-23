@@ -401,7 +401,7 @@ function ArchiveCard({ item }: { item: ArchiveItem }) {
   return (
     <Link
       to={dittoUrl(item.identifier)}
-      className="group block rounded-2xl border border-border overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
+      className="group block rounded-2xl border border-border-subtle overflow-hidden bg-card hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5"
     >
       {/* Thumbnail */}
       <div className={cn('relative aspect-[4/3] overflow-hidden bg-gradient-to-br', meta.gradient)}>

@@ -84,7 +84,7 @@ export function ConstellationContent({ event, className }: ConstellationContentP
 
   return (
     <div className={cn('mt-2', className)}>
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
+      <div className="overflow-hidden rounded-2xl border border-border-subtle bg-card shadow-sm transition-shadow hover:shadow-md">
         {/* Star map */}
         <div className="aspect-[4/3] w-full">
           <Suspense fallback={<Skeleton className="size-full" />}>

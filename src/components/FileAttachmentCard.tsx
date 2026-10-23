@@ -110,7 +110,7 @@ export function FileAttachmentCard({ url, imeta, className }: FileAttachmentCard
 
   return (
     <div
-      className={cn('my-2.5 w-full overflow-hidden rounded-xl border border-border bg-card whitespace-normal', className)}
+      className={cn('my-2.5 w-full overflow-hidden rounded-xl border border-border-subtle bg-card whitespace-normal', className)}
       onClick={(e) => e.stopPropagation()}
     >
       {viewing3d && format ? (

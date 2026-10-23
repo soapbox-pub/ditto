@@ -117,7 +117,7 @@ export function ThemePreviewBar() {
       <div
         role="region"
         aria-label={intl.formatMessage({ id: 'themePreview.label', defaultMessage: 'Theme preview' })}
-        className="pointer-events-auto w-full max-w-md rounded-xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
+        className="pointer-events-auto w-full max-w-md rounded-xl border border-border-subtle bg-card/95 p-4 shadow-lg backdrop-blur-md motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
       >
         <div className="flex items-start gap-3">
           <Sparkles className="size-5 mt-0.5 shrink-0 text-primary" aria-hidden />

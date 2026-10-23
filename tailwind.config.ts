@@ -38,7 +38,11 @@ export default {
 				emoji: ['Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', 'Android Emoji', 'EmojiSymbols', 'sans-serif'],
 			},
 			colors: {
-				border: 'hsl(var(--border))',
+				border: {
+					DEFAULT: 'hsl(var(--border))',
+					// Softer outline for cards, quotes, and other boxed content.
+					subtle: 'hsl(var(--border) / 0.5)',
+				},
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',

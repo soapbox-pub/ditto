@@ -289,6 +289,7 @@ Designs should be polished and production-ready. Concrete rules:
 - **8px grid** for spacing (Tailwind's 4-based scale). Avoid `p-[13px]`-style one-offs.
 - **Typography hierarchy** — ≥ 18px body, ≥ 40px primary headlines. Prefer a modern sans (e.g. Inter) for UI; pair a display/serif for headings when personality is needed.
 - **Depth** — soft shadows, gentle gradients, rounded corners (`rounded-lg` / `rounded-xl`). Avoid heavy drop shadows.
+- **Card outlines** — boxed content (cards, quotes, media, embeds) uses `border border-border-subtle`, the shared softer border token. Don't hand-roll `border-border` or `border-border/50` on cards. Floating surfaces (popovers, dropdowns) keep the full `border-border`.
 - **Motion** — lightweight, purposeful (hover, scroll reveals, transitions). Respect `prefers-reduced-motion` with Tailwind's `motion-safe:` / `motion-reduce:` variants.
 - **Reusable components** — consistent variants and feedback states (`hover`, `focus-visible`, `active`, `disabled`, `aria-invalid`). Use `cn()` for conditional classes and `class-variance-authority` for variants.
 - **Custom over generic** — avoid template-looking headers. Combine layered visuals, subtle motion, and brand colors. Generate custom images with available tools before reaching for stock.

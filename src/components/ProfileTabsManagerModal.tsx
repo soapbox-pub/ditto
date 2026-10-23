@@ -183,7 +183,7 @@ function SortableTabRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        'flex items-center gap-2 px-2 py-2 rounded-lg bg-secondary/20 border border-border/50',
+        'flex items-center gap-2 px-2 py-2 rounded-lg bg-secondary/20 border border-border-subtle',
         isDragging && 'opacity-50 shadow-lg z-50',
       )}
     >

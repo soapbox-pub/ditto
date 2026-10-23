@@ -308,7 +308,7 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
     <div
       ref={containerRef}
       className={cn(
-        'relative mt-3 rounded-2xl overflow-hidden border border-border bg-black group',
+        'relative mt-3 rounded-2xl overflow-hidden border border-border-subtle bg-black group',
         maxHeight && 'mx-auto',
         className,
         isFullscreen && 'm-0 w-full h-full max-w-none max-h-none rounded-none border-0',

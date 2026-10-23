@@ -78,10 +78,10 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
               alt=""
               loading="lazy"
               decoding="async"
-              className="w-40 rounded-xl border object-cover shadow-md aspect-[2/3] sm:w-48"
+              className="w-40 rounded-xl border border-border-subtle object-cover shadow-md aspect-[2/3] sm:w-48"
             />
           ) : (
-            <div className="flex w-40 items-center justify-center rounded-xl border bg-muted aspect-[2/3] sm:w-48">
+            <div className="flex w-40 items-center justify-center rounded-xl border border-border-subtle bg-muted aspect-[2/3] sm:w-48">
               {isIssue ? (
                 <Newspaper className="size-16 text-muted-foreground" />
               ) : (
@@ -231,10 +231,10 @@ function MagazineContent({ event, className }: PublicationContentProps) {
             alt=""
             loading="lazy"
             decoding="async"
-            className="mx-auto size-24 rounded-xl border object-cover shadow-sm sm:mx-0"
+            className="mx-auto size-24 rounded-xl border border-border-subtle object-cover shadow-sm sm:mx-0"
           />
         ) : (
-          <div className="mx-auto flex size-24 items-center justify-center rounded-xl border bg-muted sm:mx-0">
+          <div className="mx-auto flex size-24 items-center justify-center rounded-xl border border-border-subtle bg-muted sm:mx-0">
             <Newspaper className="size-10 text-muted-foreground" />
           </div>
         )}
@@ -308,10 +308,10 @@ function IssueGridItem({ event }: { event: NostrEvent }) {
           alt=""
           loading="lazy"
           decoding="async"
-          className="w-full rounded-lg border object-cover shadow-sm transition-transform aspect-[2/3] group-hover:scale-[1.02]"
+          className="w-full rounded-lg border border-border-subtle object-cover shadow-sm transition-transform aspect-[2/3] group-hover:scale-[1.02]"
         />
       ) : (
-        <div className="flex w-full items-center justify-center rounded-lg border bg-muted aspect-[2/3]">
+        <div className="flex w-full items-center justify-center rounded-lg border border-border-subtle bg-muted aspect-[2/3]">
           <Newspaper className="size-10 text-muted-foreground" />
         </div>
       )}

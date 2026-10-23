@@ -208,7 +208,7 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
     <div className="flex items-center gap-3 px-4 py-3">
       <FallbackImage
         src={picture}
-        className="size-10 shrink-0 rounded-lg object-cover border border-border"
+        className="size-10 shrink-0 rounded-lg object-cover border border-border-subtle"
         decoding="async"
         fallback={(
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary">

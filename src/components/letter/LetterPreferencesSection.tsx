@@ -164,7 +164,7 @@ export function LetterPreferencesSection() {
                 </span>
               </div>
             ) : (
-              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-muted/60 border border-border text-sm mb-3">
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-muted/60 border border-border-subtle text-sm mb-3">
                 <span className="text-muted-foreground">
                   <FormattedMessage id="letterPreferences.customSaved" defaultMessage="Custom stationery saved" />
                 </span>

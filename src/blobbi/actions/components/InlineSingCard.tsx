@@ -324,7 +324,7 @@ export function InlineSingCard({
   return (
     <div className="mx-4 sm:mx-6 mb-4">
       <div className={cn(
-        "rounded-xl border bg-card/80 backdrop-blur-sm overflow-hidden",
+        "rounded-xl border border-border-subtle bg-card/80 backdrop-blur-sm overflow-hidden",
         "shadow-sm transition-all",
         isRecording && "ring-2 ring-red-500/30"
       )}>

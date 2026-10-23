@@ -115,7 +115,7 @@ function CardTile({ card, onClick }: { card: CardEntry; onClick?: () => void }) 
   if (failed) {
     return (
       <div
-        className="relative aspect-[5/7] rounded-lg bg-secondary/60 border border-border flex items-center justify-center p-1 cursor-pointer"
+        className="relative aspect-[5/7] rounded-lg bg-secondary/60 border border-border-subtle flex items-center justify-center p-1 cursor-pointer"
         onClick={onClick}
       >
         <span className="text-[9px] text-center text-muted-foreground leading-tight line-clamp-3">
@@ -322,7 +322,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
 
       {/* Card list / visual spoiler */}
       {mainDeck.length > 0 && (
-        <div className="rounded-xl border border-border overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="rounded-xl border border-border-subtle overflow-hidden" onClick={(e) => e.stopPropagation()}>
           {/* View toggle header */}
           <div className="flex items-center justify-between px-3 py-1.5 bg-secondary/30 border-b border-border/50">
             <span className="text-[11px] font-medium text-muted-foreground">

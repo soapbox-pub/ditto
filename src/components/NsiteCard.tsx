@@ -124,7 +124,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 		<>
 		<div
 			className={cn(
-				"group mt-2 rounded-2xl border border-border overflow-hidden",
+				"group mt-2 rounded-2xl border border-border-subtle overflow-hidden",
 				"hover:bg-secondary/40 transition-colors",
 			)}
 			onClick={(e) => e.stopPropagation()}
@@ -271,7 +271,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 
 function NsiteCardSkeleton() {
 	return (
-		<div className="mt-2 rounded-2xl border border-border overflow-hidden">
+		<div className="mt-2 rounded-2xl border border-border-subtle overflow-hidden">
 			<Skeleton className="w-full h-[180px] rounded-none" />
 			<div className="px-3.5 py-2.5 space-y-1.5">
 				<Skeleton className="h-3 w-28" />

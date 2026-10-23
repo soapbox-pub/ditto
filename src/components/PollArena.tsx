@@ -423,7 +423,7 @@ export function PollArena({
               key={opt.id}
               type="button"
               onClick={() => onOpenVoters(opt.id)}
-              className="relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg border border-border px-3 py-2 text-left transition-colors hover:border-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg border border-border-subtle px-3 py-2 text-left transition-colors hover:border-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span
                 className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out motion-reduce:transition-none"

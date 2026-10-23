@@ -193,7 +193,7 @@ function TorrentFeedCard({ torrent, className }: { torrent: ParsedTorrent; class
   const description = torrent.description.trim();
 
   return (
-    <div className={cn('mt-2 space-y-3 rounded-2xl border border-border p-3.5', className)}>
+    <div className={cn('mt-2 space-y-3 rounded-2xl border border-border-subtle p-3.5', className)}>
       <div className="flex gap-3">
         <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
           <Magnet className="size-5 text-primary" aria-hidden="true" />
@@ -270,7 +270,7 @@ function TorrentDetail({ torrent, className }: { torrent: ParsedTorrent; classNa
               values={{ count: torrent.files.length }}
             />
           </SectionHeading>
-          <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
+          <ul className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border-subtle">
             {files.map((file, i) => (
               <li key={`${i}:${file.path}`} className="flex items-center gap-3 px-3 py-2">
                 <File className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />

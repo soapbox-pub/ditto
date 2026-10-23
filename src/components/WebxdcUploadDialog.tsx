@@ -167,7 +167,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
               <FormattedMessage id="webxdcUpload.appFile" defaultMessage="App file" />
             </Label>
             {file ? (
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border-subtle bg-muted/30">
                 {iconUrl ? (
                   <img
                     src={iconUrl}

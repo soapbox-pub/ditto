@@ -268,7 +268,7 @@ function SnapshotSkeleton() {
   return (
     <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border p-4 space-y-3">
+        <div key={i} className="rounded-xl border border-border-subtle p-4 space-y-3">
           <div className="flex items-center gap-3">
             <Skeleton className="size-11 rounded-full shrink-0" />
             <div className="space-y-2 flex-1">

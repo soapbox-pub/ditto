@@ -87,7 +87,7 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
 
   if (error || !tx) {
     return (
-      <div className="rounded-2xl border border-border p-6 text-center space-y-3">
+      <div className="rounded-2xl border border-border-subtle p-6 text-center space-y-3">
         <Bitcoin className="size-10 mx-auto text-muted-foreground/40" />
         <p className="text-sm text-destructive"><FormattedMessage id="bitcoin.tx.loadFailed" defaultMessage="Failed to load transaction" /></p>
         <p className="text-xs text-muted-foreground font-mono break-all">{txid}</p>
@@ -96,7 +96,7 @@ export function BitcoinTxHeader({ txid }: { txid: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       {/* Header */}
       <div className="p-5 space-y-4">
         <div className="flex items-center gap-3">
@@ -264,7 +264,7 @@ function TxOutputRow({ output, btcPrice }: { output: TxOutput; btcPrice?: number
 
   if (isOpReturn) {
     return (
-      <div className="rounded-lg bg-secondary/60 border border-border/50 px-3 py-2">
+      <div className="rounded-lg bg-secondary/60 border border-border-subtle px-3 py-2">
         <span className="text-xs text-muted-foreground">OP_RETURN</span>
       </div>
     );
@@ -294,7 +294,7 @@ function TxOutputRow({ output, btcPrice }: { output: TxOutput; btcPrice?: number
 
 function TxSkeleton() {
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       <div className="p-5 space-y-4">
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 rounded-full" />
@@ -343,7 +343,7 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
 
   if (error || !addressDetail) {
     return (
-      <div className="rounded-2xl border border-border p-6 text-center space-y-3">
+      <div className="rounded-2xl border border-border-subtle p-6 text-center space-y-3">
         <Bitcoin className="size-10 mx-auto text-muted-foreground/40" />
         <p className="text-sm text-destructive"><FormattedMessage id="bitcoin.address.loadFailed" defaultMessage="Failed to load address" /></p>
         <p className="text-xs text-muted-foreground font-mono break-all">{address}</p>
@@ -356,7 +356,7 @@ export function BitcoinAddressHeader({ address }: { address: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       {/* Header */}
       <div className="p-5 space-y-4">
         <div className="flex items-center gap-3">
@@ -514,7 +514,7 @@ function AddressTxRow({ tx, btcPrice }: { tx: { txid: string; amount: number; ty
 
 function AddressSkeleton() {
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border-subtle overflow-hidden">
       <div className="p-5 space-y-4">
         <div className="flex items-center gap-3">
           <Skeleton className="size-10 rounded-full" />

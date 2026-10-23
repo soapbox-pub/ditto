@@ -657,7 +657,7 @@ function InterestsSection() {
             {hashtags.map((tag) => (
               <div
                 key={`hashtag:${tag}`}
-                className="rounded-lg border border-border/50 bg-secondary/30"
+                className="rounded-lg border border-border-subtle bg-secondary/30"
               >
                 <div className="flex items-center gap-2 py-2 px-2.5">
                   <Hash className="size-4 text-muted-foreground shrink-0" />
@@ -714,7 +714,7 @@ function InterestsSection() {
             {geotags.map((tag) => (
               <div
                 key={`geotag:${tag}`}
-                className="rounded-lg border border-border/50 bg-secondary/30"
+                className="rounded-lg border border-border-subtle bg-secondary/30"
               >
                 <div className="flex items-center gap-2 py-2 px-2.5">
                   <MapPin className="size-4 text-muted-foreground shrink-0" />
@@ -847,7 +847,7 @@ function SavedFeedRow({
       : intl.formatMessage({ id: 'settings.feed.kindCount', defaultMessage: "{count} kinds" }, { count: kinds.length });
 
   return (
-    <div className="rounded-lg border border-border/50 bg-secondary/30 group">
+    <div className="rounded-lg border border-border-subtle bg-secondary/30 group">
       <div className="flex items-center gap-2 py-2 px-2.5">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{feed.label}</p>

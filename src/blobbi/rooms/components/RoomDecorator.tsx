@@ -210,7 +210,7 @@ export function RoomDecoratorOverlay({
       {/* Tray */}
       <div
         data-room-bottom
-        className="pointer-events-auto mx-2 mb-2 sidebar:mb-3 max-sidebar:mb-[calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))+0.5rem)] rounded-3xl border border-border/50 bg-background/92 backdrop-blur-md shadow-lg overflow-hidden"
+        className="pointer-events-auto mx-2 mb-2 sidebar:mb-3 max-sidebar:mb-[calc(var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px))+0.5rem)] rounded-3xl border border-border-subtle bg-background/92 backdrop-blur-md shadow-lg overflow-hidden"
       >
         <div className="flex items-center gap-1 border-b border-border/40 p-1.5">
           <ScrollRow

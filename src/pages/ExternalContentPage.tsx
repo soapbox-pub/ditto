@@ -339,7 +339,7 @@ export function ExternalContentView({ uri, focusedEventId }: ExternalContentView
         {content.type === 'bitcoin-tx' && <BitcoinTxHeader txid={content.txid} />}
         {content.type === 'bitcoin-address' && <BitcoinAddressHeader address={content.address} />}
         {content.type === 'unknown' && (
-          <div className="rounded-2xl border border-border p-5 text-center">
+          <div className="rounded-2xl border border-border-subtle p-5 text-center">
             <Globe className="size-8 mx-auto mb-2 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground break-all">{content.value}</p>
           </div>

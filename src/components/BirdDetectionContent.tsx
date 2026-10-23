@@ -119,7 +119,7 @@ export function BirdDetectionContent({ event, className }: BirdDetectionContentP
       <Link
         to={discussPath ?? '#'}
         onClick={(e) => e.stopPropagation()}
-        className="block overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="block overflow-hidden rounded-2xl border border-border-subtle bg-card shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="flex">
           {/* Thumbnail panel */}

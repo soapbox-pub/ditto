@@ -71,7 +71,7 @@ function StreakStartedBody({ pubkey, onClose }: { pubkey: string; onClose: () =>
         <FormattedMessage id="streak.started.titleEnd" defaultMessage="streak!" />
       </DialogTitle>
 
-      <div className="mx-auto w-80 max-w-full overflow-hidden rounded-xl border bg-card">
+      <div className="mx-auto w-80 max-w-full overflow-hidden rounded-xl border border-border-subtle bg-card">
         <div className="h-14 bg-secondary">
           <FallbackImage src={metadata?.banner} imeta={imeta?.banner} className="size-full object-cover" loading="lazy" decoding="async" />
         </div>

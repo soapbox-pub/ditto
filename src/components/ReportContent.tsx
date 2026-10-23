@@ -185,7 +185,7 @@ export function ReportContent({
             <FileWarning className="size-3" aria-hidden="true" />
             <FormattedMessage id="reportContent.reportedFile" defaultMessage="Reported file" />
           </div>
-          <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 space-y-1">
+          <div className="rounded-xl border border-border-subtle bg-muted/30 px-3 py-2 space-y-1">
             <p className="font-mono text-xs break-all text-muted-foreground">{blob.hash}</p>
             {blob.servers.length > 0 && (
               <p className="text-xs text-muted-foreground">

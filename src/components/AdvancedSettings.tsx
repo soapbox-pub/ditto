@@ -302,7 +302,7 @@ export function AdvancedSettings() {
                 >
                   <label
                     htmlFor="currency-usd"
-                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                    className="flex items-center gap-3 rounded-lg border border-border-subtle px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
                   >
                     <RadioGroupItem value="usd" id="currency-usd" />
                     <div className="flex-1">
@@ -314,7 +314,7 @@ export function AdvancedSettings() {
                   </label>
                   <label
                     htmlFor="currency-sats"
-                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                    className="flex items-center gap-3 rounded-lg border border-border-subtle px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
                   >
                     <RadioGroupItem value="sats" id="currency-sats" />
                     <div className="flex-1">

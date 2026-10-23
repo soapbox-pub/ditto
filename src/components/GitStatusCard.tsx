@@ -148,7 +148,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 	return (
 		<div className="mt-2 space-y-3">
 			{/* Card container */}
-			<div className="rounded-2xl border border-border overflow-hidden">
+			<div className="rounded-2xl border border-border-subtle overflow-hidden">
 				<div className="px-3.5 py-3 space-y-2.5">
 					{/* Status badge + noun */}
 					<div className="flex items-center gap-2 flex-wrap">
@@ -255,7 +255,7 @@ export function GitStatusCard({ event, preview = true }: GitStatusCardProps) {
 
 			{/* Full comment -- outside card, only in detail view */}
 			{!preview && comment && (
-				<div className="rounded-2xl border border-border overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
+				<div className="rounded-2xl border border-border-subtle overflow-hidden px-4 py-4 sidebar:px-5 sidebar:py-5">
 					<div className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-img:rounded-lg prose-pre:overflow-x-auto prose-pre:rounded-lg prose-pre:bg-muted prose-pre:text-foreground prose-code:text-[13px] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-code:bg-muted prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:font-normal prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border prose-th:text-foreground">
 						<Markdown
 							rehypePlugins={[rehypeSanitize]}
