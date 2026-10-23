@@ -198,6 +198,7 @@ const WIDGET_MAP = new Map(WIDGET_DEFINITIONS.map((w) => [w.id, w]));
  * account-switch reset in NostrSync reference a single source of truth.
  */
 export const DEFAULT_SIDEBAR_WIDGETS: WidgetConfig[] = [
+  { id: 'blobbi' },
   { id: 'trends' },
   { id: 'hot-posts' },
   { id: 'wikipedia' },
