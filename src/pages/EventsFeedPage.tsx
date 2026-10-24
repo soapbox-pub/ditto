@@ -179,7 +179,7 @@ export function EventsFeedPage() {
 
 function EventCardSkeleton() {
   return (
-    <div className="px-4 py-3 border-b border-border">
+    <div className="px-4 py-3 border-b border-border-subtle">
       <div className="flex items-center gap-3">
         <Skeleton className="size-11 rounded-full shrink-0" />
         <div className="min-w-0 space-y-1.5 flex-1">

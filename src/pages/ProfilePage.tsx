@@ -3063,7 +3063,7 @@ function ProfilePageInner() {
               pinnedIds.map((id) => (
                 <div key={`pinned-skeleton-${id}`} className="relative">
                   <PinnedLabel isOwn={isOwnProfile} onUnpin={() => {}} />
-                  <div className="px-4 py-3 border-b border-border">
+                  <div className="px-4 py-3 border-b border-border-subtle">
                     <div className="flex gap-3">
                       <Skeleton className="size-11 rounded-full" />
                       <div className="flex-1 space-y-2">
@@ -3245,7 +3245,7 @@ function ProfilePageInner() {
           {currentLoading ? (
             <div className="space-y-0">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="px-4 py-3 border-b border-border">
+                <div key={i} className="px-4 py-3 border-b border-border-subtle">
                   <div className="flex gap-3">
                     <Skeleton className="size-11 rounded-full" />
                     <div className="flex-1 space-y-2">
@@ -3812,7 +3812,7 @@ function ProfileSavedFeedContent({ feed, vars, ownerPubkey, emptyMessage }: {
     return (
       <div className="space-y-0">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="px-4 py-3 border-b border-border">
+          <div key={i} className="px-4 py-3 border-b border-border-subtle">
             <div className="flex gap-3">
               <Skeleton className="size-11 rounded-full" />
               <div className="flex-1 space-y-2">

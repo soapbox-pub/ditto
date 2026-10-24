@@ -25,7 +25,7 @@ function PageSkeleton() {
     /* Main column placeholder — mirrors the Outlet wrapper's border + bg classes.
        No right-sidebar placeholder: the sidebar lives outside this Suspense
        boundary and stays mounted while page chunks load. */
-    <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border bg-background/85 sidebar:max-w-[600px] flex items-center justify-center">
+    <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border-subtle bg-background/85 sidebar:max-w-[600px] flex items-center justify-center">
       <div className="relative w-10 h-10">
         <div className="absolute inset-0 rounded-full border-[2.5px] border-primary/20" />
         <div className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin" />
@@ -107,7 +107,7 @@ function MainLayoutInner() {
               content underneath. Only active below the sidebar breakpoint. */}
           <div
             ref={(el) => { centerColumnRef.current = el; setCenterColumnEl(el); }}
-            className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
+            className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border-subtle bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
           >
             <ErrorBoundary
               sentryTags={{ errorBoundary: 'center-column', path: location.pathname }}

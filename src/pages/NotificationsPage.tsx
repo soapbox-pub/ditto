@@ -523,7 +523,7 @@ function CollapsedFloodNotifications({ groups }: { groups: GroupedNotificationIt
     <div>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
+        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border-subtle"
       >
         <ShieldAlert className="size-4 shrink-0" />
         <span className="group-hover:underline">
@@ -552,7 +552,7 @@ function CollapsedFloodNotifications({ groups }: { groups: GroupedNotificationIt
 /** Wrapper that adds the new-notification indicator. */
 function NotificationWrapper({ isNew, children }: { isNew: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('relative border-b border-border', isNew && 'bg-primary/5')}>
+    <div className={cn('relative border-b border-border-subtle', isNew && 'bg-primary/5')}>
       {isNew && (
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary z-10" />
       )}

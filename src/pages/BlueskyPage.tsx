@@ -133,7 +133,7 @@ function BlueskyFeedPost({ post }: { post: BlueskyPost }) {
     <>
       <article
         onClick={handleCardClick}
-        className="px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer"
+        className="px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer"
       >
         <div className="flex gap-3">
           {/* Avatar */}

@@ -57,7 +57,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
   const relativeTime = timeAgo(event.created_at, intl);
 
   return (
-    <div className="px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors">
+    <div className="px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors">
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <Link to={profileUrl}>

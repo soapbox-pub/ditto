@@ -1201,7 +1201,7 @@ export function ComposeBox({
         "relative px-4 pt-3 bg-background/85 flex flex-col",
         forceExpanded ? "flex-1 min-h-0 rounded-2xl" : "",
         pickerOpen ? "pb-0" : "pb-3",
-        !forceExpanded && !hideBorder && "border-b border-border",
+        !forceExpanded && !hideBorder && "border-b border-border-subtle",
       )}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}

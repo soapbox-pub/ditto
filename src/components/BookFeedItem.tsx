@@ -116,7 +116,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
   return (
     <article
       className={cn(
-        'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+        'px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
         className,
       )}
       onClick={handleCardClick}
@@ -459,7 +459,7 @@ function InlineBookCard({ isbn }: { isbn: string }) {
 
 export function BookFeedItemSkeleton() {
   return (
-    <div className="px-4 py-3 border-b border-border">
+    <div className="px-4 py-3 border-b border-border-subtle">
       <div className="flex gap-3">
         <Skeleton className="size-11 rounded-full shrink-0" />
         <div className="min-w-0 flex-1 space-y-3">

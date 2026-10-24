@@ -49,8 +49,8 @@ export function ActivityCard({
       className={cn(
         "px-4 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
         isThreaded
-          ? cn("pt-3", threaded ? "pb-0" : "pb-3 border-b border-border")
-          : "py-3 border-b border-border",
+          ? cn("pt-3", threaded ? "pb-0" : "pb-3 border-b border-border-subtle")
+          : "py-3 border-b border-border-subtle",
         className,
       )}
       onClick={onClick}

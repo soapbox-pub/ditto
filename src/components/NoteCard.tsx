@@ -1177,7 +1177,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         <article
           className={cn(
             "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-            threaded ? "pb-0" : "pb-3 border-b border-border",
+            threaded ? "pb-0" : "pb-3 border-b border-border-subtle",
             className,
           )}
           onClick={handleCardClick}
@@ -1209,7 +1209,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           className,
         )}
         onClick={handleCardClick}
@@ -1264,7 +1264,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "relative px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           highlight && "animate-highlight-fade",
           className,
         )}
@@ -1358,7 +1358,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           highlight && "animate-highlight-fade",
           className,
         )}
@@ -1627,7 +1627,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       <article
         className={cn(
           "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          threaded ? "pb-0" : "pb-3 border-b border-border",
+          threaded ? "pb-0" : "pb-3 border-b border-border-subtle",
           className,
         )}
         onClick={handleCardClick}
@@ -1666,7 +1666,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     <article
       ref={celebrationRef}
       className={cn(
-        "relative px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        "relative px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
         highlight && "animate-highlight-fade",
         className,
       )}

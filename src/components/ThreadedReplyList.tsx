@@ -42,7 +42,7 @@ export function CollapsedFloodReplies({ roots }: { roots: ReplyNode[] }) {
     <div>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
+        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border-subtle"
       >
         <ShieldAlert className="size-4 shrink-0" />
         <span className="group-hover:underline">
@@ -122,7 +122,7 @@ function ExpandThreadButton({ count, onClick, isLast }: { count: number; onClick
       onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-4 pt-0 pb-2.5 w-full hover:bg-secondary/30 transition-colors group",
-        isLast && "border-b border-border",
+        isLast && "border-b border-border-subtle",
       )}
     >
       <div className="flex flex-col items-center w-10">

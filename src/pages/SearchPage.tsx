@@ -1177,7 +1177,7 @@ function CollapsedFloodPosts({ items }: { items: FeedItem[] }) {
     <div>
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border"
+        className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border-subtle"
       >
         <ShieldAlert className="size-4 shrink-0" />
         <span className="group-hover:underline">
