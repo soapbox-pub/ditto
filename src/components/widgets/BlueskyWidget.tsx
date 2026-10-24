@@ -70,7 +70,7 @@ export function BlueskyWidget() {
   }
 
   return (
-    <div className="space-y-0.5">
+    <div>
       {posts.map((post) => (
         <BlueskyPostCard key={post.cid} post={post} />
       ))}
@@ -100,10 +100,10 @@ function BlueskyPostCard({ post }: { post: BlueskyPost }) {
   return (
     <Link
       to={internalUrl}
-      className="block hover:bg-secondary/60 px-2 py-2 rounded-lg transition-colors"
+      className="block hover:bg-secondary/60 px-2 py-1.5 rounded-lg transition-colors"
     >
       {/* Author line */}
-      <div className="flex items-center gap-1.5 mb-0.5">
+      <div className="flex items-center gap-1.5">
         {post.author.avatar ? (
           <img src={post.author.avatar} alt="" className="size-4 rounded-full object-cover" loading="lazy" decoding="async" />
         ) : (

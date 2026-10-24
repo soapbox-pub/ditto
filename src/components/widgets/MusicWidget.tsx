@@ -50,7 +50,7 @@ export function MusicWidget() {
   if (isLoading) {
     return (
       <div className="space-y-2 py-1">
-        <Skeleton className="w-full aspect-square rounded-2xl" />
+        <Skeleton className="w-full aspect-square rounded-lg" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
         <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
       {/* Artwork with play overlay */}
       <div
         className={cn(
-          'relative rounded-2xl border border-border-subtle overflow-hidden cursor-pointer',
+          'relative rounded-lg border border-border-subtle overflow-hidden cursor-pointer',
           isNowPlaying && 'ring-2 ring-primary',
         )}
         onClick={handlePlay}

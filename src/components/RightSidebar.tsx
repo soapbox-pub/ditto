@@ -71,11 +71,11 @@ export function RightSidebar() {
   const { data: sparklineData, isLoading: sparklinesLoading } = useTagSparklines(visibleTags, labelCreatedAt, isXl && visibleTags.length > 0);
 
   return (
-    <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3">
+    <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto py-3 px-4">
       {/* Trending Tags */}
-      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+      <section className="mb-3 bg-background/85 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.trends" defaultMessage="Trends" /></h2>
+          <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.trends" defaultMessage="Trends" /></h2>
           <Link to="/trends" className="text-sm text-primary hover:underline"><FormattedMessage id="rightSidebar.viewAll" defaultMessage="View all" /></Link>
         </div>
 
@@ -97,7 +97,7 @@ export function RightSidebar() {
               <Link
                 key={item.tag}
                 to={`/t/${item.tag}`}
-                className="flex items-center justify-between group hover:bg-secondary/40 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+                className="flex items-center justify-between group hover:bg-secondary/60 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
               >
                 <div>
                   <div className="font-bold text-sm">#{item.tag}</div>
@@ -128,9 +128,9 @@ export function RightSidebar() {
       </section>
 
       {/* Hot Posts */}
-      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+      <section className="mb-3 bg-background/85 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.hotPosts" defaultMessage="Hot Posts" /></h2>
+          <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.hotPosts" defaultMessage="Hot Posts" /></h2>
           <Link to="/trends" className="text-sm text-primary hover:underline"><FormattedMessage id="rightSidebar.more" defaultMessage="More" /></Link>
         </div>
 
@@ -159,9 +159,9 @@ export function RightSidebar() {
       </section>
 
       {/* Latest Accounts */}
-      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
+      <section className="mb-3 bg-background/85 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.newAccounts" defaultMessage="New Accounts" /></h2>
+          <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.newAccounts" defaultMessage="New Accounts" /></h2>
         </div>
 
         {accountsLoading ? (
@@ -212,7 +212,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
     <button
       onClick={openPost}
       onAuxClick={onAuxClick}
-      className="block w-full text-left hover:bg-secondary/40 -mx-2 px-2 py-2 rounded-lg transition-colors"
+      className="block w-full text-left hover:bg-secondary/60 -mx-2 px-2 py-2 rounded-lg transition-colors"
     >
       <div className="flex items-center gap-1.5 mb-0.5">
         <Avatar shape={avatarShape} className="size-4">
@@ -247,7 +247,7 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   return (
-    <div className="flex items-center gap-3 group hover:bg-secondary/40 -mx-2 px-2 py-2 rounded-lg transition-colors">
+    <div className="flex items-center gap-3 group hover:bg-secondary/60 -mx-2 px-2 py-2 rounded-lg transition-colors">
       <Link to={`/${npub}`} className="shrink-0">
         <Avatar shape={latestAvatarShape} className="size-10">
           <AvatarImage src={metadata.picture} imeta={parseProfileImeta(event.tags, metadata)?.picture} alt={displayName} />

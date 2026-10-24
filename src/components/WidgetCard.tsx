@@ -44,7 +44,6 @@ export function WidgetCard({
       setLiveHeight(configHeight);
     }
   }, [configHeight, resizing]);
-
   const handleResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     setResizing(true);
@@ -74,13 +73,13 @@ export function WidgetCard({
   return (
     <div
       className={cn(
-        'group/widget bg-background/85 rounded-2xl overflow-hidden transition-shadow',
+        'group/widget flex flex-col min-h-0 bg-background/85 rounded-2xl overflow-hidden transition-shadow',
         isDragging && 'shadow-lg ring-1 ring-primary/20',
         resizing && 'select-none',
       )}
     >
       {/* Header — text lines up with the content's px-2 + px-2 rows */}
-      <div className="flex items-center gap-2 pl-4 pr-2 pt-3 pb-1">
+      <div className="shrink-0 flex items-center gap-2 pl-4 pr-2 pt-3 pb-1.5">
         {/* Icon + label */}
         {definition.href ? (
           <Link to={definition.href} className="flex items-center gap-2 flex-1 min-w-0 hover:text-primary transition-colors">
@@ -103,7 +102,7 @@ export function WidgetCard({
           )}
         >
           <button
-            className="flex items-center justify-center size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 cursor-grab active:cursor-grabbing transition-colors"
+            className="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 cursor-grab active:cursor-grabbing transition-colors"
             {...dragHandleProps}
             tabIndex={-1}
             aria-hidden
@@ -112,7 +111,7 @@ export function WidgetCard({
           </button>
           <button
             onClick={onRemove}
-            className="flex items-center justify-center size-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex items-center justify-center size-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={intl.formatMessage({ id: 'widgets.common.removeWidget', defaultMessage: "Remove widget" })}
           >
             <X className="size-4" />
@@ -122,11 +121,11 @@ export function WidgetCard({
 
       {/* Content */}
       {definition.fillHeight ? (
-        <div style={{ height: liveHeight }} className={cn('px-2 pb-2', !resizing && 'transition-[height] duration-200')}>
+        <div style={{ height: liveHeight }} className={cn('min-h-0 px-2 pb-2', !resizing && 'transition-[height] duration-200')}>
           {children}
         </div>
       ) : (
-        <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'transition-[max-height] duration-200')}>
+        <ScrollArea style={{ maxHeight: liveHeight }} className={cn('min-h-0', !resizing && 'transition-[max-height] duration-200')}>
           <div className="px-2 pb-2">
             {children}
           </div>
@@ -136,7 +135,7 @@ export function WidgetCard({
       {/* Resize handle */}
       <div
         onPointerDown={handleResizeStart}
-        className="h-2 cursor-ns-resize opacity-0 group-hover/widget:opacity-100 hover:bg-secondary/60 transition-[opacity,background-color]"
+        className="shrink-0 h-1.5 cursor-ns-resize opacity-0 group-hover/widget:opacity-100 hover:bg-secondary/60 transition-[opacity,background-color]"
       />
     </div>
   );

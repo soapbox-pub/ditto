@@ -55,7 +55,7 @@ export function PhotoWidget() {
   if (isLoading) {
     return (
       <div className="space-y-2 py-1">
-        <Skeleton className="w-full aspect-[4/3] rounded-2xl" />
+        <Skeleton className="w-full aspect-[4/3] rounded-lg" />
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />
           <Skeleton className="h-3 w-24" />
@@ -87,7 +87,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
   return (
     <Link to={`/${encodedId}`} className="block group">
       {/* Photo */}
-      <div className="rounded-2xl border border-border-subtle overflow-hidden">
+      <div className="rounded-lg border border-border-subtle overflow-hidden">
         <DecryptedImage
           url={photo.url}
           encryption={photo.encryption}

@@ -619,13 +619,13 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
-    <aside className={cn("w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-3", className)}>
+    <aside className={cn("w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto py-3 px-4", className)}>
       {/* Top 8 Section — the ranked grid leads the sidebar, MySpace-style.
           Mirrored inline on the profile itself below `lg`, where the whole
           sidebar is hidden. */}
       {pubkey !== undefined && top8.length > 0 && (
-        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <h2 className="flex items-center gap-2 text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+        <section className="mb-3 bg-background/85 rounded-2xl p-4">
+          <h2 className="flex items-center gap-2 text-lg font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
             <Crown className="size-5 text-primary" aria-hidden />
             <Link
               to={`/${nip19.naddrEncode({ kind: TOP8_KIND, pubkey, identifier: '' })}`}
@@ -639,8 +639,8 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
       )}
 
       {/* Media Section — only shown when pubkey prop is provided */}
-      {pubkey !== undefined && <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-        <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+      {pubkey !== undefined && <section className="mb-3 bg-background/85 rounded-2xl p-4">
+        <h2 className="text-lg font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
           <FormattedMessage id="profileSidebar.media" defaultMessage="Media" />
         </h2>
         {mediaLoading ? (
@@ -742,8 +742,8 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
-        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
-          <h2 className="text-xl font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
+        <section className="mb-3 bg-background/85 rounded-2xl p-4">
+          <h2 className="text-lg font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
             <FormattedMessage id="profileSidebar.profileFields" defaultMessage="Profile fields" />
           </h2>
           <div className="space-y-4">

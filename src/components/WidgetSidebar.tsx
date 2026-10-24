@@ -132,7 +132,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div ref={setNodeRef} style={style} {...attributes} className="flex flex-col min-h-[7.5rem]">
       <WidgetCard
         definition={definition}
         config={config}
@@ -218,10 +218,11 @@ export function WidgetSidebar() {
   // gate (min-width: 1024px) — below `lg` this component is not mounted
   // at all, so phones don't pay for widget chunks and queries.
   return (
-    <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto py-3 px-4">
+    <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen py-3 px-4">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-3 flex-1">
+          {/* Widgets shrink to share the column; it scrolls only once each is at its minimum. */}
+          <div className="flex flex-col gap-2 min-h-0 overflow-y-auto">
             {validWidgets.map((w) => {
               const def = getWidgetDefinition(w.id);
               if (!def) return null;
@@ -235,20 +236,20 @@ export function WidgetSidebar() {
                 />
               );
             })}
-
-            {/* Add widget button */}
-            <button
-              onClick={() => setPickerOpen(true)}
-              className="flex items-center justify-center gap-1.5 w-full py-3 rounded-full bg-background/85 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors text-sm"
-            >
-              <Plus className="size-3.5" />
-              <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />
-            </button>
           </div>
         </SortableContext>
       </DndContext>
 
-      <div className="mt-3">
+      {/* Add widget button */}
+      <button
+        onClick={() => setPickerOpen(true)}
+        className="shrink-0 mt-2 flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full bg-background/85 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors text-sm"
+      >
+        <Plus className="size-4" />
+        <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />
+      </button>
+
+      <div className="shrink-0 mt-auto pt-2">
         <LinkFooter />
       </div>
 
