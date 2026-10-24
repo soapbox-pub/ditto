@@ -107,6 +107,8 @@ export interface ThemeTokens {
   destructive: string;
   destructiveForeground: string;
   border: string;
+  /** Softer outline: the border color at 75% in light themes, 50% in dark. */
+  borderSubtle: string;
   input: string;
   ring: string;
 }

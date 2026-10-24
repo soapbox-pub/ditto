@@ -223,6 +223,7 @@ export function deriveTokensFromCore(
     destructive,
     destructiveForeground: destructiveFg,
     border,
+    borderSubtle: `${border} / ${dark ? 0.5 : 0.75}`,
     input,
     ring: primary,
   };

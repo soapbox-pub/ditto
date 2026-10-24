@@ -41,7 +41,7 @@ export default {
 				border: {
 					DEFAULT: 'hsl(var(--border))',
 					// Softer outline for cards, quotes, and other boxed content.
-					subtle: 'hsl(var(--border) / 0.5)',
+					subtle: 'hsl(var(--border-subtle))',
 				},
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
