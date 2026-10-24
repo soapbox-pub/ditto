@@ -49,8 +49,8 @@ export function MusicWidget() {
 
   if (isLoading) {
     return (
-      <div className="space-y-2 p-1">
-        <Skeleton className="w-full aspect-square rounded-lg" />
+      <div className="space-y-2 py-1">
+        <Skeleton className="w-full aspect-square rounded-2xl" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function MusicWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.music.empty" defaultMessage={"No music yet."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.music.empty" defaultMessage={"No music yet."} /></p>;
   }
 
   return <MusicCard event={event} />;
@@ -108,8 +108,8 @@ function MusicCard({ event }: { event: NostrEvent }) {
       {/* Artwork with play overlay */}
       <div
         className={cn(
-          'relative rounded-lg overflow-hidden cursor-pointer',
-          isNowPlaying ? 'ring-2 ring-primary' : '',
+          'relative rounded-2xl border border-border-subtle overflow-hidden cursor-pointer',
+          isNowPlaying && 'ring-2 ring-primary',
         )}
         onClick={handlePlay}
       >
@@ -124,8 +124,8 @@ function MusicCard({ event }: { event: NostrEvent }) {
             noticeClassName="aspect-square"
           />
         ) : (
-          <div className="w-full aspect-square bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center">
-            <Music className="size-12 text-primary/20" />
+          <div className="w-full aspect-square bg-secondary flex items-center justify-center">
+            <Music className="size-12 text-muted-foreground/40" />
           </div>
         )}
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/15 transition-colors">
@@ -147,7 +147,7 @@ function MusicCard({ event }: { event: NostrEvent }) {
       </div>
 
       {/* Track info */}
-      <Link to={`/${encodedId}`} className="block px-0.5 space-y-1 group">
+      <Link to={`/${encodedId}`} className="block px-2 space-y-1 group">
         <p className="text-sm font-semibold leading-snug truncate group-hover:text-primary transition-colors">
           {parsed.title}
         </p>

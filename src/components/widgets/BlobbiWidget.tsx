@@ -207,7 +207,7 @@ export function BlobbiWidget() {
 
   if (!user) {
     return (
-      <Link to="/blobbi" className="flex flex-col items-center gap-2 py-4 hover:bg-secondary/40 rounded-lg transition-colors">
+      <Link to="/blobbi" className="flex flex-col items-center gap-2 py-4 hover:bg-secondary/60 rounded-lg transition-colors">
         <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Egg className="size-8 text-primary" />
         </div>
@@ -231,7 +231,7 @@ export function BlobbiWidget() {
 
   if (!companion) {
     return (
-      <Link to="/blobbi" className="flex flex-col items-center gap-2 py-4 hover:bg-secondary/40 rounded-lg transition-colors">
+      <Link to="/blobbi" className="flex flex-col items-center gap-2 py-4 hover:bg-secondary/60 rounded-lg transition-colors">
         <div className="size-16 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Egg className="size-8 text-primary" />
         </div>
@@ -387,7 +387,7 @@ function BlobbiWidgetContent({
           <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
             <PopoverTrigger asChild>
               <button
-                className="size-7 rounded-full flex items-center justify-center transition-colors text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground"
+                className="size-7 rounded-full flex items-center justify-center transition-colors text-muted-foreground bg-secondary hover:bg-secondary/60 hover:text-foreground"
                 title={intl.formatMessage({ id: 'widgets.blobbi.switch', defaultMessage: "Switch Blobbi" })}
               >
                 <ArrowLeftRight className="size-3.5" />
@@ -399,7 +399,7 @@ function BlobbiWidgetContent({
                 <button
                   onClick={() => setSwitcherOpen(false)}
                   aria-label={intl.formatMessage({ id: 'widgets.common.close', defaultMessage: "Close" })}
-                  className="size-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="size-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                 >
                   <X className="size-3" />
                 </button>

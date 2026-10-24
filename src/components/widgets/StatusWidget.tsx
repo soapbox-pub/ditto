@@ -21,13 +21,13 @@ export function StatusWidget() {
 
   if (!user) {
     return (
-      <p className="text-sm text-muted-foreground px-1"><FormattedMessage id="widgets.status.loginPrompt" defaultMessage={"Log in to set a status."} /></p>
+      <p className="text-sm text-muted-foreground px-2"><FormattedMessage id="widgets.status.loginPrompt" defaultMessage={"Log in to set a status."} /></p>
     );
   }
 
   if (editing) {
     return (
-      <div className="space-y-2 px-1">
+      <div className="space-y-2 px-2">
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, 80))}
@@ -103,7 +103,7 @@ export function StatusWidget() {
         setEditing(true);
         setDraft(userStatus.status ?? '');
       }}
-      className="flex items-center w-full px-1 py-1 text-sm hover:bg-secondary/40 rounded-lg transition-colors text-left"
+      className="flex items-center w-full px-2 py-1.5 text-sm hover:bg-secondary/60 rounded-lg transition-colors text-left"
     >
       {userStatus.status ? (
         <span className="truncate text-muted-foreground italic text-xs"><EmojifiedText tags={userStatus.tags}>{userStatus.status}</EmojifiedText></span>

@@ -12,8 +12,8 @@ export function WikipediaWidget() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3 p-1">
-        <Skeleton className="w-full aspect-[16/9] rounded-lg" />
+      <div className="space-y-3 py-1">
+        <Skeleton className="w-full aspect-[16/9] rounded-2xl" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-full" />
         <Skeleton className="h-3 w-4/5" />
@@ -22,12 +22,12 @@ export function WikipediaWidget() {
   }
 
   if (isError) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.wikipedia.loadFailed" defaultMessage={"Failed to load featured article."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.wikipedia.loadFailed" defaultMessage={"Failed to load featured article."} /></p>;
   }
 
   const tfa = feed?.tfa;
   if (!tfa) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.wikipedia.empty" defaultMessage={"No featured article today."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.wikipedia.empty" defaultMessage={"No featured article today."} /></p>;
   }
 
   // Ask Wikimedia for a sidebar-sized render. The `originalimage` here runs to
@@ -45,7 +45,7 @@ export function WikipediaWidget() {
     >
       {/* Image */}
       {imageUrl && (
-        <div className="relative aspect-[16/9] rounded-lg overflow-hidden bg-gradient-to-br from-amber-500/10 to-orange-500/10 mb-2">
+        <div className="aspect-[16/9] rounded-2xl border border-border-subtle overflow-hidden mb-2">
           <img
             src={imageUrl}
             alt={displayTitle}
@@ -57,7 +57,7 @@ export function WikipediaWidget() {
       )}
 
       {/* Content */}
-      <div className="space-y-1 px-0.5">
+      <div className="space-y-1 px-2">
         <div className="flex items-start gap-1.5">
           <Star className="size-3 text-amber-500 shrink-0 mt-0.5" />
           <h3 className="text-sm font-bold leading-snug group-hover:text-primary transition-colors line-clamp-2">

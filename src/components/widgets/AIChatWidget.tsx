@@ -164,7 +164,7 @@ export function AIChatWidget() {
       </ScrollArea>
 
       {/* Input area */}
-      <div className="border-t border-border p-2 space-y-1.5">
+      <div className="border-t border-border-subtle p-2 space-y-1.5">
         <div className="flex items-end gap-1.5">
           <textarea
             ref={inputRef}
@@ -178,7 +178,7 @@ export function AIChatWidget() {
             }}
             placeholder={intl.formatMessage({ id: 'widgets.aiChat.messagePlaceholder', defaultMessage: "Message..." })}
             rows={1}
-            className="flex-1 resize-none text-sm bg-secondary/50 rounded-lg px-2.5 py-1.5 border-0 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/60 min-h-[32px] max-h-[80px]"
+            className="flex-1 resize-none text-sm bg-secondary rounded-lg px-2.5 py-1.5 border-0 outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/60 min-h-[32px] max-h-[80px]"
           />
           <button
             onClick={handleSend}

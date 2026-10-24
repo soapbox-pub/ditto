@@ -18,7 +18,7 @@ export function TrendingWidget() {
 
   if (tagsLoading) {
     return (
-      <div className="space-y-4 p-1">
+      <div className="space-y-4 px-2 py-1">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex justify-between items-center">
             <div className="space-y-1.5">
@@ -33,7 +33,7 @@ export function TrendingWidget() {
   }
 
   if (!trendingTags || trendingTags.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.trending.empty" defaultMessage={"No trends available."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.trending.empty" defaultMessage={"No trends available."} /></p>;
   }
 
   return (
@@ -42,7 +42,7 @@ export function TrendingWidget() {
         <Link
           key={item.tag}
           to={`/t/${item.tag}`}
-          className="flex items-center justify-between group hover:bg-secondary/40 px-2 py-1.5 rounded-lg transition-colors"
+          className="flex items-center justify-between group hover:bg-secondary/60 px-2 py-1.5 rounded-lg transition-colors"
         >
           <div>
             <div className="font-bold text-sm">#{item.tag}</div>

@@ -54,8 +54,8 @@ export function PhotoWidget() {
 
   if (isLoading) {
     return (
-      <div className="space-y-2 p-1">
-        <Skeleton className="w-full aspect-[4/3] rounded-lg" />
+      <div className="space-y-2 py-1">
+        <Skeleton className="w-full aspect-[4/3] rounded-2xl" />
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />
           <Skeleton className="h-3 w-24" />
@@ -65,7 +65,7 @@ export function PhotoWidget() {
   }
 
   if (!event) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.photo.empty" defaultMessage={"No photos yet."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.photo.empty" defaultMessage={"No photos yet."} /></p>;
   }
 
   return <PhotoCard event={event} />;
@@ -87,7 +87,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
   return (
     <Link to={`/${encodedId}`} className="block group">
       {/* Photo */}
-      <div className="rounded-lg overflow-hidden bg-secondary/30">
+      <div className="rounded-2xl border border-border-subtle overflow-hidden">
         <DecryptedImage
           url={photo.url}
           encryption={photo.encryption}
@@ -99,7 +99,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
       </div>
 
       {/* Author + caption */}
-      <div className="mt-2 px-0.5 space-y-1">
+      <div className="mt-2 px-2 space-y-1">
         <div className="flex items-center gap-1.5">
           <Avatar shape={avatarShape} className="size-4">
             <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />

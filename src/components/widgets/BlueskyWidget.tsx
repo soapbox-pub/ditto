@@ -46,7 +46,7 @@ export function BlueskyWidget() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3 p-1">
+      <div className="space-y-3 px-2 py-1">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -62,11 +62,11 @@ export function BlueskyWidget() {
   }
 
   if (isError) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.bluesky.loadFailed" defaultMessage={"Failed to load Bluesky posts."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.bluesky.loadFailed" defaultMessage={"Failed to load Bluesky posts."} /></p>;
   }
 
   if (!posts || posts.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.bluesky.empty" defaultMessage={"No trending posts right now."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.bluesky.empty" defaultMessage={"No trending posts right now."} /></p>;
   }
 
   return (
@@ -100,7 +100,7 @@ function BlueskyPostCard({ post }: { post: BlueskyPost }) {
   return (
     <Link
       to={internalUrl}
-      className="block hover:bg-secondary/40 px-2 py-2 rounded-lg transition-colors"
+      className="block hover:bg-secondary/60 px-2 py-2 rounded-lg transition-colors"
     >
       {/* Author line */}
       <div className="flex items-center gap-1.5 mb-0.5">

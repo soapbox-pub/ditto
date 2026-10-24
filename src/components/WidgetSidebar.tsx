@@ -75,14 +75,14 @@ function WidgetContent({ id }: { id: string }) {
       return <FeedWidget kinds={[31922, 31923]} feedPath="/events" feedLabel={intl.formatMessage({ id: 'widgets.events.viewAll', defaultMessage: "View all events" })} />;
 
     default:
-      return <p className="text-xs text-muted-foreground p-1"><FormattedMessage id="widgets.common.unknownWidget" defaultMessage={"Unknown widget."} /></p>;
+      return <p className="text-xs text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.common.unknownWidget" defaultMessage={"Unknown widget."} /></p>;
   }
 }
 
 /** Fallback while a widget component is loading. */
 function WidgetSkeleton() {
   return (
-    <div className="space-y-2 p-1">
+    <div className="space-y-2 px-2 py-1">
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-3 w-full" />
       <Skeleton className="h-3 w-4/5" />
@@ -218,10 +218,10 @@ export function WidgetSidebar() {
   // gate (min-width: 1024px) — below `lg` this component is not mounted
   // at all, so phones don't pay for widget chunks and queries.
   return (
-    <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-2 pb-3 px-2">
+    <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto py-3 px-4">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2 flex-1">
+          <div className="space-y-3 flex-1">
             {validWidgets.map((w) => {
               const def = getWidgetDefinition(w.id);
               if (!def) return null;
@@ -239,7 +239,7 @@ export function WidgetSidebar() {
             {/* Add widget button */}
             <button
               onClick={() => setPickerOpen(true)}
-              className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl bg-background/85 text-muted-foreground hover:text-foreground hover:bg-background transition-colors text-xs"
+              className="flex items-center justify-center gap-1.5 w-full py-3 rounded-full bg-background/85 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors text-sm"
             >
               <Plus className="size-3.5" />
               <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />

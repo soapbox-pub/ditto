@@ -74,53 +74,60 @@ export function WidgetCard({
   return (
     <div
       className={cn(
-        'bg-background/85 rounded-xl overflow-hidden transition-shadow',
+        'group/widget bg-background/85 rounded-2xl overflow-hidden transition-shadow',
         isDragging && 'shadow-lg ring-1 ring-primary/20',
         resizing && 'select-none',
       )}
     >
-      {/* Header */}
-      <div className="flex items-center gap-1.5 px-3 py-2">
+      {/* Header — text lines up with the content's px-2 + px-2 rows */}
+      <div className="flex items-center gap-2 pl-4 pr-2 pt-3 pb-1">
         {/* Icon + label */}
         {definition.href ? (
-          <Link to={definition.href} className="flex items-center gap-1.5 flex-1 min-w-0 hover:text-primary transition-colors">
+          <Link to={definition.href} className="flex items-center gap-2 flex-1 min-w-0 hover:text-primary transition-colors">
             <Icon className="size-5 text-muted-foreground shrink-0" />
-            <span className="text-xl font-semibold truncate">{label}</span>
+            <span className="text-lg font-bold truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
           </Link>
         ) : (
           <>
             <Icon className="size-5 text-muted-foreground shrink-0" />
-            <span className="text-xl font-semibold flex-1 truncate">{label}</span>
+            <span className="text-lg font-bold flex-1 truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
           </>
         )}
 
-        {/* Remove */}
-        <button
-          onClick={onRemove}
-          className="p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
-          aria-label={intl.formatMessage({ id: 'widgets.common.removeWidget', defaultMessage: "Remove widget" })}
+        {/* Controls — revealed on hover or focus, always shown on touch */}
+        <div
+          className={cn(
+            'flex items-center shrink-0 opacity-0 transition-opacity',
+            'group-hover/widget:opacity-100 group-focus-within/widget:opacity-100 [@media(hover:none)]:opacity-100',
+            isDragging && 'opacity-100',
+          )}
         >
-          <X className="size-3.5" />
-        </button>
-
-        {/* Drag handle */}
-        <button
-          className="p-0.5 rounded text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing transition-colors"
-          {...dragHandleProps}
-          tabIndex={-1}
-        >
-          <GripVertical className="size-3.5" />
-        </button>
+          <button
+            className="flex items-center justify-center size-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 cursor-grab active:cursor-grabbing transition-colors"
+            {...dragHandleProps}
+            tabIndex={-1}
+            aria-hidden
+          >
+            <GripVertical className="size-4" />
+          </button>
+          <button
+            onClick={onRemove}
+            className="flex items-center justify-center size-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={intl.formatMessage({ id: 'widgets.common.removeWidget', defaultMessage: "Remove widget" })}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
       {definition.fillHeight ? (
-        <div style={{ height: liveHeight }} className={cn('p-2', !resizing && 'transition-[height] duration-200')}>
+        <div style={{ height: liveHeight }} className={cn('px-2 pb-2', !resizing && 'transition-[height] duration-200')}>
           {children}
         </div>
       ) : (
         <ScrollArea style={{ maxHeight: liveHeight }} className={cn(!resizing && 'transition-[max-height] duration-200')}>
-          <div className="p-2">
+          <div className="px-2 pb-2">
             {children}
           </div>
         </ScrollArea>
@@ -129,7 +136,7 @@ export function WidgetCard({
       {/* Resize handle */}
       <div
         onPointerDown={handleResizeStart}
-        className="h-1.5 cursor-ns-resize flex items-center justify-center hover:bg-secondary/60 transition-colors"
+        className="h-2 cursor-ns-resize opacity-0 group-hover/widget:opacity-100 hover:bg-secondary/60 transition-[opacity,background-color]"
       />
     </div>
   );

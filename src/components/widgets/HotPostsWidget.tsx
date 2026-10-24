@@ -26,7 +26,7 @@ export function HotPostsWidget() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3 p-1">
+      <div className="space-y-3 px-2 py-1">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -42,7 +42,7 @@ export function HotPostsWidget() {
   }
 
   if (!posts || posts.length === 0) {
-    return <p className="text-sm text-muted-foreground p-1"><FormattedMessage id="widgets.hotPosts.empty" defaultMessage={"No hot posts right now."} /></p>;
+    return <p className="text-sm text-muted-foreground px-2 py-1"><FormattedMessage id="widgets.hotPosts.empty" defaultMessage={"No hot posts right now."} /></p>;
   }
 
   return (
@@ -77,7 +77,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
     <button
       onClick={openPost}
       onAuxClick={onAuxClick}
-      className="block w-full text-left hover:bg-secondary/40 px-2 py-2 rounded-lg transition-colors"
+      className="block w-full text-left hover:bg-secondary/60 px-2 py-2 rounded-lg transition-colors"
     >
       <div className="flex items-center gap-1.5 mb-0.5">
         <Avatar shape={avatarShape} className="size-4">

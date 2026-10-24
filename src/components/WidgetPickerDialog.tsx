@@ -83,7 +83,7 @@ export function WidgetPickerDialog({ open, onOpenChange, currentWidgets, onAdd, 
                           'size-6 rounded-full flex items-center justify-center shrink-0 transition-colors',
                           isActive
                             ? 'bg-primary text-primary-foreground'
-                            : 'border border-border text-muted-foreground/50',
+                            : 'bg-secondary text-muted-foreground',
                         )}>
                           {isActive ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
                         </div>
