@@ -243,7 +243,7 @@ export function WidgetSidebar() {
       {/* Add widget button */}
       <button
         onClick={() => setPickerOpen(true)}
-        className="shrink-0 mt-2 flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full bg-background/85 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors text-sm"
+        className="shrink-0 mt-2 flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85"
       >
         <Plus className="size-4" />
         <FormattedMessage id="widgets.common.addWidget" defaultMessage={"Add widget"} />
