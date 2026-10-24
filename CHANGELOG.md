@@ -1,5 +1,37 @@
 # Changelog
 
+## [2.45.1] - 2026-10-23
+
+Ditto gets rounder. Corners soften across the app, your profile banner curves into a planet horizon, and status bubbles become speech pills. Poll results play out as a 3D court of voters running to their answers. Letters get wax seals, garland frames, and seasonal stationery. Videos you attach are compressed and get proper posters, the article editor writes cleaner posts, and sidebar widgets stay on screen.
+
+### Added
+- Poll results show as a 3D court of voters running to their answer
+- Letters can carry a wax seal, with some stamps unlocked by playing Treasures, Espy, Surveil, or Nostrdamus
+- Five seasonal stationery presets for letters, plus emoji stickers you can drag onto the page
+- Attached videos are compressed before upload and get a poster and blurred preview from the video itself, with progress shown while it works
+- Pasting an image link in the article editor turns it into an image
+- Blobbi joins the default sidebar widgets
+
+### Changed
+- Corners are rounder across the whole app, and the profile banner curves into a planet horizon
+- Profile tabs spread across the bar and their underline follows the curve
+- The profile status bubble is a pill with a speech tail, and the birthday button moves to the top left of the banner
+- Quotes, link previews, and cards share one soft, tinted look, and quoted code repositories and 3D objects get proper cards
+- Quoted videos fill the whole quote, and expanding a quote no longer cuts off the post around it
+- Feed dividers and column edges are softer
+- Letter frames draw bigger emoji along the frame's outline, Halloween replaces sparkle, and winter becomes Christmas
+- The letter inbox is friends-only by default, hides muted senders, and shows three letters to a row on wide screens
+- The Media tab shows file previews and video posters instead of broken tiles, and 3D models open in a viewer
+- Articles written in Ditto look right in other apps, and images get their own line without a big gap below
+- Sidebar widgets scroll inside themselves so Add widget and the footer stay on screen, and their controls show on hover
+
+### Fixed
+- The feed no longer jumps when you react on newer iOS versions
+- The followers list closes when you go to a different profile
+- Videos embedded in articles no longer have a black bar above them
+- Images without a caption no longer vanish when you reopen an article
+- A broken letter can no longer break the whole inbox, and a relay with no letters can no longer empty it
+
 ## [2.45.0] - 2026-10-14
 
 Say goodbye to the spam. Global is gone, and in its place is Discover: posts from the people your follows follow, ranked by how connected they are to your corner of the network. Every feed that had a Global tab, from photos and videos to themes, books, music, and emoji packs, now has Discover instead. On iOS, the feed also stays put when you react, repost, or zap.
