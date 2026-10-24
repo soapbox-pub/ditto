@@ -32,6 +32,8 @@ import {
   type VideoProbe,
 } from './policy';
 
+import { repairAvcDecoderConfig } from './avcc';
+
 import type { ProcessedVideo, VideoWorkerRequest, VideoWorkerResponse } from './types';
 
 /** Longest edge of the poster frame, in pixels. */
@@ -48,6 +50,44 @@ const MP4_AUDIO_CODECS = new Set<AudioCodec>(['aac', 'opus', 'mp3', 'flac', 'ac3
 
 /** The in-flight conversion, so a cancel message can abort it. */
 let active: Conversion | null = null;
+
+installAvcDescriptionRepair();
+
+/**
+ * Mediabunny copies the encoder's `avcC` into the MP4 verbatim, and some
+ * browsers' encoders emit a malformed one that iOS won't play (see `./avcc.ts`).
+ * Mediabunny constructs encoders through the global, so swap in a subclass
+ * that repairs the description before the muxer sees it.
+ */
+function installAvcDescriptionRepair(): void {
+  const NativeVideoEncoder = self.VideoEncoder;
+  if (typeof NativeVideoEncoder !== 'function') return;
+
+  class RepairingVideoEncoder extends NativeVideoEncoder {
+    constructor(init: VideoEncoderInit) {
+      super({
+        ...init,
+        output: (chunk, metadata) => init.output(chunk, repairMetadata(metadata)),
+      });
+    }
+  }
+
+  self.VideoEncoder = RepairingVideoEncoder;
+}
+
+function repairMetadata(metadata?: EncodedVideoChunkMetadata): EncodedVideoChunkMetadata | undefined {
+  const config = metadata?.decoderConfig;
+  if (!config?.description || !config.codec.startsWith('avc1')) return metadata;
+
+  const description = ArrayBuffer.isView(config.description)
+    ? new Uint8Array(config.description.buffer, config.description.byteOffset, config.description.byteLength)
+    : new Uint8Array(config.description);
+
+  const repaired = repairAvcDecoderConfig(description);
+  if (!repaired) return metadata;
+
+  return { ...metadata, decoderConfig: { ...config, description: repaired } };
+}
 
 self.onmessage = async (event: MessageEvent<VideoWorkerRequest>) => {
   const message = event.data;
