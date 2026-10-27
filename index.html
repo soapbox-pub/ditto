@@ -40,8 +40,9 @@
          banner. Safari ignores the manifest's related_applications, so this
          meta tag is the only way to surface the iOS app to web visitors. -->
     <meta name="apple-itunes-app" content="app-id=6761851821">
-    <meta name="theme-color" content="#161b2e" media="(prefers-color-scheme: dark)">
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <!-- One tag with no media query: theme.js and AppProvider set it to the
+         active theme's background, which needn't match the OS scheme. -->
+    <meta name="theme-color" content="#161b2e">
     <link rel="manifest" href="/manifest.webmanifest">
   </head>
   <body>

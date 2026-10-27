@@ -67,5 +67,22 @@
   root.style.setProperty('--preloader-bg', colors.bg);
   root.style.setProperty('--preloader-primary', colors.primary);
   root.style.setProperty('--preloader-track', colors.primary.replace(')', ' / 0.25)'));
+
+  // Browser and host chrome (Safari, Din) tints from theme-color. Hex, since
+  // hosts that read the tag don't all parse hsl(). Mirrors hslToRgb in
+  // src/lib/colorUtils.ts.
+  var meta = document.querySelector('meta[name="theme-color"]');
+  var hsl = colors.bg.replace(/[^\d.\s]/g, ' ').trim().split(/\s+/).map(Number);
+  if (meta && hsl.length >= 3 && !isNaN(hsl[0] + hsl[1] + hsl[2])) {
+    var h = hsl[0], s = hsl[1] / 100, l = hsl[2] / 100;
+    var a = s * Math.min(l, 1 - l);
+    var hex = '#';
+    [0, 8, 4].forEach(function (n) {
+      var k = (n + h / 30) % 12;
+      var v = Math.round((l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)))) * 255);
+      hex += (v < 16 ? '0' : '') + v.toString(16);
+    });
+    meta.setAttribute('content', hex);
+  }
 })();
 // @license-end

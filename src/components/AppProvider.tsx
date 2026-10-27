@@ -12,7 +12,7 @@ import { AppConfigSchema } from '@/lib/schemas';
 import { migrateApiUrl } from '@/lib/apiUrls';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { useThemePreview } from '@/lib/themePreview';
-import { hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
+import { hslStringToHex, hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
 import { z } from 'zod';
 
 interface AppProviderProps {
@@ -169,15 +169,11 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined, theme
   useLayoutEffect(() => {
     function apply() {
       const resolved = resolveTheme(theme);
-      let css: string;
-
-      if (resolved === 'custom') {
-        // Use custom theme colors, falling back to dark if not yet set
-        const colors = customTheme?.colors ?? builtinThemes.dark;
-        css = buildThemeCssFromCore(colors);
-      } else {
-        css = buildThemeCssFromCore(resolveThemeConfig(resolved, themes).colors);
-      }
+      // Custom themes fall back to dark until their colors are set
+      const colors = resolved === 'custom'
+        ? customTheme?.colors ?? builtinThemes.dark
+        : resolveThemeConfig(resolved, themes).colors;
+      const css = buildThemeCssFromCore(colors);
 
       let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
       if (!el) {
@@ -187,6 +183,10 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined, theme
       }
       el.textContent = css;
       document.documentElement.className = resolved;
+
+      // Browsers and hosts (Safari, Din) tint their chrome from theme-color.
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', hslStringToHex(colors.background));
     }
 
     apply();
