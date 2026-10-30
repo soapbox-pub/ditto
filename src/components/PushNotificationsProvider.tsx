@@ -9,6 +9,7 @@
  * - Native apps follow the synced `notificationsEnabled` setting (on unless
  *   switched off); elsewhere push is a per-device choice made in settings.
  * - Pings transports whose registration expires, on launch and on return.
+ * - Closes web push notifications at or before the synced read cursor.
  * - Turns web push off when the account it was set up for logs out, so a
  *   shared device stops showing that account's notifications and drops the
  *   worker's copy of its follows and decrypted mute list.
@@ -28,6 +29,7 @@ import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { createPushAdapter } from '@/lib/push';
+import { dismissReadNotifications } from '@/lib/push/dismissRead';
 import type { PushContext, PushPreferences } from '@/lib/push/types';
 
 export function PushNotificationsProvider({ children }: { children: ReactNode }) {
@@ -174,6 +176,22 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, [adapter, ready, enabled, user]);
+
+  // Notifications the user has already read, here or on another device, leave
+  // the tray. Re-checked on return, since some may have arrived while hidden.
+  const notificationsCursor = settings?.notificationsCursor ?? 0;
+  useEffect(() => {
+    if (adapter.transport === 'native' || !user || notificationsCursor <= 0) return;
+
+    const dismiss = () => void dismissReadNotifications(notificationsCursor);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') dismiss();
+    };
+
+    dismiss();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [adapter, user, notificationsCursor]);
 
   const value = useMemo<PushNotificationsContextType>(() => ({
     permission,

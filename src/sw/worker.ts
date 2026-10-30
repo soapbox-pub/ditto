@@ -224,7 +224,8 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
     icon: profile.picture ?? '/icon-192.png',
     badge: '/badge-96.png',
     // `data.url` is what routes a tap when no worker is alive to route it.
-    data: { url: notificationPath(event, relays), eventId: event.id, kind: event.kind },
+    // `createdAt` is compared with the read cursor by `dismissReadNotifications()`.
+    data: { url: notificationPath(event, relays), eventId: event.id, kind: event.kind, createdAt: event.created_at },
     // A collapsed burst is one entry standing for many; there's no single
     // event in it to answer.
     actions: notificationActions(isBurst ? null : event, intl),
