@@ -59,8 +59,12 @@ export function useMediaGate(): MediaGateContextValue {
 }
 
 interface MediaGateProps {
-  /** The media that should only render once the overlay is dismissed. */
-  children: React.ReactNode;
+  /**
+   * The media that should only render once the overlay is dismissed. Omit it
+   * to render just the overlay, for media that checks {@link useMediaGate}
+   * itself (e.g. poll option images inside their vote buttons).
+   */
+  children?: React.ReactNode;
   /** Optional class name for the overlay container. */
   className?: string;
 }

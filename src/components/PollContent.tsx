@@ -9,33 +9,28 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
+import { useBlossomServers } from '@/hooks/useBlossomFallback';
 import { NoteContent } from '@/components/NoteContent';
 import { PollArena } from '@/components/PollArena';
+import { PollOptionImages, PollOptionLabel, PollOptionZoomButton, pollTileGridClass } from '@/components/PollOptionLabel';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { MediaGate } from '@/components/MediaGate';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { parsePollOptions } from '@/lib/pollOptions';
 import { rollbackQuery } from '@/lib/optimisticEvent';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import type { ProfileImeta } from '@/lib/profileImeta';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-interface PollOption {
-  id: string;
-  label: string;
-}
+type PollOption = ReturnType<typeof parsePollOptions>[number];
 
 function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
-}
-
-function getOptions(tags: string[][]): PollOption[] {
-  return tags
-    .filter(([n]) => n === 'option')
-    .map(([, id, label]) => ({ id, label }));
 }
 
 /** Deduplicate votes: keep one per pubkey (latest wins). */
@@ -138,7 +133,9 @@ export function PollContent({ event }: { event: NostrEvent }) {
   const queryClient = useQueryClient();
   const { mutate: publishEvent } = useNostrPublish();
 
-  const options = useMemo(() => getOptions(event.tags), [event.tags]);
+  const blossomServers = useBlossomServers();
+  const options = useMemo(() => parsePollOptions(event.tags, blossomServers), [event.tags, blossomServers]);
+  const hasImages = options.some((opt) => opt.images.length > 0);
   const pollType = getTag(event.tags, 'polltype') ?? 'singlechoice';
   const endsAt = getTag(event.tags, 'endsAt');
   const isExpired = endsAt ? Number(endsAt) < Math.floor(Date.now() / 1000) : false;
@@ -273,10 +270,14 @@ export function PollContent({ event }: { event: NostrEvent }) {
         )}
       </div>
 
+      {/* One reveal for every option image when the post's media is gated */}
+      {hasImages && <MediaGate className="mt-3" />}
+
       {/* Results: voters walk to the side or slice they picked */}
       {showResults && (
         <PollArena
           options={options}
+          tags={event.tags}
           votes={votes ?? []}
           tally={tally}
           totalVotes={totalVotes}
@@ -287,27 +288,49 @@ export function PollContent({ event }: { event: NostrEvent }) {
         />
       )}
 
-      {/* Options */}
-      {!showResults && <div className="mt-3 space-y-2">
-        {options.map((opt) => {
-          const isSelected = selectedOption === opt.id;
+      {/* Options: a grid of image tiles when any option has an image */}
+      {!showResults && (
+        <div className={cn('mt-3', hasImages ? pollTileGridClass(options.length) : 'space-y-2')}>
+          {options.map((opt) => {
+            const isSelected = selectedOption === opt.id;
 
-          return (
-            <button
-              key={opt.id}
-              onClick={() => setSelectedOption(opt.id)}
-              className={cn(
-                'w-full text-left rounded-lg border border-border-subtle px-3 py-2.5 text-sm transition-colors',
-                isSelected
-                  ? 'border-primary bg-primary/10 font-semibold'
-                  : 'border-border-subtle hover:bg-secondary/40',
-              )}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>}
+            return (
+              <div key={opt.id} className="relative">
+                <button
+                  onClick={() => setSelectedOption(opt.id)}
+                  className={cn(
+                    'w-full text-left rounded-lg border border-border-subtle text-sm transition-colors',
+                    hasImages ? 'flex flex-col overflow-hidden' : 'px-3 py-2.5',
+                    isSelected
+                      ? 'border-primary bg-primary/10 font-semibold'
+                      : 'border-border-subtle hover:bg-secondary/40',
+                  )}
+                >
+                  {!hasImages ? (
+                    <EmojifiedText tags={event.tags}>{opt.text}</EmojifiedText>
+                  ) : opt.images.length > 0 ? (
+                    <>
+                      <PollOptionImages images={opt.images} alt={opt.text} variant="tile" />
+                      {opt.text && (
+                        <span className="line-clamp-2 break-words px-2.5 py-1.5">
+                          <EmojifiedText tags={event.tags}>{opt.text}</EmojifiedText>
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="flex aspect-square w-full items-center justify-center break-words bg-secondary p-3 text-center">
+                      <span className="line-clamp-4">
+                        <EmojifiedText tags={event.tags}>{opt.text}</EmojifiedText>
+                      </span>
+                    </span>
+                  )}
+                </button>
+                <PollOptionZoomButton images={opt.images} className="absolute right-2 top-2" />
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Vote button + voter avatars (voting mode only) */}
       {!showResults && (
@@ -345,6 +368,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
         onOpenChange={setVotersModalOpen}
         allVotes={votes ?? []}
         options={options}
+        tags={event.tags}
         pollType={pollType}
         initialOptionId={votersModalOptionId}
         authorsMap={authorsMap}
@@ -360,12 +384,13 @@ interface PollVotersModalProps {
   onOpenChange: (open: boolean) => void;
   allVotes: NostrEvent[];
   options: PollOption[];
+  tags: string[][];
   pollType: string;
   initialOptionId?: string | null;
   authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata; imeta?: ProfileImeta }>;
 }
 
-function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, initialOptionId, authorsMap }: PollVotersModalProps) {
+function PollVotersModal({ open, onOpenChange, allVotes, options, tags, pollType, initialOptionId, authorsMap }: PollVotersModalProps) {
   const intl = useIntl();
   const [activeFilter, setActiveFilter] = useState<string | null>(initialOptionId ?? null);
 
@@ -378,10 +403,10 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
   const optionLabelMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const opt of options) {
-      map.set(opt.id, opt.label);
+      map.set(opt.id, opt.text || intl.formatMessage({ id: 'poll.imageOption', defaultMessage: 'Image' }));
     }
     return map;
-  }, [options]);
+  }, [options, intl]);
 
   // Filter voters based on active filter
   const filteredVoters = useMemo(() => {
@@ -457,7 +482,9 @@ function PollVotersModal({ open, onOpenChange, allVotes, options, pollType, init
                     style={{ width: `${pct}%` }}
                   />
                   <div className="relative flex items-center justify-between px-3 py-2">
-                    <span className={cn('text-sm break-words min-w-0', isActive && 'font-semibold')}>{opt.label}</span>
+                    <span className={cn('text-sm min-w-0', isActive && 'font-semibold')}>
+                      <PollOptionLabel option={opt} tags={tags} />
+                    </span>
                     <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
                       {count}
                     </span>

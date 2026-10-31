@@ -73,6 +73,9 @@ import { ImageGallery } from '@/components/ImageGallery';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { getKindLabel, getKindIcon, getEventFallbackText } from '@/lib/extraKinds';
 import { usePollVoteLabel } from '@/hooks/usePollVoteLabel';
+import { PollOptionLabel } from '@/components/PollOptionLabel';
+import { parsePollOptions } from '@/lib/pollOptions';
+import { useBlossomServers } from '@/hooks/useBlossomFallback';
 
 const BlobbiStateCard = lazy(() => import('@/components/BlobbiStateCard').then(m => ({ default: m.BlobbiStateCard })));
 
@@ -484,13 +487,10 @@ function EmbeddedPollCard({
     [event.id, event.pubkey],
   );
 
+  const blossomServers = useBlossomServers();
   const options = useMemo(
-    () =>
-      event.tags
-        .filter(([n]) => n === 'option')
-        .map(([, , label]) => (label ?? '').trim())
-        .filter((label) => label.length > 0),
-    [event.tags],
+    () => parsePollOptions(event.tags, blossomServers).filter((opt) => opt.text || opt.images.length > 0),
+    [event.tags, blossomServers],
   );
   const pollType = event.tags.find(([n]) => n === 'polltype')?.[1] ?? 'singlechoice';
   const endsAtTag = event.tags.find(([n]) => n === 'endsAt')?.[1];
@@ -535,25 +535,27 @@ function EmbeddedPollCard({
 
       {/* Options preview — non-interactive, just shows option text */}
       {previewOptions.length > 0 && (
-        <div className="space-y-1">
-          {previewOptions.map((label, i) => (
-            <div
-              key={i}
-              className="rounded-md bg-secondary px-2.5 py-1.5 text-xs text-foreground break-words line-clamp-1"
-            >
-              {label}
-            </div>
-          ))}
-          {remainingOptions > 0 && (
-            <p className="text-[11px] text-muted-foreground pl-1">
-              <FormattedMessage
-                id="embeddedNote.moreOptions"
-                defaultMessage="+{count, plural, one {# more option} other {# more options}}"
-                values={{ count: remainingOptions }}
-              />
-            </p>
-          )}
-        </div>
+        <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
+          <div className="space-y-1">
+            {previewOptions.map((opt, i) => (
+              <div
+                key={i}
+                className="rounded-md bg-secondary px-2.5 py-1.5 text-xs text-foreground"
+              >
+                <PollOptionLabel option={opt} tags={event.tags} />
+              </div>
+            ))}
+            {remainingOptions > 0 && (
+              <p className="text-[11px] text-muted-foreground pl-1">
+                <FormattedMessage
+                  id="embeddedNote.moreOptions"
+                  defaultMessage="+{count, plural, one {# more option} other {# more options}}"
+                  values={{ count: remainingOptions }}
+                />
+              </p>
+            )}
+          </div>
+        </MediaGateProvider>
       )}
     </EmbeddedCardShell>
   );

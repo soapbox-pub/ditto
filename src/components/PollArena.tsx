@@ -1,9 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { PollOptionImages, PollOptionZoomButton, pollTileGridClass } from '@/components/PollOptionLabel';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useInView } from '@/hooks/useInView';
 import { getAvatarShape } from '@/lib/avatarShape';
+import type { PollOptionLabelParts } from '@/lib/pollOptions';
 import { cn } from '@/lib/utils';
 import type { AuthorData } from '@/hooks/useAuthors';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -22,13 +25,12 @@ import type { NostrEvent } from '@nostrify/nostrify';
  * other; the 3D is in the floor, the depth sorting and the running.
  */
 
-interface ArenaOption {
-  id: string;
-  label: string;
-}
+type ArenaOption = PollOptionLabelParts & { id: string };
 
 interface PollArenaProps {
   options: ArenaOption[];
+  /** The poll's tags, for custom emoji in option labels. */
+  tags: string[][];
   votes: NostrEvent[];
   tally: Map<string, number>;
   totalVotes: number;
@@ -193,6 +195,7 @@ function usePrefersReducedMotion(): boolean {
 
 export function PollArena({
   options,
+  tags,
   votes,
   tally,
   totalVotes,
@@ -226,6 +229,7 @@ export function PollArena({
   }, []);
 
   const isSplit = options.length === 2;
+  const hasImages = options.some((opt) => opt.images.length > 0);
 
   const shares = useMemo(
     () => options.map((opt) => (totalVotes > 0 ? (tally.get(opt.id) ?? 0) / totalVotes : 1 / options.length)),
@@ -411,35 +415,91 @@ export function PollArena({
         </div>
       </button>
 
-      {/* Legend: one bar per option, filled to its share */}
-      <div className="mt-3 space-y-1.5">
-        {options.map((opt, idx) => {
-          const count = tally.get(opt.id) ?? 0;
-          const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
-          const isMine = myOptionIds.has(opt.id);
-          const color = optionColor(idx);
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => onOpenVoters(opt.id)}
-              className="relative flex w-full items-center gap-2.5 overflow-hidden rounded-lg border border-border-subtle px-3 py-2 text-left transition-colors hover:border-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span
-                className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out motion-reduce:transition-none"
-                style={{ width: `${pct}%`, backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)` }}
-              />
-              <span className="relative size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
-              <span className={cn('relative min-w-0 flex-1 text-sm break-words', isMine && 'font-semibold')}>{opt.label}</span>
-              {isMine && <CheckCircle2 className="relative size-4 shrink-0 text-primary" />}
-              <span className="relative shrink-0 text-xs tabular-nums text-muted-foreground">
-                <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count }} />
-              </span>
-              <span className="relative w-10 shrink-0 text-right text-sm font-semibold tabular-nums">{pct}%</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* Legend: image polls get a two-column grid of tiles, each over its
+          share bar; text polls get one bar per option, filled to its share */}
+      {hasImages ? (
+        <div className={cn('mt-3', pollTileGridClass(options.length))}>
+          {options.map((opt, idx) => {
+            const count = tally.get(opt.id) ?? 0;
+            const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+            const isMine = myOptionIds.has(opt.id);
+            const color = optionColor(idx);
+            return (
+              <div key={opt.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => onOpenVoters(opt.id)}
+                  className={cn(
+                    'flex w-full flex-col overflow-hidden rounded-lg border text-left text-sm transition-colors hover:border-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    isMine ? 'border-primary' : 'border-border-subtle',
+                  )}
+                >
+                  {opt.images.length > 0 ? (
+                    <PollOptionImages images={opt.images} alt={opt.text} variant="tile" />
+                  ) : (
+                    <span className="flex aspect-square w-full items-center justify-center break-words bg-secondary p-3 text-center">
+                      <span className="line-clamp-4"><EmojifiedText tags={tags}>{opt.text}</EmojifiedText></span>
+                    </span>
+                  )}
+                  {/* Footer tinted to the option's share, like the text-poll bars */}
+                  <span className="relative block px-2.5 py-1.5">
+                    <span
+                      className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out motion-reduce:transition-none"
+                      style={{ width: `${pct}%`, backgroundColor: `color-mix(in srgb, ${color} 22%, transparent)` }}
+                    />
+                    {opt.images.length > 0 && opt.text && (
+                      <span className={cn('relative line-clamp-2 break-words', isMine && 'font-semibold')}>
+                        <EmojifiedText tags={tags}>{opt.text}</EmojifiedText>
+                      </span>
+                    )}
+                    <span className="relative flex items-center gap-1.5">
+                      <span className="min-w-0 flex-1 truncate text-xs tabular-nums text-muted-foreground">
+                        <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count }} />
+                      </span>
+                      {isMine && <CheckCircle2 className="size-4 shrink-0 text-primary" />}
+                      <span className="shrink-0 text-sm font-semibold tabular-nums">{pct}%</span>
+                    </span>
+                  </span>
+                </button>
+                <PollOptionZoomButton images={opt.images} className="absolute right-2 top-2" />
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 space-y-1.5">
+          {options.map((opt, idx) => {
+            const count = tally.get(opt.id) ?? 0;
+            const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+            const isMine = myOptionIds.has(opt.id);
+            const color = optionColor(idx);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => onOpenVoters(opt.id)}
+                className="relative block w-full overflow-hidden rounded-lg border border-border-subtle text-left transition-colors hover:border-muted-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span
+                  className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out motion-reduce:transition-none"
+                  style={{ width: `${pct}%`, backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)` }}
+                />
+                <span className="relative flex items-center gap-2.5 px-3 py-2">
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+                  <span className={cn('min-w-0 flex-1 break-words text-sm', isMine && 'font-semibold')}>
+                    <EmojifiedText tags={tags}>{opt.text}</EmojifiedText>
+                  </span>
+                  {isMine && <CheckCircle2 className="size-4 shrink-0 text-primary" />}
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count }} />
+                  </span>
+                  <span className="w-10 shrink-0 text-right text-sm font-semibold tabular-nums">{pct}%</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

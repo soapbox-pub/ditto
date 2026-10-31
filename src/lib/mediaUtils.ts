@@ -22,13 +22,23 @@ function mediaCategory(mime: string): MediaType {
   return category === 'image' || category === 'video' || category === 'audio' ? category : 'file';
 }
 
-function detectType(url: string, mime?: string, eventKind?: number): MediaType {
+/**
+ * The media type a URL's imeta MIME or file extension declares, or
+ * `undefined` when neither says anything (e.g. extensionless Blossom URLs).
+ */
+export function declaredMediaType(url: string, mime?: string): MediaType | undefined {
   if (mime && !GENERIC_MIME.test(mime)) return mediaCategory(mime);
   if (/\.(mp4|webm|mov|qt|m3u8)(\?.*)?$/i.test(url)) return 'video';
   if (/\.(mp3|mpga|ogg|flac|wav|aac|opus)(\?.*)?$/i.test(url)) return 'audio';
   const ext = urlExtension(url);
   const extMime = ext ? mimeFromExt(ext) : undefined;
   if (extMime && !GENERIC_MIME.test(extMime)) return mediaCategory(extMime);
+  return undefined;
+}
+
+function detectType(url: string, mime?: string, eventKind?: number): MediaType {
+  const declared = declaredMediaType(url, mime);
+  if (declared) return declared;
   // Fall back to event kind for extensionless URLs (e.g. Blossom content-addressed URLs)
   if (eventKind !== undefined) {
     if (VIDEO_KINDS.has(eventKind)) return 'video';
