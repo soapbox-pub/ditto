@@ -28,6 +28,7 @@ import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { type FileEncryption } from '@/lib/encryptedFile';
 import { COUNTRIES } from '@/lib/countries';
 import { IMAGE_URL_REGEX, EMBED_MEDIA_URL_REGEX, fileCategory, isFileUrl, isUnplayableVideo, mimeFromExt } from '@/lib/mediaUrls';
+import { declaredMediaType } from '@/lib/mediaUtils';
 import { parseBlossomUri, resolveBlossomUri, type BlossomUri } from '@/lib/blossomUri';
 import { useBlossomUri } from '@/hooks/useBlossomUri';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -621,8 +622,7 @@ export function NoteContent({
           // (InlineImage still swaps across Blossom servers on load error.)
           // Non-image blobs stay as `blossom-uri` tokens and render as their
           // own players / download links.
-          const mime = mimeFromExt(uri.ext);
-          if (mime.startsWith('image/')) {
+          if (declaredMediaType(blossom, imetaMimes.get(blossom)) === 'image') {
             const [resolved] = resolveBlossomUri(uri, blossomServers);
             if (resolved) {
               result.push({ type: 'image-embed', url: resolved });
@@ -1221,13 +1221,7 @@ function BlossomEmbed({ uri, raw, artist, avatarUrl, avatarImeta, avatarFallback
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const mime = mimeFromExt(uri.ext);
-  const category = mime.startsWith('image/')
-    ? 'image'
-    : mime.startsWith('video/')
-      ? 'video'
-      : mime.startsWith('audio/')
-        ? 'audio'
-        : 'file';
+  const category = declaredMediaType(raw, mime) ?? 'file';
 
   // No resolvable server, or every candidate failed to load: show a link so the
   // reference isn't silently lost.
