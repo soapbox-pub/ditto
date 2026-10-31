@@ -26,6 +26,7 @@ const CURATED_KINDS = [
   31124, // Blobbi
   2256,  // Tarot Readings
   2473,  // Bird Detections
+  1068,  // Polls (NIP-88)
 ];
 
 /** Webxdc needs a MIME-type tag filter, so it gets its own filter object. */
