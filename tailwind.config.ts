@@ -252,8 +252,17 @@ export default {
 				'75%': { transform: 'translate(-50%, -105px)', opacity: '0.9' },
 				'100%': { transform: 'translate(-50%, -120px)', opacity: '0' }
 			},
+			'celebration-moon': {
+				// gn moonrise: the crescent drifts up slower than the sun,
+				// rocking gently as it rises, then fades.
+				'0%': { transform: 'translate(-50%, 0) rotate(-12deg)', opacity: '0' },
+				'25%': { opacity: '0.95' },
+				'50%': { transform: 'translate(-50%, -70px) rotate(4deg)' },
+				'78%': { transform: 'translate(-50%, -100px) rotate(-4deg)', opacity: '0.95' },
+				'100%': { transform: 'translate(-50%, -112px) rotate(0deg)', opacity: '0' }
+			},
 			'celebration-glow': {
-				// gm sunrise: warm wash that swells and recedes with the sun.
+				// gm sunrise / gn moonrise: wash that swells and recedes with the sun or moon.
 				'0%': { opacity: '0' },
 				'35%': { opacity: '1' },
 				'75%': { opacity: '0.8' },
@@ -301,6 +310,7 @@ export default {
 				'birthday-float': 'birthday-float var(--rain-duration, 5s) linear infinite',
 				'celebration-twinkle': 'celebration-twinkle 1.2s ease-in-out both',
 				'celebration-sun': 'celebration-sun 3.2s ease-out both',
+				'celebration-moon': 'celebration-moon 3.8s ease-out both',
 				'celebration-glow': 'celebration-glow 3.2s ease-out both',
 				'reaction-pop': 'reaction-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				// The spark and halo hold for 90ms — they detonate at the moment

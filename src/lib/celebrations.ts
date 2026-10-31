@@ -12,6 +12,7 @@ export type CelebrationVariant =
   | 'confetti'
   | 'birthday'
   | 'sunrise'
+  | 'moonrise'
   | 'sparkle'
   | 'spooky'
   | 'hearts';
@@ -32,6 +33,9 @@ const SPARKLE_RE = /\bwelcome\s+to\s+(?:nostr|ditto)\b|#introductions?\b/iu;
 // Leading non-word characters (quotes, punctuation) are skipped so that
 // verbatim posts like `"GM"` are caught alongside plain `GM`.
 const SUNRISE_RE = /^\W*(?:gm|good\s+morning|pv|pura\s+vida)\b/i;
+
+// The "gn" bedtime counterpart, anchored the same way.
+const MOONRISE_RE = /^\W*(?:gn|good\s*(?:night|nite)|nighty?\s+night)\b/i;
 
 // ── Seasonal triggers (only active in season) ──
 
@@ -72,7 +76,28 @@ export function detectCelebration(
   if (SPARKLE_RE.test(content)) return 'sparkle';
   if (CONFETTI_RE.test(content)) return 'confetti';
   if (SUNRISE_RE.test(content)) return 'sunrise';
+  if (MOONRISE_RE.test(content)) return 'moonrise';
   return undefined;
+}
+
+// ── Moon phase (gn moonrise) ──
+
+/** Mean length of a lunar cycle, in days. */
+const SYNODIC_MONTH_DAYS = 29.530588853;
+
+/** A reference new moon: 2000-01-06 18:14 UTC. */
+const REFERENCE_NEW_MOON_MS = Date.UTC(2000, 0, 6, 18, 14);
+
+/**
+ * Approximate moon phase at a Unix timestamp (seconds), as a fraction of the
+ * lunar cycle: 0 = new, 0.25 = first quarter, 0.5 = full, 0.75 = last
+ * quarter. Uses the mean synodic month, which is accurate to within about a
+ * day — plenty for drawing the right shape.
+ */
+export function moonPhase(unixSeconds: number): number {
+  const days = (unixSeconds * 1000 - REFERENCE_NEW_MOON_MS) / 86_400_000;
+  const cycles = days / SYNODIC_MONTH_DAYS;
+  return ((cycles % 1) + 1) % 1;
 }
 
 // ── Once-per-session bookkeeping ──

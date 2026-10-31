@@ -2684,7 +2684,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             celebrating && "overflow-hidden",
           )}
         >
-          {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
+          {celebrating && celebration && <CelebrationOverlay variant={celebration} createdAt={event.created_at} />}
           {/* Kind action header for app handlers */}
           {isAppHandler && (
             <EventActionHeader pubkey={event.pubkey} icon={Package} action={publishedAtAction(event, {

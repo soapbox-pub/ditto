@@ -1673,7 +1673,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       onClick={handleCardClick}
       onAuxClick={handleAuxClick}
     >
-      {celebrating && celebration && <CelebrationOverlay variant={celebration} />}
+      {celebrating && celebration && <CelebrationOverlay variant={celebration} createdAt={event.created_at} />}
       {/* Action header — wrapper (repost/reaction/zap) takes priority, otherwise derived from event kind */}
       {wrapperHeader ? (
         wrapperHeader
