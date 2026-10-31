@@ -55,6 +55,8 @@ import { getEffectiveStreamStatus, getStreamStatusConfig } from '@/lib/streamSta
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
   addr: AddrCoords;
+  /** Optional relay hints from the naddr1 identifier or a `q`/`a` tag. */
+  relays?: string[];
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
@@ -125,8 +127,8 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
   );
 }
 
-function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
-  const { data: event, isLoading, isError } = useAddrEvent(addr);
+function EmbeddedNaddrInner({ addr, relays, className, disableHoverCards, sourceUrl }: EmbeddedNaddrProps) {
+  const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
 
   // Encrypted community invite bundles (kind 33301) can never render as a plain
   // event — their content is NIP-44 encrypted and the unlock key lives in the
@@ -155,7 +157,7 @@ function EmbeddedNaddrInner({ addr, className, disableHoverCards, sourceUrl }: E
   }
 
   if (isError || !event) {
-    return <EmbeddedNaddrTombstone addr={addr} className={className} />;
+    return <EmbeddedNaddrTombstone addr={addr} relays={relays} className={className} />;
   }
 
   // Badge definitions get a compact showcase instead of a link-preview card
@@ -1039,7 +1041,7 @@ function EmbeddedWebBookmarkCard({
 }
 
 /** Tombstone shown when an addressable event could not be loaded. */
-function EmbeddedNaddrTombstone({ addr, className }: { addr: AddrCoords; className?: string }) {
+function EmbeddedNaddrTombstone({ addr, relays, className }: { addr: AddrCoords; relays?: string[]; className?: string }) {
   const navigate = useNavigate();
 
   const naddrId = useMemo(
@@ -1047,8 +1049,9 @@ function EmbeddedNaddrTombstone({ addr, className }: { addr: AddrCoords; classNa
       kind: addr.kind,
       pubkey: addr.pubkey,
       identifier: addr.identifier,
+      ...(relays?.length ? { relays } : {}),
     }),
-    [addr],
+    [addr, relays],
   );
 
   return (

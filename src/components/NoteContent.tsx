@@ -203,13 +203,14 @@ const NADDR_IN_URL_REGEX = new RegExp(`naddr1[${BECH32_CHARS}]{10,}`, 'i');
 const BARE_NIP19_BOUNDARY = '[^\\p{L}\\p{N}_/:.@+=?&%#~\\\\-]';
 
 /** Try to extract naddr coordinates from a URL containing an naddr1 identifier. */
-function extractNaddrFromUrl(url: string): AddrCoords | null {
+function extractNaddrFromUrl(url: string): { addr: AddrCoords; relays?: string[] } | null {
   const match = url.match(NADDR_IN_URL_REGEX);
   if (!match) return null;
   try {
     const decoded = nip19.decode(match[0]);
     if (decoded.type === 'naddr') {
-      return decoded.data as AddrCoords;
+      const { kind, pubkey, identifier, relays } = decoded.data;
+      return { addr: { kind, pubkey, identifier }, relays };
     }
   } catch {
     // invalid naddr
@@ -304,7 +305,7 @@ type ContentToken =
   | { type: 'inline-link'; url: string }
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string; relays?: string[]; author?: string }
-  | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
+  | { type: 'naddr-embed'; addr: AddrCoords; relays?: string[]; url?: string }
   | { type: 'armada-invite'; invite: ArmadaInvite }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string }
@@ -557,7 +558,7 @@ export function NoteContent({
           // naddr embed — render an "open in a compatible app" card instead.
           result.push({ type: 'armada-invite', invite: armadaInvite });
         } else if (naddrFromUrl) {
-          result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
+          result.push({ type: 'naddr-embed', addr: naddrFromUrl.addr, relays: naddrFromUrl.relays, url });
         } else if (isEndOfLine && linkEmbeds < MAX_LINK_EMBEDS) {
           // Standalone URL at end of line → rich embed (YouTube, Tweet, or link preview)
           linkEmbeds++;
@@ -594,7 +595,8 @@ export function NoteContent({
               // render as a plain event. Surface it as an incomplete invite.
               result.push({ type: 'armada-invite', invite: bareInvite });
             } else {
-              result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
+              const { kind, pubkey, identifier, relays } = decoded.data;
+              result.push({ type: 'naddr-embed', addr: { kind, pubkey, identifier }, relays });
             }
           } else {
             result.push({ type: 'nostr-link', id: nostrId, raw: fullMatch });
@@ -656,10 +658,11 @@ export function NoteContent({
       result.push({ type: 'text', value: text });
     }
 
-    // Enrich nevent-embed tokens with relay hints from `q` tags when the
-    // nevent URI itself didn't include any.  This ensures quote posts whose
-    // inline nevent was encoded without relay hints can still resolve the
-    // quoted event via the relay hint stored in the q tag.
+    // Enrich nevent/naddr embed tokens with relay hints from `q` tags when
+    // the URI itself didn't include any.  This ensures quote posts whose
+    // inline identifier was encoded without relay hints can still resolve
+    // the quoted event via the relay hint stored in the q tag. A `q` tag
+    // holds an event id for nevents and a `kind:pubkey:d` coordinate for naddrs.
     const qTagMap = new Map<string, { relay?: string; author?: string }>();
     for (const tag of event.tags) {
       if (tag[0] === 'q' && tag[1]) {
@@ -677,6 +680,11 @@ export function NoteContent({
             if (!token.author && qInfo.author) {
               token.author = qInfo.author;
             }
+          }
+        } else if (token.type === 'naddr-embed' && (!token.relays || token.relays.length === 0)) {
+          const qInfo = qTagMap.get(`${token.addr.kind}:${token.addr.pubkey}:${token.addr.identifier}`);
+          if (qInfo?.relay) {
+            token.relays = [qInfo.relay];
           }
         }
       }
@@ -1023,7 +1031,7 @@ export function NoteContent({
             // shown above it — the card itself links to the content, matching
             // how nevent/link embeds behave. When the naddr came from a
             // non-Ditto URL the card surfaces an "Open" button via `sourceUrl`.
-            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" sourceUrl={token.url} />;
+            return <EmbeddedNaddr key={i} addr={token.addr} relays={token.relays} className="my-2.5" sourceUrl={token.url} />;
           case 'armada-invite':
             return <ArmadaInviteEmbed key={i} invite={token.invite} />;
           case 'mention':

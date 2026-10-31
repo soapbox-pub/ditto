@@ -869,6 +869,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
   const hoverContent = root.addr ? (
     <EmbeddedNaddr
       addr={{ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier }}
+      relays={root.relayHint ? [root.relayHint] : undefined}
       className="border-0 rounded-none"
     />
   ) : undefined;
@@ -918,6 +919,7 @@ function GenericAddrCommentContext({ root, className }: { root: CommentRoot; cla
   const hoverContent = root.addr ? (
     <EmbeddedNaddr
       addr={{ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier }}
+      relays={root.relayHint ? [root.relayHint] : undefined}
       className="border-0 rounded-none"
     />
   ) : undefined;
@@ -1182,6 +1184,7 @@ function CampaignCommentContext({ root, className }: { root: CommentRoot; classN
   const hoverContent = root.addr ? (
     <EmbeddedNaddr
       addr={{ kind: root.addr.kind, pubkey: root.addr.pubkey, identifier: root.addr.identifier }}
+      relays={root.relayHint ? [root.relayHint] : undefined}
       className="border-0 rounded-none"
     />
   ) : undefined;
