@@ -30,30 +30,37 @@ export function MyArticlesList() {
   const { articles: publishedArticles, isLoading: isPublishedLoading } = usePublishedArticles();
 
   const [localDrafts, setLocalDrafts] = useState<Draft[]>(() => getLocalDrafts());
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; slug: string; isLocal: boolean } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; isLocal: boolean } | null>(null);
 
-  // Combine relay and local drafts, avoiding duplicates by slug
+  // Combine relay and local drafts. A draft saved to relays keeps a local copy
+  // under the same id, which auto-save may have moved ahead; show the newer.
   const combinedDrafts = useMemo(() => {
+    const relayById = new Map(relayDrafts.map((draft) => [draft.id, draft]));
+    // Legacy local drafts had random ids and were matched to relay drafts by slug.
+    const relaySlugs = new Set(relayDrafts.map((draft) => draft.slug).filter(Boolean));
     const drafts: (Draft & { isLocal: boolean })[] = [];
-    const seenSlugs = new Set<string>();
-
-    for (const draft of relayDrafts) {
-      if (draft.slug) seenSlugs.add(draft.slug);
-      drafts.push({ ...draft, isLocal: false });
-    }
 
     for (const draft of localDrafts) {
-      if (!draft.slug || !seenSlugs.has(draft.slug)) {
+      const relayDraft = relayById.get(draft.id);
+      if (relayDraft) {
+        relayById.delete(draft.id);
+        const newer = draft.updatedAt > relayDraft.updatedAt ? draft : relayDraft;
+        drafts.push({ ...newer, eventId: relayDraft.eventId, isLocal: false });
+      } else if (!draft.slug || !relaySlugs.has(draft.slug)) {
         drafts.push({ ...draft, isLocal: true });
       }
+    }
+
+    for (const draft of relayById.values()) {
+      drafts.push({ ...draft, isLocal: false });
     }
 
     return drafts.sort((a, b) => b.updatedAt - a.updatedAt);
   }, [relayDrafts, localDrafts]);
 
-  /** Open a draft in the editor. Local drafts without a slug are looked up by id. */
+  /** Open a draft in the editor. Drafts with an empty `d` tag are looked up by event id. */
   const handleOpenDraft = useCallback((draft: Draft) => {
-    navigate(`/articles/new?draft=${encodeURIComponent(draft.slug || draft.id)}`);
+    navigate(`/articles/new?draft=${encodeURIComponent(draft.id || draft.eventId || '')}`);
   }, [navigate]);
 
   /**
@@ -68,15 +75,17 @@ export function MyArticlesList() {
   const handleDeleteDraft = useCallback(async () => {
     if (!deleteTarget) return;
 
+    // Relay drafts can have a local copy under the same id; drop it either way.
+    setLocalDrafts(deleteLocalDraftById(deleteTarget.id));
+
     if (deleteTarget.isLocal) {
-      setLocalDrafts(deleteLocalDraftById(deleteTarget.id));
       toast({
         title: intl.formatMessage({ id: 'articles.mine.draftDeleted', defaultMessage: 'Draft deleted' }),
         description: intl.formatMessage({ id: 'articles.mine.draftDeletedLocal', defaultMessage: 'Removed from your browser.' }),
       });
     } else {
       try {
-        await deleteRelayDraft(deleteTarget.slug);
+        await deleteRelayDraft(deleteTarget.id);
         toast({
           title: intl.formatMessage({ id: 'articles.mine.draftDeleted', defaultMessage: 'Draft deleted' }),
           description: intl.formatMessage({ id: 'articles.mine.draftDeletedRelay', defaultMessage: 'Deletion published to relays.' }),
@@ -123,7 +132,7 @@ export function MyArticlesList() {
               </h3>
               {combinedDrafts.map((draft) => (
                 <div
-                  key={draft.id}
+                  key={draft.eventId ?? draft.id}
                   role="button"
                   tabIndex={0}
                   className="group p-4 rounded-xl border border-border-subtle hover:border-primary/30 hover:bg-card transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -172,7 +181,7 @@ export function MyArticlesList() {
                       aria-label={intl.formatMessage({ id: 'articles.mine.deleteDraft', defaultMessage: 'Delete draft' })}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDeleteTarget({ id: draft.id, slug: draft.slug, isLocal: draft.isLocal });
+                        setDeleteTarget({ id: draft.id, isLocal: draft.isLocal });
                       }}
                     >
                       <Trash2 className="w-3.5 h-3.5" />

@@ -3,11 +3,15 @@ import { useSearchParams, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { Loader2 } from 'lucide-react';
 
-import { ArticleEditor, type ArticleData } from '@/components/articles/ArticleEditor';
+import type { NostrFilter } from '@nostrify/nostrify';
+
+import { ArticleEditor, type ArticleEditorInitialData } from '@/components/articles/ArticleEditor';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { DRAFT_WRAP_KIND, parseDraftPayload, type Draft } from '@/hooks/useDrafts';
 import { getLocalDrafts } from '@/lib/localDrafts';
 import { parseArticleEvent } from '@/lib/articleHelpers';
+import { isNostrId } from '@/lib/nostrId';
 
 /** Thin page wrapper for /articles/new and /articles/edit/:slug */
 export function ArticleEditorPage() {
@@ -20,7 +24,7 @@ export function ArticleEditorPage() {
 
   const draftSlug = searchParams.get('draft');
 
-  const [initialData, setInitialData] = useState<(Partial<ArticleData> & { publishedAt?: number }) | undefined>(undefined);
+  const [initialData, setInitialData] = useState<ArticleEditorInitialData | undefined>(undefined);
   const [editMode, setEditMode] = useState(false);
   const [loading, setLoading] = useState(!!editSlug || !!draftSlug);
 
@@ -33,42 +37,43 @@ export function ArticleEditorPage() {
     setLoading(!!editSlug || !!draftSlug);
   }, [editSlug, draftSlug]);
 
-  // Load draft from relay (NIP-37 kind 31234, encrypted) or localStorage if ?draft=<slug>
+  // Load draft ?draft=<id> from relay (NIP-37 kind 31234, encrypted) and
+  // localStorage, preferring whichever copy is newer. Auto-saves only go to
+  // localStorage, so the local copy is often ahead of the relay one.
   useEffect(() => {
     if (!draftSlug) return;
 
     const loadDraft = async () => {
+      let relayDraft: Draft | undefined;
       if (user?.signer.nip44) {
         try {
-          const events = await nostr.query([
-            { kinds: [31234], authors: [user.pubkey], '#d': [draftSlug], limit: 1 },
-          ]);
-          if (events.length > 0 && events[0].content.trim()) {
-            const decrypted = await user.signer.nip44.decrypt(user.pubkey, events[0].content);
-            const inner = JSON.parse(decrypted) as Record<string, unknown>;
-            const tags = (inner.tags ?? []) as string[][];
-            const getTag = (name: string) => tags.find(t => t[0] === name)?.[1] || '';
-            const getTags = (name: string) => tags.filter(t => t[0] === name).map(t => t[1]);
-            setInitialData({
-              title: getTag('title'),
-              summary: getTag('summary'),
-              content: (inner.content as string) || '',
-              image: getTag('image'),
-              tags: getTags('t'),
-              slug: getTag('d'),
-              imeta: tags.filter(t => t[0] === 'imeta'),
-            });
-            setLoading(false);
-            return;
+          const filters: NostrFilter[] = [
+            { kinds: [DRAFT_WRAP_KIND], authors: [user.pubkey], '#d': [draftSlug], limit: 1 },
+          ];
+          // Drafts with an empty `d` tag are linked by event id.
+          if (isNostrId(draftSlug)) {
+            filters.push({ kinds: [DRAFT_WRAP_KIND], authors: [user.pubkey], ids: [draftSlug], limit: 1 });
+          }
+          const [event] = (await nostr.query(filters)).sort((a, b) => b.created_at - a.created_at);
+          if (event?.content.trim()) {
+            const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
+            relayDraft = parseDraftPayload(JSON.parse(decrypted) as Record<string, unknown>, event);
           }
         } catch {
           // Fall through to localStorage
         }
       }
 
-      // Fallback to localStorage (untitled local drafts have no slug, so match by id too)
+      // Legacy local drafts were keyed by slug, so match by slug as a fallback.
       const drafts = getLocalDrafts();
-      const draft = drafts.find((d) => d.slug === draftSlug) ?? drafts.find((d) => d.id === draftSlug);
+      const localDraft = drafts.find((d) => d.id === draftSlug)
+        ?? drafts.find((d) => d.slug === draftSlug)
+        ?? (relayDraft && drafts.find((d) => d.id === relayDraft.id));
+
+      const draft = relayDraft && localDraft
+        ? (localDraft.updatedAt > relayDraft.updatedAt ? { ...localDraft, id: relayDraft.id } : relayDraft)
+        : relayDraft ?? localDraft;
+
       if (draft) {
         setInitialData({
           title: draft.title,
@@ -78,7 +83,11 @@ export function ArticleEditorPage() {
           tags: draft.tags,
           slug: draft.slug,
           imeta: draft.imeta,
+          draftId: draft.id,
+          publishedAt: draft.publishedAt,
         });
+        // A draft of edits to a published article keeps updating that article.
+        setEditMode(!!draft.publishedAt && !!draft.slug);
       }
       setLoading(false);
     };

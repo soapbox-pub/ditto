@@ -10,6 +10,7 @@ import {
   X,
   Cloud,
   ChevronDown,
+  HardDrive,
 } from 'lucide-react';
 import slugify from 'slugify';
 import { useNostr } from '@nostrify/react';
@@ -40,13 +41,20 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDrafts } from '@/hooks/useDrafts';
 import { useKeyboardVisible } from '@/hooks/useKeyboardVisible';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { saveDraft as saveLocalDraft, deleteDraftBySlug } from '@/lib/localDrafts';
+import { saveDraft as saveLocalDraft, deleteLocalDraftById } from '@/lib/localDrafts';
 import { articleImetaTags, upsertImetaTag, type ArticleFields } from '@/lib/articleHelpers';
 import { readFileMeta } from '@/lib/fileMetadata';
 import { bestMime } from '@/lib/mediaUrls';
 import { MilkdownEditor } from './MilkdownEditor';
 
 export type ArticleData = ArticleFields;
+
+export type ArticleEditorInitialData = Partial<ArticleData> & {
+  /** `published_at` of the article being edited (ms). */
+  publishedAt?: number;
+  /** Identity of the draft being resumed (the NIP-37 wrap's `d` tag / local draft id). */
+  draftId?: string;
+};
 
 const messages = defineMessages({
   summary: { id: 'articleEditor.summary', defaultMessage: 'Summary' },
@@ -65,7 +73,7 @@ const messages = defineMessages({
 
 interface ArticleEditorProps {
   /** Pre-filled data for editing an existing article or loading a draft. */
-  initialData?: Partial<ArticleData> & { publishedAt?: number };
+  initialData?: ArticleEditorInitialData;
   /** Whether the editor is in edit mode (updating an existing article). */
   editMode?: boolean;
 }
@@ -86,10 +94,21 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const [isPublished, setIsPublished] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  /** Changes not yet explicitly saved as a draft or published (auto-saves don't count). */
+  const [hasUnsavedDraftChanges, setHasUnsavedDraftChanges] = useState(false);
+  const [syncedToRelay, setSyncedToRelay] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const isEditMode = editMode;
   const originalSlug = editMode && initialData?.slug ? initialData.slug : null;
   const originalPublishedAt = initialData?.publishedAt ?? null;
+  const draftPublishedAt = isEditMode ? originalPublishedAt ?? undefined : undefined;
+  const resumedDraft = !!initialData?.draftId;
+  // One draft per editing session, independent of the slug: editing the title
+  // or slug updates this draft rather than spawning a new one. Edits to a
+  // published article share a draft keyed by its slug.
+  const [draftId] = useState(() => initialData?.draftId ?? originalSlug ?? crypto.randomUUID());
+  // Whether a relay copy of this draft may exist and needs blanking on publish.
+  const hasRelayDraft = useRef(resumedDraft || isEditMode);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const keyboardVisible = useKeyboardVisible();
   const isMobile = useIsMobile();
@@ -108,49 +127,50 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   // need `article` in its dependency array (which would reset it on every keystroke).
   const articleRef = useRef(article);
   articleRef.current = article;
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  hasUnsavedChangesRef.current = hasUnsavedChanges;
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
-  /** Save draft to relay (with localStorage fallback). Shared by manual save + auto-save.
-   *  Always saves locally first so the draft appears immediately in My Articles,
-   *  then syncs to the relay in the background. */
-  const persistDraft = useCallback(async (data: ArticleData, { silent }: { silent?: boolean } = {}) => {
-    // Always persist locally so the draft is visible immediately
-    saveLocalDraft(data);
-
-    // Mark as saved immediately after the local write — the relay sync
-    // happens in the background and shouldn't leave the "unsaved" dot visible.
+  /** Auto-save: write the draft to localStorage only, so typing never publishes events. */
+  const autoSaveDraft = useCallback((data: ArticleData) => {
+    saveLocalDraft({ ...data, id: draftId, publishedAt: draftPublishedAt });
     setLastSaved(new Date());
     setHasUnsavedChanges(false);
+    setSyncedToRelay(false);
+  }, [draftId, draftPublishedAt]);
+
+  /** Explicit "Save Draft": save locally, then sync the draft to relays. */
+  const persistDraft = useCallback(async (data: ArticleData) => {
+    autoSaveDraft(data);
+    setHasUnsavedDraftChanges(false);
 
     if (user) {
       try {
-        await saveRelayDraft(data);
+        hasRelayDraft.current = true;
+        await saveRelayDraft({ draftId, draft: data, publishedAt: draftPublishedAt });
         if (!mountedRef.current) return;
-        if (!silent) {
-          toast({
-            title: intl.formatMessage(messages.draftSaved),
-            description: intl.formatMessage({ id: 'articleEditor.draftSavedRelays', defaultMessage: 'Your article has been saved to Nostr relays.' }),
-          });
-        }
+        setSyncedToRelay(true);
+        toast({
+          title: intl.formatMessage(messages.draftSaved),
+          description: intl.formatMessage({ id: 'articleEditor.draftSavedRelays', defaultMessage: 'Your article has been saved to Nostr relays.' }),
+        });
       } catch (error) {
         console.error('Failed to save draft to relay:', error);
         if (!mountedRef.current) return;
-        if (!silent) {
-          toast({
-            title: intl.formatMessage({ id: 'articleEditor.draftSavedLocally', defaultMessage: 'Draft saved locally' }),
-            description: intl.formatMessage({ id: 'articleEditor.draftSyncFailed', defaultMessage: 'Could not sync to relays. Saved to your browser.' }),
-            variant: 'destructive',
-          });
-        }
+        toast({
+          title: intl.formatMessage({ id: 'articleEditor.draftSavedLocally', defaultMessage: 'Draft saved locally' }),
+          description: intl.formatMessage({ id: 'articleEditor.draftSyncFailed', defaultMessage: 'Could not sync to relays. Saved to your browser.' }),
+          variant: 'destructive',
+        });
       }
-    } else if (!silent) {
+    } else {
       toast({
         title: intl.formatMessage(messages.draftSaved),
         description: intl.formatMessage({ id: 'articleEditor.draftSavedLocal', defaultMessage: 'Your article has been saved locally.' }),
       });
     }
-  }, [user, saveRelayDraft, intl]);
+  }, [user, saveRelayDraft, intl, autoSaveDraft, draftId, draftPublishedAt]);
 
   // Auto-save 30s after the first unsaved change. The timer starts once and
   // is only reset when `hasUnsavedChanges` transitions, not on every keystroke.
@@ -160,7 +180,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     autoSaveTimeoutRef.current = setTimeout(() => {
       const current = articleRef.current;
       if (current.content.length === 0) return;
-      persistDraft(current, { silent: true });
+      autoSaveDraft(current);
     }, 30000);
 
     return () => {
@@ -168,14 +188,15 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [hasUnsavedChanges, persistDraft]);
+  }, [hasUnsavedChanges, autoSaveDraft]);
 
   /** Silently save the current draft on blur — uses the ref so it's always current. */
   const handleBlurSave = useCallback(() => {
+    if (!hasUnsavedChangesRef.current) return;
     const current = articleRef.current;
     if (!current.title && !current.content) return;
-    persistDraft(current, { silent: true });
-  }, [persistDraft]);
+    autoSaveDraft(current);
+  }, [autoSaveDraft]);
 
   // Reference to handlers for keyboard shortcuts
   const handlePublishRef = useRef<(() => void) | null>(null);
@@ -213,8 +234,10 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
   const updateArticle = useCallback(
     (field: keyof ArticleData, value: string | string[]) => {
+      if (articleRef.current[field] === value) return;
       setArticle((prev) => ({ ...prev, [field]: value }));
       setHasUnsavedChanges(true);
+      setHasUnsavedDraftChanges(true);
     },
     [],
   );
@@ -222,17 +245,14 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
   const handleAddTag = useCallback(() => {
     const newTag = tagInput.trim().toLowerCase().replace(/^#/, '');
     if (newTag && !article.tags.includes(newTag)) {
-      setArticle((prev) => ({ ...prev, tags: [...prev.tags, newTag] }));
+      updateArticle('tags', [...article.tags, newTag]);
       setTagInput('');
     }
-  }, [tagInput, article.tags]);
+  }, [tagInput, article.tags, updateArticle]);
 
   const handleRemoveTag = useCallback((tagToRemove: string) => {
-    setArticle((prev) => ({
-      ...prev,
-      tags: prev.tags.filter((tag) => tag !== tagToRemove),
-    }));
-  }, []);
+    updateArticle('tags', articleRef.current.tags.filter((tag) => tag !== tagToRemove));
+  }, [updateArticle]);
 
   const handleImageUpload = useCallback(
     async (file: File) => {
@@ -331,12 +351,13 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
         onSuccess: async () => {
           setIsPublished(true);
           setHasUnsavedChanges(false);
+          setHasUnsavedDraftChanges(false);
 
-          // Remove draft after publishing
-          if (article.slug) {
-            deleteDraftBySlug(article.slug);
+          // The draft this session was writing to is now published.
+          deleteLocalDraftById(draftId);
+          if (hasRelayDraft.current) {
             try {
-              await deleteRelayDraft(article.slug);
+              await deleteRelayDraft(draftId);
             } catch (error) {
               console.error('Failed to delete draft from relay:', error);
             }
@@ -369,6 +390,7 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     article,
     publishEvent,
     deleteRelayDraft,
+    draftId,
     isEditMode,
     originalPublishedAt,
     navigate,
@@ -452,17 +474,20 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
 
   // Handle back navigation with unsaved changes check
   const handleBack = useCallback(() => {
-    if (hasUnsavedChanges && (article.title || article.content)) {
+    if (hasUnsavedDraftChanges && (article.title || article.content)) {
       setShowLeaveDialog(true);
     } else {
       navigate('/articles');
     }
-  }, [hasUnsavedChanges, article.title, article.content, navigate]);
+  }, [hasUnsavedDraftChanges, article.title, article.content, navigate]);
 
   const handleLeaveWithoutSaving = useCallback(() => {
+    // Drop this session's auto-save. A resumed draft keeps its local copy,
+    // which auto-save may already have updated.
+    if (!resumedDraft) deleteLocalDraftById(draftId);
     setShowLeaveDialog(false);
     navigate('/articles');
-  }, [navigate]);
+  }, [navigate, resumedDraft, draftId]);
 
   const handleSaveAndLeave = useCallback(async () => {
     await handleSaveDraft();
@@ -495,7 +520,9 @@ export function ArticleEditor({ initialData, editMode = false }: ArticleEditorPr
     </span>
   ) : lastSaved ? (
     <span className="flex items-center gap-1 text-sm text-muted-foreground">
-      <Cloud className={`size-3.5 ${isSyncingToRelay ? 'animate-pulse' : ''}`} />
+      {syncedToRelay || isSyncingToRelay
+        ? <Cloud className={`size-3.5 ${isSyncingToRelay ? 'animate-pulse' : ''}`} />
+        : <HardDrive className="size-3.5" />}
       <FormattedMessage id="articleEditor.statusSaved" defaultMessage="Saved" />
     </span>
   ) : null;

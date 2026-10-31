@@ -7,25 +7,38 @@ import { useNostrPublish } from './useNostrPublish';
 import { articleImetaTags, type ArticleFields } from '@/lib/articleHelpers';
 
 /** Kind 31234 — NIP-37 Draft Wrap. */
-const DRAFT_WRAP_KIND = 31234;
+export const DRAFT_WRAP_KIND = 31234;
 /** The inner draft kind we're wrapping. */
 const ARTICLE_KIND = 30023;
 
 export interface Draft extends ArticleFields {
+  /**
+   * Stable identity of the draft: the wrap's `d` tag. Independent of the
+   * article's slug, so renaming the slug updates the same draft instead of
+   * leaving the old one behind.
+   */
   id: string;
   updatedAt: number;
   eventId?: string;
+  /** Set when the draft holds unpublished edits to an already-published article (ms). */
+  publishedAt?: number;
 }
 
-type DraftData = ArticleFields;
+interface SaveDraftInput {
+  draftId: string;
+  draft: ArticleFields;
+  /** `published_at` of the article being edited (ms), if any. */
+  publishedAt?: number;
+}
 
 /** Build an unsigned kind-30023 event object from draft data. */
-function buildInnerDraftEvent(draft: DraftData): Record<string, unknown> {
+function buildInnerDraftEvent(draft: ArticleFields, publishedAt?: number): Record<string, unknown> {
   const tags: string[][] = [
     ['d', draft.slug],
     ['title', draft.title],
   ];
 
+  if (publishedAt) tags.push(['published_at', String(Math.floor(publishedAt / 1000))]);
   if (draft.summary) tags.push(['summary', draft.summary]);
   if (draft.image) tags.push(['image', draft.image]);
   draft.tags.forEach(tag => tags.push(['t', tag]));
@@ -39,13 +52,14 @@ function buildInnerDraftEvent(draft: DraftData): Record<string, unknown> {
 }
 
 /** Parse a decrypted inner draft event back into a Draft. */
-function parseDraftPayload(inner: Record<string, unknown>, wrapEvent: NostrEvent): Draft | null {
+export function parseDraftPayload(inner: Record<string, unknown>, wrapEvent: NostrEvent): Draft {
   const tags = (inner.tags ?? []) as string[][];
   const getTag = (name: string) => tags.find(t => t[0] === name)?.[1] || '';
   const getTags = (name: string) => tags.filter(t => t[0] === name).map(t => t[1]);
+  const publishedAt = parseInt(getTag('published_at'));
 
   return {
-    id: wrapEvent.id,
+    id: wrapEvent.tags.find(([name]) => name === 'd')?.[1] ?? '',
     eventId: wrapEvent.id,
     title: getTag('title'),
     summary: getTag('summary'),
@@ -55,6 +69,7 @@ function parseDraftPayload(inner: Record<string, unknown>, wrapEvent: NostrEvent
     slug: getTag('d'),
     imeta: tags.filter(t => t[0] === 'imeta'),
     updatedAt: wrapEvent.created_at * 1000,
+    publishedAt: Number.isFinite(publishedAt) ? publishedAt * 1000 : undefined,
   };
 }
 
@@ -85,7 +100,7 @@ export function useDrafts() {
           const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
           const inner = JSON.parse(decrypted) as Record<string, unknown>;
           const draft = parseDraftPayload(inner, event);
-          if (draft && draft.content.trim()) drafts.push(draft);
+          if (draft.content.trim()) drafts.push(draft);
         } catch {
           // Skip events that fail to decrypt or parse
           continue;
@@ -100,10 +115,10 @@ export function useDrafts() {
 
   // Save draft: encrypt inner event and publish as kind 31234
   const saveMutation = useMutation({
-    mutationFn: async (draft: DraftData) => {
+    mutationFn: async ({ draftId, draft, publishedAt }: SaveDraftInput) => {
       if (!user?.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
 
-      const inner = buildInnerDraftEvent(draft);
+      const inner = buildInnerDraftEvent(draft, publishedAt);
       const plaintext = JSON.stringify(inner);
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, plaintext);
 
@@ -111,7 +126,7 @@ export function useDrafts() {
         kind: DRAFT_WRAP_KIND,
         content: encrypted,
         tags: [
-          ['d', draft.slug],
+          ['d', draftId],
           ['k', String(ARTICLE_KIND)],
         ],
       });
@@ -121,32 +136,25 @@ export function useDrafts() {
     },
   });
 
-  // Delete draft (publish kind 5 deletion event)
+  // Delete draft: NIP-37 blanks the wrap's content, replacing it in place.
   const deleteMutation = useMutation({
-    mutationFn: async (slug: string) => {
+    mutationFn: async (draftId: string) => {
       if (!user) throw new Error('User is not logged in');
 
-      // Look up the draft's event ID so the deletion can target the specific
-      // wrap event via an `e` tag, in addition to the addressable `a` tag.
-      const cachedDrafts = queryClient.getQueryData<Draft[]>(['drafts', user.pubkey]);
-      const eventId = cachedDrafts?.find(d => d.slug === slug)?.eventId;
-
-      const tags: string[][] = [
-        ['a', `${DRAFT_WRAP_KIND}:${user.pubkey}:${slug}`],
-      ];
-      if (eventId) tags.push(['e', eventId]);
-
-      const event = await publishEvent({
-        kind: 5,
+      await publishEvent({
+        kind: DRAFT_WRAP_KIND,
         content: '',
-        tags,
+        tags: [
+          ['d', draftId],
+          ['k', String(ARTICLE_KIND)],
+        ],
       });
-      return { event, slug };
+      return draftId;
     },
-    onSuccess: (data) => {
+    onSuccess: (draftId) => {
       queryClient.setQueryData(['drafts', user?.pubkey], (oldData: Draft[] | undefined) => {
         if (!oldData) return [];
-        return oldData.filter(d => d.slug !== data?.slug);
+        return oldData.filter(d => d.id !== draftId);
       });
     },
   });
