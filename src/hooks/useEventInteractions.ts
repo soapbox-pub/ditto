@@ -1,6 +1,8 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useZapReceiptCheck } from '@/hooks/useZapReceiptCheck';
 import { isCustomEmoji, getCustomEmojiUrl } from '@/lib/customEmoji';
 import { isNostrId } from '@/lib/nostrId';
 import { zapReceiptAmountMsat } from '@/lib/zapReceipt';
@@ -27,6 +29,8 @@ export interface ZapEntry {
   amountSats: number;
   message: string;
   createdAt: number;
+  /** The kind 9735 receipt, for checking who signed it. */
+  receipt: NostrEvent;
 }
 
 export interface QuoteEntry {
@@ -94,11 +98,19 @@ export function extractZapMessage(event: NostrEvent): string {
   return '';
 }
 
-/** Fetches interaction events (reposts, quotes, reactions, zaps) for a given event ID. */
-export function useEventInteractions(eventId: string | undefined) {
+/**
+ * Fetches interaction events (reposts, quotes, reactions, zaps) for an event.
+ * Zaps are limited to receipts paid to `author` and signed by one of their
+ * lightning providers (see `useZapReceiptCheck`), since anyone can publish a
+ * kind 9735 tagging the event. That check fetches the author's LNURL from the
+ * viewer's device, so only pass `author` when the viewer has asked to see the
+ * zaps; without it no zaps are returned.
+ */
+export function useEventInteractions(eventId: string | undefined, author: string | undefined) {
   const { nostr } = useNostr();
+  const { checkZap } = useZapReceiptCheck(author);
 
-  return useQuery<EventInteractions>({
+  const query = useQuery<EventInteractions>({
     queryKey: ['event-interactions', eventId ?? ''],
     queryFn: async ({ signal }) => {
       if (!eventId) return { reposts: [], quotes: [], reactions: [], zaps: [] };
@@ -159,6 +171,7 @@ export function useEventInteractions(eventId: string | undefined) {
                 amountSats: Math.floor(msats / 1000),
                 message: extractZapMessage(e),
                 createdAt: e.created_at,
+                receipt: e,
               });
             }
             break;
@@ -186,4 +199,17 @@ export function useEventInteractions(eventId: string | undefined) {
     enabled: !!eventId,
     staleTime: 60 * 1000,
   });
+
+  const { data: raw } = query;
+  const data = useMemo(() => raw && {
+    ...raw,
+    zaps: raw.zaps.filter(({ receipt }) => isZapToAuthor(receipt, author) && checkZap(receipt) !== 'forged'),
+  }, [raw, author, checkZap]);
+
+  return { ...query, data };
+}
+
+/** Whether a zap receipt pays `author` — its `p` tag names the recipient. */
+function isZapToAuthor(receipt: NostrEvent, author: string | undefined): boolean {
+  return !!author && receipt.tags.find(([n]) => n === 'p')?.[1] === author;
 }

@@ -65,7 +65,7 @@ interface InteractionsModalProps {
 export function InteractionsModal({ target, open, onOpenChange, initialTab = 'reposts' }: InteractionsModalProps) {
   const intl = useIntl();
   const [activeTab, setActiveTab] = useState<InteractionTab>(initialTab);
-  const { data, isLoading } = useEventInteractions(open ? target.id : undefined);
+  const { data, isLoading } = useEventInteractions(open ? target.id : undefined, open ? target.pubkey : undefined);
   const { zaps: onchainZaps, isLoading: isLoadingOnchain } = useOnchainZaps(
     open ? target : undefined,
   );

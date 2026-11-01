@@ -1468,7 +1468,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311 && event.kind !== TORRENT_COMMENT_KIND;
 
   const { data: stats } = useEventStats(event.id, event);
-  const { data: interactions } = useEventInteractions(event.id);
+  // Only reactions and quotes are read here. Passing no author skips zap
+  // verification, which would fetch the author's LNURL on every view.
+  const { data: interactions } = useEventInteractions(event.id, undefined);
   const { format: formatMoney } = useFormatMoney();
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
