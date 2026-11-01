@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
-import { Globe, Info, Mail, Shield, Zap, Server, Hash } from 'lucide-react';
+import { Globe, Info, Mail, Shield, Zap, Server, Hash, Wifi } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -29,7 +30,7 @@ import {
   isRelayAuthPending,
   subscribeRelayAuth,
 } from '@/lib/relayPolicy';
-import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { NostrEvent } from '@nostrify/nostrify';
 import NotFound from './NotFound';
 
@@ -102,8 +103,15 @@ export function RelayPage() {
     }
   }, [relayUrl]);
 
-  const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(relayUrl);
-  const { data: feed, isLoading: eventsLoading } = useRelayFeed(relayUrl, kinds, user?.pubkey);
+  // Anyone can link here, so a relay on the viewer's own network would turn
+  // one click into a probe of their LAN (and a Local Network Access prompt).
+  // Only connect to one once the viewer asks to.
+  const [allowedLocalUrl, setAllowedLocalUrl] = useState<string>();
+  const isLocal = useMemo(() => isLocalNetworkUrl(relayUrl), [relayUrl]);
+  const connectUrl = !isLocal || allowedLocalUrl === relayUrl ? relayUrl : undefined;
+
+  const { data: info, isLoading: infoLoading, isError: infoError } = useRelayInfo(connectUrl);
+  const { data: feed, isLoading: eventsLoading } = useRelayFeed(connectUrl, kinds, user?.pubkey);
   const events = feed?.events;
   const safeIcon = useMemo(() => sanitizeUrl(info?.icon), [info?.icon]);
 
@@ -171,7 +179,26 @@ export function RelayPage() {
 
       {/* Feed section */}
       <div>
-        {authPending && relayUrl ? (
+        {relayUrl && !connectUrl ? (
+          <div className="flex flex-col items-center gap-4 px-8 py-16 text-center">
+            <Wifi className="size-8 text-muted-foreground" aria-hidden />
+            <div className="space-y-1">
+              <p className="font-medium">
+                <FormattedMessage id="relayPage.localNetwork.title" defaultMessage="This relay is on your local network" />
+              </p>
+              <p className="mx-auto max-w-sm break-words text-sm text-muted-foreground">
+                <FormattedMessage
+                  id="relayPage.localNetwork.description"
+                  defaultMessage="Connecting reaches a device on your own network, like your router or a computer at home. Only connect if you know what {relay} is."
+                  values={{ relay: hostname }}
+                />
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => setAllowedLocalUrl(relayUrl)}>
+              <FormattedMessage id="relayPage.localNetwork.connect" defaultMessage="Connect anyway" />
+            </Button>
+          </div>
+        ) : authPending && relayUrl ? (
           <div className="px-4 py-12">
             <RelayAuthCard
               url={relayUrl}
@@ -231,6 +258,10 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
   infoError: boolean;
   open: boolean;
 }) {
+  // NIP-11 documents come from the relay, so their URLs are untrusted.
+  const banner = sanitizeUrl(info?.banner);
+  const icon = sanitizeUrl(info?.icon);
+
   return (
     <div
       style={{
@@ -257,16 +288,16 @@ function RelayInfoPanel({ info, infoLoading, infoError, open }: {
         ) : info ? (
           <div className="p-4 space-y-4">
             {/* Banner */}
-            {info.banner && (
+            {banner && (
               <div className="w-full h-40 overflow-hidden rounded-lg">
-                <img src={info.banner} alt="" className="w-full h-full object-cover" decoding="async" />
+                <img src={banner} alt="" className="w-full h-full object-cover" decoding="async" />
               </div>
             )}
 
             {/* Icon + name (when different from hostname) */}
-            {info.icon && (
+            {icon && (
               <div className="flex items-center gap-2.5">
-                <img src={info.icon} alt="" className="size-8 rounded-full object-cover ring-1 ring-border" decoding="async" />
+                <img src={icon} alt="" className="size-8 rounded-full object-cover ring-1 ring-border" decoding="async" />
                 {info.name && (
                   <span className="text-sm font-medium">{info.name}</span>
                 )}
