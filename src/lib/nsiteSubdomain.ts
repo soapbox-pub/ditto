@@ -1,6 +1,8 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
+import { decodeNip19 } from '@/lib/safeNip19';
+
 /** NIP-5A root site — one replaceable manifest per pubkey, no `d` tag. */
 export const NSITE_ROOT_KIND = 15128;
 
@@ -35,10 +37,16 @@ export function hexToBase36(hex: string): string {
   return b36.padStart(BASE36_LENGTH, '0');
 }
 
-/** Decode a base36-encoded 32-byte value back to a 64-char hex string. */
+/**
+ * Decode a base36-encoded 32-byte value back to a 64-char hex string.
+ * 50 base36 digits hold up to ~258 bits, so throws when the value doesn't
+ * fit in 32 bytes — the nip19 encoders downstream would throw anyway.
+ */
 function base36ToHex(b36: string): string {
   const n = [...b36].reduce((acc, ch) => acc * 36n + BigInt(parseInt(ch, 36)), 0n);
-  return n.toString(16).padStart(64, '0');
+  const hex = n.toString(16).padStart(64, '0');
+  if (hex.length !== 64) throw new Error('base36 value exceeds 32 bytes');
+  return hex;
 }
 
 /** NIP-5A rule for a named site's `d` tag to have a canonical subdomain. */
@@ -75,7 +83,7 @@ export function parseNsiteSubdomain(subdomain: string): ParsedNsiteSubdomain | n
   // Root site: subdomain is an npub
   if (subdomain.startsWith('npub1')) {
     try {
-      const decoded = nip19.decode(subdomain);
+      const decoded = decodeNip19(subdomain);
       if (decoded.type !== 'npub') return null;
       return { kind: NSITE_ROOT_KIND, pubkey: decoded.data as string, identifier: '' };
     } catch {
