@@ -108,6 +108,8 @@ function generateWebxdcBridge(api: WebxdcAPI<unknown>): string {
   }
 
   window.addEventListener("message", function(event) {
+    // Only the parent speaks the bridge protocol; ignore nested frames.
+    if (event.source !== window.parent) return;
     var data = event.data;
     if (!data || typeof data !== "object" || data.jsonrpc !== "2.0") return;
 

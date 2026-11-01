@@ -43,6 +43,9 @@ export function getNsiteNostrProviderScript(pubkey: string): string {
   var _pending = {};
 
   window.addEventListener('message', function(event) {
+    // Only the parent answers RPCs; a frame nested in the nsite could
+    // otherwise forge signEvent/decrypt results for the nsite's own code.
+    if (event.source !== window.parent) return;
     var msg = event.data;
     if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
     if (msg.id === undefined || msg.id === null) return;
