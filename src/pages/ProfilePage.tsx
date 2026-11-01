@@ -951,7 +951,7 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
 
 // ----- Profile Image Lightbox -----
 
-function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; imeta?: ImetaEntry; onClose: () => void }) {
+export function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; imeta?: ImetaEntry; onClose: () => void }) {
   const intl = useIntl();
   const [isLoaded, setIsLoaded] = useState(false);
   // Same source as the avatar/banner it was opened from: declared fallbacks,
@@ -1062,7 +1062,12 @@ function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: string; 
     e.preventDefault();
     // The URL of an encrypted image is ciphertext — save the plaintext instead.
     if (encryption) void downloadDecryptedUrl(imageUrl, encryption).catch(() => {});
-    else openUrl(imageUrl);
+    else {
+      // Profile metadata is untrusted: without this a `magnet:` or `lightning:`
+      // "picture" would hand off to another app.
+      const safe = sanitizeUrl(imageUrl);
+      if (safe) openUrl(safe);
+    }
   };
 
   return createPortal(
