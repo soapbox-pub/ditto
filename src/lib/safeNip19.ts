@@ -33,6 +33,20 @@ import { isNostrId } from '@/lib/nostrId';
  * kind routing), prefer `encodeEventAddress` from `@/lib/encodeEvent`.
  */
 
+/**
+ * `nip19.decode`, but also throws when an `npub` or `note` doesn't hold
+ * exactly 32 bytes. nostr-tools only length-checks the TLV kinds, so a
+ * well-formed bech32 `npub1…` of 20 bytes decodes to 40-char hex that then
+ * flows into `authors`/`ids` filters and query keys.
+ */
+export function decodeNip19(value: string): nip19.DecodedResult {
+  const decoded = nip19.decode(value);
+  if ((decoded.type === 'npub' || decoded.type === 'note') && !isNostrId(decoded.data)) {
+    throw new Error(`Invalid ${decoded.type}: expected 32 bytes`);
+  }
+  return decoded;
+}
+
 /** `nip19.npubEncode`, but returns `undefined` for non-hex input. */
 export function tryNpubEncode(pubkey: string | null | undefined): NPub | undefined {
   if (!isNostrId(pubkey)) return undefined;

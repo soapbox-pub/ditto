@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 
+import { nip19 } from 'nostr-tools';
+
 import {
+  decodeNip19,
   tryNaddrEncode,
   tryNeventEncode,
   tryNoteEncode,
@@ -77,6 +80,22 @@ describe('safeNip19 wrappers', () => {
 
     it('returns undefined for malformed pubkey', () => {
       expect(tryNprofileEncode({ pubkey: SHORT_HEX })).toBeUndefined();
+    });
+  });
+
+  describe('decodeNip19', () => {
+    // Valid bech32 carrying 20 bytes instead of 32.
+    const SHORT_NPUB = 'npub1qurswpc8qurswpc8qurswpc8qurswpc86nz8sw';
+    const SHORT_NOTE = 'note1qurswpc8qurswpc8qurswpc8qurswpc8856rpd';
+
+    it('decodes a well-formed npub and note', () => {
+      expect(decodeNip19(nip19.npubEncode(VALID_HEX))).toEqual({ type: 'npub', data: VALID_HEX });
+      expect(decodeNip19(nip19.noteEncode(VALID_HEX))).toEqual({ type: 'note', data: VALID_HEX });
+    });
+
+    it('rejects an npub or note that does not hold 32 bytes', () => {
+      expect(() => decodeNip19(SHORT_NPUB)).toThrow();
+      expect(() => decodeNip19(SHORT_NOTE)).toThrow();
     });
   });
 });

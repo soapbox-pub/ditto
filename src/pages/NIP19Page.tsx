@@ -1,4 +1,3 @@
-import { nip19 } from 'nostr-tools';
 import { useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +5,7 @@ import NotFound from './NotFound';
 import { ProfilePage } from './ProfilePage';
 import { PostDetailPage, AddrPostDetailPage, PostDetailShell, PostDetailSkeleton } from './PostDetailPage';
 import type { AddressPointer } from 'nostr-tools/nip19';
+import { decodeNip19 } from '@/lib/safeNip19';
 
 const HEX_64_RE = /^[0-9a-f]{64}$/;
 
@@ -90,7 +90,7 @@ export function NIP19Page() {
   // Try NIP-19 decoding
   let decoded;
   try {
-    decoded = nip19.decode(identifier);
+    decoded = decodeNip19(identifier);
   } catch {
     return <NotFound />;
   }

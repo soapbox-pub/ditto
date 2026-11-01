@@ -120,7 +120,7 @@ import { TabButton } from '@/components/TabButton';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import type { AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
-import { tryNpubEncode } from '@/lib/safeNip19';
+import { decodeNip19, tryNpubEncode } from '@/lib/safeNip19';
 import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
 import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -740,7 +740,7 @@ function parseNostrUri(value: string): { type: 'note'; eventId: string } | { typ
   if (!NOSTR_URI_REGEX.test(trimmed)) return null;
   try {
     const bech32 = trimmed.slice('nostr:'.length);
-    const decoded = nip19.decode(bech32);
+    const decoded = decodeNip19(bech32);
     switch (decoded.type) {
       case 'note':
         return { type: 'note', eventId: decoded.data as string };
@@ -1480,7 +1480,7 @@ function ProfilePageInner() {
       }
       // Otherwise try to decode as NIP-19
       try {
-        const decoded = nip19.decode(npub);
+        const decoded = decodeNip19(npub);
         if (decoded.type === 'npub') return decoded.data;
         if (decoded.type === 'nprofile') return decoded.data.pubkey;
       } catch {

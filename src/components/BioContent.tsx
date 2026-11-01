@@ -1,10 +1,10 @@
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
 import { buildEmojiMap } from '@/lib/customEmoji';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { NostrMention } from '@/components/NostrMention';
+import { decodeNip19 } from '@/lib/safeNip19';
 
 /** Regex matching `:shortcode:` patterns in text. */
 const SHORTCODE_REGEX = /:([a-zA-Z0-9_-]+):/g;
@@ -58,7 +58,7 @@ function tokenizeBio(text: string): BioToken[] {
       result.push({ type: 'url', url: cleanUrl });
     } else if (nostrId) {
       try {
-        const decoded = nip19.decode(nostrId.toLowerCase());
+        const decoded = decodeNip19(nostrId.toLowerCase());
         if (decoded.type === 'npub') {
           result.push({ type: 'mention', pubkey: decoded.data });
         } else if (decoded.type === 'nprofile') {

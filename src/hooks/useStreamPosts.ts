@@ -11,12 +11,12 @@ import { DITTO_RELAYS } from '@/lib/appRelays';
 import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
 import { routeReadRelays } from '@/lib/reqRoutes';
 import { withoutBlockedRelays } from '@/lib/relayPolicy';
-import { nip19 } from 'nostr-tools';
 import { isNostrId } from '@/lib/nostrId';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
 import { useBackgroundQuiet } from './useBackgroundQuiet';
+import { decodeNip19 } from '@/lib/safeNip19';
 
 interface StreamPostsOptions {
   includeReplies: boolean;
@@ -302,7 +302,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         resolved.push(t);
       } else {
         try {
-          const decoded = nip19.decode(t);
+          const decoded = decodeNip19(t);
           if (decoded.type === 'npub') resolved.push(decoded.data);
         } catch { /* ignore */ }
       }

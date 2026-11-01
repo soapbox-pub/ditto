@@ -42,6 +42,7 @@ import { stripTrackingParams } from '@/lib/trackingParams';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
+import { decodeNip19 } from '@/lib/safeNip19';
 
 interface NoteContentProps {
   event: NostrEvent;
@@ -574,7 +575,7 @@ export function NoteContent({
         const data = nostrData || bareData;
         try {
           const nostrId = `${prefix}${data}`;
-          const decoded = nip19.decode(nostrId);
+          const decoded = decodeNip19(nostrId);
 
           if (decoded.type === 'npub') {
             result.push({ type: 'mention', pubkey: decoded.data });

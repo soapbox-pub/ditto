@@ -9,6 +9,7 @@ import type {
 } from 'nostr-tools/nip19';
 
 import { isNostrId } from '@/lib/nostrId';
+import { decodeNip19 } from '@/lib/safeNip19';
 
 /**
  * Known NIP-19 bech32 prefixes that the app can route to.
@@ -72,7 +73,7 @@ export function tryDecodeNip19(
 
   if (NIP19_PREFIXES.some((p) => value.startsWith(p))) {
     try {
-      const decoded = nip19.decode(value as NPub | NProfile | Note | NEvent | NAddr);
+      const decoded = decodeNip19(value);
       return { decoded, raw: value as NPub | NProfile | Note | NEvent | NAddr };
     } catch {
       // Not a valid NIP-19

@@ -42,6 +42,7 @@ import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import { Top8Grid } from '@/components/Top8Grid';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { TOP8_KIND } from '@/hooks/useTop8';
+import { decodeNip19 } from '@/lib/safeNip19';
 
 /** Media-native kinds shown in the sidebar (excludes kind 1 text notes and kind 1111 comments). */
 const SIDEBAR_MEDIA_KINDS = [20, 21, 22, 34235, 34236, 36787, 34139, 30054, 30055];
@@ -64,7 +65,7 @@ function parseNostrUri(value: string): { type: 'note'; eventId: string } | { typ
   if (!NOSTR_URI_REGEX.test(trimmed)) return null;
   try {
     const bech32 = trimmed.slice('nostr:'.length);
-    const decoded = nip19.decode(bech32);
+    const decoded = decodeNip19(bech32);
     switch (decoded.type) {
       case 'note':
         return { type: 'note', eventId: decoded.data as string };
