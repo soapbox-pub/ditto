@@ -94,6 +94,7 @@ import { ProfileRecoveryDialog } from '@/components/ProfileRecoveryDialog';
 import { GiveBadgeDialog } from '@/components/GiveBadgeDialog';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { useProfileBadges } from '@/hooks/useProfileBadges';
+import { useVerifiedBadgeRefs } from '@/hooks/useVerifiedBadgeRefs';
 import { useBadgeDefinitions } from '@/hooks/useBadgeDefinitions';
 import { ProfileTabEditModal } from '@/components/ProfileTabEditModal';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
@@ -2130,7 +2131,8 @@ function ProfilePageInner() {
   }, [mediaData?.pages]);
 
   // Profile badges for bio section
-  const { refs: badgeRefs } = useProfileBadges(pubkey);
+  const { refs: listedBadgeRefs } = useProfileBadges(pubkey);
+  const { refs: badgeRefs } = useVerifiedBadgeRefs(pubkey, listedBadgeRefs);
   const firstBadgeRefs = useMemo(() => badgeRefs.slice(0, 5), [badgeRefs]);
   const { badgeMap, isLoading: badgeDefsLoading } = useBadgeDefinitions(firstBadgeRefs);
 
@@ -3634,7 +3636,7 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
   });
 
   // Parse badge references from the profile badges event
-  const badgeRefs = useMemo(() => {
+  const listedBadgeRefs = useMemo(() => {
     if (!profileBadgesQuery.data) return [];
     const tags = profileBadgesQuery.data.tags;
     const refs: Array<{ aTag: string; eTag?: string; pubkey: string; identifier: string }> = [];
@@ -3661,6 +3663,7 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
       return true;
     });
   }, [profileBadgesQuery.data]);
+  const { refs: badgeRefs, isLoading: awardsLoading } = useVerifiedBadgeRefs(pubkey, listedBadgeRefs);
 
   // Fetch all referenced badge definitions
   const badgeDefsQuery = useQuery({
@@ -3697,7 +3700,7 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
     return map;
   }, [badgeDefsQuery.data]);
 
-  if (profileBadgesQuery.isLoading) {
+  if (profileBadgesQuery.isLoading || awardsLoading) {
     return (
       <div className="p-6">
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
