@@ -84,8 +84,8 @@ function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string;
   const heroImage = failed ? undefined : src;
 
   const imageMask: React.CSSProperties | undefined = heroImage ? {
-    maskImage: `url(${heroImage})`,
-    WebkitMaskImage: `url(${heroImage})`,
+    maskImage: `url("${heroImage}")`,
+    WebkitMaskImage: `url("${heroImage}")`,
     maskSize: 'cover',
     WebkitMaskSize: 'cover',
     maskRepeat: 'no-repeat',

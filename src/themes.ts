@@ -2,6 +2,7 @@ import { defineMessage, type MessageDescriptor } from 'react-intl';
 
 import type { Theme } from '@/contexts/AppContext';
 import { deriveTokensFromCore } from '@/lib/colorUtils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
  * The 3 core colors that define a theme.
@@ -550,8 +551,11 @@ export function buildThemeCss(tokens: ThemeTokens): string {
 }
 
 /**
- * Builds the CSS for a theme background image. `url` must already be
- * sanitized (theme parsing runs it through `sanitizeUrl`).
+ * Builds the CSS for a theme background image, or an empty string when `url`
+ * isn't a valid https URL. Sanitized here rather than trusted: theme events
+ * are sanitized at parse time, but custom themes from settings, `ditto.json`
+ * or AI chat only pass `z.url()`, which keeps a raw `"` that would close the
+ * `url("…")` string and inject rules into the stylesheet.
  *
  * Cover mode paints the image on a fixed `body::before` layer rather than
  * using `background-attachment: fixed`, which makes Android WebView and
@@ -560,7 +564,9 @@ export function buildThemeCss(tokens: ThemeTokens): string {
  * background of its own, so body's color propagates there) and below all
  * page content.
  */
-export function buildBackgroundCss(url: string, mode: ThemeBackground['mode'] = 'cover'): string {
+export function buildBackgroundCss(rawUrl: string, mode: ThemeBackground['mode'] = 'cover'): string {
+  const url = sanitizeUrl(rawUrl);
+  if (!url) return '';
   if (mode === 'tile') {
     return `body { background-image: url("${url}"); background-repeat: repeat; background-size: auto; }`;
   }

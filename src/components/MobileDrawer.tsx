@@ -22,6 +22,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { isItemActive } from '@/lib/sidebarItems';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -87,7 +88,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const bgStyle = useMemo<React.CSSProperties>(() => {
     const resolved = resolveTheme(theme);
     const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
-    const bgUrl = activeConfig?.background?.url;
+    const bgUrl = sanitizeUrl(activeConfig?.background?.url);
     if (!bgUrl) return {};
     const bgMode = activeConfig?.background?.mode ?? 'cover';
     if (bgMode === 'tile') {

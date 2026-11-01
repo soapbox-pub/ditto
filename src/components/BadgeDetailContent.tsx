@@ -548,8 +548,8 @@ function BadgeHero({ heroImage: primary, badgeName }: { heroImage: string; badge
   // Mask string that clips overlays to the badge image's visible pixels.
   // This ensures glare and edge effects don't paint over transparent areas.
   const imageMask: React.CSSProperties = {
-    maskImage: `url(${heroImage})`,
-    WebkitMaskImage: `url(${heroImage})`,
+    maskImage: `url("${heroImage}")`,
+    WebkitMaskImage: `url("${heroImage}")`,
     maskSize: 'cover',
     WebkitMaskSize: 'cover',
     maskRepeat: 'no-repeat',

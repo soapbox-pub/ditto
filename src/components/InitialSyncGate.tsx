@@ -14,6 +14,7 @@ import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { FormattedMessage, useIntl } from "react-intl";
 import { saveNsec } from "@/lib/credentialManager";
 import { openUrl } from "@/lib/downloadFile";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   lazy,
@@ -905,7 +906,7 @@ function ThemeStep({
   const { theme, customTheme, themes } = useTheme();
   const resolved = resolveTheme(theme);
   const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
-  const bgUrl = activeConfig?.background?.url;
+  const bgUrl = sanitizeUrl(activeConfig?.background?.url);
 
   return (
     <>
@@ -913,7 +914,7 @@ function ThemeStep({
       {bgUrl && (
         <div
           className="fixed inset-0 z-0 bg-cover bg-center opacity-50 transition-all duration-700"
-          style={{ backgroundImage: `url(${bgUrl})` }}
+          style={{ backgroundImage: `url("${bgUrl}")` }}
         />
       )}
 
