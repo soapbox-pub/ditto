@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { TestApp } from '@/test/TestApp';
 import { NoteContent } from './NoteContent';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 
 describe('NoteContent', () => {
   it('linkifies URLs in kind 1 events', async () => {
@@ -278,5 +279,27 @@ describe('NoteContent', () => {
     expect(mention.textContent).toEqual('@Anonymous');
     // The parenthesis consumed as a token boundary is handed back to the text.
     expect(container.textContent).toBe('hey (@Anonymous)');
+  });
+
+  it('ignores a malformed author hint in a q tag', async () => {
+    const quotedId = 'b'.repeat(64);
+    const event: NostrEvent = {
+      id: 'test-id',
+      pubkey: 'test-pubkey',
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags: [['q', quotedId, '', 'abc']],
+      content: `quoting nostr:${nip19.noteEncode(quotedId)}`,
+      sig: 'test-sig',
+    };
+
+    render(
+      <TestApp>
+        <NoteContent event={event} disableNoteEmbeds />
+      </TestApp>
+    );
+
+    const link = await screen.findByRole('link');
+    expect(link.getAttribute('href')).toBe(`/${nip19.neventEncode({ id: quotedId })}`);
   });
 });

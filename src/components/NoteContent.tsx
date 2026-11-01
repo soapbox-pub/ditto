@@ -36,6 +36,7 @@ import { getEffectiveBlossomServers } from '@/lib/appBlossom';
 import { parseImetaEntries, parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
+import { isNostrId } from '@/lib/nostrId';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { stripTrackingParams } from '@/lib/trackingParams';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
@@ -666,7 +667,9 @@ export function NoteContent({
     const qTagMap = new Map<string, { relay?: string; author?: string }>();
     for (const tag of event.tags) {
       if (tag[0] === 'q' && tag[1]) {
-        qTagMap.set(tag[1], { relay: tag[2] || undefined, author: tag[3] || undefined });
+        // The author hint ends up in nip19 encoders and `authors` filters,
+        // which choke on anything that isn't 64-char hex.
+        qTagMap.set(tag[1], { relay: tag[2] || undefined, author: isNostrId(tag[3]) ? tag[3] : undefined });
       }
     }
     if (qTagMap.size > 0) {
