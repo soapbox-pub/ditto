@@ -24,6 +24,7 @@ export function RedditEmbed({ url, className }: RedditEmbedProps) {
   const embedUrl = (() => {
     try {
       const u = new URL(url);
+      u.protocol = 'https:';
       u.hostname = 'embed.reddit.com';
       // Clean trailing query/hash
       u.search = '';

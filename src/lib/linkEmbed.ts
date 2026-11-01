@@ -1,9 +1,23 @@
 import { MASTODON_SERVERS } from '@/lib/mastodonServers';
 
+/**
+ * Parse a web (http/https) URL, or null for anything else. The extractors
+ * match on hostname alone, which `javascript://youtu.be/…` also satisfies.
+ */
+function parseWebUrl(url: string): URL | null {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
 export function extractYouTubeId(url: string): string | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com' || u.hostname === 'm.youtube.com') && u.pathname === '/watch') {
       return u.searchParams.get('v');
     }
@@ -25,7 +39,8 @@ export function extractYouTubeId(url: string): string | null {
 /** Extract a tweet/post ID from a Twitter or X URL, or null if not a tweet link. */
 export function extractTweetId(url: string): string | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     const host = u.hostname.replace(/^www\./, '').replace(/^mobile\./, '');
     if (host !== 'twitter.com' && host !== 'x.com') return null;
     const match = u.pathname.match(/^\/[^/]+\/status\/(\d+)/);
@@ -46,7 +61,8 @@ export interface BlueskyPostInfo {
 /** Extract Bluesky post info from a bsky.app URL, or null if not a Bluesky post link. */
 export function extractBlueskyPost(url: string): BlueskyPostInfo | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     const host = u.hostname.replace(/^www\./, '');
     if (host !== 'bsky.app') return null;
     // Match /profile/{handle-or-did}/post/{rkey}
@@ -60,7 +76,8 @@ export function extractBlueskyPost(url: string): BlueskyPostInfo | null {
 /** Extract a Mastodon post URL if the domain is a known Mastodon instance. */
 export function extractMastodonPost(url: string): string | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     const host = u.hostname.replace(/^www\./, '');
     if (!MASTODON_SERVERS.has(host)) return null;
     // Match /@{user}/{id} or /@{user}@{domain}/{id} (remote posts)
@@ -84,7 +101,8 @@ export interface SpotifyEmbedInfo {
 /** Extract Spotify embed info from an open.spotify.com URL. */
 export function extractSpotifyEmbed(url: string): SpotifyEmbedInfo | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     const host = u.hostname.replace(/^www\./, '');
     if (host !== 'open.spotify.com') return null;
     // Match /{type}/{id} where type is track, album, playlist, episode, or show
@@ -98,7 +116,8 @@ export function extractSpotifyEmbed(url: string): SpotifyEmbedInfo | null {
 /** Extract a Reddit post URL, or null if not a Reddit post link. */
 export function extractRedditPost(url: string): string | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     const host = u.hostname.replace(/^www\./, '').replace(/^old\./, '').replace(/^new\./, '');
     if (host !== 'reddit.com') return null;
     // Match /r/{subreddit}/comments/{id}/...
@@ -114,7 +133,8 @@ export function extractRedditPost(url: string): string | null {
 /** Extract an Internet Archive item identifier from an archive.org URL, or null if not a match. */
 export function extractArchiveOrgId(url: string): string | null {
   try {
-    const u = new URL(url);
+    const u = parseWebUrl(url);
+    if (!u) return null;
     const host = u.hostname.replace(/^www\./, '');
     if (host !== 'archive.org') return null;
     // Match /details/{identifier} or /embed/{identifier}
