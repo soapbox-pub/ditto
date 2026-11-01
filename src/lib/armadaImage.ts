@@ -1,6 +1,7 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
 import { aesGcmDecrypt } from '@/lib/aesGcm';
+import { bytesToBase64 } from '@/lib/sandbox/base64';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { ArmadaImagePointer } from '@/lib/armadaInvite';
 
@@ -27,7 +28,7 @@ function sniffImageMime(bytes: Uint8Array): string {
 }
 
 /**
- * Fetch + decrypt an encrypted community image pointer to an object URL.
+ * Fetch + decrypt an encrypted community image pointer to an image URL (an object URL, or a data: URL for SVG).
  * Verifies the plaintext SHA-256 against `pointer.hash`; the caller must
  * revoke the returned URL on unmount. Returns undefined on any failure
  * (bad URL, fetch error, decrypt error, integrity mismatch).
@@ -55,6 +56,10 @@ export async function decryptArmadaImage(
       return undefined; // integrity check failed — a swapped blob
     }
     const mime = sniffImageMime(plaintext);
+    // A same-origin blob: SVG runs its scripts as Ditto when opened directly
+    // (e.g. "Open image in new tab"). A data: URL renders the same in an
+    // <img> but can't be navigated to at the top level. Revoking it is a no-op.
+    if (mime === 'image/svg+xml') return `data:${mime};base64,${bytesToBase64(plaintext)}`;
     return URL.createObjectURL(new Blob([plaintext], { type: mime }));
   } catch {
     return undefined;
