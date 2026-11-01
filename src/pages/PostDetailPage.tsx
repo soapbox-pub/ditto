@@ -958,14 +958,14 @@ function EventNotFound({
         ) : (
           <div className="text-center space-y-3">
             <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
-              {deletionInfo ? (
+              {deletionInfo?.verified ? (
                 <Trash2 className="size-7 text-muted-foreground" />
               ) : (
                 <AlertCircle className="size-7 text-muted-foreground" />
               )}
             </div>
             <h2 className="text-xl font-bold">
-              {deletionInfo ? (
+              {deletionInfo?.verified ? (
                 <FormattedMessage id="postDetail.eventDeleted" defaultMessage="Event deleted" />
               ) : (
                 <FormattedMessage id="postDetail.eventNotFound" defaultMessage="Event not found" />
@@ -979,12 +979,15 @@ function EventNotFound({
                       { id: 'postDetail.deletedVerified', defaultMessage: 'This {kind} was deleted by its author on {date}.' },
                       { kind: deletedKindNoun(deletionInfo.deletedKind, intl), date: formatFullDate(deletionInfo.deletion.created_at, intl) },
                     )
+                    // Anyone can publish a kind 5 naming any event, so without
+                    // the author to check it against it's only a claim.
                     : intl.formatMessage(
-                      { id: 'postDetail.deletedUnverified', defaultMessage: 'A deletion request for this {kind} was published on {date}, so it was likely removed by its author.' },
+                      { id: 'postDetail.deletionUnconfirmed', defaultMessage: "This {kind} couldn't be loaded. A deletion request for it was published on {date}, but it couldn't be confirmed to come from its author." },
                       { kind: deletedKindNoun(deletionInfo.deletedKind, intl), date: formatFullDate(deletionInfo.deletion.created_at, intl) },
                     )}
                 </p>
-                {deletionInfo.reason && (
+                {/* The reason is the deleter's own words; only show it when that's the author. */}
+                {deletionInfo.verified && deletionInfo.reason && (
                   <p className="text-sm text-muted-foreground italic break-words">
                     “{deletionInfo.reason}”
                   </p>
