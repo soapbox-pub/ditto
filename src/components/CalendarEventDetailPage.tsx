@@ -166,7 +166,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
   const shareOrigin = useShareOrigin();
 
   const title = getTag(event.tags, 'title') ?? intl.formatMessage({ id: 'calendarEvent.untitled', defaultMessage: 'Untitled Event' });
-  const image = getTag(event.tags, 'image');
+  const image = sanitizeUrl(getTag(event.tags, 'image'));
   const locationRaw = getTag(event.tags, 'location');
   const location = locationRaw ? parseLocation(locationRaw) : undefined;
   const summary = getTag(event.tags, 'summary');

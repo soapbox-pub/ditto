@@ -24,6 +24,7 @@ import { useOpenPost } from '@/hooks/useOpenPost';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 const streamsDef = getExtraKindDef('streams')!;
 
@@ -123,7 +124,7 @@ function StreamCard({ event }: { event: NostrEvent }) {
   const intl = useIntl();
   const title = getTag(event.tags, 'title') || intl.formatMessage({ id: 'streams.untitled', defaultMessage: 'Untitled Stream' });
   const summary = getTag(event.tags, 'summary');
-  const imageUrl = getTag(event.tags, 'image');
+  const imageUrl = sanitizeUrl(getTag(event.tags, 'image'));
   const status = getTag(event.tags, 'status');
   const currentParticipants = getTag(event.tags, 'current_participants');
   const statusConfig = getStatusConfig(status);

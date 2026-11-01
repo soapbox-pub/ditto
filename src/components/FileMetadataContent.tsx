@@ -150,7 +150,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   const webxdcId = getTag(event.tags, 'webxdc');
   const dim = getTag(event.tags, 'dim');
   const blurhash = getTag(event.tags, 'blurhash');
-  const thumb = getTag(event.tags, 'thumb') ?? getTag(event.tags, 'image');
+  const thumb = sanitizeUrl(getTag(event.tags, 'thumb')) ?? sanitizeUrl(getTag(event.tags, 'image'));
   const summary = getTag(event.tags, 'summary');
   const size = getTag(event.tags, 'size');
 

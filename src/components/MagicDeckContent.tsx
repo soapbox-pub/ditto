@@ -7,6 +7,7 @@ import { Lightbox } from '@/components/ImageGallery';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { scryfallImageUrl } from '@/lib/scryfall';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 function getTag(tags: string[][], name: string): string | undefined {
@@ -172,7 +173,7 @@ function CardLightboxTopBar({ card, index, total }: { card: CardEntry; index: nu
 export function MagicDeckContent({ event }: { event: NostrEvent }) {
   const intl = useIntl();
   const title = getTag(event.tags, 'title');
-  const banner = getTag(event.tags, 'banner');
+  const banner = sanitizeUrl(getTag(event.tags, 'banner'));
   const commanders = getAllTagValues(event.tags, 'C');
   const companion = getTag(event.tags, 'S');
   const tTags = getAllTagValues(event.tags, 't');

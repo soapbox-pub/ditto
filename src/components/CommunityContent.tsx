@@ -28,7 +28,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 function parseCommunityEvent(event: NostrEvent) {
   const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || undefined;
   const description = getTag(event.tags, 'description') || '';
-  const image = getTag(event.tags, 'image');
+  const image = sanitizeUrl(getTag(event.tags, 'image'));
 
   // Extract moderators from p tags with "moderator" role
   const moderators = event.tags

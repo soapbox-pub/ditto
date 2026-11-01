@@ -251,8 +251,8 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
   const intl = useIntl();
   const name = getTag(event.tags, 'name') || getTag(event.tags, 'd') || intl.formatMessage({ id: 'softwareApp.unknownApp', defaultMessage: 'Unknown App' });
   const summary = getTag(event.tags, 'summary');
-  const icon = getTag(event.tags, 'icon');
-  const images = getAllTags(event.tags, 'image');
+  const icon = sanitizeUrl(getTag(event.tags, 'icon'));
+  const images = getAllTags(event.tags, 'image').map(sanitizeUrl).filter((url): url is string => !!url);
   const platforms = getAllTags(event.tags, 'f');
   const uniquePlatforms = useMemo(() => getUniquePlatforms(platforms), [platforms]);
   const hashtags = getAllTags(event.tags, 't');

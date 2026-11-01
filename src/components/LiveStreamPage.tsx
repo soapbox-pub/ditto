@@ -27,6 +27,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getEffectiveStreamStatus } from '@/lib/streamStatus';
 import { isNostrId } from '@/lib/nostrId';
 import { cn } from '@/lib/utils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -93,9 +94,9 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   const title = getTag(event.tags, 'title') || intl.formatMessage({ id: 'liveStream.untitled', defaultMessage: 'Untitled Stream' });
   const summary = getTag(event.tags, 'summary');
-  const streamUrl = getTag(event.tags, 'streaming');
-  const recordingUrl = getTag(event.tags, 'recording');
-  const imageUrl = getTag(event.tags, 'image');
+  const streamUrl = sanitizeUrl(getTag(event.tags, 'streaming'));
+  const recordingUrl = sanitizeUrl(getTag(event.tags, 'recording'));
+  const imageUrl = sanitizeUrl(getTag(event.tags, 'image'));
   const rawStatus = getTag(event.tags, 'status');
   const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, 'current_participants');

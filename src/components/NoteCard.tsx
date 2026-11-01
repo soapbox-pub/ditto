@@ -207,6 +207,7 @@ import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 import { parseProfileImeta } from "@/lib/profileImeta";
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 
 
 /** Profile card for use in feeds (kind 0). */
@@ -2119,8 +2120,8 @@ function StreamContent({ event }: { event: NostrEvent }) {
   const intl = useIntl();
   const title = getTag(event.tags, "title") || intl.formatMessage({ id: "noteCard.untitledStream", defaultMessage: "Untitled Stream" });
   const summary = getTag(event.tags, "summary");
-  const imageUrl = getTag(event.tags, "image");
-  const streamingUrl = getTag(event.tags, "streaming");
+  const imageUrl = sanitizeUrl(getTag(event.tags, "image"));
+  const streamingUrl = sanitizeUrl(getTag(event.tags, "streaming"));
   const status = getEffectiveStreamStatus(event);
   const currentParticipants = getTag(event.tags, "current_participants");
   const statusConfig = getStreamStatusConfig(status, intl);

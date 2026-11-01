@@ -66,6 +66,7 @@ import { parseFirstImeta } from '@/lib/imeta';
 import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { useDecryptedFile } from '@/hooks/useDecryptedFile';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
+import { sanitizeUrl } from "@/lib/sanitizeUrl";
 
 const videosDef = getExtraKindDef("videos")!;
 
@@ -93,7 +94,7 @@ function parseVideoImeta(tags: string[][]): {
   encryption?: FileEncryption;
 } {
   // Standalone fallback tags (checked after imeta)
-  const standaloneThumb = getTag(tags, "thumb") ?? getTag(tags, "image");
+  const standaloneThumb = sanitizeUrl(getTag(tags, "thumb")) ?? sanitizeUrl(getTag(tags, "image"));
 
   const entry = parseFirstImeta(tags);
   if (entry) {
@@ -484,7 +485,7 @@ function StreamBadge({ status }: { status: string }) {
 function LiveStreamCard({ event }: { event: NostrEvent }) {
   const intl = useIntl();
   const title = getTag(event.tags, "title") || intl.formatMessage({ id: "streams.untitled", defaultMessage: "Untitled Stream" });
-  const imageUrl = getTag(event.tags, "image");
+  const imageUrl = sanitizeUrl(getTag(event.tags, "image"));
   const viewers = getTag(event.tags, "current_participants");
   const effectiveStatus = getEffectiveStreamStatus(event);
 

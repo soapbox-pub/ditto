@@ -3,6 +3,7 @@ import { nip19 } from 'nostr-tools';
 import type { AudioTrack } from '@/contexts/audioPlayerContextDef';
 import { parseFirstImeta } from '@/lib/imeta';
 import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /** Gets a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -71,7 +72,7 @@ export function parsePodcastEpisode(event: NostrEvent): ParsedPodcastEpisode | n
   // blob, plaintext as far as this event says.
   const encryption = audioUrl === imeta.url ? imeta.encryption : undefined;
 
-  const artwork = getTag(event.tags, 'image') ?? imeta.thumbnail ?? getTag(event.tags, 'thumb');
+  const artwork = sanitizeUrl(getTag(event.tags, 'image')) ?? sanitizeUrl(imeta.thumbnail) ?? sanitizeUrl(getTag(event.tags, 'thumb'));
   const artworkEncryption = artwork && artwork === imeta.thumbnail && imeta.encryption
     ? companionEncryption(imeta.encryption)
     : undefined;

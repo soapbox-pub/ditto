@@ -4,6 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { CalendarDays, MapPin, Clock, Users } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { NoteContent } from '@/components/NoteContent';
 import { Badge } from '@/components/ui/badge';
 import { RSVPAvatars } from '@/components/RSVPAvatars';
@@ -118,7 +119,7 @@ function formatEventDate(event: NostrEvent, intl: IntlShape): string {
 export function CalendarEventContent({ event, compact, className }: CalendarEventContentProps) {
   const intl = useIntl();
   const title = useMemo(() => getTag(event.tags, 'title'), [event.tags]);
-  const image = useMemo(() => getTag(event.tags, 'image'), [event.tags]);
+  const image = useMemo(() => sanitizeUrl(getTag(event.tags, 'image')), [event.tags]);
   const locationRaw = useMemo(() => getTag(event.tags, 'location'), [event.tags]);
   const location = useMemo(() => locationRaw ? parseLocation(locationRaw) : undefined, [locationRaw]);
   const dateDisplay = useMemo(() => formatEventDate(event, intl), [event, intl]);

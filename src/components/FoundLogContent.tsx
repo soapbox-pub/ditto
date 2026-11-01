@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 function getTag(tags: string[][], name: string): string | undefined {
@@ -38,7 +39,7 @@ function parseGeocacheAddr(tags: string[][]): AddrCoords | undefined {
 export function FoundLogContent({ event }: { event: NostrEvent }) {
   const intl = useIntl();
   const text = event.content;
-  const images = getAllTags(event.tags, 'image').filter((url) => url.trim() !== '');
+  const images = getAllTags(event.tags, 'image').map(sanitizeUrl).filter((url): url is string => !!url);
   const hasVerification = !!getTag(event.tags, 'verification');
 
   const geocacheAddr = useMemo(() => parseGeocacheAddr(event.tags), [event.tags]);

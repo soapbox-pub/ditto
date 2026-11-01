@@ -353,7 +353,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
   const appName = appEvent
     ? (getTag(appEvent.tags, 'name') || getTag(appEvent.tags, 'd') || appIdentifier)
     : appIdentifier;
-  const appIcon = appEvent ? getTag(appEvent.tags, 'icon') : undefined;
+  const appIcon = appEvent ? sanitizeUrl(getTag(appEvent.tags, 'icon')) : undefined;
   const appId = appEvent ? getTag(appEvent.tags, 'd') : appIdentifier;
 
   // Build naddr link to the app event if we have it
