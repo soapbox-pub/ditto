@@ -1,5 +1,6 @@
 import Markdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import { retextSmartypants } from './articleSmartypants';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Clock } from 'lucide-react';
@@ -97,7 +98,7 @@ export function ArticleContent({ event, preview, className }: ArticleContentProp
         />
       )}
       <div dir="auto" {...highlightSourceAttrs(event)} className={ARTICLE_PROSE_CLASSES}>
-        <Markdown remarkPlugins={[retextSmartypants]} rehypePlugins={[rehypeSanitize]} components={components}>
+        <Markdown remarkPlugins={[remarkGfm, retextSmartypants]} rehypePlugins={[rehypeSanitize]} components={components}>
           {event.content}
         </Markdown>
       </div>

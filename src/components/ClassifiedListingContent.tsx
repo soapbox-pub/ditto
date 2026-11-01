@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import Markdown from 'react-markdown';
 import { FormattedMessage, useIntl } from 'react-intl';
 import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { ExternalLink, MapPin, Tag } from 'lucide-react';
 
@@ -168,7 +169,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
             dir="auto"
             className="prose prose-sm max-w-none break-words text-foreground prose-headings:text-foreground prose-headings:font-bold prose-strong:text-foreground prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-li:marker:text-muted-foreground prose-blockquote:text-muted-foreground prose-blockquote:border-border prose-hr:border-border"
           >
-            <Markdown remarkPlugins={[retextSmartypants]} rehypePlugins={[rehypeSanitize]} components={components}>
+            <Markdown remarkPlugins={[remarkGfm, retextSmartypants]} rehypePlugins={[rehypeSanitize]} components={components}>
               {description}
             </Markdown>
           </div>

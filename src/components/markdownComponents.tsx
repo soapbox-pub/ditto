@@ -146,6 +146,12 @@ export function buildMarkdownComponents(event: NostrEvent): Components {
     strong: wrap('strong'),
     em: wrap('em'),
     blockquote: wrap('blockquote'),
+    // Wide tables scroll sideways instead of stretching the page on mobile.
+    table: ({ node: _node, ...rest }: Record<string, unknown>) => (
+      <div className="my-[2em] overflow-x-auto">
+        {createElement('table', { ...rest, className: cn('my-0', rest.className as string | undefined) })}
+      </div>
+    ),
     td: wrap('td'),
     th: wrap('th'),
     a: MarkdownLink,
