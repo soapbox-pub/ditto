@@ -53,6 +53,7 @@
 
 import { defineMessage, type IntlShape } from '@formatjs/intl';
 
+import { parseBadgeATag } from '@/lib/badgeUtils';
 import { isNostrId } from '@/lib/nostrId';
 import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
 import { isValidZapReceipt } from '@/lib/zapReceipt';
@@ -199,6 +200,8 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
   // A receipt's signature is the LNURL server's; the sender and amount come
   // from the zap request and invoice inside it, which must agree with it.
   if (event.kind === 9735 && !isValidZapReceipt(event)) return;
+  // Only a badge's issuer can award it.
+  if (event.kind === 8 && parseBadgeATag(event)?.pubkey !== event.pubkey) return;
 
   const state = await loadPushState();
   if (!isWanted(event, state)) return;

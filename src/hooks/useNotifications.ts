@@ -8,6 +8,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
 import { useZapReceiptCheck } from './useZapReceiptCheck';
+import { parseBadgeATag } from '@/lib/badgeUtils';
 import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
 import { LETTER_KIND } from '@/lib/letterTypes';
 import { getEnabledNotificationKinds, NOTIFICATION_EOSE_GRACE_MS } from '@/lib/notificationKinds';
@@ -324,6 +325,11 @@ export function useNotifications(): NotificationData {
         if (ev.kind === 7 || ev.kind === 6 || ev.kind === 16 || ev.kind === 9802 || ev.kind === 7849) {
           if (referencedEvent && referencedEvent.pubkey !== user.pubkey) return [];
         }
+
+        // Only a badge's issuer can award it. A kind 8 from anyone else
+        // pointing at their definition would pass off the issuer's badge as
+        // a real award the user can accept.
+        if (ev.kind === 8 && parseBadgeATag(ev)?.pubkey !== ev.pubkey) return [];
 
         // Zaps (9735 lightning, 8333 on-chain) don't need the author-ownership
         // check at all: the query already filters by `#p: [user.pubkey]`, which

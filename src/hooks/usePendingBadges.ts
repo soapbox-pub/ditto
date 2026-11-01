@@ -81,6 +81,9 @@ export function usePendingBadges(pubkey: string | undefined) {
       // nip19 encoder used to render the badge link.
       const parsed = parseAddr(aTag);
       if (!parsed) continue;
+      // Only the definition's author can award it; anyone else's kind 8
+      // pointing at it is a forgery.
+      if (parsed.pubkey !== awardEvent.pubkey) continue;
 
       pending.push({
         aTag,
