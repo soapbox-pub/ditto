@@ -26,6 +26,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
+import { imageMeta } from '@/lib/fileMetadata';
 
 /** Convert a badge name into a URL-safe slug for the d-tag identifier. */
 function slugify(text: string): string {
@@ -54,6 +55,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
   const [identifierTouched, setIdentifierTouched] = useState(false);
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageDimensions, setImageDimensions] = useState<string>();
   const [imagePreview, setImagePreview] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,6 +91,7 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
     setIdentifierTouched(false);
     setDescription('');
     setImageUrl('');
+    setImageDimensions(undefined);
     setImagePreview('');
     setCreatedBadge(null);
     setSelfAwarded(false);
@@ -122,8 +125,11 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
     reader.onload = (e) => setImagePreview(e.target?.result as string);
     reader.readAsDataURL(file);
     try {
-      const [[, url]] = await uploadFile(file);
+      const [tags, meta] = await Promise.all([uploadFile(file), imageMeta(file)]);
+      const [[, url]] = tags;
+      const dim = tags.find(([n]) => n === 'dim')?.[1] ?? meta.fields.find(([n]) => n === 'dim')?.[1];
       setImageUrl(url);
+      setImageDimensions(dim);
       toast({ title: intl.formatMessage({ id: 'createBadge.imageUploaded', defaultMessage: 'Image uploaded' }) });
     } catch {
       setImagePreview('');
@@ -145,13 +151,14 @@ export function CreateBadgeDialog({ open, onOpenChange }: CreateBadgeDialogProps
         identifier: effectiveIdentifier.trim(),
         description: description.trim() || undefined,
         imageUrl: imageUrl || undefined,
+        imageDimensions,
       });
       setCreatedBadge(event);
       toast({ title: intl.formatMessage({ id: 'createBadge.created', defaultMessage: 'Badge created!' }) });
     } catch {
       toast({ title: intl.formatMessage({ id: 'createBadge.createFailed', defaultMessage: 'Failed to create badge' }), description: intl.formatMessage({ id: 'createBadge.tryAgain', defaultMessage: 'Please try again.' }), variant: 'destructive' });
     }
-  }, [name, effectiveIdentifier, description, imageUrl, createBadge, toast, intl]);
+  }, [name, effectiveIdentifier, description, imageUrl, imageDimensions, createBadge, toast, intl]);
 
   const handleSelfAward = useCallback(async () => {
     if (!user || !createdBadge || !badgeATag) return;

@@ -14,8 +14,27 @@ interface CreateBadgeParams {
   description?: string;
   /** Full-size image URL (uploaded via Blossom). */
   imageUrl?: string;
-  /** Optional thumbnail URLs with dimensions. */
+  /** The image's `<width>x<height>`, when known. */
+  imageDimensions?: string;
+  /** Thumbnail URLs with dimensions. Defaults to the image itself. */
   thumbs?: Array<{ url: string; dimensions?: string }>;
+}
+
+/**
+ * The `image` and `thumb` tags of a badge definition.
+ *
+ * NIP-58 `thumb` is optional, but some clients only honor it. Like Amethyst,
+ * point it at the uploaded image itself so they still show the badge.
+ */
+export function badgeImageTags(
+  imageUrl: string,
+  imageDimensions?: string,
+  thumbs: Array<{ url: string; dimensions?: string }> = [{ url: imageUrl, dimensions: imageDimensions }],
+): string[][] {
+  return [
+    ['image', imageUrl, ...(imageDimensions ? [imageDimensions] : [])],
+    ...thumbs.map((thumb) => ['thumb', thumb.url, ...(thumb.dimensions ? [thumb.dimensions] : [])]),
+  ];
 }
 
 /**
@@ -40,13 +59,7 @@ export function useCreateBadge() {
       }
 
       if (params.imageUrl) {
-        tags.push(['image', params.imageUrl, '1024x1024']);
-      }
-
-      if (params.thumbs) {
-        for (const thumb of params.thumbs) {
-          tags.push(['thumb', thumb.url, ...(thumb.dimensions ? [thumb.dimensions] : [])]);
-        }
+        tags.push(...badgeImageTags(params.imageUrl, params.imageDimensions, params.thumbs));
       }
 
       return publishEvent({

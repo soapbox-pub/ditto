@@ -37,3 +37,25 @@ export function parseBadgeDefinition(event: NostrEvent): BadgeData | null {
 
   return { identifier, name, description, image, imageDimensions, thumbs };
 }
+
+/** Pick the best thumbnail or image for a target pixel size. */
+export function pickBadgeImage(badge: BadgeData, targetSize: number): string | undefined {
+  const sorted = [...badge.thumbs].sort((a, b) => {
+    const aSize = parseDimension(a.dimensions);
+    const bSize = parseDimension(b.dimensions);
+    return aSize - bSize;
+  });
+
+  for (const thumb of sorted) {
+    const dim = parseDimension(thumb.dimensions);
+    if (dim >= targetSize) return thumb.url;
+  }
+
+  return sorted[sorted.length - 1]?.url ?? badge.image;
+}
+
+function parseDimension(dim?: string): number {
+  if (!dim) return 0;
+  const match = dim.match(/^(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}

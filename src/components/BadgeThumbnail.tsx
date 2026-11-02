@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Award } from 'lucide-react';
 
-import type { BadgeData } from '@/lib/parseBadgeDefinition';
+import { pickBadgeImage, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { FallbackImage } from '@/components/FallbackImage';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,7 @@ interface BadgeThumbnailProps {
  * through to badge detail views and normal scrolling are not disrupted.
  */
 export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailProps) {
-  const thumbUrl = pickThumb(badge, size);
+  const thumbUrl = pickBadgeImage(badge, size);
   // Tight perspective relative to the small thumbnail makes the 3D rotation
   // clearly visible even on 28-48px elements.
   const tilt = useCardTilt(35, 1.15, size * 3);
@@ -75,26 +75,4 @@ export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailPr
       />
     </div>
   );
-}
-
-/** Pick the best thumbnail or image for a target pixel size. */
-function pickThumb(badge: BadgeData, targetSize: number): string | undefined {
-  const sorted = [...badge.thumbs].sort((a, b) => {
-    const aSize = parseDimension(a.dimensions);
-    const bSize = parseDimension(b.dimensions);
-    return aSize - bSize;
-  });
-
-  for (const thumb of sorted) {
-    const dim = parseDimension(thumb.dimensions);
-    if (dim >= targetSize) return thumb.url;
-  }
-
-  return sorted[sorted.length - 1]?.url ?? badge.image;
-}
-
-function parseDimension(dim?: string): number {
-  if (!dim) return 0;
-  const match = dim.match(/^(\d+)/);
-  return match ? parseInt(match[1], 10) : 0;
 }

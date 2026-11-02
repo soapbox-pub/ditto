@@ -16,6 +16,7 @@ import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
 import { useProfileImageSource } from '@/hooks/useProfileImageSource';
 import { isValidBlurhash } from '@/lib/blurhash';
 import type { ImetaEntry } from '@/lib/imeta';
+import { parseBadgeDefinition, pickBadgeImage } from '@/lib/parseBadgeDefinition';
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -3687,15 +3688,11 @@ function ProfileBadgesTab({ pubkey, displayName }: { pubkey: string; displayName
     const map = new Map<string, { name: string; image?: string; description?: string }>();
     if (!badgeDefsQuery.data) return map;
     for (const event of badgeDefsQuery.data) {
-      const d = event.tags.find(([n]) => n === 'd')?.[1];
-      if (!d) continue;
-      const aTag = `30009:${event.pubkey}:${d}`;
-      const name = event.tags.find(([n]) => n === 'name')?.[1] || d;
-      const thumbTag = event.tags.find(([n]) => n === 'thumb');
-      const imageTag = event.tags.find(([n]) => n === 'image');
-      const image = thumbTag?.[1] ?? imageTag?.[1];
-      const description = event.tags.find(([n]) => n === 'description')?.[1];
-      map.set(aTag, { name, image, description });
+      const badge = parseBadgeDefinition(event);
+      if (!badge) continue;
+      const aTag = `30009:${event.pubkey}:${badge.identifier}`;
+      // Drawn at size-16 (64px).
+      map.set(aTag, { name: badge.name, image: pickBadgeImage(badge, 64), description: badge.description });
     }
     return map;
   }, [badgeDefsQuery.data]);

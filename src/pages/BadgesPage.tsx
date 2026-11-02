@@ -82,6 +82,8 @@ import { useReorderBadges } from "@/hooks/useReorderBadges";
 import { useToast } from "@/hooks/useToast";
 import { useUploadFile } from "@/hooks/useUploadFile";
 import { BADGE_AWARD_KIND, BADGE_DEFINITION_KIND, getBadgeATag } from "@/lib/badgeUtils";
+import { imageMeta } from "@/lib/fileMetadata";
+import { badgeImageTags } from "@/hooks/useCreateBadge";
 import { deduplicateEvents } from "@/lib/deduplicateEvents";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -943,6 +945,7 @@ function EditBadgeForm({
   const [name, setName] = useState(badge.badge.name);
   const [description, setDescription] = useState(badge.badge.description ?? "");
   const [imageUrl, setImageUrl] = useState(badge.badge.image ?? "");
+  const [imageDimensions, setImageDimensions] = useState<string>();
   const [imagePreview, setImagePreview] = useState(badge.badge.image ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -962,8 +965,10 @@ function EditBadgeForm({
       reader.onload = (e) => setImagePreview(e.target?.result as string);
       reader.readAsDataURL(file);
       try {
-        const [[, url]] = await uploadFile(file);
+        const [tags, meta] = await Promise.all([uploadFile(file), imageMeta(file)]);
+        const [[, url]] = tags;
         setImageUrl(url);
+        setImageDimensions(tags.find(([n]) => n === "dim")?.[1] ?? meta.fields.find(([n]) => n === "dim")?.[1]);
       } catch {
         toast({ title: intl.formatMessage({ id: "settings.profile.uploadFailed", defaultMessage: "Upload failed" }), variant: "destructive" });
       }
@@ -979,7 +984,12 @@ function EditBadgeForm({
       newTags.push(["d", identifier]);
       newTags.push(["name", name.trim()]);
       if (description.trim()) newTags.push(["description", description.trim()]);
-      if (imageUrl) newTags.push(["image", imageUrl]);
+      if (imageUrl === (badge.badge.image ?? "")) {
+        // Image untouched: keep its tags as they were, thumbnails and dimensions included.
+        newTags.push(...badge.event.tags.filter(([n]) => n === "image" || n === "thumb"));
+      } else if (imageUrl) {
+        newTags.push(...badgeImageTags(imageUrl, imageDimensions));
+      }
       for (const tag of badge.event.tags) {
         if (["d", "name", "description", "image", "thumb"].includes(tag[0]))
           continue;
@@ -1002,7 +1012,9 @@ function EditBadgeForm({
     name,
     description,
     imageUrl,
+    imageDimensions,
     identifier,
+    badge.badge.image,
     badge.event.tags,
     publishEvent,
     queryClient,
