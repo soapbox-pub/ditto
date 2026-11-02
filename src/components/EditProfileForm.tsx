@@ -24,8 +24,11 @@ import { Loader2, Upload, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-re
 import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNostr } from '@nostrify/react';
 import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
 import { completeProfileImetaTags } from '@/lib/computeProfileImeta';
+import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { carriedProfileTags } from '@/lib/profileImeta';
 import {
   Collapsible,
   CollapsibleContent,
@@ -57,6 +60,7 @@ interface EditProfileFormProps {
 export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange }) => {
   const intl = useIntl();
   const queryClient = useQueryClient();
+  const { nostr } = useNostr();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const { user, metadata, event } = useCurrentUserProfile();
@@ -239,8 +243,23 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       // Extract fields, shape, and other metadata
       const { fields: customFields, shape, ...standardMetadata } = values;
 
-      // Combine existing metadata with new values
-      const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+      // Read-modify-write against the freshest kind 0 (or the cached one, if
+      // it's newer or the relays miss), so fields set elsewhere since this
+      // form loaded survive the save.
+      const fresh = await fetchFreshEvent(nostr, { kinds: [0], authors: [user.pubkey] });
+      const prev = fresh && (!event || fresh.created_at >= event.created_at) ? fresh : event;
+      let base: Record<string, unknown> = { ...metadata };
+      try {
+        const parsed: unknown = JSON.parse(prev?.content ?? '');
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          base = parsed as Record<string, unknown>;
+        }
+      } catch { /* corrupt or missing content — fall back to the cached metadata */ }
+
+      // Combine existing metadata with new values. The form owns the custom
+      // fields, so removing them all here removes them from the profile.
+      const data: Record<string, unknown> = { ...base, ...standardMetadata };
+      delete data.fields;
 
       // Add shape only if set (an emoji string)
       if (shape && isValidAvatarShape(shape)) {
@@ -268,7 +287,11 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       const published = await publishEvent({
         kind: 0,
         content: JSON.stringify(data),
-        tags: await completeProfileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
+        tags: [
+          ...carriedProfileTags(prev?.tags ?? [], [...Object.keys(base), ...Object.keys(data)]),
+          ...await completeProfileImetaTags(data, [...uploadedImeta.current, ...(prev?.tags ?? [])]),
+        ],
+        prev: prev ?? undefined,
       });
 
       // Optimistically seed the author cache from the freshly-signed event so

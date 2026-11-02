@@ -40,6 +40,7 @@ import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
 import { completeProfileImetaTags } from '@/lib/computeProfileImeta';
+import { carriedProfileTags } from '@/lib/profileImeta';
 
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
@@ -445,6 +446,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
 export function ProfileSettings() {
   const intl = useIntl();
   const { user, metadata, event, imeta: profileImeta } = useCurrentUserProfile();
+  const { nostr } = useNostr();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
@@ -674,7 +676,26 @@ export function ProfileSettings() {
     if (!user) return;
     try {
       const { fields: customFields, shape, ...standardMetadata } = values;
-      const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Read-modify-write against the freshest kind 0 (or the cached one, if
+      // it's newer or the relays miss), so fields set elsewhere since this
+      // page loaded survive the save.
+      const fresh = await fetchFreshEvent(nostr, { kinds: [0], authors: [user.pubkey] });
+      const prev = fresh && (!event || fresh.created_at >= event.created_at) ? fresh : event;
+      let previous: Record<string, unknown> | undefined;
+      try {
+        const parsed: unknown = JSON.parse(prev?.content ?? '');
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          previous = parsed as Record<string, unknown>;
+        }
+      } catch {
+        previous = undefined;
+      }
+
+      // The form owns the custom fields, so removing them all here removes
+      // them from the profile.
+      const data: Record<string, unknown> = { ...(previous ?? metadata), ...standardMetadata };
+      delete data.fields;
 
       // Add shape only if set (an emoji string)
       if (shape && isValidAvatarShape(shape)) {
@@ -709,18 +730,15 @@ export function ProfileSettings() {
         }
         return JSON.stringify(value ?? null);
       };
-      let previous: unknown;
-      try {
-        previous = event ? JSON.parse(event.content) : undefined;
-      } catch {
-        previous = undefined;
-      }
-
       if (previous === undefined || canonical(data) !== canonical(previous)) {
         await publishEvent({
           kind: 0,
           content: JSON.stringify(data),
-          tags: await completeProfileImetaTags(data, [...uploadedImeta.current, ...(event?.tags ?? [])]),
+          tags: [
+            ...carriedProfileTags(prev?.tags ?? [], [...Object.keys(previous ?? {}), ...Object.keys(data)]),
+            ...await completeProfileImetaTags(data, [...uploadedImeta.current, ...(prev?.tags ?? [])]),
+          ],
+          prev: prev ?? undefined,
         });
         queryClient.invalidateQueries({ queryKey: ['logins'] });
         queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
@@ -1108,7 +1126,10 @@ function BirthdaySection() {
         content: JSON.stringify(data),
         // Keep the picture and banner's imeta — the images haven't changed —
         // or compute it if the profile never had any.
-        tags: await completeProfileImetaTags(data, prev?.tags ?? []),
+        tags: [
+          ...carriedProfileTags(prev?.tags ?? [], Object.keys(data)),
+          ...await completeProfileImetaTags(data, prev?.tags ?? []),
+        ],
         prev: prev ?? undefined,
       });
       // Seed the author cache with the published event instead of

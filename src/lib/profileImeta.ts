@@ -70,6 +70,21 @@ export function imetaUrl(tag: string[]): string | undefined {
 }
 
 /**
+ * The previous kind 0's tags a profile save carries forward: everything but its
+ * `imeta` (recomputed by {@link profileImetaTags}), its `client` (this save is
+ * ours, and `useNostrPublish` adds our own), and tags mirroring a content field
+ * (Amethyst writes `["name", …]` beside the JSON), which the edit makes stale.
+ * NIP-30 `emoji` tags must survive, or `:shortcode:` names break. Ported from
+ * Armada.
+ */
+export function carriedProfileTags(prevTags: readonly string[][], fieldNames: Iterable<string>): string[][] {
+  const fields = new Set(fieldNames);
+  return prevTags
+    .filter(([name]) => name !== 'imeta' && name !== 'client' && !fields.has(name))
+    .map((tag) => [...tag]);
+}
+
+/**
  * The imeta tags to publish on a new kind 0: one for the `picture` and one for
  * the `banner`, each the first tag in `candidates` whose `url` matches.
  *
