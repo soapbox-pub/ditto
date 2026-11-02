@@ -95,7 +95,12 @@ import okhttp3.WebSocketListener;
 public class NotificationRelayService extends Service {
 
     private static final String TAG = "NotificationRelaySvc";
-    private static final String CHANNEL_ID = "ditto_background_service";
+    // _v2 is IMPORTANCE_MIN (no status bar icon), which users are less likely
+    // to switch off and so break the service. Channel settings are fixed once
+    // created, so the new id is what applies it — and re-enables the channel
+    // on installs that had turned the old one off. Ported from Armada.
+    private static final String CHANNEL_ID = "ditto_background_service_v2";
+    private static final String CHANNEL_ID_LEGACY = "ditto_background_service";
     private static final int NOTIFICATION_ID = 1;
     private static final String PREFS_NAME = "ditto_notification_config";
 
@@ -1981,7 +1986,7 @@ public class NotificationRelayService extends Service {
                 .setContentText("Connected for instant notifications")
                 .setSmallIcon(R.drawable.ic_stat_ditto)
                 .setContentIntent(pendingIntent)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
                 .setOngoing(true)
                 .setSilent(true)
                 .build();
@@ -1992,7 +1997,7 @@ public class NotificationRelayService extends Service {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     "Background Connection",
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_MIN
             );
             channel.setDescription("Keeps Ditto connected for instant notifications");
             channel.setShowBadge(false);
@@ -2000,6 +2005,7 @@ public class NotificationRelayService extends Service {
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
+                manager.deleteNotificationChannel(CHANNEL_ID_LEGACY);
             }
         }
     }
