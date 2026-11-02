@@ -721,10 +721,14 @@ export function NoteContent({
 
     // Collapse excessive whitespace around block-level tokens (link-preview, youtube-embed)
     // Preserve formatting but prevent too much stacking with the card's own spacing.
+    // Tokens that fall back to inline links (note embeds in quotes, link
+    // previews and invoices with embeds off) keep their surrounding spaces.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'file-embed' || token.type === 'link-embed' || token.type === 'nevent-embed'
-        || token.type === 'naddr-embed' || token.type === 'lightning-invoice';
+      const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'file-embed'
+        || (token.type === 'link-embed' && !disableEmbeds)
+        || ((token.type === 'nevent-embed' || token.type === 'naddr-embed') && !disableNoteEmbeds)
+        || (token.type === 'lightning-invoice' && !disableEmbeds);
 
       if (isBlock) {
         // Strip all trailing whitespace from the preceding text token.
@@ -763,7 +767,7 @@ export function NoteContent({
 
     // Filter out empty text tokens
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
-  }, [event, preserveEdgeWhitespace, blossomServers, cleanLinks]);
+  }, [event, preserveEdgeWhitespace, blossomServers, cleanLinks, disableEmbeds, disableNoteEmbeds]);
 
   // Build emoji map for NIP-30 custom emoji rendering.
   // Merge the event's own emoji tags with the viewer's custom emoji collection
