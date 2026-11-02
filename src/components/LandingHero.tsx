@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
 
 import { DittoLogo } from '@/components/DittoLogo';
+import { ThumbnailImage } from '@/components/ThumbnailImage';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -54,7 +55,7 @@ function ThemeSwatch({
         style={{ backgroundColor: hsl(tokens.background) }}
       >
         {backgroundUrl && (
-          <img
+          <ThumbnailImage
             src={backgroundUrl}
             alt=""
             loading="lazy"

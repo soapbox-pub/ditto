@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { useImageThumbnail } from "@/hooks/useImageThumbnail"
 import { useProfileImageSource } from "@/hooks/useProfileImageSource"
 import type { ImetaEntry } from "@/lib/imeta"
 import { cn } from "@/lib/utils"
@@ -105,6 +106,16 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
 
   const showImage = !failed && !!src
 
+  // Paint a downscaled copy instead of decoding a full-size photo for a
+  // small circle. Until it's ready the img has no src, which leaves the same
+  // bg-muted placeholder as a lazily-loading image.
+  const { src: displaySrc, ref: thumbnailRef } = useImageThumbnail(showImage ? src : undefined)
+  const setRefs = React.useCallback((node: HTMLImageElement | null) => {
+    thumbnailRef(node)
+    if (typeof ref === "function") ref(node)
+    else if (ref) ref.current = node
+  }, [thumbnailRef, ref])
+
   // Signal to AvatarFallback synchronously during this render frame
   if (showImage) {
     hasSrcRef.current = true
@@ -117,8 +128,8 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
       loading="lazy"
       decoding="async"
       {...props}
-      src={src}
-      ref={ref}
+      src={displaySrc}
+      ref={setRefs}
       alt=""
       className={cn("absolute inset-0 h-full w-full object-cover", className)}
       onError={(e) => {

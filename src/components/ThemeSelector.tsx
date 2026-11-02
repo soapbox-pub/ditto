@@ -13,6 +13,7 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
+import { ThumbnailImage } from '@/components/ThumbnailImage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,7 +77,7 @@ function ThemePreviewCard({
       >
         {/* Background image layer */}
         {backgroundUrl && (
-          <img
+          <ThumbnailImage
             src={backgroundUrl}
             alt=""
             className="absolute inset-0 w-full h-full object-cover opacity-40"
