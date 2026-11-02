@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -37,6 +37,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { EmbeddedPost } from '@/components/EmbeddedPost';
 import { EventRecoveryDialog } from '@/components/EventRecoveryDialog';
 import { MountOnOpen } from '@/components/MountOnOpen';
@@ -50,6 +52,9 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveBlossomServers } from '@/lib/appBlossom';
+import { blobHashFromUrl, blobsInEvent, deleteBlobs } from '@/lib/blossomDelete';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
@@ -124,6 +129,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   const intl = useIntl();
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
@@ -221,14 +227,49 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
     onOpenChange(false);
   };
 
+  // Media the post attached on Blossom, which deleting the post can also remove.
+  // Never the author's current avatar or banner, even if the post reused them.
+  const blossomServers = useMemo(
+    () => getEffectiveBlossomServers(config.blossomServerMetadata, config.useAppBlossomServers),
+    [config.blossomServerMetadata, config.useAppBlossomServers],
+  );
+  const isOwnPost = !!user && user.pubkey === event.pubkey;
+  const profileMetadata = author.data?.metadata;
+  const postBlobs = useMemo(() => {
+    if (!isOwnPost) return { hashes: [], origins: [] };
+    const blobs = blobsInEvent(event, blossomServers);
+    const keep = new Set(
+      [profileMetadata?.picture, profileMetadata?.banner]
+        .map((url) => (url ? blobHashFromUrl(url) : undefined))
+        .filter(Boolean),
+    );
+    return { ...blobs, hashes: blobs.hashes.filter((hash) => !keep.has(hash)) };
+  }, [isOwnPost, event, blossomServers, profileMetadata?.picture, profileMetadata?.banner]);
+  const [deleteMedia, setDeleteMedia] = useState(false);
+
   const handleDelete = () => {
     const dTag = event.tags.find(([name]) => name === 'd')?.[1];
+    const mediaToDelete = deleteMedia && user ? postBlobs : undefined;
     deleteEvent(
       { eventId: event.id, eventKind: event.kind, eventPubkey: event.pubkey, eventDTag: dTag },
       {
         onSuccess: () => {
           setDeleteConfirmOpen(false);
           toast({ title: intl.formatMessage({ id: 'note.moreMenu.postDeleted', defaultMessage: 'Post deleted' }) });
+          // Only once the post itself is gone, so a failed delete never leaves a post with broken media.
+          if (mediaToDelete && user && mediaToDelete.hashes.length > 0) {
+            deleteBlobs(mediaToDelete.hashes, [...blossomServers, ...mediaToDelete.origins], user.signer)
+              .then(({ deleted, failed }) => {
+                if (failed === 0) {
+                  toast({ title: intl.formatMessage({ id: 'note.moreMenu.mediaDeleted', defaultMessage: '{count, plural, one {Deleted its file} other {Deleted its # files}} from your media servers' }, { count: deleted }) });
+                } else {
+                  toast({ title: intl.formatMessage({ id: 'note.moreMenu.mediaDeleteFailed', defaultMessage: "{count, plural, one {Couldn't delete # file} other {Couldn't delete # files}} from your media servers" }, { count: failed }), variant: 'destructive' });
+                }
+              })
+              .catch(() => {
+                toast({ title: intl.formatMessage({ id: 'note.moreMenu.mediaDeleteFailed', defaultMessage: "{count, plural, one {Couldn't delete # file} other {Couldn't delete # files}} from your media servers" }, { count: mediaToDelete.hashes.length }), variant: 'destructive' });
+              });
+          }
         },
         onError: () => {
           toast({ title: intl.formatMessage({ id: 'note.moreMenu.deleteFailed', defaultMessage: 'Failed to delete post' }), variant: 'destructive' });
@@ -289,6 +330,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
           }}
           onDelete={() => {
             onOpenChange(false);
+            setDeleteMedia(false);
             setTimeout(() => setDeleteConfirmOpen(true), 150);
           }}
           onRestore={() => {
@@ -378,6 +420,33 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
               />
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {postBlobs.hashes.length > 0 && (
+            <div className="flex items-start gap-3 rounded-lg bg-secondary p-3">
+              <Checkbox
+                id={`delete-media-${event.id}`}
+                checked={deleteMedia}
+                onCheckedChange={(checked) => setDeleteMedia(checked === true)}
+                disabled={isDeleting}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label htmlFor={`delete-media-${event.id}`} className="leading-snug">
+                  <FormattedMessage
+                    id="note.moreMenu.deleteConfirm.deleteMedia"
+                    defaultMessage="Also delete {count, plural, one {its attached file} other {its # attached files}} from your media servers"
+                    values={{ count: postBlobs.hashes.length }}
+                  />
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  <FormattedMessage
+                    id="note.moreMenu.deleteConfirm.deleteMediaHint"
+                    defaultMessage="{count, plural, one {Other posts using the same file will lose it too.} other {Other posts using these files will lose them too.}}"
+                    values={{ count: postBlobs.hashes.length }}
+                  />
+                </p>
+              </div>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}><FormattedMessage id="common.cancel" defaultMessage="Cancel" /></AlertDialogCancel>
             <AlertDialogAction
