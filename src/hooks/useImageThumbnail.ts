@@ -12,7 +12,11 @@ import {
 export interface ImageThumbnailSource {
   /** What to put in `src`: the thumbnail, or the original. Undefined while pending. */
   src: string | undefined;
-  /** Attach to the rendered img, so the thumbnail waits until it nears the viewport. */
+  /**
+   * Attach to the element holding the image's spot while `src` is pending, so
+   * the thumbnail waits until it nears the viewport. Render something other
+   * than an img there: an img without a src draws as broken in Firefox/WebKit.
+   */
   ref: (node: Element | null) => void;
 }
 

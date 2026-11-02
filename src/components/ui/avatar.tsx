@@ -107,8 +107,9 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
   const showImage = !failed && !!src
 
   // Paint a downscaled copy instead of decoding a full-size photo for a
-  // small circle. Until it's ready the img has no src, which leaves the same
-  // bg-muted placeholder as a lazily-loading image.
+  // small circle. Until it's ready an empty span holds the spot (and is what
+  // the viewport observer watches), leaving the Avatar's bg-muted showing. Not
+  // an img without a src: Firefox and WebKit draw that as a broken image.
   const { src: displaySrc, ref: thumbnailRef } = useImageThumbnail(showImage ? src : undefined)
   const setRefs = React.useCallback((node: HTMLImageElement | null) => {
     thumbnailRef(node)
@@ -122,6 +123,10 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
   }
 
   if (!showImage) return null
+
+  if (!displaySrc) {
+    return <span ref={thumbnailRef} aria-hidden="true" className={cn("absolute inset-0", className)} />
+  }
 
   return (
     <img
