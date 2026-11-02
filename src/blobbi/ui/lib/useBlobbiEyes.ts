@@ -65,6 +65,12 @@ export interface UseBlobbiEyesOptions {
 // Store mouse position globally so all Blobbi instances share one listener
 let globalMouseX = 0;
 let globalMouseY = 0;
+/**
+ * Bumped whenever the pointer moves or the page scrolls/resizes — the only
+ * things that change where a Blobbi's eyes should point. Lets idle loops skip
+ * the per-frame getBoundingClientRect (a forced layout).
+ */
+let gazeGeometryVersion = 0;
 let mouseListenerAttached = false;
 
 function attachGlobalMouseListener() {
@@ -73,6 +79,7 @@ function attachGlobalMouseListener() {
   const handleMouseMove = (e: MouseEvent) => {
     globalMouseX = e.clientX;
     globalMouseY = e.clientY;
+    gazeGeometryVersion++;
   };
 
   const handleTouch = (e: TouchEvent) => {
@@ -80,13 +87,21 @@ function attachGlobalMouseListener() {
     if (touch) {
       globalMouseX = touch.clientX;
       globalMouseY = touch.clientY;
+      gazeGeometryVersion++;
     }
+  };
+
+  const handleGeometryChange = () => {
+    gazeGeometryVersion++;
   };
 
   // Use capture phase for earliest possible update
   window.addEventListener('mousemove', handleMouseMove, { capture: true, passive: true });
   window.addEventListener('touchstart', handleTouch, { capture: true, passive: true });
   window.addEventListener('touchmove', handleTouch, { capture: true, passive: true });
+  // Capture catches scrolls of inner containers too (scroll doesn't bubble).
+  window.addEventListener('scroll', handleGeometryChange, { capture: true, passive: true });
+  window.addEventListener('resize', handleGeometryChange, { passive: true });
   mouseListenerAttached = true;
 }
 
@@ -455,9 +470,6 @@ export function useBlobbiEyes(
   const leftBlinkRef = useRef<SVGGElement[]>([]);
   const rightBlinkRef = useRef<SVGGElement[]>([]);
 
-  // Track last SVG content to detect changes
-  const lastSvgContentRef = useRef<string>('');
-
   // Blink state - persisted across frames
   const blinkStateRef = useRef<BlinkState | null>(null);
 
@@ -487,7 +499,6 @@ export function useBlobbiEyes(
       rightGazeRef.current = [];
       leftBlinkRef.current = [];
       rightBlinkRef.current = [];
-      lastSvgContentRef.current = '';
 
       // Reset blink state when sleeping
       blinkStateRef.current = null;
@@ -522,12 +533,6 @@ export function useBlobbiEyes(
     const cacheEyeElements = () => {
       if (!containerRef.current) return false;
 
-      // Check if SVG content changed
-      const currentContent = containerRef.current.innerHTML;
-      if (currentContent === lastSvgContentRef.current && leftGazeRef.current.length > 0) {
-        return true; // Already cached and unchanged
-      }
-
       // Query and cache GAZE elements (innermost group for gaze transforms)
       const leftGaze = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.gazeLeft}`);
       const rightGaze = containerRef.current.querySelectorAll<SVGGElement>(`.${EYE_CLASSES.gazeRight}`);
@@ -544,7 +549,6 @@ export function useBlobbiEyes(
       rightGazeRef.current = Array.from(rightGaze);
       leftBlinkRef.current = Array.from(leftBlink);
       rightBlinkRef.current = Array.from(rightBlink);
-      lastSvgContentRef.current = currentContent;
 
       // Remove any CSS transitions that might interfere
       [...leftGazeRef.current, ...rightGazeRef.current, ...leftBlinkRef.current, ...rightBlinkRef.current].forEach(
@@ -558,15 +562,23 @@ export function useBlobbiEyes(
 
     // ─── Animation Loop ─────────────────────────────────────────────────
 
-    // Serializing the SVG subtree with innerHTML is expensive — doing it at
-    // 60fps burned significant CPU just to detect the rare SVG swap (e.g. a
-    // sleeping-state change). Check at most every 500ms instead; a recache
-    // landing up to half a second late is imperceptible for eye targeting.
-    const SVG_CHANGE_CHECK_INTERVAL_MS = 500;
-    let lastSvgCheckTime = 0;
+    // The SVG is swapped wholesale (dangerouslySetInnerHTML) when the recipe
+    // or sleeping state changes. A MutationObserver flags those swaps so the
+    // loop only re-queries eye elements when the DOM actually changed, instead
+    // of serializing the SVG with innerHTML to find out.
+    let needsRecache = true;
     // Skip redundant per-frame DOM writes: remember the last applied values.
     let lastTrackingTransform: string | null = null;
     let lastBlinkProgress: number | null = null;
+
+    // Follow-pointer gaze only changes when the pointer moves or the Blobbi
+    // moves on screen. Re-measure on those events, plus a slow refresh to
+    // catch layout shifts and animated movement that fire neither.
+    const RECT_REFRESH_INTERVAL_MS = 250;
+    let lastGeometryVersion = -1;
+    let lastRectCheckTime = 0;
+    let eyeX = 0;
+    let eyeY = 0;
 
     // Whether the Blobbi is in the viewport. A feed card scrolled out of view
     // stays mounted, and nobody can see it blink or track the pointer, so the
@@ -580,25 +592,18 @@ export function useBlobbiEyes(
         return;
       }
 
-      // Try to cache elements if not done yet
-      if (leftGazeRef.current.length === 0 || rightGazeRef.current.length === 0) {
-        if (!cacheEyeElements()) {
-          // SVG not ready yet, try again next frame
-          animationRef.current = requestAnimationFrame(animate);
-          return;
-        }
+      if (needsRecache) {
+        needsRecache = false;
+        cacheEyeElements();
+        // New elements: force re-application of transforms and blink clip.
+        lastTrackingTransform = null;
+        lastBlinkProgress = null;
       }
 
-      // Check if SVG content changed (e.g., sleeping state change) — throttled.
-      if (containerRef.current && timestamp - lastSvgCheckTime >= SVG_CHANGE_CHECK_INTERVAL_MS) {
-        lastSvgCheckTime = timestamp;
-        const currentContent = containerRef.current.innerHTML;
-        if (currentContent !== lastSvgContentRef.current) {
-          cacheEyeElements();
-          // New elements: force re-application of transforms and blink clip.
-          lastTrackingTransform = null;
-          lastBlinkProgress = null;
-        }
+      if (leftGazeRef.current.length === 0 && rightGazeRef.current.length === 0) {
+        // SVG not ready yet; the mutation observer flags when it renders.
+        animationRef.current = requestAnimationFrame(animate);
+        return;
       }
 
       if (!containerRef.current) {
@@ -629,10 +634,13 @@ export function useBlobbiEyes(
       // ─── Calculate Eye Position ───────────────────────────────────────
       // Skip eye tracking if disableTracking is true (external system controls eyes)
       if (!disableTracking) {
-        let eyeX = 0;
-        let eyeY = 0;
+        if (
+          lookMode === 'follow-pointer' &&
+          (gazeGeometryVersion !== lastGeometryVersion || timestamp - lastRectCheckTime >= RECT_REFRESH_INTERVAL_MS)
+        ) {
+          lastGeometryVersion = gazeGeometryVersion;
+          lastRectCheckTime = timestamp;
 
-        if (lookMode === 'follow-pointer') {
           // Get Blobbi center position
           const rect = containerRef.current.getBoundingClientRect();
           const centerX = rect.left + rect.width / 2;
@@ -755,10 +763,18 @@ export function useBlobbiEyes(
       : undefined;
     if (container) observer?.observe(container);
 
+    const mutationObserver = container && typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(() => {
+        needsRecache = true;
+      })
+      : undefined;
+    if (container) mutationObserver?.observe(container, { childList: true, subtree: true });
+
     // ─── Cleanup ────────────────────────────────────────────────────────
 
     return () => {
       observer?.disconnect();
+      mutationObserver?.disconnect();
       cancelWakeAnimation?.();
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);

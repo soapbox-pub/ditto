@@ -80,13 +80,19 @@ export function BlobbiCompanionLayer() {
   // Tracks the actual visual position (including entry/float offsets) so
   // the action menu and hanging items can position relative to Blobbi.
   const [renderedPosition, setRenderedPosition] = useState<Position>(motion.position);
+  const menuOpenRef = useRef(false);
+  const latestPositionRef = useRef<Position>(motion.position);
 
   const handlePositionUpdate = useCallback((position: Position) => {
-    // Bail out when the rendered position hasn't meaningfully moved (< 1px).
-    // The float animation reports a fresh Position object on every frame;
-    // without this check the whole layer re-renders along with it.
+    latestPositionRef.current = position;
+    // Bail out when the rendered position hasn't meaningfully moved. The float
+    // animation reports a fresh Position object ~30 times a second; without
+    // this check the whole layer re-renders along with it. Only the open
+    // action menu needs to track the few-pixel float, so while it's closed
+    // ignore anything within the float's amplitude.
+    const threshold = menuOpenRef.current ? 1 : 6;
     setRenderedPosition((prev) =>
-      Math.abs(prev.x - position.x) < 1 && Math.abs(prev.y - position.y) < 1
+      Math.abs(prev.x - position.x) < threshold && Math.abs(prev.y - position.y) < threshold
         ? prev
         : position,
     );
@@ -143,6 +149,12 @@ export function BlobbiCompanionLayer() {
       }
     },
   });
+
+  useEffect(() => {
+    menuOpenRef.current = menuState.isOpen;
+    // Catch up on any float jitter that was skipped while the menu was closed.
+    if (menuState.isOpen) setRenderedPosition(latestPositionRef.current);
+  }, [menuState.isOpen]);
 
   const {
     useItem: contextUseItem,
@@ -217,14 +229,15 @@ export function BlobbiCompanionLayer() {
     lastVomitId.current = vomitEvent.id;
 
     // Compute spawn position (Blobbi's mouth area)
+    const position = latestPositionRef.current;
     const mouth = getBlobbiMouthAnchor(companion.stage, companion.adultType);
-    const spawnX = renderedPosition.x + config.size * mouth.xRatio;
-    const spawnY = renderedPosition.y + config.size * mouth.yRatio;
+    const spawnX = position.x + config.size * mouth.xRatio;
+    const spawnY = position.y + config.size * mouth.yRatio;
 
     // Land about 20px below Blobbi's container bottom, clamped to viewport floor
     const floorLimit = viewport.height - config.padding.bottom;
     const landX = spawnX + (Math.random() * 30 - 15);
-    const landY = Math.min(renderedPosition.y + config.size + 20, floorLimit);
+    const landY = Math.min(position.y + config.size + 20, floorLimit);
 
     const newSplat: SplatData = {
       id: vomitEvent.id,
@@ -235,7 +248,7 @@ export function BlobbiCompanionLayer() {
     };
 
     setSplats((prev) => [...prev, newSplat]);
-  }, [vomitEvent, renderedPosition, config.size, config.padding.bottom, viewport.height, companion]);
+  }, [vomitEvent, config.size, config.padding.bottom, viewport.height, companion]);
 
   const removeSplat = useCallback((id: number) => {
     setSplats((prev) => prev.filter((s) => s.id !== id));

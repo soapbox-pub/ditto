@@ -9,7 +9,7 @@
  * - RISE: Rises from bottom with inspection when navigating UP the sidebar
  */
 
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 
 import type {
   CompanionData,
@@ -22,9 +22,9 @@ import type {
 import type { RefObject } from 'react';
 import { DEFAULT_COMPANION_CONFIG } from '../core/companionConfig';
 import { 
-  calculateFloatAnimation,
   calculateFallEntryAnimation,
   calculateRiseEntryAnimation,
+  type FloatOffset,
   type VerticalEntryConfig,
 } from '../utils/animation';
 import { BlobbiCompanionVisual } from './BlobbiCompanionVisual';
@@ -113,10 +113,6 @@ export function BlobbiCompanion({
 }: BlobbiCompanionProps) {
   const config = DEFAULT_COMPANION_CONFIG;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [animationTime, setAnimationTime] = useState(0);
-  // Mount-relative clock for the float animation, so pausing/resuming the
-  // loop below doesn't reset the float phase.
-  const floatStartRef = useRef<number>(performance.now());
 
   // Click detection - distinguishes click from drag.
   // When overstimulation blocks clicks, suppress the onClick callback.
@@ -193,50 +189,27 @@ export function BlobbiCompanion({
     y = motion.position.y;
   }
   
-  // Calculate floating animation offset (gentle sway/float)
+  // Floating animation (gentle sway/float), applied by BlobbiCompanionVisual.
   // Skip during entry animation, dragging, debug mode, or sleeping
   const isSleeping = companion.state === 'sleeping';
   const floatActive = !useEntryPosition && !motion.isDragging && !debugMode && !isSleeping;
 
-  // Animation loop for bob/bounce. Only runs while the float offset is
-  // actually applied (see floatActive above), is capped at ~30fps (the float
-  // sines are ≤1.2Hz, so higher rates are invisible), and is skipped entirely
-  // for prefers-reduced-motion. The unthrottled version of this loop forced a
-  // React re-render of the whole companion tree at 60fps, even while the
-  // Blobbi stood still — a constant CPU/battery drain on mobile.
-  useEffect(() => {
-    if (!floatActive) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    let animationId: number;
-    let lastUpdate = 0;
-
-    const animate = (time: number) => {
-      if (time - lastUpdate >= 33) {
-        lastUpdate = time;
-        setAnimationTime(time - floatStartRef.current);
-      }
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animationId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationId);
-  }, [floatActive]);
-
-  const floatOffset = floatActive
-    ? calculateFloatAnimation(animationTime, state === 'walking')
-    : { x: 0, y: 0, rotation: 0 };
-  
   // Report the final rendered position (base position + float offset)
-  // This is the actual visual position where Blobbi appears on screen
-  const renderedX = x + floatOffset.x;
-  const renderedY = y + floatOffset.y;
-  
+  // This is the actual visual position where Blobbi appears on screen.
+  // The float offset arrives imperatively, so both halves live in refs.
+  const floatOffsetRef = useRef<FloatOffset>({ x: 0, y: 0, rotation: 0 });
+  const basePositionRef = useRef<Position>({ x, y });
+
   useEffect(() => {
-    if (onPositionUpdate) {
-      onPositionUpdate({ x: renderedX, y: renderedY });
-    }
-  }, [renderedX, renderedY, onPositionUpdate]);
+    basePositionRef.current = { x, y };
+    onPositionUpdate?.({ x: x + floatOffsetRef.current.x, y: y + floatOffsetRef.current.y });
+  }, [x, y, onPositionUpdate]);
+
+  const handleFloatFrame = useCallback((offset: FloatOffset) => {
+    floatOffsetRef.current = offset;
+    const base = basePositionRef.current;
+    onPositionUpdate?.({ x: base.x + offset.x, y: base.y + offset.y });
+  }, [onPositionUpdate]);
   
   // Calculate ground proximity for shadow visibility
   // groundPosition.y is where Blobbi should be when on the ground
@@ -331,7 +304,8 @@ export function BlobbiCompanion({
         direction={isEntering ? 'right' : motion.direction}
         isDragging={motion.isDragging}
         isWalking={state === 'walking'}
-        floatOffset={floatOffset}
+        floatActive={floatActive}
+        onFloatFrame={handleFloatFrame}
         isOnGround={isOnGround}
         distanceFromGround={distanceFromGround}
         recipe={recipe}
