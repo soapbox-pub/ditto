@@ -3,7 +3,7 @@
  * comments/replies on any Nostr event.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
@@ -27,7 +27,7 @@ function getTag(tags: string[][], name: string): string | undefined {
 
 // ── data hook ─────────────────────────────────────────────────────────────────
 
-function useEventComments(event: NostrEvent | undefined) {
+function useEventComments(event: NostrEvent | undefined, open: boolean) {
   const { nostr } = useNostr();
 
   const aTag = event
@@ -54,9 +54,10 @@ function useEventComments(event: NostrEvent | undefined) {
         .filter((e) => { if (seen.has(e.id)) return false; seen.add(e.id); return true; })
         .sort((a, b) => b.created_at - a.created_at);
     },
+    // Prefetched while closed so opening is instant; only polls while open.
     enabled: !!event,
     staleTime: 15_000,
-    refetchInterval: 20_000,
+    refetchInterval: open ? 20_000 : false,
   });
 }
 
@@ -125,7 +126,13 @@ interface CommentsModalProps {
 }
 
 export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
-  const { data: rawComments = [], isLoading, dataUpdatedAt } = useEventComments(event);
+  const { data: rawComments = [], isLoading, dataUpdatedAt, isStale, refetch } = useEventComments(event, open);
+
+  // Polling is paused while closed, so catch up when the sheet opens.
+  useEffect(() => {
+    if (open && isStale) refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on open
+  }, [open]);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   // Only show comments once the query has actually fetched for this event.
