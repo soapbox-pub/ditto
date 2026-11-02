@@ -300,7 +300,7 @@ public class NotificationRelayService extends Service {
 
     // After a tick's probes had time to answer: a silent socket is dead.
     private final Runnable keepaliveCheck = () -> {
-        long now = SystemClock.uptimeMillis();
+        long now = SystemClock.elapsedRealtime();
         for (RelayConnection rc : connections) rc.checkProbe(now);
     };
 
@@ -310,7 +310,7 @@ public class NotificationRelayService extends Service {
     private final Runnable keepaliveTick = new Runnable() {
         @Override
         public void run() {
-            long now = SystemClock.uptimeMillis();
+            long now = SystemClock.elapsedRealtime();
             boolean probed = false;
             for (RelayConnection rc : connections) probed |= rc.keepalive(now);
             if (probed) {
@@ -726,8 +726,10 @@ public class NotificationRelayService extends Service {
         String reqSignature = null;
 
         // Keepalive (see Keepalive): when a frame last arrived, and when the
-        // outstanding probe went out (0 if none), in uptimeMillis. Written from
-        // the socket thread, read on the keepalive tick.
+        // outstanding probe went out (0 if none), in elapsedRealtime. Written
+        // from the socket thread, read on the keepalive tick. Not uptimeMillis:
+        // uptime stops in deep sleep, so a socket whose NAT mapping expired
+        // overnight would read as just used and go unprobed.
         volatile long lastInboundAt = 0;
         volatile long probeSentAt = 0;
         // This session was ended by our own keepalive, not by the relay.
@@ -806,7 +808,7 @@ public class NotificationRelayService extends Service {
                 public void onOpen(WebSocket webSocket, Response response) {
                     Log.d(TAG, "WS open: " + relayUrl);
                     ServiceProfiler.count("socket.open");
-                    lastInboundAt = SystemClock.uptimeMillis();
+                    lastInboundAt = SystemClock.elapsedRealtime();
                     probeSentAt = 0;
                     handler.post(() -> {
                         if (closed || webSocket != ws) return;
@@ -818,7 +820,7 @@ public class NotificationRelayService extends Service {
 
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
-                    lastInboundAt = SystemClock.uptimeMillis();
+                    lastInboundAt = SystemClock.elapsedRealtime();
                     if (ServiceProfiler.ON) {
                         String family = ServiceProfiler.frameFamily(text);
                         ServiceProfiler.units("frame.in " + family, text.length());
@@ -1055,7 +1057,7 @@ public class NotificationRelayService extends Service {
             if (!wasOpen || ours || !byPeer || lastInboundAt == 0) return;
             if (SystemClock.elapsedRealtime() - lastNetworkChangeAt < NETWORK_DROP_GRACE_MS) return;
             long current = quietLimitFor(relayUrl);
-            long learned = Keepalive.learn(current, SystemClock.uptimeMillis() - lastInboundAt);
+            long learned = Keepalive.learn(current, SystemClock.elapsedRealtime() - lastInboundAt);
             if (learned < current) {
                 quietLimitByUrl.put(relayUrl, learned);
                 getSharedPreferences(KEEPALIVE_PREFS, Context.MODE_PRIVATE).edit().putLong(relayUrl, learned).apply();
