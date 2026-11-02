@@ -8,7 +8,7 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useAuthor } from '@/hooks/useAuthor';
-import { useAuthors } from '@/hooks/useAuthors';
+import { useAuthors, type AuthorData } from '@/hooks/useAuthors';
 import { useBlossomServers } from '@/hooks/useBlossomFallback';
 import { NoteContent } from '@/components/NoteContent';
 import { PollArena } from '@/components/PollArena';
@@ -87,25 +87,32 @@ function getVotersForOption(
   });
 }
 
+const EMPTY_AUTHORS: Map<string, AuthorData> = new Map();
+
+/** Voter avatars shown in the stack. */
+const AVATAR_STACK_SIZE = 6;
+
 /** Clickable avatar stack + "N votes" label. */
 function VoterAvatarsButton({
   votes,
   totalVotes,
-  authorsMap,
   onClick,
   className,
 }: {
   votes: NostrEvent[];
   totalVotes: number;
-  authorsMap?: Map<string, { pubkey: string; metadata?: import('@nostrify/nostrify').NostrMetadata; imeta?: ProfileImeta }>;
   onClick: () => void;
   className?: string;
 }) {
   const intl = useIntl();
+  const shown = useMemo(() => votes.slice(0, AVATAR_STACK_SIZE), [votes]);
+  // Only fetch profiles for the avatars in the stack, not every voter.
+  const shownPubkeys = useMemo(() => shown.map((vote) => vote.pubkey), [shown]);
+  const { data: authorsMap } = useAuthors(shownPubkeys);
   return (
     <button onClick={onClick} className={cn('flex items-center gap-1.5 group', className)}>
       <div className="flex -space-x-1.5">
-        {votes.slice(0, 6).map((vote) => {
+        {shown.map((vote) => {
           const authorData = authorsMap?.get(vote.pubkey);
           const metadata = authorData?.metadata;
           const avatarShape = getAvatarShape(metadata);
@@ -224,14 +231,6 @@ export function PollContent({ event }: { event: NostrEvent }) {
     });
   };
 
-  // Collect all voter pubkeys for batch profile fetching
-  const allVoterPubkeys = useMemo(() => {
-    if (!votes) return [];
-    return votes.map((v) => v.pubkey);
-  }, [votes]);
-
-  const { data: authorsMap } = useAuthors(allVoterPubkeys);
-
   const openVotersModal = (optionId: string | null) => {
     setVotersModalOptionId(optionId);
     setVotersModalOpen(true);
@@ -283,7 +282,6 @@ export function PollContent({ event }: { event: NostrEvent }) {
           totalVotes={totalVotes}
           pollType={pollType}
           userPubkey={user?.pubkey}
-          authorsMap={authorsMap}
           onOpenVoters={openVotersModal}
         />
       )}
@@ -339,7 +337,6 @@ export function PollContent({ event }: { event: NostrEvent }) {
             <VoterAvatarsButton
               votes={votes ?? []}
               totalVotes={totalVotes}
-              authorsMap={authorsMap}
               onClick={() => openVotersModal(null)}
             />
           ) : (
@@ -371,7 +368,6 @@ export function PollContent({ event }: { event: NostrEvent }) {
         tags={event.tags}
         pollType={pollType}
         initialOptionId={votersModalOptionId}
-        authorsMap={authorsMap}
       />
     </div>
   );
@@ -387,12 +383,17 @@ interface PollVotersModalProps {
   tags: string[][];
   pollType: string;
   initialOptionId?: string | null;
-  authorsMap?: Map<string, { pubkey: string; event?: NostrEvent; metadata?: import('@nostrify/nostrify').NostrMetadata; imeta?: ProfileImeta }>;
 }
 
-function PollVotersModal({ open, onOpenChange, allVotes, options, tags, pollType, initialOptionId, authorsMap }: PollVotersModalProps) {
+function PollVotersModal({ open, onOpenChange, allVotes, options, tags, pollType, initialOptionId }: PollVotersModalProps) {
   const intl = useIntl();
   const [activeFilter, setActiveFilter] = useState<string | null>(initialOptionId ?? null);
+
+  // Every voter's profile, but only once someone actually opens the list.
+  const voterPubkeys = useMemo(() => (open ? allVotes.map((v) => v.pubkey) : []), [open, allVotes]);
+  const { data: batchAuthors, isError: batchFailed } = useAuthors(voterPubkeys);
+  // An empty map on failure makes every row fetch its own profile.
+  const authorsMap = batchAuthors ?? (batchFailed ? EMPTY_AUTHORS : undefined);
 
   // Sync filter when modal opens with a specific option
   useMemo(() => {
@@ -534,8 +535,9 @@ interface VoterRowProps {
 
 function VoterRow({ vote, optionLabelMap, pollType, authorsMap }: VoterRowProps) {
   const intl = useIntl();
-  // Use batch-fetched author data if available, fall back to individual fetch
-  const individualAuthor = useAuthor(authorsMap?.has(vote.pubkey) ? undefined : vote.pubkey);
+  // Use batch-fetched author data, falling back to an individual fetch only
+  // if the batch finished without this voter.
+  const individualAuthor = useAuthor(authorsMap && !authorsMap.has(vote.pubkey) ? vote.pubkey : undefined);
   const authorData = authorsMap?.get(vote.pubkey) ?? individualAuthor.data;
   const metadata = authorData?.metadata;
   const avatarShape = getAvatarShape(metadata);

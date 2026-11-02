@@ -8,7 +8,7 @@ import { useInView } from '@/hooks/useInView';
 import { getAvatarShape } from '@/lib/avatarShape';
 import type { PollOptionLabelParts } from '@/lib/pollOptions';
 import { cn } from '@/lib/utils';
-import type { AuthorData } from '@/hooks/useAuthors';
+import { useAuthors, type AuthorData } from '@/hooks/useAuthors';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -36,7 +36,6 @@ interface PollArenaProps {
   totalVotes: number;
   pollType: string;
   userPubkey?: string;
-  authorsMap?: Map<string, AuthorData>;
   /** Open the voters modal, optionally filtered to one option. */
   onOpenVoters: (optionId: string | null) => void;
 }
@@ -201,7 +200,6 @@ export function PollArena({
   totalVotes,
   pollType,
   userPubkey,
-  authorsMap,
   onOpenVoters,
 }: PollArenaProps) {
   const intl = useIntl();
@@ -287,6 +285,10 @@ export function PollArena({
     });
     return result;
   }, [options, votes, pollType, userPubkey, isSplit, dividerX, slices]);
+
+  // Only fetch profiles for the figures on the floor, not every voter.
+  const placedPubkeys = useMemo(() => placements.map((p) => p.pubkey), [placements]);
+  const { data: authorsMap } = useAuthors(placedPubkeys);
 
   // Size the figures to the room each one gets, so a big crowd shrinks
   // instead of piling heads on top of heads.
