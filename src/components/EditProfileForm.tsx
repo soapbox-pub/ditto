@@ -28,6 +28,7 @@ import { useNostr } from '@nostrify/react';
 import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
 import { completeProfileImetaTags } from '@/lib/computeProfileImeta';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { parseNip05Address } from '@/lib/nip05';
 import { carriedProfileTags } from '@/lib/profileImeta';
 import {
   Collapsible,
@@ -43,6 +44,8 @@ import { isGifBytes } from '@/lib/runGifCrop';
 
 // Extended form schema that includes custom fields and avatar shape
 const formSchema = n.metadata().extend({
+  // NIP-05 allows a bare domain (the root user `_@domain`), which the email check rejects.
+  nip05: z.string().optional().refine((value) => !value?.trim() || parseNip05Address(value) !== undefined),
   fields: z.array(z.object({
     label: z.string(),
     value: z.string(),
@@ -259,6 +262,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       // Combine existing metadata with new values. The form owns the custom
       // fields, so removing them all here removes them from the profile.
       const data: Record<string, unknown> = { ...base, ...standardMetadata };
+      // As typed, not canonicalized: a bare `example.com` stays that, not `_@example.com`.
+      const nip05 = standardMetadata.nip05?.trim().replace(/^@/, '') ?? '';
+      data.nip05 = parseNip05Address(nip05) ? nip05 : '';
       delete data.fields;
 
       // Add shape only if set (an emoji string)

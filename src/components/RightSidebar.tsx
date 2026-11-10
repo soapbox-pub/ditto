@@ -9,12 +9,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useAuthor } from '@/hooks/useAuthor';
+import { metadataSchema } from '@/lib/metadataSchema';
 import { parseProfileImeta } from '@/lib/profileImeta';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { formatNumber } from '@/lib/formatNumber';
 import { timeAgo } from '@/lib/timeAgo';
-import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useMemo, useState, useEffect } from 'react';
@@ -237,7 +237,7 @@ function LatestAccountCard({ event, onDismiss }: { event: NostrEvent; onDismiss:
   const intl = useIntl();
   let metadata: { name?: string; display_name?: string; nip05?: string; picture?: string } = {};
   try {
-    metadata = n.json().pipe(n.metadata()).parse(event.content);
+    metadata = metadataSchema.parse(event.content);
   } catch {
     // Invalid metadata
   }

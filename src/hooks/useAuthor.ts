@@ -1,4 +1,4 @@
-import { type NostrEvent, type NostrMetadata, type NPool, NSchema as n } from '@nostrify/nostrify';
+import type { NostrEvent, NostrMetadata, NPool } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import type { NIndexedDB } from '@nostrify/indexeddb';
 import { type QueryClient, queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { type QueryClient, queryOptions, useQuery, useQueryClient } from '@tanst
 import { useCacheFirstSeed } from '@/hooks/useCacheFirstSeed';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { fetchAuthorWriteRelays, queryOutboxRelays } from '@/lib/outbox';
+import { metadataSchema } from '@/lib/metadataSchema';
 import { parseProfileImeta, type ProfileImeta } from '@/lib/profileImeta';
 import { isBlockedProfile } from '@/lib/profileSafety';
 
@@ -29,7 +30,7 @@ export type AuthorResult = {
 export function parseAuthorEvent(event: NostrEvent): AuthorResult & { event: NostrEvent } {
   let metadata: NostrMetadata;
   try {
-    metadata = n.json().pipe(n.metadata()).parse(event.content);
+    metadata = metadataSchema.parse(event.content);
   } catch {
     return { event };
   }

@@ -11,11 +11,12 @@ import { defineMessage, FormattedMessage, useIntl, type IntlShape } from 'react-
 
 import { saveNsec } from '@/lib/credentialManager';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { parseNip05Address } from '@/lib/nip05';
 import { parseBirthdayFromContent, daysInMonth, type Birthday } from '@/lib/birthday';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 import { Navigate } from 'react-router-dom';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { NSchema as n } from '@nostrify/nostrify';
@@ -278,6 +279,8 @@ function inferAcceptFromValue(value: string): string | undefined {
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const formSchema = n.metadata().extend({
+  // NIP-05 allows a bare domain (the root user `_@domain`), which the email check rejects.
+  nip05: z.string().optional().refine((value) => !value?.trim() || parseNip05Address(value) !== undefined),
   fields: z.array(z.object({
     label: z.string(),
     value: z.string(),
@@ -672,6 +675,17 @@ export function ProfileSettings() {
     });
   };
 
+  // The card shows no per-field errors, so a refused save says which field it was.
+  const onInvalid = (errors: FieldErrors<FormValues>) => {
+    toast({
+      title: intl.formatMessage({ id: 'settings.profile.notSaved', defaultMessage: 'Profile not saved' }),
+      description: errors.nip05
+        ? intl.formatMessage({ id: 'settings.profile.nip05Invalid', defaultMessage: 'Enter a NIP-05 address like name@domain.com or domain.com.' })
+        : intl.formatMessage({ id: 'settings.profile.fieldInvalid', defaultMessage: 'One of the fields has a value that isn’t valid.' }),
+      variant: 'destructive',
+    });
+  };
+
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     try {
@@ -695,6 +709,9 @@ export function ProfileSettings() {
       // The form owns the custom fields, so removing them all here removes
       // them from the profile.
       const data: Record<string, unknown> = { ...(previous ?? metadata), ...standardMetadata };
+      // As typed, not canonicalized: a bare `example.com` stays that, not `_@example.com`.
+      const nip05 = standardMetadata.nip05?.trim().replace(/^@/, '') ?? '';
+      data.nip05 = parseNip05Address(nip05) ? nip05 : '';
       delete data.fields;
 
       // Add shape only if set (an emoji string)
@@ -826,7 +843,7 @@ export function ProfileSettings() {
       </PageHeader>
 
       <Form {...form}>
-        <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
+        <form id="profile-settings-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="max-w-xl mx-auto px-4 pb-10 space-y-6">
 
           {/* Intro */}
           <div className="flex items-center gap-4 px-3 pt-2 pb-2">

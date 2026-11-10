@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { UserRoundPen } from 'lucide-react';
-import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { FallbackImage } from '@/components/FallbackImage';
 import { encodeEventAddress } from '@/lib/encodeEvent';
+import { metadataSchema } from '@/lib/metadataSchema';
 import { parseProfileImeta } from '@/lib/profileImeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { isBlockedProfile } from '@/lib/profileSafety';
@@ -28,7 +29,7 @@ interface EmbeddedProfileCardProps {
  */
 export function EmbeddedProfileCard({ event, className, disableHoverCards }: EmbeddedProfileCardProps) {
   const metadata: NostrMetadata = useMemo(() => {
-    const parsed = n.json().pipe(n.metadata()).safeParse(event.content);
+    const parsed = metadataSchema.safeParse(event.content);
     return parsed.success && !isBlockedProfile(parsed.data) ? parsed.data : {};
   }, [event.content]);
 

@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
+import { metadataSchema } from '@/lib/metadataSchema';
 import { isBlockedProfile } from '@/lib/profileSafety';
 
 export interface SearchProfile {
@@ -111,7 +111,7 @@ export function useSearchProfiles(query: string) {
 
       for (const event of events) {
         try {
-          const metadata = n.json().pipe(n.metadata()).parse(event.content);
+          const metadata = metadataSchema.parse(event.content);
           if (isBlockedProfile(metadata)) continue;
           profiles.push({ pubkey: event.pubkey, metadata, event });
         } catch {

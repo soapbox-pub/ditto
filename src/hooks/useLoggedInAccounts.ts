@@ -1,8 +1,9 @@
 import { useNostr } from '@nostrify/react';
 import { useNostrLogin } from '@nostrify/react/login';
 import { useQuery } from '@tanstack/react-query';
-import { NSchema as n, NostrEvent, NostrMetadata } from '@nostrify/nostrify';
+import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 
+import { metadataSchema } from '@/lib/metadataSchema';
 import { parseProfileImeta, type ProfileImeta } from '@/lib/profileImeta';
 
 export interface Account {
@@ -29,7 +30,7 @@ export function useLoggedInAccounts() {
       return logins.map(({ id, pubkey }): Account => {
         const event = events.find((e) => e.pubkey === pubkey);
         try {
-          const metadata = n.json().pipe(n.metadata()).parse(event?.content);
+          const metadata = metadataSchema.parse(event?.content);
           return { id, pubkey, metadata, event, imeta: event && parseProfileImeta(event.tags, metadata) };
         } catch {
           return { id, pubkey, metadata: {}, event };
