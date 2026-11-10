@@ -4,6 +4,9 @@
   "description": "A carnival, not a platform. Color, whimsy, games, and endless customization. The most fun you've had on the internet in years.",
   "start_url": "/",
   "display": "standalone",
+  "scope_extensions": [
+    { "type": "origin", "origin": "https://ditto.pub" }
+  ],
   "background_color": "#161b2e",
   "theme_color": "#7c3aed",
   "icons": [
