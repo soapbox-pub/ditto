@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { themePresets, coreToTokens, type CoreThemeColors } from '@/themes';
+import { isSlideRender } from '@/lib/pushTransition';
 import { cn } from '@/lib/utils';
 
 interface LandingHeroProps {
@@ -99,6 +100,8 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  // Fades in on arrival, not when coming back to it (a swipe back already showed it).
+  const [fade] = useState(() => !isSlideRender() && 'landing-hero-fade');
 
   // Get featured presets for the theme strip
   const featuredPresets = useMemo(() =>
@@ -136,11 +139,11 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
     <div className="landing-hero">
       {/* ── Hero Header ── */}
       <div className="px-4 pt-8 pb-6 text-center space-y-4">
-        <div className="flex justify-center landing-hero-fade" style={{ animationDelay: '0ms' }}>
+        <div className={cn('flex justify-center', fade)} style={{ animationDelay: '0ms' }}>
           <DittoLogo size={56} />
         </div>
 
-        <div className="space-y-2 landing-hero-fade" style={{ animationDelay: '80ms' }}>
+        <div className={cn('space-y-2', fade)} style={{ animationDelay: '80ms' }}>
           <h1 className="text-2xl sidebar:text-3xl font-bold tracking-tight">
             {config.appName}
           </h1>
@@ -149,7 +152,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
           </p>
         </div>
 
-        <div className="flex gap-3 justify-center landing-hero-fade" style={{ animationDelay: '160ms' }}>
+        <div className={cn('flex gap-3 justify-center', fade)} style={{ animationDelay: '160ms' }}>
           <Button onClick={onSignupClick} className="rounded-full px-6" size="sm">
             <FormattedMessage id="loginArea.signUp" defaultMessage="Sign up" />
           </Button>
@@ -163,7 +166,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
       </div>
 
       {/* ── Theme Showcase ── */}
-      <div className="pb-5 landing-hero-fade" style={{ animationDelay: '240ms' }}>
+      <div className={cn('pb-5', fade)} style={{ animationDelay: '240ms' }}>
         <div className="px-4 mb-2.5 flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
             <FormattedMessage id="landingHero.makeItYours" defaultMessage="Make it yours" />

@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import type { Location } from 'react-router-dom';
 
+import { capturePageTheme } from '@/lib/pageTheme';
+
 /**
  * The in-app history entries seen this session, by history index, so the
  * page behind the current one is known (see `BackSwipe`). Entries from
@@ -20,6 +22,9 @@ function indexOfState(): number {
 /** Record the entry now on screen, after a navigation of `action`. */
 export function recordHistoryEntry(location: Location, action: 'POP' | 'PUSH' | 'REPLACE'): void {
   const idx = indexOfState();
+  // The page being left is still on screen, in its theme.
+  const leaving = entries[current];
+  if (leaving) capturePageTheme(leaving.key);
   // A push drops the entries it replaced going forward.
   if (action === 'PUSH') entries.length = idx;
   entries[idx] = location;

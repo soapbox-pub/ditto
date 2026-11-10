@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
@@ -128,6 +128,7 @@ import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { themeEventToConfig } from '@/lib/themeEvent';
 import { startThemePreview, usePageThemeOverride } from '@/lib/themePreview';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { parseAddr } from '@/lib/parseAddr';
 import { impactLight, impactMedium } from '@/lib/haptics';
 import { getStorageKey } from '@/lib/storageKey';
@@ -1970,10 +1971,13 @@ function ProfilePageInner() {
     [profileThemeColors, profileThemeTitleFont, effectiveProfileFont],
   );
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
-  usePageThemeOverride(!!effectiveProfileColors);
+  // The copy of this page under the next one (see BackSwipe) paints in the
+  // theme captured when it was left, not over the page on screen.
+  const inUnderlay = useContext(PageUnderlayContext);
+  usePageThemeOverride(!!effectiveProfileColors && !inUnderlay);
 
   useLayoutEffect(() => {
-    if (!effectiveProfileColors) return;
+    if (!effectiveProfileColors || inUnderlay) return;
 
     // Inject the profile theme's CSS vars onto :root
     const css = buildThemeCssFromCore(effectiveProfileColors);
@@ -2054,7 +2058,7 @@ function ProfilePageInner() {
         bgEl?.remove();
       }
     };
-  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileTitleFont, effectiveProfileBackground]);
+  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileTitleFont, effectiveProfileBackground, inUnderlay]);
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 

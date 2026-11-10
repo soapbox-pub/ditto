@@ -185,8 +185,8 @@ const BOOK_REVIEW_KIND = 31985;
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
 
-/** How far down the screen (0–1) a reply's focused post sits at most on desktop, with its thread above. */
-const DESKTOP_PIN_RATIO = 0.4;
+/** How far down the screen (0–1) a reply's focused post sits at most, with its thread above. */
+const THREAD_FOCUS_RATIO = 0.4;
 
 /**
  * Map a kind number to a human-readable shell title for the loading state.
@@ -1894,13 +1894,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!parentEventId || !focusedPostRef.current) return;
 
     const post = focusedPostRef.current;
-    // On a phone, pinned below the mobile top bar and status bar
-    // (`scroll-mt-mobile-bar`), with the bars kept showing: the app moved the
-    // page, not the reader. On desktop the thread above stays in view, up to
-    // DESKTOP_PIN_RATIO of the screen, so a short parent isn't scrolled away.
-    const desktop = window.matchMedia("(min-width: 900px)").matches;
+    // The thread above stays in view, up to THREAD_FOCUS_RATIO of the screen,
+    // so a short parent isn't scrolled away. The bars keep showing: the app
+    // moved the page, not the reader.
     holdChromeUntilUserScroll();
-    if (!desktop) post.scrollIntoView({ block: "start" });
 
     // Brief highlight pulse so the user can locate the focused post
     post.style.transition = "background-color 0.3s ease";
@@ -1928,7 +1925,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     // a tally never recovers from the clamp. `min-h-thread-focus` keeps the
     // page tall enough for the post to reach its place. Until the reader
     // scrolls themselves.
-    const place = desktop ? window.innerHeight * DESKTOP_PIN_RATIO : post.getBoundingClientRect().top;
+    const place = window.innerHeight * THREAD_FOCUS_RATIO;
     let pinned = true;
     const hold = () => {
       if (!pinned) return;
@@ -1936,7 +1933,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       const drift = top - Math.min(place, top + window.scrollY);
       if (Math.abs(drift) >= 1) window.scrollBy(0, drift);
     };
-    if (desktop) hold();
+    hold();
     const observer = new ResizeObserver(hold);
     observer.observe(ancestor);
     observer.observe(document.body);
@@ -2119,7 +2116,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       <div className={cn(parentHints && "min-h-thread-focus")}>
       {/* Reaction event — compact activity-style card */}
       {isReaction && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           <div className="flex items-center gap-3">
             {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
             <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
@@ -2223,7 +2220,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Repost event (kind 6 / 16) — compact activity-style card */}
       {isRepost && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           <div className="flex items-center gap-3">
             {/* Repost icon bubble — size-10 matches the threaded ancestor avatar column */}
             <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
@@ -2309,7 +2306,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
         const zapMsg = extractZapMessage(event);
         return (
-          <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
             <div className="flex items-center gap-3">
               {/* Zap icon bubble — same size/position as reaction emoji bubble */}
               <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
@@ -2398,7 +2395,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         const isMultiRecipient = recipientPubkeys.length > 1;
         // Sender is the author (self-signed, unlike 9735 where the LNURL server signs).
         return (
-          <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
             <div className="flex items-center gap-3">
               {/* Amber bolt bubble — identical to the Lightning card. */}
               <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
@@ -2482,7 +2479,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         let parsedMeta: Record<string, unknown> = {};
         try { parsedMeta = JSON.parse(event.content); } catch { /* ignore */ }
         return (
-          <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
             <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} imeta={parseProfileImeta(event.tags, parsedMeta)} />
 
             {/* Date row */}
@@ -2556,7 +2553,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Kind 62 — Request to Vanish: dramatic full-width display, no author row */}
       {isVanish && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
           <VanishEventContent event={event} />
 
           {/* Date row */}
@@ -2637,7 +2634,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Kind 1018 — Poll vote: compact activity-style card */}
       {isPollVote && (
-        <div ref={focusedPostRef as React.RefObject<HTMLDivElement>} className="scroll-mt-mobile-bar">
+        <div ref={focusedPostRef as React.RefObject<HTMLDivElement>}>
           <ActivityCard
             className="border-b-0 pb-0"
             icon={
@@ -2691,7 +2688,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <article
           ref={focusedPostRef}
           className={cn(
-            "relative px-4 pt-3 pb-0 scroll-mt-mobile-bar",
+            "relative px-4 pt-3 pb-0",
             // Clip confetti to the card only while it plays — overflow-hidden
             // is not part of this article's normal layout.
             celebrating && "overflow-hidden",

@@ -66,7 +66,9 @@ export function ExternalFavicon({
             fallbackElement.style.display = 'inline-block';
           }
         }}
-        decoding="async"
+        // Sync: a remounted icon (a page coming back) shows on its first
+        // frame instead of popping in, and a 16px decode costs nothing.
+        decoding="sync"
       />
       {fallback && (
         <span style={{ display: 'none' }}>

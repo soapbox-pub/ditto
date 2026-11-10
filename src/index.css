@@ -261,26 +261,10 @@
   }
 
   /* A thread's focused post and everything below it: tall enough that the
-     post can be scrolled to its place however short the rest is — just under
-     the top bar on a phone, 40% down the screen on desktop (DESKTOP_PIN_RATIO
-     in PostDetailPage). */
+     post can be scrolled to its place, 40% down the screen (THREAD_FOCUS_RATIO
+     in PostDetailPage), however short the rest is. */
   .min-h-thread-focus {
     min-height: 60dvh;
-  }
-
-  @media (max-width: 899px) {
-    .min-h-thread-focus {
-      min-height: calc(100dvh - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-    }
-  }
-
-  /* Scrolled-to content (a thread's focused post) lands below the mobile top
-     bar and status bar instead of under them, clear of the bar's arc, which
-     dips 20px below it (ARC_OVERHANG_PX). */
-  @media (max-width: 899px) {
-    .scroll-mt-mobile-bar {
-      scroll-margin-top: calc(var(--top-bar-height) + 20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
-    }
   }
 
   /* New-posts pill: just below the SubHeaderBar on both mobile and desktop */

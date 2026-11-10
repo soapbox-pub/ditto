@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
-import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Routes, UNSAFE_NavigationContext as NavigationContext, useLocation, useNavigate, type Location } from 'react-router-dom';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { PageRoutesContext, PageUnderlayContext } from '@/contexts/PageUnderlayContext';
@@ -8,6 +8,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { attachBackSwipe } from '@/lib/backSwipeGesture';
 import { markReturnRender } from '@/lib/pushTransition';
 import { usePreviousHistoryEntry } from '@/lib/historyStack';
+import { getPageThemeCss } from '@/lib/pageTheme';
 import { getSavedScroll } from '@/lib/scrollPositions';
 
 /** Parallax shift of the previous page at the start of a swipe, as a fraction of the width. */
@@ -22,6 +23,8 @@ const PAGE_SHADOW = '-8px 0 24px rgb(0 0 0 / 0.15)';
 const MOUNT_DELAY_MS = 600;
 /** Give up on a committed swipe whose navigation never lands. */
 const SWAP_TIMEOUT_MS = 1000;
+/** How long the copy stays over the real previous page after a committed swipe, while it fills in. */
+const COVER_MS = 200;
 /** On iOS, presses this close to the left edge belong to WKWebView's own swipe-back. */
 const IOS_EDGE_PX = 24;
 
@@ -85,6 +88,21 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
   const [mountedKey, setMountedKey] = useState<string>();
   const showCopy = enabled && !!previous && mountedKey === previous.key;
   const previousKey = previous?.key;
+  // After a committed swipe, the entry the copy keeps covering the screen
+  // for while the real page fills in (see COVER_MS).
+  const [cover, setCover] = useState<Location>();
+  const covering = useRef(false);
+  const copyLocation = cover ?? (showCopy ? previous : undefined);
+
+  // The copy's navigations go nowhere: it renders another entry's location, so
+  // a page in it writing its own URL (the search page syncing `?q=` a moment
+  // after it mounts) would replace the entry on screen with the copy's.
+  const navigation = useContext(NavigationContext);
+  const inertNavigation = useMemo(() => ({
+    ...navigation,
+    navigator: { ...navigation.navigator, go: () => {}, push: () => {}, replace: () => {} },
+  }), [navigation]);
+
   useEffect(() => {
     if (!enabled || !previousKey) return;
     let idle: number | undefined;
@@ -100,27 +118,33 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
   }, [enabled, previousKey]);
 
   const layerRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const shiftRef = useRef<HTMLDivElement>(null);
   const swapping = useRef(false);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Latest values for the gesture handlers, which attach once per column.
-  const live = useRef({ previousKey, showCopy, navigate });
-  live.current = { previousKey, showCopy, navigate };
+  const live = useRef({ previous, previousKey, showCopy, navigate });
+  live.current = { previous, previousKey, showCopy, navigate };
 
   useEffect(() => {
     if (!enabled || !column) return;
     const layer = () => layerRef.current;
 
+    // The copy shows in the strip the page uncovers: its layer slides in
+    // with the page's edge and its content slides back by as much, plus the
+    // parallax. All transforms, so the settle runs on the compositor in step
+    // with the page. A clip-path there animated on the main thread, which
+    // fell behind on a phone and opened a gap onto the background.
     const paint = (dx: number) => {
       const width = window.innerWidth || 1;
       const progress = dx / width;
       column.style.transform = `translate3d(${dx}px, 0, 0)`;
       const el = layer();
       if (el) {
-        el.style.clipPath = `inset(0 ${width - dx}px 0 0)`;
+        el.style.transform = `translate3d(${dx - width}px, 0, 0)`;
         if (shiftRef.current) {
-          shiftRef.current.style.transform = `translate3d(${-(1 - progress) * UNDERLAY_SHIFT * width}px, 0, 0)`;
+          shiftRef.current.style.transform = `translate3d(${width - dx - (1 - progress) * UNDERLAY_SHIFT * width}px, 0, 0)`;
         }
       }
     };
@@ -132,20 +156,22 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
       column.style.boxShadow = '';
       column.style.willChange = '';
       const el = layer();
-      if (el) {
+      if (el && !covering.current) {
         el.style.visibility = 'hidden';
         el.style.transition = '';
-        el.style.clipPath = '';
+        el.style.transform = '';
+        el.style.willChange = '';
       }
       if (shiftRef.current) {
         shiftRef.current.style.transition = '';
         shiftRef.current.style.transform = '';
+        shiftRef.current.style.willChange = '';
       }
     };
 
     /** Scroll the copy to where the user left the previous page. */
     const align = () => {
-      const el = layer();
+      const el = scrollerRef.current;
       const key = live.current.previousKey;
       if (!el || !key) return;
       const saved = getSavedScroll(key);
@@ -159,7 +185,7 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
 
     const detach = attachBackSwipe(column, {
       canStart: (e) => {
-        if (swapping.current) return false;
+        if (swapping.current || covering.current) return false;
         const target = e.target instanceof Element ? e.target : null;
         if (!target || !column.contains(target)) return false;
         if (target.closest(OWN_DRAG_SELECTOR)) return false;
@@ -181,8 +207,12 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
         if (el) {
           el.style.transition = 'none';
           el.style.visibility = 'visible';
+          el.style.willChange = 'transform';
         }
-        if (shiftRef.current) shiftRef.current.style.transition = 'none';
+        if (shiftRef.current) {
+          shiftRef.current.style.transition = 'none';
+          shiftRef.current.style.willChange = 'transform';
+        }
         paint(0);
       },
       onMove: paint,
@@ -194,7 +224,7 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
         const transition = `${ms}ms ${EASING}`;
         column.style.transition = `transform ${transition}`;
         const el = layer();
-        if (el) el.style.transition = `clip-path ${transition}`;
+        if (el) el.style.transition = `transform ${transition}`;
         if (shiftRef.current) shiftRef.current.style.transition = `transform ${transition}`;
         paint(target);
         settleTimer.current = setTimeout(() => {
@@ -206,10 +236,14 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
           // happens in the layout effect below, on the frame the previous
           // page renders.
           swapping.current = true;
+          // The copy stays rendered across the swap, though the entry behind
+          // the one going back to is a different one.
+          setCover(live.current.previous);
           markReturnRender();
           live.current.navigate(-1);
           settleTimer.current = setTimeout(() => {
             swapping.current = false;
+            setCover(undefined);
             clear();
           }, SWAP_TIMEOUT_MS);
         }, ms);
@@ -218,7 +252,7 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
         const transition = `${SETTLE_MIN_MS}ms ${EASING}`;
         column.style.transition = `transform ${transition}`;
         const el = layer();
-        if (el) el.style.transition = `clip-path ${transition}`;
+        if (el) el.style.transition = `transform ${transition}`;
         if (shiftRef.current) shiftRef.current.style.transition = `transform ${transition}`;
         paint(0);
         settleTimer.current = setTimeout(clear, SETTLE_MIN_MS);
@@ -238,6 +272,10 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
 
   // A committed swipe's navigation has rendered the previous page for real:
   // drop the slide's styles before paint, so it shows where the copy was.
+  // The copy stays on top of it a moment longer: the real page mounts fresh,
+  // and its first frames are rows still placeholders and images still
+  // decoding, which flashed blank where the copy had just shown them.
+  const coverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useLayoutEffect(() => {
     if (!swapping.current || !column) return;
     swapping.current = false;
@@ -250,24 +288,52 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
     requestAnimationFrame(() => {
       column.style.transition = '';
     });
-  }, [location.key, column]);
 
-  if (!showCopy || !previous) return null;
+    const el = layerRef.current;
+    if (!el) return;
+    covering.current = true;
+    // Over the page column, under the bars (MobileTopBar is z-20).
+    el.style.zIndex = '1';
+    coverTimer.current = setTimeout(() => {
+      covering.current = false;
+      el.style.visibility = 'hidden';
+      el.style.zIndex = '-1';
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.willChange = '';
+      setCover(undefined);
+    }, COVER_MS);
+  }, [location.key, column]);
+  useEffect(() => () => clearTimeout(coverTimer.current), []);
+
+  if (!copyLocation) return null;
+
+  const themeCss = getPageThemeCss(copyLocation.key, '[data-page-underlay]');
 
   return (
     <div
       ref={layerRef}
       aria-hidden
       inert
+      data-page-underlay
       className="fixed inset-0 overflow-hidden pointer-events-none"
       style={{ zIndex: -1, visibility: 'hidden' }}
     >
-      <div ref={shiftRef}>
-        <PageUnderlayContext.Provider value>
-          <ErrorBoundary fallback={null} sentryTags={{ errorBoundary: 'page-underlay' }}>
-            <Routes location={previous}>{routes}</Routes>
-          </ErrorBoundary>
-        </PageUnderlayContext.Provider>
+      {/* In the previous page's own theme, background included, rather than
+          the one on screen (a themed profile paints the whole document). */}
+      {themeCss && <style>{themeCss}</style>}
+      {/* Scrolled to where the page was left, inside the layer, so the
+          theme's background on the layer stays put. */}
+      <div ref={scrollerRef} className="absolute inset-0 overflow-hidden">
+        <div ref={shiftRef}>
+          <PageUnderlayContext.Provider value>
+            <ErrorBoundary fallback={null} sentryTags={{ errorBoundary: 'page-underlay' }}>
+              <NavigationContext.Provider value={inertNavigation}>
+                <Routes location={copyLocation}>{routes}</Routes>
+              </NavigationContext.Provider>
+            </ErrorBoundary>
+          </PageUnderlayContext.Provider>
+        </div>
       </div>
     </div>
   );

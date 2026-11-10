@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { useFeedSettings } from './useFeedSettings';
 import { useMuteFilter } from './useMuteFilter';
 import { useContentFilters } from './useContentFilters';
@@ -194,6 +194,41 @@ const PAGE_SIZE = 40;
 
 /** Most events asked back for the stretch the stream spent quiet in the background. */
 const RESUME_LIMIT = 200;
+
+/** How long a search's loaded results are reused when the page showing it mounts again. */
+const RESULTS_FRESH_MS = 5 * 60_000;
+/** Most searches kept for reuse. */
+const RESULTS_MAX = 10;
+
+interface LoadedResults {
+  events: NostrEvent[];
+  cursor: FeedCursor | undefined;
+  hasNextPage: boolean;
+  at: number;
+}
+
+/**
+ * What each search (by its relay filter) has loaded so far. Coming back to a
+ * search (a back navigation, a swipe back over the copy that already showed
+ * them) renders these at once instead of skeletons until the relays answer.
+ */
+const loadedResults = new Map<string, LoadedResults>();
+
+function getLoadedResults(key: string): LoadedResults | undefined {
+  const results = loadedResults.get(key);
+  if (results && Date.now() - results.at > RESULTS_FRESH_MS) {
+    loadedResults.delete(key);
+    return undefined;
+  }
+  return results;
+}
+
+function saveLoadedResults(key: string, results: LoadedResults): void {
+  loadedResults.delete(key);
+  loadedResults.set(key, results);
+  const oldest = loadedResults.keys().next().value;
+  if (loadedResults.size > RESULTS_MAX && oldest !== undefined) loadedResults.delete(oldest);
+}
 
 /**
  * Stream posts using a direct relay connection.
@@ -410,6 +445,24 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- enabledKinds is stabilized via kindsKey; options.protocols via protocolsKey; kindsOverride via kindsOverrideKey; authorPubkeys via authorPubkeysKey
   }, [query, isDedicatedKindQuery, kindsKey, options.language, options.mediaType, protocolsKey, kindsOverrideKey, authorPubkeysKey, clientTagsKey, options.sort]);
 
+  const resultsKey = useMemo(() => JSON.stringify(paginationFilter.searchFilter), [paginationFilter]);
+  const resultsKeyRef = useRef(resultsKey);
+  resultsKeyRef.current = resultsKey;
+
+  /** Save what this search has loaded, for the next time it mounts. */
+  // Only once the first page has landed: a failed or pending first page
+  // isn't worth coming back to.
+  const resultsLoadedRef = useRef(false);
+  const rememberResults = useCallback(() => {
+    if (!resultsLoadedRef.current) return;
+    saveLoadedResults(resultsKeyRef.current, {
+      events: Array.from(eventMapRef.current.values()),
+      cursor: pageCursorRef.current,
+      hasNextPage: !!pageCursorRef.current,
+      at: Date.now(),
+    });
+  }, []);
+
   /** Ingest a single event into the event map / stream buffer. Returns true if the map was mutated. */
   const ingestEvent = useCallback((event: NostrEvent, isStreamed: boolean): boolean => {
     const now = Math.floor(Date.now() / 1000);
@@ -450,11 +503,14 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (streamMapDirtyRef.current) {
         streamMapDirtyRef.current = false;
         flushEventMap();
+        rememberResults();
       }
     }, 1000);
-  }, [ingestEvent, flushEventMap]);
+  }, [ingestEvent, flushEventMap, rememberResults]);
 
-  useEffect(() => {
+  // A layout effect, so a search with loaded results renders them on the
+  // first paint instead of a frame of skeletons.
+  useLayoutEffect(() => {
     const ac = new AbortController();
     let alive = true;
 
@@ -465,6 +521,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     isFetchingRef.current = false;
     pageCursorRef.current = undefined;
     initialLoadDoneRef.current = false;
+    resultsLoadedRef.current = false;
     streamBufferRef.current = [];
     setStreamBufferCount(0);
     eventMapRef.current = new Map();
@@ -482,8 +539,23 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const { searchFilter } = paginationFilter;
 
+    const loaded = getLoadedResults(resultsKey);
+    if (loaded) {
+      for (const event of loaded.events) {
+        ingestEvent(event, false);
+      }
+      flushEventMap();
+      pageCursorRef.current = loaded.cursor;
+      setHasNextPage(loaded.hasNextPage);
+      initialLoadDoneRef.current = true;
+      resultsLoadedRef.current = true;
+      setIsLoading(false);
+      return;
+    }
+
     // 1. Fetch the first page with the search filter.
     (async () => {
+      let fetched = false;
       try {
         const page = await fetchSearchPage(searchFilter, undefined, ac.signal);
         if (!alive) return;
@@ -493,12 +565,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         flushEventMap();
         pageCursorRef.current = page.cursor;
         if (!page.cursor) setHasNextPage(false);
+        fetched = true;
       } catch {
         // abort expected
       }
       if (alive) {
         initialLoadDoneRef.current = true;
         setIsLoading(false);
+        if (fetched) {
+          resultsLoadedRef.current = true;
+          rememberResults();
+        }
       }
     })();
 
@@ -574,13 +651,14 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       flushEventMap();
       pageCursorRef.current = page.cursor;
       if (!page.cursor) setHasNextPage(false);
+      rememberResults();
     } catch {
       // Transient failure — leave hasNextPage true so the user can retry
     } finally {
       isFetchingRef.current = false;
       setIsFetchingNextPage(false);
     }
-  }, [hasNextPage, paginationFilter, fetchSearchPage, ingestEvent, flushEventMap]);
+  }, [hasNextPage, paginationFilter, fetchSearchPage, ingestEvent, flushEventMap, rememberResults]);
 
   // Flush buffered streamed events into the main list (called by UI when user wants to see new posts)
   const flushStreamBuffer = doFlush;
