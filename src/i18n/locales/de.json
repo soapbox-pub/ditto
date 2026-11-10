@@ -4533,6 +4533,8 @@
   "settings.content.muteTypes.threads": "Threads",
   "settings.content.muteTypes.users": "Nutzer",
   "settings.content.muteTypes.words": "Wörter",
+  "settings.content.muteWordsInProfiles": "Profile auf stummgeschaltete Wörter prüfen",
+  "settings.content.muteWordsInProfilesDescription": "Verbirgt auch Beiträge von Konten, deren Name oder Bio ein stummgeschaltetes Wort enthält.",
   "settings.content.mutedContent": "Stummgeschaltete Inhalte",
   "settings.content.noMutedItems": "Noch keine stummgeschalteten Einträge",
   "settings.content.pageDescription": "Schalte Nutzer, Hashtags oder Wörter stumm und wähle, wie sensible Inhalte angezeigt werden. Stummschaltungen sind verschlüsselt und privat.",

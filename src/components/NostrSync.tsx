@@ -417,6 +417,14 @@ export function NostrSync() {
       }
 
       if (
+        encryptedSettings.muteWordsInProfiles !== undefined &&
+        encryptedSettings.muteWordsInProfiles !== current.muteWordsInProfiles
+      ) {
+        updates.muteWordsInProfiles = encryptedSettings.muteWordsInProfiles;
+        changed = true;
+      }
+
+      if (
         encryptedSettings.hideMediaFromStrangers !== undefined &&
         encryptedSettings.hideMediaFromStrangers !==
           current.hideMediaFromStrangers

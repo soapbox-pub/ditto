@@ -986,6 +986,40 @@ export function MuteFollowExemptionSection() {
 }
 
 /**
+ * Toggle for applying muted words to authors' profiles: posts from an account
+ * whose name or bio contains a muted word are hidden too.
+ */
+export function MuteWordsInProfilesSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const enabled = config.muteWordsInProfiles === true;
+
+  const handleToggle = async (value: boolean) => {
+    updateConfig((current) => ({ ...current, muteWordsInProfiles: value }));
+    if (user) {
+      await updateSettings.mutateAsync({ muteWordsInProfiles: value });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="space-y-0.5">
+        <Label className="text-sm font-medium"><FormattedMessage id="settings.content.muteWordsInProfiles" defaultMessage="Check profiles for muted words" /></Label>
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage id="settings.content.muteWordsInProfilesDescription" defaultMessage="Also hide posts from accounts whose name or bio contains a muted word." />
+        </p>
+      </div>
+      <Switch
+        checked={enabled}
+        onCheckedChange={handleToggle}
+      />
+    </div>
+  );
+}
+
+/**
  * Toggle for hiding media from accounts the user doesn't follow behind a
  * click-to-reveal overlay. Text still shows; only posts with media are gated,
  * and only when logged in.
@@ -1201,6 +1235,10 @@ export function MuteSettingsInternals() {
       {/* Follow exemption toggle */}
       <div className="px-3 py-4 border-b border-border">
         <MuteFollowExemptionSection />
+      </div>
+
+      <div className="px-3 py-4 border-b border-border">
+        <MuteWordsInProfilesSection />
       </div>
 
       {/* Muted items list — grouped into collapsible sections */}

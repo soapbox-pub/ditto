@@ -10,79 +10,84 @@ export interface MuteCheckOptions {
   skipContentMutes?: boolean;
 }
 
+/** A mute list compiled once, for checking many events against it. */
+export interface MuteMatcher {
+  /** Whether the list mutes `event`. */
+  isMuted: (event: NostrEvent, options?: MuteCheckOptions) => boolean;
+  /** Whether a muted word appears in `event`'s visible text. */
+  hasMutedWord: (event: NostrEvent) => boolean;
+  /** The muted words, lowercased and sorted, joined into a stable key. */
+  wordsKey: string;
+}
+
 /**
- * Check if an event should be muted based on mute list items
+ * Compile `muteItems` into sets and a word list once, so checking an event
+ * doesn't walk the whole list each time.
+ */
+export function createMuteMatcher(muteItems: MuteListItem[]): MuteMatcher {
+  const pubkeys = new Set<string>();
+  const threads = new Set<string>();
+  const hashtags = new Set<string>();
+  const words: string[] = [];
+
+  for (const item of muteItems) {
+    switch (item.type) {
+      case 'pubkey': pubkeys.add(item.value); break;
+      case 'thread': threads.add(item.value); break;
+      case 'hashtag': hashtags.add(item.value.toLowerCase()); break;
+      case 'word': if (item.value) words.push(item.value.toLowerCase()); break;
+    }
+  }
+
+  const hasMutedWord = (event: NostrEvent): boolean => {
+    if (words.length === 0) return false;
+    const text = mutableText(event);
+    return words.some((word) => text.includes(word));
+  };
+
+  const isMuted = (event: NostrEvent, options?: MuteCheckOptions): boolean => {
+    if (pubkeys.has(event.pubkey)) return true;
+
+    if (threads.size > 0) {
+      // Check if event itself is muted as a thread
+      if (threads.has(event.id)) return true;
+
+      // A NIP-10 reply names the thread in its `e` tags; a NIP-22 comment names
+      // the parent in `e` and the thread root in `E`, so both have to be checked
+      // or muting a thread would miss every reply below the first level.
+      // NIP-10 `mention` e-tags are inline quotes, not thread references.
+      for (const [name, value, , marker] of event.tags) {
+        if (((name === 'e' && marker !== 'mention') || name === 'E') && value && threads.has(value)) {
+          return true;
+        }
+      }
+    }
+
+    // Content-based mutes (hashtags, words) can be skipped, e.g. for follows.
+    if (options?.skipContentMutes) return false;
+
+    if (hashtags.size > 0) {
+      for (const [name, value] of event.tags) {
+        if (name === 't' && value && hashtags.has(value.toLowerCase())) return true;
+      }
+    }
+
+    return hasMutedWord(event);
+  };
+
+  return { isMuted, hasMutedWord, wordsKey: [...new Set(words)].sort().join('\n') };
+}
+
+/**
+ * Check if an event should be muted based on mute list items. To check many
+ * events against one list, compile it once with {@link createMuteMatcher}.
  */
 export function isEventMuted(
   event: NostrEvent,
   muteItems: MuteListItem[],
   options?: MuteCheckOptions,
 ): boolean {
-  // Check if author is muted
-  const mutedPubkeys = muteItems
-    .filter((item) => item.type === 'pubkey')
-    .map((item) => item.value);
-  
-  if (mutedPubkeys.includes(event.pubkey)) {
-    return true;
-  }
-
-  // Check if thread is muted (event is a reply to a muted thread)
-  const mutedThreads = muteItems
-    .filter((item) => item.type === 'thread')
-    .map((item) => item.value);
-
-  // A NIP-10 reply names the thread in its `e` tags; a NIP-22 comment names
-  // the parent in `e` and the thread root in `E`, so both have to be checked
-  // or muting a thread would miss every reply below the first level.
-  // NIP-10 `mention` e-tags are inline quotes, not thread references.
-  const threadRefs = event.tags
-    .filter(([name, , , marker]) => (name === 'e' && marker !== 'mention') || name === 'E')
-    .map(([, value]) => value);
-
-  if (threadRefs.some((id) => id && mutedThreads.includes(id))) {
-    return true;
-  }
-
-  // Check if event itself is muted as a thread
-  if (mutedThreads.includes(event.id)) {
-    return true;
-  }
-
-  // Content-based mutes (hashtags, words) can be skipped, e.g. for follows.
-  if (options?.skipContentMutes) {
-    return false;
-  }
-
-  // Check if any hashtags are muted
-  const mutedHashtags = muteItems
-    .filter((item) => item.type === 'hashtag')
-    .map((item) => item.value.toLowerCase());
-
-  const eventHashtags = event.tags
-    .filter(([name]) => name === 't')
-    .map(([, value]) => value?.toLowerCase())
-    .filter((value): value is string => !!value);
-
-  if (eventHashtags.some((tag) => mutedHashtags.includes(tag))) {
-    return true;
-  }
-
-  // Check if any muted words appear in content
-  const mutedWords = muteItems
-    .filter((item) => item.type === 'word')
-    .map((item) => item.value.toLowerCase());
-
-  if (mutedWords.length === 0) {
-    return false;
-  }
-
-  const text = mutableText(event);
-  if (mutedWords.some((word) => text.includes(word))) {
-    return true;
-  }
-
-  return false;
+  return createMuteMatcher(muteItems).isMuted(event, options);
 }
 
 /** Profile fields shown to people, matched instead of the raw kind 0 JSON. */
@@ -90,6 +95,9 @@ const PROFILE_TEXT_FIELDS = ['name', 'display_name', 'about', 'nip05', 'website'
 
 /** Tags whose value is text a client shows in place of, or beside, the content. */
 const TEXT_TAGS = new Set(['title', 'summary', 'name', 'description', 'subject', 'location', 'content-warning']);
+
+/** Each event's matchable text, so re-checking it on every render is a lookup. */
+const textCache = new WeakMap<NostrEvent, string>();
 
 /**
  * The lowercased text muted words are matched against: the content plus the
@@ -99,6 +107,15 @@ const TEXT_TAGS = new Set(['title', 'summary', 'name', 'description', 'subject',
  * hides those too.
  */
 function mutableText(event: NostrEvent): string {
+  let text = textCache.get(event);
+  if (text === undefined) {
+    text = buildMutableText(event);
+    textCache.set(event, text);
+  }
+  return text;
+}
+
+function buildMutableText(event: NostrEvent): string {
   if (event.kind === 7) {
     const content = event.content.trim();
     if (content === '+' || content === '') return '👍';
@@ -145,7 +162,8 @@ export function filterMutedEvents(events: NostrEvent[], muteItems: MuteListItem[
     return events;
   }
 
-  return events.filter((event) => !isEventMuted(event, muteItems));
+  const matcher = createMuteMatcher(muteItems);
+  return events.filter((event) => !matcher.isMuted(event));
 }
 
 /**
@@ -166,5 +184,3 @@ export function getMuteSummary(muteItems: MuteListItem[]): {
     total: muteItems.length,
   };
 }
-
-

@@ -382,6 +382,12 @@ export interface AppConfig {
    */
   exemptFollowsFromFilters: boolean;
   /**
+   * Also hide posts from accounts whose profile (name, bio, NIP-05, website)
+   * contains a muted word. Synced across devices via encrypted settings.
+   * Default: false.
+   */
+  muteWordsInProfiles: boolean;
+  /**
    * Hide media (images, video, audio) from accounts you don't follow behind a
    * click-to-reveal overlay. Text still shows; only posts with media are
    * gated, and only when you're logged in. Synced across devices via encrypted

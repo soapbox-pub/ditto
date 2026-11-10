@@ -64,6 +64,8 @@ export interface EncryptedSettings {
   contentWarningPolicy?: ContentWarningPolicy;
   /** Exempt followed accounts from muted hashtags and words */
   exemptFollowsFromFilters?: boolean;
+  /** Also hide posts from accounts whose profile contains a muted word */
+  muteWordsInProfiles?: boolean;
   /** Hide media from accounts you don't follow behind a click-to-reveal overlay */
   hideMediaFromStrangers?: boolean;
   /** Whether the user has enabled push notifications */

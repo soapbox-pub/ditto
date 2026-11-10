@@ -206,6 +206,7 @@ const hardcodedConfig: AppConfig = {
   corsProxy: "https://proxy.shakespeare.diy/?url={href}",
   contentWarningPolicy: "blur",
   exemptFollowsFromFilters: false,
+  muteWordsInProfiles: false,
   hideMediaFromStrangers: false,
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,

@@ -236,6 +236,9 @@ export function useInitialSync() {
               if (parsed.exemptFollowsFromFilters !== undefined) {
                 updates.exemptFollowsFromFilters = parsed.exemptFollowsFromFilters;
               }
+              if (parsed.muteWordsInProfiles !== undefined) {
+                updates.muteWordsInProfiles = parsed.muteWordsInProfiles;
+              }
               if (parsed.hideMediaFromStrangers !== undefined) {
                 updates.hideMediaFromStrangers = parsed.hideMediaFromStrangers;
               }

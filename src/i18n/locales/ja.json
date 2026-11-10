@@ -4533,6 +4533,8 @@
   "settings.content.muteTypes.threads": "スレッド",
   "settings.content.muteTypes.users": "ユーザー",
   "settings.content.muteTypes.words": "単語",
+  "settings.content.muteWordsInProfiles": "プロフィールもミュートワードでチェック",
+  "settings.content.muteWordsInProfilesDescription": "名前や自己紹介にミュートした単語を含むアカウントの投稿も非表示にします。",
   "settings.content.mutedContent": "ミュートしたコンテンツ",
   "settings.content.noMutedItems": "ミュートした項目はまだありません",
   "settings.content.pageDescription": "ユーザー、ハッシュタグ、単語をミュートし、センシティブコンテンツの表示方法を選択します。ミュートは暗号化され非公開です。",

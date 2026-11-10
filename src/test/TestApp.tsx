@@ -152,6 +152,7 @@ export function TestApp({ children }: TestAppProps) {
     magicMouse: false,
     contentWarningPolicy: "blur",
     exemptFollowsFromFilters: false,
+    muteWordsInProfiles: false,
     hideMediaFromStrangers: false,
     sentryDsn: "",
     sentryEnabled: false,
