@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.46.0] - 2026-11-10
+
+Ditto feels native on your phone. Your feed opens instantly from where you left off, pages slide in and swipe away, and photos grow out of the post you tapped. Polls can show images, good night posts get a moonrise in tonight's phase, and muted words now reach profiles and reactions too. Scrolling is lighter on your battery, deleting a post can delete its media, and lots of safety fixes keep fake badges, zaps, and deletions out.
+
+### Added
+- The home feed opens instantly with the posts already on your device and puts you back on the post you were reading
+- Pages slide in like a native app, and you can swipe right anywhere to go back
+- Photos grow out of the thumbnail you tapped when they open full screen
+- Polls can have images in their options, shown as a grid of tiles
+- Good night posts get a moonrise celebration, with the moon drawn in its phase from when you posted
+- Deleting a post with uploaded media can also delete those files from your media servers
+- An option to hide posts from people whose profile contains one of your muted words
+- Polls show up in the curated Ditto feed
+- Tables show up properly in articles, classified listings, and code issues
+
+### Changed
+- Muted words also hide matching profiles from search and new-account suggestions, and hide matching emoji reactions
+- The browser and app bar color follows your theme
+- Avatars load as small copies instead of full-size photos, and scrolling uses much less battery
+- Poll cards, comments, and the Blobbi companion do far less work in the background
+- Taps no longer leave buttons and cards tinted, and long-pressing links and images no longer drags them
+- Profiles show only badges that were really awarded by their issuer
+- The zaps list only counts zaps actually paid to the post's author
+- Relays on your local network ask before connecting
+- Quoted articles and other posts load from the relays they point to
+- Read notifications are cleared from your notification tray
+- Android's background notification is quieter
+- Badges you create show up in more apps, and editing one keeps its image
+
+### Fixed
+- Loading spinners spin again
+- Article drafts no longer pile up while you edit
+- Saving your profile keeps your custom emoji and other extras
+- Profiles with a domain-only verified address are recognized and keep it when saved
+- A post with a malformed quote can no longer break the page
+- Links to posts inside quotes keep the spaces around them
+- Unconfirmed deletion requests no longer make a post look deleted
+- Android notifications reconnect properly after the phone sleeps
+- Image and link addresses from posts, themes, and Mastodon are checked before they're loaded
+
 ## [2.45.1] - 2026-10-23
 
 Ditto gets rounder. Corners soften across the app, your profile banner curves into a planet horizon, and status bubbles become speech pills. Poll results play out as a 3D court of voters running to their answers. Letters get wax seals, garland frames, and seasonal stationery. Videos you attach are compressed and get proper posters, the article editor writes cleaner posts, and sidebar widgets stay on screen.
