@@ -185,6 +185,9 @@ const BOOK_REVIEW_KIND = 31985;
 /** NIP-62 Request to Vanish. */
 const VANISH_KIND = 62;
 
+/** How far down the screen (0–1) a reply's focused post sits at most on desktop, with its thread above. */
+const DESKTOP_PIN_RATIO = 0.4;
+
 /**
  * Map a kind number to a human-readable shell title for the loading state.
  *
@@ -1891,10 +1894,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!parentEventId || !focusedPostRef.current) return;
 
     const post = focusedPostRef.current;
-    // Pinned below the mobile top bar and status bar (`scroll-mt-mobile-bar`),
-    // with the bars kept showing: the app moved the page, not the reader.
+    // On a phone, pinned below the mobile top bar and status bar
+    // (`scroll-mt-mobile-bar`), with the bars kept showing: the app moved the
+    // page, not the reader. On desktop the thread above stays in view, up to
+    // DESKTOP_PIN_RATIO of the screen, so a short parent isn't scrolled away.
+    const desktop = window.matchMedia("(min-width: 900px)").matches;
     holdChromeUntilUserScroll();
-    post.scrollIntoView({ block: "start" });
+    if (!desktop) post.scrollIntoView({ block: "start" });
 
     // Brief highlight pulse so the user can locate the focused post
     post.style.transition = "background-color 0.3s ease";
@@ -1915,19 +1921,23 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const root = document.documentElement;
     const prevOverflowAnchor = root.style.overflowAnchor;
     root.style.overflowAnchor = "none";
-    // Hold the post where scrollIntoView put it, measuring where it actually
-    // is rather than tallying the ancestors' resizes: an ancestor that renders
-    // long and then collapses can push the scroll past the end of the page,
-    // which the browser clamps, and a tally never recovers from the clamp.
-    // `min-h-thread-focus` keeps the page tall enough for the post to reach
-    // its place. Until the reader scrolls themselves.
-    const target = post.getBoundingClientRect().top;
+    // Hold the post at its place, or higher while the thread above is shorter
+    // than that, measuring where it actually is rather than tallying the
+    // ancestors' resizes: an ancestor that renders long and then collapses can
+    // push the scroll past the end of the page, which the browser clamps, and
+    // a tally never recovers from the clamp. `min-h-thread-focus` keeps the
+    // page tall enough for the post to reach its place. Until the reader
+    // scrolls themselves.
+    const place = desktop ? window.innerHeight * DESKTOP_PIN_RATIO : post.getBoundingClientRect().top;
     let pinned = true;
-    const observer = new ResizeObserver(() => {
+    const hold = () => {
       if (!pinned) return;
-      const drift = post.getBoundingClientRect().top - target;
+      const top = post.getBoundingClientRect().top;
+      const drift = top - Math.min(place, top + window.scrollY);
       if (Math.abs(drift) >= 1) window.scrollBy(0, drift);
-    });
+    };
+    if (desktop) hold();
+    const observer = new ResizeObserver(hold);
     observer.observe(ancestor);
     observer.observe(document.body);
     const INPUT_EVENTS = ["wheel", "touchstart", "keydown"] as const;

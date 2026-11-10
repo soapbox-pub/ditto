@@ -261,9 +261,11 @@
   }
 
   /* A thread's focused post and everything below it: tall enough that the
-     post can be scrolled to just under the top bar however short the rest is. */
+     post can be scrolled to its place however short the rest is — just under
+     the top bar on a phone, 40% down the screen on desktop (DESKTOP_PIN_RATIO
+     in PostDetailPage). */
   .min-h-thread-focus {
-    min-height: 100dvh;
+    min-height: 60dvh;
   }
 
   @media (max-width: 899px) {
