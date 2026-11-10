@@ -4,6 +4,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { useIsScrollRestore } from '@/hooks/useIsScrollRestore';
+import { feedSnapshotOptions, usePersistFeedSnapshot } from '@/hooks/useFeedSnapshot';
+import type { FeedSnapshotRef } from '@/lib/feedSnapshot';
 
 /** Curated kinds for the Ditto feed: unique Ditto content types. */
 const CURATED_KINDS = [
@@ -108,14 +110,16 @@ function fingerprint(items: string[]): string {
  *
  * @param authors - Pubkeys whose content to include (from useCuratorFollowList).
  * @param enabled - Whether the query should run.
+ * @param snapshot - Save the feed on the device and start from it on the next launch (home feed).
  */
-export function useCuratedDittoFeed(authors: string[] | undefined, enabled: boolean) {
+export function useCuratedDittoFeed(authors: string[] | undefined, enabled: boolean, snapshot?: FeedSnapshotRef) {
   const { nostr } = useNostr();
   const authorsKey = authors ? fingerprint(authors) : '';
   const isScrollRestore = useIsScrollRestore();
+  const queryKey = ['ditto-curated-feed', authorsKey];
 
-  return useInfiniteQuery<CuratedPage, Error, InfiniteData<NostrEvent[], number | undefined>, readonly unknown[], number | undefined>({
-    queryKey: ['ditto-curated-feed', authorsKey],
+  const query = useInfiniteQuery<CuratedPage, Error, InfiniteData<NostrEvent[], number | undefined>, readonly unknown[], number | undefined>({
+    queryKey,
     queryFn: async ({ pageParam, signal }) => {
       const until = pageParam;
       const base: Record<string, unknown> = {
@@ -164,7 +168,12 @@ export function useCuratedDittoFeed(authors: string[] | undefined, enabled: bool
     placeholderData: (prev) => prev,
     // See useFeed: don't refetch under a restored scroll offset.
     refetchOnMount: !isScrollRestore,
+    ...feedSnapshotOptions<CuratedPage, number | undefined>(snapshot),
   });
+
+  usePersistFeedSnapshot(snapshot, queryKey, query);
+
+  return query;
 }
 
 /** Re-export for use in Feed.tsx landing hero / kind lists. */

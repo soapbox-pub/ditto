@@ -1,4 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
+import { getRememberedHeight, rememberHeight } from '@/lib/feedItemHeights';
+import { isSlideRender } from '@/lib/pushTransition';
 
 /**
  * How far beyond the viewport (px, each direction) items mount.
@@ -24,38 +28,6 @@ const UNMOUNT_MARGIN_PX = 3000;
  * `cv-feed-item` content-visibility rule in index.css.
  */
 const ESTIMATED_HEIGHT_PX = 300;
-
-/** Upper bound on remembered heights so a long session can't grow unbounded. */
-const MAX_CACHED_HEIGHTS = 2000;
-
-/**
- * Last measured height per `cacheKey`, surviving component remounts.
- *
- * A feed unmounts entirely when the user opens a post, so without this every
- * item past the initial batch comes back as a 300px placeholder. The list is
- * then the wrong height, a restored scroll offset lands on the wrong card,
- * and the page reflows as the observer swaps placeholders for real cards.
- * Seeding placeholders from their previous height makes the remounted list
- * match the one the user left.
- *
- * The cached height must also feed `contain-intrinsic-size` on the wrapper.
- * `content-visibility: auto` sizes a skipped (off-screen) element from that
- * property alone and ignores its children, so a placeholder div of the right
- * height inside a skipped wrapper still lays out at the 300px class default.
- * The `auto` keyword's remembered size lives on the DOM node and is lost on
- * remount, so the inline value is the only thing that survives.
- */
-const heightCache = new Map<string, number>();
-
-function rememberHeight(key: string | undefined, height: number): void {
-  if (!key || height <= 0) return;
-  heightCache.delete(key);
-  heightCache.set(key, height);
-  if (heightCache.size > MAX_CACHED_HEIGHTS) {
-    const oldest = heightCache.keys().next().value;
-    if (oldest !== undefined) heightCache.delete(oldest);
-  }
-}
 
 type VisibilityCallback = (entry: IntersectionObserverEntry) => void;
 
@@ -140,11 +112,24 @@ interface LazyFeedItemProps {
  */
 export function LazyFeedItem({ children, initialInView = false, className, cacheKey }: LazyFeedItemProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(initialInView);
-  const heightRef = useRef<number>((cacheKey && heightCache.get(cacheKey)) || ESTIMATED_HEIGHT_PX);
+  // Inside a slide, or a swipe back (see pushTransition), a row that has
+  // been shown before starts as a placeholder at its remembered height: coming
+  // back to a feed part-way down, the first rows are far above the screen.
+  // Mounting them only holds the slide back, and their content settling
+  // afterwards (embeds, media) shifts the post the user is returning to.
+  // Rows near the screen mount as it plays.
+  const [inView, setInView] = useState(
+    () => initialInView && !(isSlideRender() && cacheKey && getRememberedHeight(cacheKey)),
+  );
+  const heightRef = useRef<number>((cacheKey && getRememberedHeight(cacheKey)) || ESTIMATED_HEIGHT_PX);
 
-  const cacheKeyRef = useRef(cacheKey);
-  cacheKeyRef.current = cacheKey;
+  // Heights are remembered from the page on screen only. The hidden copy of
+  // the previous page (see BackSwipe) lays rows out while they're never shown,
+  // and its measurements would resize the real feed's placeholders.
+  const inUnderlay = useContext(PageUnderlayContext);
+  const rememberKey = inUnderlay ? undefined : cacheKey;
+  const cacheKeyRef = useRef(rememberKey);
+  cacheKeyRef.current = rememberKey;
 
   // Only the crossing that can change this item's state is watched: the mount
   // margin while it is a placeholder, the unmount margin while it is mounted.

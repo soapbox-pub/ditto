@@ -935,7 +935,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         <ProfileHoverCard pubkey={event.pubkey} asChild>
           <Link
             to={profileUrl}
-            className="font-bold text-[15px] hover:underline truncate"
+            className="font-bold text-[15px] can-hover:underline truncate"
             onClick={(e) => e.stopPropagation()}
           >
             {author.data?.event ? (
@@ -973,7 +973,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             event-cache seeding that plain <Link> navigation would skip. */}
         <Link
           to={`/${encodedId}`}
-          className="shrink-0 hover:underline whitespace-nowrap"
+          className="shrink-0 can-hover:underline whitespace-nowrap"
           onClick={(e) => {
             e.stopPropagation();
             if (isNewTabClick(e)) return;
@@ -1041,7 +1041,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       <div className={cn("flex items-center mt-3 -ml-2", showBlobbiInteract ? "gap-4 sm:gap-5" : "gap-5")}>
         <button
           type="button"
-          className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+          className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
           title={intl.formatMessage({ id: "noteCard.reply", defaultMessage: "Reply" })}
           onClick={(e) => {
             e.stopPropagation();
@@ -1058,7 +1058,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           {(isReposted: boolean) => (
             <button
               type="button"
-              className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+              className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
               title={isReposted ? intl.formatMessage({ id: "noteCard.undoRepost", defaultMessage: "Undo repost" }) : intl.formatMessage({ id: "noteCard.repost", defaultMessage: "Repost" })}
             >
               <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
@@ -1091,7 +1091,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
               type="button"
               className={cn(
                 "flex items-center gap-1.5 rounded-full transition-colors",
-                "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10",
+                "text-muted-foreground can-hover:text-amber-500 can-hover:bg-amber-500/10",
                 showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
               )}
               title={intl.formatMessage({ id: "noteCard.zap", defaultMessage: "Zap" })}
@@ -1111,7 +1111,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
 
         <button
           type="button"
-          className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+          className={cn("rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
           title={intl.formatMessage({ id: "noteCard.more", defaultMessage: "More" })}
           onClick={(e) => {
             e.stopPropagation();
@@ -1177,7 +1177,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       return (
         <article
           className={cn(
-            "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+            "px-4 pt-3 can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
             threaded ? "pb-0" : "pb-3 border-b border-border-subtle",
             className,
           )}
@@ -1210,7 +1210,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           className,
         )}
         onClick={handleCardClick}
@@ -1265,7 +1265,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "relative px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "relative px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           highlight && "animate-highlight-fade",
           className,
         )}
@@ -1293,7 +1293,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
               <ProfileHoverCard pubkey={zapSenderPubkey} asChild>
                 <Link
                   to={zapSenderUrl}
-                  className="font-bold text-[15px] hover:underline truncate"
+                  className="font-bold text-[15px] can-hover:underline truncate"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {zapSender.data?.event ? (
@@ -1359,7 +1359,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           highlight && "animate-highlight-fade",
           className,
         )}
@@ -1409,7 +1409,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 <ProfileHoverCard pubkey={profileZapRecipient} asChild>
                   <Link
                     to={recipientUrl}
-                    className="font-bold text-[15px] hover:underline truncate"
+                    className="font-bold text-[15px] can-hover:underline truncate"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {recipient.data?.event ? (
@@ -1434,7 +1434,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                   <Nip05Badge nip05={recipientNip05} pubkey={profileZapRecipient} />
                 )}
                 {recipientNip05 && recipientNip05Verified && <span className="shrink-0">·</span>}
-                <span className="shrink-0 hover:underline whitespace-nowrap">
+                <span className="shrink-0 can-hover:underline whitespace-nowrap">
                   {timeAgo(event.created_at, intl)}
                 </span>
               </div>
@@ -1595,7 +1595,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
         actorRow={
           <div className="flex items-center gap-1.5">
             <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link to={profileUrl} className="font-semibold text-sm hover:underline truncate" onClick={(e) => e.stopPropagation()}>
+              <Link to={profileUrl} className="font-semibold text-sm can-hover:underline truncate" onClick={(e) => e.stopPropagation()}>
                 {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText> : displayName}
               </Link>
             </ProfileHoverCard>
@@ -1627,7 +1627,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     return (
       <article
         className={cn(
-          "px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+          "px-4 pt-3 can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
           threaded ? "pb-0" : "pb-3 border-b border-border-subtle",
           className,
         )}
@@ -1667,7 +1667,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
     <article
       ref={celebrationRef}
       className={cn(
-        "relative px-4 py-3 border-b border-border-subtle hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
+        "relative px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
         highlight && "animate-highlight-fade",
         className,
       )}
@@ -1827,7 +1827,7 @@ function TruncatedNoteContent({
       </div>
       {truncated && (
         <button
-          className="mt-1 text-sm text-primary hover:underline"
+          className="mt-1 text-sm text-primary can-hover:underline"
           onClick={(e) => {
             e.stopPropagation();
             setExpanded((v) => !v);
@@ -1930,7 +1930,7 @@ function VideoContent({ event }: { event: NostrEvent }) {
             <Link
               key={tag}
               to={`/t/${encodeURIComponent(tag)}`}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-primary can-hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               #{tag}
@@ -2103,7 +2103,7 @@ function VineMedia({
             <Link
               key={tag}
               to={`/t/${encodeURIComponent(tag)}`}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-primary can-hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               #{tag}
@@ -2764,7 +2764,7 @@ function KindActionHeader({ event, config }: { event: NostrEvent; config: KindHe
             noun: (chunks: ReactNode[]) => nounRoute ? (
               <Link
                 to={nounRoute}
-                className="hover:underline"
+                className="can-hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 {chunks}
@@ -2826,7 +2826,7 @@ export function EventActionHeader({
           <ProfileHoverCard pubkey={pubkey} asChild>
             <Link
               to={url}
-              className="font-medium hover:underline mr-1 truncate"
+              className="font-medium can-hover:underline mr-1 truncate"
               onClick={(e) => e.stopPropagation()}
             >
               {author.data?.event ? (
@@ -2843,7 +2843,7 @@ export function EventActionHeader({
           {actionHref ? (
             <Link
               to={actionHref}
-              className="hover:underline"
+              className="can-hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               {verbContent}
@@ -2856,7 +2856,7 @@ export function EventActionHeader({
               {" "}
               <Link
                 to={nounRoute}
-                className="hover:underline"
+                className="can-hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 {noun}
@@ -2930,7 +2930,7 @@ function GitStatusActionHeader({ event }: { event: NostrEvent }) {
           link: (chunks: ReactNode[]) => (
             <Link
               to="/development"
-              className="hover:underline"
+              className="can-hover:underline"
               onClick={(e) => e.stopPropagation()}
             >
               {chunks}

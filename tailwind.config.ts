@@ -326,6 +326,11 @@ export default {
 		// `fullscreen:` variant — targets an element while it is the fullscreen element.
 		plugin(({ addVariant }) => {
 			addVariant('fullscreen', '&:fullscreen');
+			// Hover on devices with a real pointer only. Touch WebViews keep
+			// :hover on whatever was last tapped, so a plain hover: tint on a tap
+			// target (a post's action buttons, a feed card) stays lit after the
+			// tap. Use it for tints; hover-to-reveal controls keep hover:.
+			addVariant('can-hover', '@media (hover: hover) { &:hover }');
 		}),
 	],
 } satisfies Config;

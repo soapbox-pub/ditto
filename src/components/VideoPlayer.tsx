@@ -1,8 +1,9 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useContext, useRef, useState, useEffect, useCallback } from 'react';
 import type Hls from 'hls.js';
 import { useIntl } from 'react-intl';
 import { Play, Pause, Volume1, Volume2, VolumeX, Expand, Shrink } from 'lucide-react';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { cn } from '@/lib/utils';
 import { isValidBlurhash } from '@/lib/blurhash';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
@@ -113,7 +114,9 @@ export function VideoPlayer({ src: originalSrc, poster: originalPoster, classNam
 
   const { isHls } = useHls(videoRef, src);
   const { config } = useAppContext();
-  const shouldAutoPlay = autoPlay ?? config.autoplayVideos;
+  // Never in the hidden copy of the previous page (see BackSwipe).
+  const inUnderlay = useContext(PageUnderlayContext);
+  const shouldAutoPlay = !inUnderlay && (autoPlay ?? config.autoplayVideos);
 
   // Generating a poster means decoding frames — pointless against ciphertext,
   // so wait for the decrypted source.

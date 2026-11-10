@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 
+import { slideNextBack } from '@/lib/pushTransition';
+
 /**
  * Handles the Android hardware/gesture back button.
  *
@@ -32,6 +34,7 @@ export function BackButtonHandler() {
 
       const listener = await App.addListener('backButton', ({ canGoBack }) => {
         if (canGoBack) {
+          slideNextBack();
           window.history.back();
         } else {
           App.minimizeApp();

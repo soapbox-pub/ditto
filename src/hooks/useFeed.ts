@@ -11,6 +11,7 @@ import { parseAuthorEvent } from './useAuthor';
 import { useNostrStorage } from './useNostrStorage';
 import { useIsScrollRestore } from './useIsScrollRestore';
 import { useDiscoverAuthors } from './useDiscoverAuthors';
+import { feedSnapshotOptions, usePersistFeedSnapshot } from './useFeedSnapshot';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -31,6 +32,7 @@ import {
 } from '@/lib/feedUtils';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { getStorageKey } from '@/lib/storageKey';
+import type { FeedSnapshotRef } from '@/lib/feedSnapshot';
 
 const PAGE_SIZE = 15;
 
@@ -71,6 +73,8 @@ interface UseFeedOptions {
   hotGlobal?: boolean;
   /** Whether the query should run (default: true). */
   enabled?: boolean;
+  /** Save the feed on the device and start from it on the next launch (home feed). */
+  snapshot?: FeedSnapshotRef;
 }
 
 /**
@@ -176,15 +180,17 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     };
   }
 
-  return useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, QueryKey, FeedPageParam | undefined>({
+  // publishedEventSync reads this layout; keep the two in sync.
+  const queryKey = ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false, tab === 'global' ? discover.key : ''];
+
+  const query = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, QueryKey, FeedPageParam | undefined>({
     // NOTE: followList is intentionally excluded from the query key
     // (see earlier comment). kindsKey IS included so the feed
     // refetches when the user changes feed kind settings. This is stable
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    // publishedEventSync reads this layout; keep the two in sync.
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false, tab === 'global' ? discover.key : ''],
+    queryKey,
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -412,5 +418,10 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     refetchOnMount: !isScrollRestore,
     gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open
     placeholderData: (prev) => prev, // keep showing previous data during refetches
+    ...feedSnapshotOptions<FeedPage, FeedPageParam | undefined>(options?.snapshot),
   });
+
+  usePersistFeedSnapshot(options?.snapshot, queryKey, query);
+
+  return query;
 }

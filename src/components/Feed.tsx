@@ -1,4 +1,5 @@
-import { memo, useState, useEffect, useMemo, type ComponentProps } from 'react';
+import { memo, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef, type ComponentProps } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +41,9 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { diversifyFeedPages } from '@/lib/feedDiversity';
 import { isRepostKind, shouldHideFeedEvent, feedItemKey } from '@/lib/feedUtils';
 import { cn } from '@/lib/utils';
+import { claimLaunchFeedScroll, getLaunchFeedScroll, getLaunchFeedSnapshot, saveFeedScroll, type FeedScrollPosition, type FeedSnapshotRef } from '@/lib/feedSnapshot';
+import { findScrollAnchor, restoreScroll } from '@/lib/scrollRestore';
+import { seedRememberedHeights } from '@/lib/feedItemHeights';
 import { NewPostsPill } from '@/components/NewPostsPill';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
@@ -50,8 +54,43 @@ import { COMMENT_KINDS, isReplyEvent } from '@/lib/nostrEvents';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { SavedFeed } from '@/contexts/AppContext';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 
 type CoreFeedTab = 'follows' | 'loved' | 'global' | 'communities' | 'ditto';
+
+/** Quiet time (ms) after scrolling before the home feed's position is saved. */
+const SCROLL_SAVE_DELAY_MS = 400;
+
+/**
+ * How long (ms) the launch restore holds the user's row in place. A back
+ * navigation stops once it lands; on a cold start, avatars, media and embeds
+ * above the row all load for the first time and keep moving it.
+ */
+const LAUNCH_RESTORE_WINDOW_MS = 3000;
+
+/** How close to the top (px) a restored feed must get before it refreshes. */
+const RESTORED_REFRESH_Y = 200;
+
+/**
+ * Where the user is in the feed under `container`: the first row still on
+ * screen, its offset, and every row's height. Measured rather than read from
+ * the height cache, which holds placeholder estimates for rows that mounted
+ * on screen and haven't left it since.
+ */
+function captureFeedScroll(container: HTMLElement): FeedScrollPosition | undefined {
+  let anchor: { key: string; top: number } | undefined;
+  const heights: [string, number][] = [];
+  for (const row of container.querySelectorAll<HTMLElement>('[data-scroll-key]')) {
+    const key = row.dataset.scrollKey;
+    if (!key) continue;
+    const rect = row.getBoundingClientRect();
+    if (rect.height > 0) heights.push([key, rect.height]);
+    if (!anchor && rect.bottom > 0) anchor = { key, top: rect.top };
+  }
+  if (!anchor) return undefined;
+  return { ...anchor, y: window.scrollY, savedAt: Date.now(), heights };
+}
+
 type FeedTab = CoreFeedTab | string; // string = saved feed id
 
 interface FeedProps {
@@ -102,7 +141,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
   const { data: followData } = useFollowList();
   const { excludeMuted } = useMutedAuthorFilter();
+  const { feedSettings } = useFeedSettings();
   const isOnline = useIsOnline();
+  const location = useLocation();
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -188,13 +229,44 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
   // Saved feeds, interests, and the leading tab render their own content.
   const feedQueryEnabled = isCoreFeedTab && !useDittoQuery;
-  const feedQuery = useFeed(feedTabForQuery, { kinds, tagFilters, hotGlobal, enabled: feedQueryEnabled });
+
+  // The home feed is saved on the device, so the next launch starts from it
+  // (and, on a fresh launch, from where the user was in it) instead of
+  // waiting on the relays. Keyed on everything that changes what it holds.
+  // Not in the hidden copy under a pushed page (see BackSwipe): it isn't the
+  // feed on screen, so it neither restores nor saves a position.
+  const inUnderlay = useContext(PageUnderlayContext);
+  const snapshotRef = useMemo<FeedSnapshotRef | undefined>(() => {
+    if (inUnderlay || feedId !== 'home' || kinds || tagFilters || !isCoreFeedTab) return undefined;
+    const kindsKey = [...getEnabledFeedKinds(feedSettings)].sort().join(',');
+    const feedName = useDittoQuery ? 'ditto' : activeTab;
+    return { appId: config.appId, name: `${user?.pubkey ?? ''}:${feedName}:${kindsKey}:${feedSettings.followsFeedShowReplies}` };
+  }, [inUnderlay, feedId, kinds, tagFilters, isCoreFeedTab, feedSettings, useDittoQuery, activeTab, config.appId, user?.pubkey]);
+  // Read before the queries below, which offer the same snapshot as their
+  // initial data: the first read in a session decides whether this launch
+  // restores the user's position.
+  const launchSnapshot = getLaunchFeedSnapshot(snapshotRef);
+  // Only the first feed mounted this session restores the launch position.
+  const [launchScroll] = useState(() => (launchSnapshot ? getLaunchFeedScroll(launchSnapshot) : undefined));
+  // Rows render at their saved heights, so the restored offset lands where it was.
+  useState(() => {
+    if (launchScroll) seedRememberedHeights(launchScroll.heights);
+  });
+
+  const feedQuery = useFeed(feedTabForQuery, {
+    kinds,
+    tagFilters,
+    hotGlobal,
+    enabled: feedQueryEnabled,
+    snapshot: useDittoQuery ? undefined : snapshotRef,
+  });
   const { authors: discoverAuthors } = useDiscoverAuthors(feedTabForQuery === 'global' && feedQueryEnabled);
 
   // Curated Ditto feed: latest content from the curator's follow list.
   const topQuery = useCuratedDittoFeed(
     curatorFollowList,
     useTopFeedForLoggedOut || !!useDittoTab,
+    useDittoQuery ? snapshotRef : undefined,
   );
 
   // Unify the two query shapes behind a single interface
@@ -210,7 +282,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // a "N new posts" pill, without re-sorting the feed under the user's scroll.
   // Only the core author/global tabs stream — the curated Ditto tab, saved
   // feeds, and hashtag/geotag tabs render their own content below.
-  const { feedSettings } = useFeedSettings();
   const streamAuthors = useMemo<string[] | undefined>(() => {
     if (feedTabForQuery === 'follows') {
       const follows = excludeMuted(followData?.pubkeys ?? []);
@@ -234,6 +305,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
 
   // Stream only for the chronological core feed tabs, when not the curated Ditto query.
   const streamEnabled =
+    !inUnderlay &&
     isCoreFeedTab &&
     !useDittoQuery &&
     !isHotSortedGlobal &&
@@ -245,9 +317,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     kinds,
     showReplies: feedSettings.followsFeedShowReplies,
     enabled: streamEnabled,
+    // A restored feed isn't refetched, so count what was posted while the app was closed.
+    since: launchScroll && launchSnapshot ? launchSnapshot.newest + 1 : undefined,
   });
 
+  // A feed restored at the user's old position isn't refreshed under them.
+  // Refresh it once they make it back to the top (or tap the pill).
+  const restoredStaleRef = useRef(!!launchScroll);
+
   const handleShowNewPosts = () => {
+    restoredStaleRef.current = false;
     resetNewPosts();
     handleRefresh();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -336,6 +415,67 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   );
   usePrefetchFeedCards(feedItems);
 
+  // Put the user back where they were when the app last closed. The rows come
+  // from the snapshot, so they're there on the first render; if the row the
+  // user was on is gone (muted since, say), start from a fresh feed instead.
+  const mainRef = useRef<HTMLElement>(null);
+  const launchRestoredRef = useRef(false);
+  const stopLaunchRestoreRef = useRef<(() => void) | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!launchScroll || !launchSnapshot || launchRestoredRef.current || feedItems.length === 0) return;
+    launchRestoredRef.current = true;
+    if (!claimLaunchFeedScroll(launchSnapshot)) return;
+    if (!findScrollAnchor(launchScroll.key)) {
+      restoredStaleRef.current = false;
+      void handleRefresh();
+      return;
+    }
+    stopLaunchRestoreRef.current = restoreScroll(location.key, {
+      y: launchScroll.y,
+      anchor: { key: launchScroll.key, top: launchScroll.top, y: launchScroll.y },
+    }, { windowMs: LAUNCH_RESTORE_WINDOW_MS, hold: true });
+  }, [launchScroll, launchSnapshot, feedItems.length, handleRefresh, location.key]);
+  useEffect(() => () => stopLaunchRestoreRef.current?.(), []);
+
+  useEffect(() => {
+    if (!launchScroll) return;
+    const onScroll = () => {
+      if (!restoredStaleRef.current || window.scrollY > RESTORED_REFRESH_Y) return;
+      restoredStaleRef.current = false;
+      void handleRefresh();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [launchScroll, handleRefresh]);
+
+  // Remember where the user is in the home feed, for the next launch.
+  useEffect(() => {
+    const container = mainRef.current;
+    if (!snapshotRef || !container) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const save = () => {
+      clearTimeout(timer);
+      const position = captureFeedScroll(container);
+      if (position) saveFeedScroll(snapshotRef, position);
+    };
+    const onScroll = () => {
+      clearTimeout(timer);
+      timer = setTimeout(save, SCROLL_SAVE_DELAY_MS);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') save();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', save);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', save);
+    };
+  }, [snapshotRef]);
+
   // Show skeletons while loading, but not if the curator list query errored
   // (that would leave logged-out users staring at infinite skeletons).
   const showSkeleton = (isPending || (isLoading && !rawData)) && !(useDittoQuery && isCuratorError);
@@ -401,7 +541,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   })();
 
   return (
-    <main className="flex-1 min-w-0 min-h-dvh">
+    <main ref={mainRef} className="flex-1 min-w-0 min-h-dvh">
       {/* CTA (logged out, main feed only) */}
       {!user && !kinds && (
         <LandingHero

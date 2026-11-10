@@ -177,7 +177,7 @@ export function ReactionButton({
         aria-expanded={menuOpen}
         className={cn(
           'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
-          'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+          'text-muted-foreground can-hover:text-pink-500 can-hover:bg-pink-500/10',
           className,
           hasReacted && 'text-pink-500',
         )}

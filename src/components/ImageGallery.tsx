@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, Download, Loader2 } from 'lucide-react';
 import { BlurhashPlaceholder } from '@/components/BlurhashPlaceholder';
@@ -23,6 +23,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useInView } from '@/hooks/useInView';
+import { growFromOrigin, takeLightboxOrigin } from '@/lib/lightboxOrigin';
 
 /** Minimal imeta fields needed for pre-load sizing and decryption. */
 interface ImetaDimensions {
@@ -316,6 +317,13 @@ const GridImage = memo(function GridImage({
   );
 });
 
+/**
+ * How long (ms) after opening the lightbox's image may finish loading and
+ * still grow out of the tapped thumbnail. Usually it's already cached from
+ * the thumbnail itself.
+ */
+const HERO_LOAD_WINDOW_MS = 400;
+
 /** Sentinel URL — pass as an image entry to render a loading spinner slot in the lightbox. */
 export const LOADING_SENTINEL = '__lightbox_loading__';
 
@@ -425,6 +433,26 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
 
   // Refs to each rendered slot keyed by image index
   const slotRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Grow the picture out of the thumbnail that was tapped (see lightboxOrigin),
+  // as long as it loads quickly enough that the grow still answers the tap.
+  // Otherwise the lightbox fades in as usual.
+  const [heroOrigin] = useState(() =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : takeLightboxOrigin(),
+  );
+  const heroPendingRef = useRef(!!heroOrigin);
+  const openedAtRef = useRef(performance.now());
+  useLayoutEffect(() => {
+    if (!heroPendingRef.current || !heroOrigin) return;
+    if (performance.now() - openedAtRef.current > HERO_LOAD_WINDOW_MS) {
+      heroPendingRef.current = false;
+      return;
+    }
+    if (!isLoaded) return;
+    heroPendingRef.current = false;
+    const img = slotRefs.current.get(currentIndex)?.querySelector('img');
+    if (img) growFromOrigin(img, heroOrigin);
+  }, [isLoaded, heroOrigin, currentIndex]);
 
   const setSlotTransform = useCallback((idx: number, offsetPx: number, transition: string) => {
     const el = slotRefs.current.get(idx);
@@ -696,7 +724,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] animate-in fade-in duration-200"
+      className={cn('fixed inset-0 z-[100]', !heroOrigin && 'animate-in fade-in duration-200')}
       role="dialog"
       aria-modal="true"
       onClick={handleBackdropClick}
@@ -705,12 +733,12 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
       onTouchEnd={onTouchEnd}
     >
       {/* Backdrop — fades in-place, never translates */}
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+      <div className={cn('absolute inset-0 bg-black/90 backdrop-blur-md', heroOrigin && 'animate-in fade-in duration-200')} />
 
       {/* All interactive content — translated together during swipe-to-dismiss */}
       <div data-lightbox-content className="absolute inset-0">
         {/* Top bar */}
-        <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
+        <div data-gallery-topbar className={cn('absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top', heroOrigin && 'animate-in fade-in duration-200')}>
           {topBarLeft !== undefined ? topBarLeft : (
             <>
               {hasMultiple && <span className="text-white/80 text-sm font-medium tabular-nums">{currentIndex + 1} / {images.length}</span>}

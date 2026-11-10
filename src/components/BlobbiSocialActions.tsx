@@ -303,7 +303,7 @@ export function BlobbiSocialActions({ event, source = DEFAULT_SOURCE, onInteract
             'flex items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-full transition-colors',
             open
               ? 'text-pink-500 bg-pink-500/10'
-              : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+              : 'text-muted-foreground can-hover:text-pink-500 can-hover:bg-pink-500/10',
             className,
           )}
           title={intl.formatMessage({ id: 'blobbiSocial.interact', defaultMessage: 'Interact with Blobbi' })}

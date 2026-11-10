@@ -1,4 +1,7 @@
+import { useContext } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
+
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 
 import { hasScrollPosition } from '@/lib/scrollPositions';
 
@@ -14,5 +17,8 @@ import { hasScrollPosition } from '@/lib/scrollPositions';
 export function useIsScrollRestore(): boolean {
   const { key } = useLocation();
   const navigationType = useNavigationType();
-  return navigationType === 'POP' && hasScrollPosition(key);
+  // The hidden copy of the previous page shows what the user left; a
+  // refetch would change it, and the page they go back to, under them.
+  const inUnderlay = useContext(PageUnderlayContext);
+  return inUnderlay || (navigationType === 'POP' && hasScrollPosition(key));
 }

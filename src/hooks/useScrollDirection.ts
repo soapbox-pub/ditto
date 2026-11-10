@@ -1,5 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 
+/** Input that means the user is scrolling the page themselves. */
+const USER_SCROLL_EVENTS = ['touchstart', 'wheel', 'keydown'] as const;
+
+/** Set by {@link holdChromeUntilUserScroll}, cleared by the user's next scroll input. */
+let chromeHeld = false;
+const revealListeners = new Set<() => void>();
+
+/**
+ * Keep the mobile chrome showing through a scroll the app makes itself
+ * (opening a thread at the reply, restoring a feed position), until the user
+ * scrolls. Native apps keep their bars when they position a new screen; they
+ * only hide them when the reader scrolls on.
+ */
+export function holdChromeUntilUserScroll(): void {
+  chromeHeld = true;
+  for (const reveal of revealListeners) reveal();
+}
+
 /**
  * Tracks the user's scroll direction and returns whether the mobile chrome
  * (bottom nav) should be hidden.
@@ -32,6 +50,12 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
     const onScroll = () => {
       const currentY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
 
+      if (chromeHeld) {
+        accumulated.current = 0;
+        lastScrollY.current = currentY;
+        return;
+      }
+
       if (currentY <= NEAR_TOP) {
         // Always show chrome near the top of the page
         accumulated.current = 0;
@@ -59,8 +83,22 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
       }
     };
 
+    const reveal = () => {
+      accumulated.current = 0;
+      setHidden(false);
+    };
+    const release = () => {
+      chromeHeld = false;
+    };
+    revealListeners.add(reveal);
+    for (const type of USER_SCROLL_EVENTS) window.addEventListener(type, release, { capture: true, passive: true });
+
     target.addEventListener('scroll', onScroll, { passive: true });
-    return () => target.removeEventListener('scroll', onScroll);
+    return () => {
+      target.removeEventListener('scroll', onScroll);
+      revealListeners.delete(reveal);
+      for (const type of USER_SCROLL_EVENTS) window.removeEventListener(type, release, true);
+    };
   }, [scrollContainer]);
 
   return { hidden };

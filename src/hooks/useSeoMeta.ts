@@ -1,4 +1,6 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useContext, useLayoutEffect, useRef } from 'react';
+
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 
 /** The subset of SEO metadata Ditto sets per-page. */
 export interface SeoMeta {
@@ -77,9 +79,12 @@ function apply(): void {
 export function useSeoMeta(meta: SeoMeta): void {
   const { title, description } = meta;
   const entryRef = useRef<Entry | undefined>(undefined);
+  // The hidden copy of the previous page doesn't own the title.
+  const inUnderlay = useContext(PageUnderlayContext);
 
   // Register this entry on mount, remove it on unmount.
   useLayoutEffect(() => {
+    if (inUnderlay) return;
     const entry = entryRef.current ?? { meta: {} };
     entryRef.current = entry;
     stack.push(entry);
@@ -89,7 +94,7 @@ export function useSeoMeta(meta: SeoMeta): void {
       if (index !== -1) stack.splice(index, 1);
       apply();
     };
-  }, []);
+  }, [inUnderlay]);
 
   // Sync the current values into the entry and re-apply when they change.
   // Runs after the registration effect on mount (same-component layout

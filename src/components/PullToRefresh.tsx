@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useContext, useState, useRef, useEffect, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { impactMedium } from '@/lib/haptics';
 
 const THRESHOLD = 80; // raw px before triggering
@@ -26,13 +27,16 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
   onRefreshRef.current = onRefresh;
 
   // Disable native browser pull-to-refresh only while this component is mounted
+  // (on screen: the hidden copy under a pushed page leaves the document alone).
+  const inUnderlay = useContext(PageUnderlayContext);
   useEffect(() => {
+    if (inUnderlay) return;
     const prev = document.documentElement.style.overscrollBehaviorY;
     document.documentElement.style.overscrollBehaviorY = 'contain';
     return () => {
       document.documentElement.style.overscrollBehaviorY = prev;
     };
-  }, []);
+  }, [inUnderlay]);
 
   useEffect(() => {
     const el = containerRef.current;

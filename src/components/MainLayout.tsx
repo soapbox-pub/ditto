@@ -1,4 +1,4 @@
-import { Suspense, useState, useMemo, useCallback, useRef, useEffect, lazy } from 'react';
+import { Suspense, useContext, useState, useMemo, useCallback, useRef, useEffect, lazy } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
@@ -6,9 +6,11 @@ import { MobileDrawer } from '@/components/MobileDrawer';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { CursorFireEffect } from '@/components/CursorFireEffect';
+import { BackSwipe } from '@/components/BackSwipe';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { CenterColumnContext, ComposeContext, DrawerContext, LayoutStore, LayoutStoreContext, NavHiddenContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { NsitePlayerContext, type NsitePlayerState } from '@/contexts/NsitePlayerContext';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -52,13 +54,16 @@ function MainLayoutInner() {
   // entirely there so phones don't pay for their lazy chunks, relay queries,
   // and render work.
   const showRightSidebar = useMediaQuery('(min-width: 1024px)');
+  // The hidden copy of the previous page under a pushed one (see BackSwipe):
+  // just the page column, without the chrome the real layout already shows.
+  const inUnderlay = useContext(PageUnderlayContext);
 
   // Global "n" hotkey opens the compose modal from anywhere. Ignored while the
   // user is typing in an input/textarea/contenteditable, or when a modifier is
   // held (so it doesn't hijack browser/OS shortcuts). Requires a logged-in user
   // since the composer can't publish otherwise.
   useEffect(() => {
-    if (!user) return;
+    if (!user || inUnderlay) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'n' && e.key !== 'N') return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -76,7 +81,24 @@ function MainLayoutInner() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [user]);
+  }, [user, inUnderlay]);
+
+  if (inUnderlay) {
+    return (
+      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
+        {/* Without the top bar in flow above it, the column keeps the bar's
+            padding but not the margin that pulls it up behind the bar. */}
+        <div
+          className={cn("relative z-0 flex-1 min-w-0 bg-background/85", !hideTopBar && "-mt-mobile-bar")}
+          style={hideTopBar ? undefined : { marginTop: 0 }}
+        >
+          <Suspense fallback={null}>
+            <Outlet />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CenterColumnContext.Provider value={centerColumnEl}>
@@ -107,6 +129,7 @@ function MainLayoutInner() {
               content underneath. Only active below the sidebar breakpoint. */}
           <div
             ref={(el) => { centerColumnRef.current = el; setCenterColumnEl(el); }}
+            data-push-source
             className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border-subtle bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
           >
             <ErrorBoundary
@@ -143,6 +166,9 @@ function MainLayoutInner() {
           {showRightSidebar && (rightSidebar ?? <WidgetSidebar />)}
         </Suspense>
       </div>
+
+      {/* Swipe right on a pushed page to go back, with the previous page underneath */}
+      <BackSwipe column={centerColumnEl} />
 
       {/* Mobile bottom nav - only on small screens, slides out on scroll */}
       {!hideBottomNav && <MobileBottomNav />}

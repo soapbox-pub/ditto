@@ -40,6 +40,12 @@ interface UseFeedStreamOptions {
   showReplies: boolean;
   /** Disable the stream entirely (e.g. while the underlying feed query is gated). */
   enabled?: boolean;
+  /**
+   * Count posts from this time on the first subscription, rather than from
+   * now. For a feed restored from a snapshot, so the pill covers what was
+   * posted while the app was closed.
+   */
+  since?: number;
 }
 
 /**
@@ -66,7 +72,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   newPostCount: number;
   reset: () => void;
 } {
-  const { tab, authors, kinds, showReplies, enabled = true } = options;
+  const { tab, authors, kinds, showReplies, enabled = true, since } = options;
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -79,6 +85,8 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   // paused (see @/lib/backgroundQuiet) so the count still covers that stretch.
   const quiet = useBackgroundQuiet();
   const cursorRef = useRef(createLiveCursor());
+  // Read once, by the first subscription that actually opens.
+  const sinceRef = useRef(since);
 
   // IDs already counted, so reconnects / duplicate relays don't double-count.
   // (NPool dedupes only the last 1000 ids per subscription, so we track our own.)
@@ -153,8 +161,11 @@ export function useFeedStream(options: UseFeedStreamOptions): {
       setNewPostCount(0);
     }
 
-    const filter: NostrFilter = live.resumed
-      ? { kinds: streamKinds, authors, since: live.since, limit: RESUME_LIMIT }
+    const backfillSince = live.resumed ? live.since : sinceRef.current;
+    sinceRef.current = undefined;
+
+    const filter: NostrFilter = backfillSince !== undefined
+      ? { kinds: streamKinds, authors, since: backfillSince, limit: RESUME_LIMIT }
       : { kinds: streamKinds, authors, since: live.since, limit: 0 };
 
     (async () => {

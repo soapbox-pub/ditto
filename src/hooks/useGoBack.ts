@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { slideNextBack } from '@/lib/pushTransition';
+
 /**
  * A Back action that stays inside the app: pops one entry when there is
  * in-app history, and goes home otherwise.
@@ -14,7 +16,10 @@ export function useGoBack(): () => void {
   const navigate = useNavigate();
   return useCallback(() => {
     const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
-    if (idx > 0) navigate(-1);
+    if (idx > 0) {
+      slideNextBack();
+      navigate(-1);
+    }
     else navigate('/');
   }, [navigate]);
 }

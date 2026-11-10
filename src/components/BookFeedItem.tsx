@@ -226,7 +226,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
           {/* Action buttons */}
           <div className="flex items-center gap-5 mt-3 -ml-2">
             <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
               title={intl.formatMessage({ id: 'bookFeedItem.reply', defaultMessage: 'Reply' })}
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
@@ -237,7 +237,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
                 <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent can-hover:text-accent/80 can-hover:bg-accent/10' : 'text-muted-foreground can-hover:text-accent can-hover:bg-accent/10'}`}
                   title={isReposted
                     ? intl.formatMessage({ id: 'bookFeedItem.undoRepost', defaultMessage: 'Undo repost' })
                     : intl.formatMessage({ id: 'bookFeedItem.repost', defaultMessage: 'Repost' })}
@@ -261,7 +261,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                 <button
                   className={cn(
                     'flex items-center gap-1.5 p-2 rounded-full transition-colors',
-                    'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
+                    'text-muted-foreground can-hover:text-amber-500 can-hover:bg-amber-500/10',
                   )}
                   title={intl.formatMessage({ id: 'bookFeedItem.zap', defaultMessage: 'Zap' })}
                 >
@@ -272,7 +272,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
             )}
 
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
               title={intl.formatMessage({ id: 'bookFeedItem.more', defaultMessage: 'More' })}
               onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
             >

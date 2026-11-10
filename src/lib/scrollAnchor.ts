@@ -17,7 +17,8 @@ export function holdScrollAnchor(): void {
   // At the top, the user should see what's inserted there.
   if (window.scrollY <= 0) return;
 
-  const anchor = Array.from(document.querySelectorAll<HTMLElement>('.cv-feed-item'))
+  // The page on screen's rows, not those of the copy under it (BackSwipe).
+  const anchor = Array.from(document.querySelectorAll<HTMLElement>('[data-push-source] .cv-feed-item'))
     .find((el) => el.getBoundingClientRect().bottom > 0);
   if (!anchor) return;
 

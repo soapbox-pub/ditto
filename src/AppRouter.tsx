@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, unstable_HistoryRouter as HistoryRouter } from "react-router-dom";
 import { useIntl } from "react-intl";
 import { Box } from "lucide-react";
 import { AudioNavigationGuard } from "@/components/AudioNavigationGuard";
@@ -14,12 +14,16 @@ import { BlobbiActionsProvider } from "@/blobbi/companion/interaction/BlobbiActi
 import { sidebarItemIcon } from "@/lib/sidebarItems";
 import { Toaster } from "./components/ui/toaster";
 import { MainLayout } from "./components/MainLayout";
+import { RoutePreloader } from "./components/RoutePreloader";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { StreakStartedDialog } from "./components/StreakStartedDialog";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUserProfile } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
 import { getExtraKindDef, getSectionKinds } from "./lib/extraKinds";
+import { lazyWithPreload } from "./lib/lazyWithPreload";
+import { createPushTransitionHistory } from "./lib/pushTransition";
+import { PageRoutesContext } from "./contexts/PageUnderlayContext";
 
 // Critical-path pages: eagerly loaded (landing + fallback)
 import Index from "./pages/Index";
@@ -67,16 +71,16 @@ const MagicSettingsPage = lazy(() => import("./pages/MagicSettingsPage").then(m 
 const MemoryCardsPage = lazy(() => import("./pages/MemoryCardsPage").then(m => ({ default: m.MemoryCardsPage })));
 const MusicPage = lazy(() => import("./pages/MusicPage").then(m => ({ default: m.MusicPage })));
 const NetworkSettingsPage = lazy(() => import("./pages/NetworkSettingsPage").then(m => ({ default: m.NetworkSettingsPage })));
-const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
+const NIP19Page = lazyWithPreload(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings").then(m => ({ default: m.NotificationSettings })));
-const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
+const NotificationsPage = lazyWithPreload(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const PhotosFeedPage = lazy(() => import("./pages/PhotosFeedPage").then(m => ({ default: m.PhotosFeedPage })));
 const PodcastsFeedPage = lazy(() => import("./pages/PodcastsFeedPage").then(m => ({ default: m.PodcastsFeedPage })));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage").then(m => ({ default: m.PrivacyPolicyPage })));
 const ProtocolHandlerPage = lazy(() => import("./pages/ProtocolHandlerPage").then(m => ({ default: m.ProtocolHandlerPage })));
 const ProfileSettings = lazy(() => import("./pages/ProfileSettings").then(m => ({ default: m.ProfileSettings })));
 const RelayPage = lazy(() => import("./pages/RelayPage").then(m => ({ default: m.RelayPage })));
-const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
+const SearchPage = lazyWithPreload(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const SharePage = lazy(() => import("./pages/SharePage").then(m => ({ default: m.SharePage })));
 const TarotPage = lazy(() => import("./pages/TarotPage").then(m => ({ default: m.TarotPage })));
@@ -95,6 +99,12 @@ const WebxdcFeedPage = lazy(() => import("./pages/WebxdcFeedPage").then(m => ({ 
 const WikipediaPage = lazy(() => import("./pages/WikipediaPage").then(m => ({ default: m.WikipediaPage })));
 const WorldPage = lazy(() => import("./pages/WorldPage").then(m => ({ default: m.WorldPage })));
 const RemoteLoginSuccessPage = lazy(() => import("./pages/RemoteLoginSuccessPage").then(m => ({ default: m.RemoteLoginSuccessPage })));
+
+/**
+ * Loaded once the app has settled, so the first tap on a post, a profile
+ * (both behind NIP19Page) or a bottom-nav tab opens without a spinner.
+ */
+const ROUTE_PRELOADS = [NIP19Page.preload, NotificationsPage.preload, SearchPage.preload];
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
@@ -134,6 +144,192 @@ function ProfileRedirect() {
 
 export function AppRouter() {
   const intl = useIntl();
+  // Forward navigations from the page slide in like a native push (see pushTransition).
+  const [history] = useState(createPushTransitionHistory);
+
+  // The app's routes, also rendered for the previous history entry under a
+  // pushed page so a swipe back can drag it into view (see BackSwipe).
+  const routes = (
+    <>
+      {/* All routes share the persistent MainLayout (sidebar + nav) */}
+      <Route element={<MainLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/feed" element={<Index />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/trends" element={<TrendsPage />} />
+        <Route path="/profile" element={<ProfileRedirect />} />
+         <Route path="/t/:tag" element={<HashtagPage />} />
+         <Route path="/g/:geohash" element={<GeotagPage />} />
+        <Route path="/feed/:domain" element={<DomainFeedPage />} />
+        <Route path="/client/:name" element={<ClientFeedPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/profile" element={<ProfileSettings />} />
+        <Route path="/settings/feed" element={<ContentSettingsPage />} />
+        <Route path="/settings/content" element={<ContentPage />} />
+        <Route path="/settings/personalize" element={<PersonalizePage />} />
+        <Route path="/settings/wallet" element={<WalletSettingsPage />} />
+        <Route
+          path="/settings/notifications"
+          element={<NotificationSettings />}
+        />
+        <Route
+          path="/settings/advanced"
+          element={<AdvancedSettingsPage />}
+        />
+        <Route path="/settings/magic" element={<MagicSettingsPage />} />
+        <Route path="/settings/network" element={<NetworkSettingsPage />} />
+        <Route path="/settings/data" element={<DataSettingsPage />} />
+        <Route path="/lists" element={<UserListsPage />} />
+        <Route path="/events" element={<EventsFeedPage />} />
+        <Route path="/photos" element={<PhotosFeedPage />} />
+        <Route path="/videos" element={<VideosFeedPage />} />
+        {/* /streams redirects to /videos for backward compatibility */}
+        <Route
+          path="/streams"
+          element={<Navigate to="/videos" replace />}
+        />
+        <Route path="/shorts" element={<VinesFeedPage />} />
+        {/* /vines and /divines redirect to /shorts for backward compatibility */}
+        <Route path="/vines" element={<Navigate to="/shorts" replace />} />
+        <Route path="/divines" element={<Navigate to="/shorts" replace />} />
+        <Route path="/music" element={<MusicPage />} />
+        <Route path="/podcasts" element={<PodcastsFeedPage />} />
+        <Route path="/polls" element={<PollsFeedPage />} />
+        <Route path="/tarot" element={<TarotPage />} />
+        <Route path="/treasures" element={<TreasuresPage />} />
+        <Route path="/quizzes" element={<QuizzesPage />} />
+        <Route path="/quizzes/new" element={<CreateQuizPage />} />
+        <Route path="/memory-cards" element={<MemoryCardsPage />} />
+        <Route path="/memory-cards/:npub" element={<MemoryCardsPage />} />
+        <Route path="/memory-cards/:npub/:cardId" element={<MemoryCardsPage />} />
+        <Route
+          path="/colors"
+          element={
+            <KindFeedPage
+              kind={colorsDef.kind}
+              title={colorsDef.label}
+              icon={sidebarItemIcon("colors", "size-5")}
+            />
+          }
+        />
+        <Route
+          path="/packs"
+          element={
+            <KindFeedPage
+              kind={packsDef.kind}
+              title={packsDef.label}
+              icon={sidebarItemIcon("packs", "size-5")}
+            />
+          }
+        />
+        <Route path="/webxdc" element={<WebxdcFeedPage />} />
+        <Route path="/articles/new" element={<ArticleEditorPage />} />
+        <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
+        <Route path="/articles" element={<ArticlesPage />} />
+        <Route
+          path="/highlights"
+          element={
+            <KindFeedPage
+              kind={highlightsDef.kind}
+              title={highlightsDef.label}
+              icon={sidebarItemIcon("highlights", "size-5")}
+              showFAB={false}
+            />
+          }
+        />
+        <Route
+          path="/torrents"
+          element={
+            <KindFeedPage
+              kind={torrentsDef.kind}
+              title={torrentsDef.label}
+              icon={sidebarItemIcon("torrents", "size-5")}
+              showFAB={false}
+            />
+          }
+        />
+        <Route
+          path="/decks"
+          element={
+            <KindFeedPage
+              kind={decksDef.kind}
+              title={decksDef.label}
+              icon={sidebarItemIcon("decks", "size-5")}
+            />
+          }
+        />
+        <Route
+          path="/objects"
+          element={
+            <KindFeedPage
+              kind={snoDef.kind}
+              title={snoDef.label}
+              kindDef={snoDef}
+              icon={<Box className="size-5" />}
+              showFAB={false}
+            />
+          }
+        />
+        <Route path="/emojis" element={<EmojiPacksPage />} />
+        <Route
+          path="/development"
+          element={
+            <KindFeedPage
+              kind={getSectionKinds("development")}
+              title={intl.formatMessage({ id: "appRouter.development", defaultMessage: "Development" })}
+              feedId="development"
+              icon={sidebarItemIcon("development", "size-5")}
+              showFAB={false}
+            />
+          }
+        />
+        <Route path="/themes" element={<ThemesPage />} />
+        <Route path="/wallet" element={<WalletPage />} />
+        <Route path="/bookmarks" element={<BookmarksPage />} />
+        <Route path="/top-8" element={<Top8Page />} />
+        <Route path="/ai-chat" element={<AIChatPage />} />
+        <Route path="/blobbi" element={<BlobbiPage />} />
+        <Route path="/world" element={<WorldPage />} />
+        <Route path="/badges" element={<BadgesPage />} />
+        <Route path="/books" element={<BooksPage />} />
+        <Route path="/archive" element={<ArchivePage />} />
+        <Route path="/bluesky" element={<BlueskyPage />} />
+        <Route path="/wikipedia" element={<WikipediaPage />} />
+        <Route path="/letters" element={<LettersPage />} />
+        <Route path="/letters/compose" element={<LetterComposePage />} />
+        <Route path="/settings/letters" element={<LetterPreferencesPage />} />
+        <Route path="/help" element={<HelpPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/safety" element={<CSAEPolicyPage />} />
+        <Route path="/changelog" element={<ChangelogPage />} />
+        <Route path="/r/*" element={<RelayPage />} />
+        <Route
+          path="/settings/lists"
+          element={<Navigate to="/lists" replace />}
+        />
+        <Route path="/i/*" element={<ExternalContentPage />} />
+
+        {/* Landing route for content shared into Ditto from another app's
+            Share button (Android share targets). */}
+        <Route path="/share" element={<SharePage />} />
+
+        {/* Landing route for the web manifest's `bitcoin:`, `monero:`,
+            and `nostr:` protocol handlers. */}
+        <Route path="/open" element={<ProtocolHandlerPage />} />
+
+        {/* Callback target for remote signers (e.g. Amber, Primal) after NIP-46 approval */}
+        <Route path="/remoteloginsuccess" element={<RemoteLoginSuccessPage />} />
+        {/* Deprecated auto-follow deep link: redirect home (route removed
+            in 6e43342f because it published a kind 3 follow on mount). */}
+        <Route path="/follow/:npub" element={<Navigate to="/" replace />} />
+        {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
+        <Route path="/:nip19" element={<NIP19Page />} />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </>
+  );
 
   return (
     <AudioPlayerProvider>
@@ -146,7 +342,7 @@ export function AppRouter() {
           6 → 7 (npm audit fix). Opting out makes location updates a plain
           synchronous setState again: the route swaps on click, showing the
           detail route (or its Suspense skeleton) immediately. */}
-      <BrowserRouter useTransitions={false}>
+      <HistoryRouter history={history} useTransitions={false}>
         <Toaster />
         <VersionCheck />
         <MinimizedAudioBar />
@@ -155,192 +351,17 @@ export function AppRouter() {
         <NativeNavHandler />
         <BackButtonHandler />
         <ScrollToTop />
+        <RoutePreloader preloads={ROUTE_PRELOADS} />
         <HighlightSelectionButton />
         <ThemePreviewBar />
         <StreakStartedDialog />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />
-          <Routes>
-          {/* All routes share the persistent MainLayout (sidebar + nav) */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/feed" element={<Index />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/trends" element={<TrendsPage />} />
-            <Route path="/profile" element={<ProfileRedirect />} />
-             <Route path="/t/:tag" element={<HashtagPage />} />
-             <Route path="/g/:geohash" element={<GeotagPage />} />
-            <Route path="/feed/:domain" element={<DomainFeedPage />} />
-            <Route path="/client/:name" element={<ClientFeedPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/profile" element={<ProfileSettings />} />
-            <Route path="/settings/feed" element={<ContentSettingsPage />} />
-            <Route path="/settings/content" element={<ContentPage />} />
-            <Route path="/settings/personalize" element={<PersonalizePage />} />
-            <Route path="/settings/wallet" element={<WalletSettingsPage />} />
-            <Route
-              path="/settings/notifications"
-              element={<NotificationSettings />}
-            />
-            <Route
-              path="/settings/advanced"
-              element={<AdvancedSettingsPage />}
-            />
-            <Route path="/settings/magic" element={<MagicSettingsPage />} />
-            <Route path="/settings/network" element={<NetworkSettingsPage />} />
-            <Route path="/settings/data" element={<DataSettingsPage />} />
-            <Route path="/lists" element={<UserListsPage />} />
-            <Route path="/events" element={<EventsFeedPage />} />
-            <Route path="/photos" element={<PhotosFeedPage />} />
-            <Route path="/videos" element={<VideosFeedPage />} />
-            {/* /streams redirects to /videos for backward compatibility */}
-            <Route
-              path="/streams"
-              element={<Navigate to="/videos" replace />}
-            />
-            <Route path="/shorts" element={<VinesFeedPage />} />
-            {/* /vines and /divines redirect to /shorts for backward compatibility */}
-            <Route path="/vines" element={<Navigate to="/shorts" replace />} />
-            <Route path="/divines" element={<Navigate to="/shorts" replace />} />
-            <Route path="/music" element={<MusicPage />} />
-            <Route path="/podcasts" element={<PodcastsFeedPage />} />
-            <Route path="/polls" element={<PollsFeedPage />} />
-            <Route path="/tarot" element={<TarotPage />} />
-            <Route path="/treasures" element={<TreasuresPage />} />
-            <Route path="/quizzes" element={<QuizzesPage />} />
-            <Route path="/quizzes/new" element={<CreateQuizPage />} />
-            <Route path="/memory-cards" element={<MemoryCardsPage />} />
-            <Route path="/memory-cards/:npub" element={<MemoryCardsPage />} />
-            <Route path="/memory-cards/:npub/:cardId" element={<MemoryCardsPage />} />
-            <Route
-              path="/colors"
-              element={
-                <KindFeedPage
-                  kind={colorsDef.kind}
-                  title={colorsDef.label}
-                  icon={sidebarItemIcon("colors", "size-5")}
-                />
-              }
-            />
-            <Route
-              path="/packs"
-              element={
-                <KindFeedPage
-                  kind={packsDef.kind}
-                  title={packsDef.label}
-                  icon={sidebarItemIcon("packs", "size-5")}
-                />
-              }
-            />
-            <Route path="/webxdc" element={<WebxdcFeedPage />} />
-            <Route path="/articles/new" element={<ArticleEditorPage />} />
-            <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
-            <Route path="/articles" element={<ArticlesPage />} />
-            <Route
-              path="/highlights"
-              element={
-                <KindFeedPage
-                  kind={highlightsDef.kind}
-                  title={highlightsDef.label}
-                  icon={sidebarItemIcon("highlights", "size-5")}
-                  showFAB={false}
-                />
-              }
-            />
-            <Route
-              path="/torrents"
-              element={
-                <KindFeedPage
-                  kind={torrentsDef.kind}
-                  title={torrentsDef.label}
-                  icon={sidebarItemIcon("torrents", "size-5")}
-                  showFAB={false}
-                />
-              }
-            />
-            <Route
-              path="/decks"
-              element={
-                <KindFeedPage
-                  kind={decksDef.kind}
-                  title={decksDef.label}
-                  icon={sidebarItemIcon("decks", "size-5")}
-                />
-              }
-            />
-            <Route
-              path="/objects"
-              element={
-                <KindFeedPage
-                  kind={snoDef.kind}
-                  title={snoDef.label}
-                  kindDef={snoDef}
-                  icon={<Box className="size-5" />}
-                  showFAB={false}
-                />
-              }
-            />
-            <Route path="/emojis" element={<EmojiPacksPage />} />
-            <Route
-              path="/development"
-              element={
-                <KindFeedPage
-                  kind={getSectionKinds("development")}
-                  title={intl.formatMessage({ id: "appRouter.development", defaultMessage: "Development" })}
-                  feedId="development"
-                  icon={sidebarItemIcon("development", "size-5")}
-                  showFAB={false}
-                />
-              }
-            />
-            <Route path="/themes" element={<ThemesPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/bookmarks" element={<BookmarksPage />} />
-            <Route path="/top-8" element={<Top8Page />} />
-            <Route path="/ai-chat" element={<AIChatPage />} />
-            <Route path="/blobbi" element={<BlobbiPage />} />
-            <Route path="/world" element={<WorldPage />} />
-            <Route path="/badges" element={<BadgesPage />} />
-            <Route path="/books" element={<BooksPage />} />
-            <Route path="/archive" element={<ArchivePage />} />
-            <Route path="/bluesky" element={<BlueskyPage />} />
-            <Route path="/wikipedia" element={<WikipediaPage />} />
-            <Route path="/letters" element={<LettersPage />} />
-            <Route path="/letters/compose" element={<LetterComposePage />} />
-            <Route path="/settings/letters" element={<LetterPreferencesPage />} />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="/privacy" element={<PrivacyPolicyPage />} />
-            <Route path="/safety" element={<CSAEPolicyPage />} />
-            <Route path="/changelog" element={<ChangelogPage />} />
-            <Route path="/r/*" element={<RelayPage />} />
-            <Route
-              path="/settings/lists"
-              element={<Navigate to="/lists" replace />}
-            />
-            <Route path="/i/*" element={<ExternalContentPage />} />
-
-            {/* Landing route for content shared into Ditto from another app's
-                Share button (Android share targets). */}
-            <Route path="/share" element={<SharePage />} />
-
-            {/* Landing route for the web manifest's `bitcoin:`, `monero:`,
-                and `nostr:` protocol handlers. */}
-            <Route path="/open" element={<ProtocolHandlerPage />} />
-
-            {/* Callback target for remote signers (e.g. Amber, Primal) after NIP-46 approval */}
-            <Route path="/remoteloginsuccess" element={<RemoteLoginSuccessPage />} />
-            {/* Deprecated auto-follow deep link: redirect home (route removed
-                in 6e43342f because it published a kind 3 follow on mount). */}
-            <Route path="/follow/:npub" element={<Navigate to="/" replace />} />
-            {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
-            <Route path="/:nip19" element={<NIP19Page />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+          <PageRoutesContext.Provider value={routes}>
+            <Routes>{routes}</Routes>
+          </PageRoutesContext.Provider>
         </BlobbiActionsProvider>
-      </BrowserRouter>
+      </HistoryRouter>
     </AudioPlayerProvider>
   );
 }

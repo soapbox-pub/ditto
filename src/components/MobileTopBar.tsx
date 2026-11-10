@@ -24,7 +24,7 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
 
   return (
     <header
-      className="sticky top-0 z-20 sidebar:hidden safe-area-top transition-transform duration-300 ease-in-out"
+      className="push-transition-top-bar sticky top-0 z-20 sidebar:hidden safe-area-top transition-transform duration-300 ease-in-out"
       style={navHidden ? { transform: 'translateY(calc(-100% - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))))' } : undefined}
     >
       {/* Safe-area fill — only covers the padding zone above the content with a single layer of bg. */}

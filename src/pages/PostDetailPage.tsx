@@ -26,6 +26,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { useGoBack } from "@/hooks/useGoBack";
+import { holdChromeUntilUserScroll } from "@/hooks/useScrollDirection";
+import { useAfterPushSlide } from "@/hooks/useAfterPushSlide";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
@@ -1566,6 +1568,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     };
   }, [event, isKind1, isComment]);
 
+  // Replies render once a push slide into this page is moving (see useAfterPushSlide).
+  const afterPushSlide = useAfterPushSlide();
   const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(
     isKind1 ? event.id : undefined,
   );
@@ -1882,19 +1886,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Keep the focused post pinned while ancestor content loads above it.
   const focusedPostRef = useRef<HTMLElement>(null);
   const ancestorRef = useRef<HTMLDivElement>(null);
-  const threadSpacerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!parentEventId || !focusedPostRef.current) return;
 
     const post = focusedPostRef.current;
-    // Room below the post to pin it to the top, however little follows it.
-    const spacer = threadSpacerRef.current;
-    const sizeSpacer = () => {
-      if (!spacer) return;
-      const below = spacer.getBoundingClientRect().top - post.getBoundingClientRect().top;
-      spacer.style.height = `${Math.max(0, window.innerHeight - below)}px`;
-    };
-    sizeSpacer();
+    // Pinned below the mobile top bar and status bar (`scroll-mt-mobile-bar`),
+    // with the bars kept showing: the app moved the page, not the reader.
+    holdChromeUntilUserScroll();
     post.scrollIntoView({ block: "start" });
 
     // Brief highlight pulse so the user can locate the focused post
@@ -1916,29 +1914,23 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const root = document.documentElement;
     const prevOverflowAnchor = root.style.overflowAnchor;
     root.style.overflowAnchor = "none";
-    let lastHeight = ancestor.getBoundingClientRect().height;
-    // Scroll the page can't take yet (too little below the post) is applied
-    // as it grows, unless the reader scrolls first.
-    let owed = 0;
-    const settle = () => {
-      if (!owed) return;
-      const before = window.scrollY;
-      window.scrollBy(0, owed);
-      owed -= window.scrollY - before;
-      if (Math.abs(owed) < 1) owed = 0;
-    };
+    // Hold the post where scrollIntoView put it, measuring where it actually
+    // is rather than tallying the ancestors' resizes: an ancestor that renders
+    // long and then collapses can push the scroll past the end of the page,
+    // which the browser clamps, and a tally never recovers from the clamp.
+    // `min-h-thread-focus` keeps the page tall enough for the post to reach
+    // its place. Until the reader scrolls themselves.
+    const target = post.getBoundingClientRect().top;
+    let pinned = true;
     const observer = new ResizeObserver(() => {
-      const height = ancestor.getBoundingClientRect().height;
-      const shift = height - lastHeight;
-      lastHeight = height;
-      if (Math.abs(shift) >= 1 && post.getBoundingClientRect().top - shift < window.innerHeight) owed += shift;
-      sizeSpacer();
-      settle();
+      if (!pinned) return;
+      const drift = post.getBoundingClientRect().top - target;
+      if (Math.abs(drift) >= 1) window.scrollBy(0, drift);
     });
     observer.observe(ancestor);
     observer.observe(document.body);
     const INPUT_EVENTS = ["wheel", "touchstart", "keydown"] as const;
-    const forgive = () => { owed = 0; };
+    const forgive = () => { pinned = false; };
     for (const type of INPUT_EVENTS) window.addEventListener(type, forgive, { capture: true, passive: true });
     return () => {
       observer.disconnect();
@@ -2109,9 +2101,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
+      {/* The focused post and everything below it. In a thread it's at least
+          a screen tall (min-h-thread-focus), so the post can always be pinned
+          under the top bar, however little follows it or whatever stops
+          loading below it. */}
+      <div className={cn(parentHints && "min-h-thread-focus")}>
       {/* Reaction event — compact activity-style card */}
       {isReaction && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
           <div className="flex items-center gap-3">
             {/* Reaction emoji bubble — size-10 matches the threaded ancestor avatar column */}
             <div className="flex items-center justify-center size-10 rounded-full bg-pink-500/10 shrink-0 text-xl leading-none">
@@ -2215,7 +2212,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Repost event (kind 6 / 16) — compact activity-style card */}
       {isRepost && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
           <div className="flex items-center gap-3">
             {/* Repost icon bubble — size-10 matches the threaded ancestor avatar column */}
             <div className="flex items-center justify-center size-10 rounded-full bg-accent/10 shrink-0">
@@ -2301,7 +2298,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         const zapAmountSats = Math.floor(extractZapAmount(event) / 1000);
         const zapMsg = extractZapMessage(event);
         return (
-          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
             <div className="flex items-center gap-3">
               {/* Zap icon bubble — same size/position as reaction emoji bubble */}
               <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
@@ -2390,7 +2387,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         const isMultiRecipient = recipientPubkeys.length > 1;
         // Sender is the author (self-signed, unlike 9735 where the LNURL server signs).
         return (
-          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
             <div className="flex items-center gap-3">
               {/* Amber bolt bubble — identical to the Lightning card. */}
               <div className="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
@@ -2474,7 +2471,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         let parsedMeta: Record<string, unknown> = {};
         try { parsedMeta = JSON.parse(event.content); } catch { /* ignore */ }
         return (
-          <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+          <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
             <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} imeta={parseProfileImeta(event.tags, parsedMeta)} />
 
             {/* Date row */}
@@ -2485,7 +2482,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             {/* Action buttons */}
             <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
               <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
                 title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
                 onClick={() => setReplyOpen(true)}
               >
@@ -2498,7 +2495,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <RepostMenu event={event}>
                 {(isReposted: boolean) => (
                   <button
-                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`}
                     title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.repost', defaultMessage: 'Repost' })}
                   >
                     <RepostIcon className="size-5" />
@@ -2518,7 +2515,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               />
 
               <button
-                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+                className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors sidebar:hidden"
                 title={intl.formatMessage({ id: 'postDetail.action.share', defaultMessage: 'Share' })}
                 onClick={handleShare}
               >
@@ -2526,7 +2523,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </button>
 
               <button
-                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
                 title={intl.formatMessage({ id: 'postDetail.action.more', defaultMessage: 'More' })}
                 onClick={() => setMoreMenuOpen(true)}
               >
@@ -2548,7 +2545,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Kind 62 — Request to Vanish: dramatic full-width display, no author row */}
       {isVanish && (
-        <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
+        <article ref={focusedPostRef} className="px-4 pt-3 pb-0 scroll-mt-mobile-bar">
           <VanishEventContent event={event} />
 
           {/* Date row */}
@@ -2559,7 +2556,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {/* Action buttons — same as standard post detail */}
           <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
             <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
               title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
               onClick={() => setReplyOpen(true)}
             >
@@ -2572,7 +2569,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
                 <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent hover:text-accent/80 hover:bg-accent/10" : "text-muted-foreground hover:text-accent hover:bg-accent/10"}`}
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`}
                   title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.reposts', defaultMessage: 'Reposts' })}
                 >
                   <RepostIcon className="size-5" />
@@ -2592,7 +2589,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             />
 
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors sidebar:hidden"
+              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors sidebar:hidden"
               title={intl.formatMessage({ id: 'postDetail.action.share', defaultMessage: 'Share' })}
               onClick={handleShare}
             >
@@ -2600,7 +2597,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </button>
 
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
               title={intl.formatMessage({ id: 'postDetail.action.more', defaultMessage: 'More' })}
               onClick={() => setMoreMenuOpen(true)}
             >
@@ -2629,7 +2626,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Kind 1018 — Poll vote: compact activity-style card */}
       {isPollVote && (
-        <div ref={focusedPostRef as React.RefObject<HTMLDivElement>}>
+        <div ref={focusedPostRef as React.RefObject<HTMLDivElement>} className="scroll-mt-mobile-bar">
           <ActivityCard
             className="border-b-0 pb-0"
             icon={
@@ -2683,7 +2680,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <article
           ref={focusedPostRef}
           className={cn(
-            "relative px-4 pt-3 pb-0",
+            "relative px-4 pt-3 pb-0 scroll-mt-mobile-bar",
             // Clip confetti to the card only while it plays — overflow-hidden
             // is not part of this article's normal layout.
             celebrating && "overflow-hidden",
@@ -3030,7 +3027,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
       {/* Replies */}
       <div>
-        {repliesLoading ? (
+        {repliesLoading || !afterPushSlide ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
               <ReplyCardSkeleton key={i} />
@@ -3047,7 +3044,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </div>
         ) : null}
       </div>
-      {parentHints && <div ref={threadSpacerRef} aria-hidden />}
+      </div>
     </div>
   );
 }

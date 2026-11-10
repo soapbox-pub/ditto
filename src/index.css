@@ -67,6 +67,20 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* On touch screens a long-press on a link or image lifts it as a drag
+     (Android) or opens the link preview (iOS), which no native app does.
+     Text stays selectable. Desktop keeps dragging links and images out. */
+  @media (hover: none) {
+    a,
+    img {
+      -webkit-user-drag: none;
+    }
+
+    a {
+      -webkit-touch-callout: none;
+    }
+  }
 }
 
 /* ── Pre-React loading screen ──────────────────────────────────────────────
@@ -244,6 +258,27 @@
   /* Mobile top bar height + safe area inset for sticky elements */
   .top-mobile-bar {
     top: calc(var(--top-bar-height) + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+  }
+
+  /* A thread's focused post and everything below it: tall enough that the
+     post can be scrolled to just under the top bar however short the rest is. */
+  .min-h-thread-focus {
+    min-height: 100dvh;
+  }
+
+  @media (max-width: 899px) {
+    .min-h-thread-focus {
+      min-height: calc(100dvh - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    }
+  }
+
+  /* Scrolled-to content (a thread's focused post) lands below the mobile top
+     bar and status bar instead of under them, clear of the bar's arc, which
+     dips 20px below it (ARC_OVERHANG_PX). */
+  @media (max-width: 899px) {
+    .scroll-mt-mobile-bar {
+      scroll-margin-top: calc(var(--top-bar-height) + 20px + var(--safe-area-inset-top, env(safe-area-inset-top, 0px)));
+    }
   }
 
   /* New-posts pill: just below the SubHeaderBar on both mobile and desktop */
@@ -923,7 +958,16 @@
 
 .milkdown-upload-placeholder::before {
   content: '';
-  @apply w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full motion-safe:animate-spin;
+  @apply w-4 h-4 border-2 border-muted-foreground/30 border-t-primary rounded-full;
+}
+
+/* Spelled out rather than `@apply motion-safe:animate-spin`: applied here,
+   outside a layer, that emitted an empty `@keyframes spin {}` after the real
+   one, which stopped every `animate-spin` in the app from turning. */
+@media (prefers-reduced-motion: no-preference) {
+  .milkdown-upload-placeholder::before {
+    animation: spin 1s linear infinite;
+  }
 }
 
 /* Placeholder for an empty document (decoration from placeholderPlugin). */
@@ -1314,4 +1358,70 @@ video[data-no-native-poster]::-internal-media-controls-overlay-cast-button {
 @keyframes poll-hop {
   0%, 50%, 100% { translate: 0 0; }
   25%, 75% { translate: 0 -12px; }
+}
+
+/* ── Push slide ────────────────────────────────────────────────────────────
+   Navigations on a phone (src/lib/pushTransition.ts), like a native
+   navigation stack. Forward, the new page slides in from the right over the
+   old one, which drifts left and dims; back, the reverse. The top bar and
+   bottom nav are captured on their own, so they hold still instead of
+   sliding with the page. */
+html[data-push-transition] .push-transition-top-bar {
+  view-transition-name: push-top-bar;
+}
+
+html[data-push-transition] .push-transition-bottom-nav {
+  view-transition-name: push-bottom-nav;
+}
+
+html[data-push-transition]::view-transition-group(*) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html[data-push-transition="forward"]::view-transition-old(root) {
+  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both push-old;
+}
+
+html[data-push-transition="forward"]::view-transition-new(root) {
+  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both push-new;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.15);
+}
+
+/* Back: the page being left slides off on top, so it's raised over the one
+   coming back. */
+html[data-push-transition="back"]::view-transition-old(root) {
+  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both pop-old;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.15);
+  z-index: 1;
+}
+
+html[data-push-transition="back"]::view-transition-new(root) {
+  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both pop-new;
+}
+
+@keyframes push-old {
+  to {
+    transform: translateX(-25%);
+    filter: brightness(0.85);
+  }
+}
+
+@keyframes push-new {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pop-old {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pop-new {
+  from {
+    transform: translateX(-25%);
+    filter: brightness(0.85);
+  }
 }
