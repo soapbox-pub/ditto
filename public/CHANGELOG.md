@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.46.1] - 2026-11-10
+
+Swiping back is smooth now. The page you return to shows up right away in its own colors, with no flicker or gap, and search results are waiting where you left them. Opening a reply keeps the post it answers in view, and posts opened from search stay open.
+
+### Fixed
+- Posts opened from search no longer jump back to the search a moment later
+- Opening a reply keeps the post it answers in view instead of scrolling it off the top
+- Swiping back no longer flickers or briefly shows a blank or loading page, and search results stay put
+- Swiping back from a themed profile shows the page underneath in its own theme
+- No more gap onto the background while a swipe back settles
+
 ## [2.46.0] - 2026-11-10
 
 Ditto feels native on your phone. Your feed opens instantly from where you left off, pages slide in and swipe away, and photos grow out of the post you tapped. Polls can show images, good night posts get a moonrise in tonight's phase, and muted words now reach profiles and reactions too. Scrolling is lighter on your battery, deleting a post can delete its media, and lots of safety fixes keep fake badges, zaps, and deletions out.
