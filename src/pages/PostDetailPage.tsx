@@ -1484,6 +1484,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       { emoji: ResolvedEmoji; count: number }
     >();
     for (const r of interactions.reactions) {
+      if (isMuted(r.event)) continue;
       const key = r.emoji;
       const existing = emojiCounts.get(key);
       if (existing) {
@@ -1501,7 +1502,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 3)
       .map((e) => e.emoji);
-  }, [interactions?.reactions]);
+  }, [interactions?.reactions, isMuted]);
 
   // Kind 1 events use NIP-10 replies (kind 1); all other events use NIP-22 comments (kind 1111).
   // For kind 1111 events, we reconstruct the original root from uppercase tags so useComments

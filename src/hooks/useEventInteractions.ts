@@ -21,6 +21,8 @@ export interface ReactionEntry {
   /** For NIP-30 custom emojis, the image URL. */
   emojiUrl?: string;
   createdAt: number;
+  /** The kind 7 reaction event, for mute checks. */
+  event: NostrEvent;
 }
 
 export interface ZapEntry {
@@ -158,6 +160,7 @@ export function useEventInteractions(eventId: string | undefined, author: string
               emoji,
               emojiUrl,
               createdAt: e.created_at,
+              event: e,
             });
             break;
           }

@@ -21,6 +21,7 @@ import { isCustomEmoji, isRenderableReactionKey, JUNK_REACTION_GLYPH } from '@/l
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useOnchainZaps, type OnchainZapEntry } from '@/hooks/useOnchainZaps';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { timeAgo } from '@/lib/timeAgo';
 import { formatNumber } from '@/lib/formatNumber';
@@ -69,6 +70,7 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
   const { zaps: onchainZaps, isLoading: isLoadingOnchain } = useOnchainZaps(
     open ? target : undefined,
   );
+  const { isMuted } = useMuteFilter();
 
   // Sync active tab whenever initialTab changes (e.g. clicking a different stat while modal is already open)
   useEffect(() => {
@@ -86,9 +88,14 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
     [data?.zaps, onchainZaps],
   );
 
+  const reactions = useMemo(
+    () => (data?.reactions ?? []).filter((r) => !isMuted(r.event)),
+    [data?.reactions, isMuted],
+  );
+
   const repostCount = data?.reposts.length ?? 0;
   const quoteCount = data?.quotes.length ?? 0;
-  const reactionCount = data?.reactions.length ?? 0;
+  const reactionCount = reactions.length;
   const zapCount = unifiedZaps.length;
 
   const tabConfig: { key: InteractionTab; label: string; count: number; icon: React.ReactNode }[] = [
@@ -156,7 +163,7 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
           ) : activeTab === 'quotes' ? (
             <QuotesTab quotes={data?.quotes ?? []} />
           ) : activeTab === 'reactions' ? (
-            <ReactionsTab reactions={data?.reactions ?? []} />
+            <ReactionsTab reactions={reactions} />
           ) : (
             <ZapsTab zaps={unifiedZaps} />
           )}

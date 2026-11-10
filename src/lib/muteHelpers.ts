@@ -73,12 +73,24 @@ export function isEventMuted(
     .filter((item) => item.type === 'word')
     .map((item) => item.value.toLowerCase());
 
-  const contentLower = event.content.toLowerCase();
-  if (mutedWords.some((word) => contentLower.includes(word))) {
+  const text = mutableText(event);
+  if (mutedWords.some((word) => text.includes(word))) {
     return true;
   }
 
   return false;
+}
+
+/**
+ * The lowercased text muted words are matched against. A reaction's `+` or
+ * empty content is a 👍 like, so a muted 👍 hides those too.
+ */
+function mutableText(event: NostrEvent): string {
+  if (event.kind === 7) {
+    const content = event.content.trim();
+    if (content === '+' || content === '') return '👍';
+  }
+  return event.content.toLowerCase();
 }
 
 /**
