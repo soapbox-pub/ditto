@@ -5,6 +5,7 @@ import { NSchema as n } from '@nostrify/nostrify';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isBlockedProfile } from '@/lib/profileSafety';
 
@@ -82,6 +83,7 @@ export function useSearchProfiles(query: string) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { data: followData } = useFollowList();
+  const { isMuted } = useMuteFilter();
   const followedPubkeys = useMemo(
     () => new Set(followData?.pubkeys ?? []),
     [followData?.pubkeys],
@@ -156,6 +158,7 @@ export function useSearchProfiles(query: string) {
     }
 
     return Array.from(merged.values())
+      .filter((profile) => !isMuted(profile.event))
       .sort((a, b) => {
         const aTier = relevanceTier(a, lowerQuery);
         const bTier = relevanceTier(b, lowerQuery);
@@ -170,7 +173,7 @@ export function useSearchProfiles(query: string) {
         return aName.localeCompare(bName);
       })
       .slice(0, 10);
-  }, [relayResults.data, followedPubkeys, debouncedQuery, queryClient]);
+  }, [relayResults.data, followedPubkeys, debouncedQuery, queryClient, isMuted]);
 
   return {
     ...relayResults,

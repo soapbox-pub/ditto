@@ -73,6 +73,10 @@ export function isEventMuted(
     .filter((item) => item.type === 'word')
     .map((item) => item.value.toLowerCase());
 
+  if (mutedWords.length === 0) {
+    return false;
+  }
+
   const text = mutableText(event);
   if (mutedWords.some((word) => text.includes(word))) {
     return true;
@@ -81,16 +85,56 @@ export function isEventMuted(
   return false;
 }
 
+/** Profile fields shown to people, matched instead of the raw kind 0 JSON. */
+const PROFILE_TEXT_FIELDS = ['name', 'display_name', 'about', 'nip05', 'website'];
+
+/** Tags whose value is text a client shows in place of, or beside, the content. */
+const TEXT_TAGS = new Set(['title', 'summary', 'name', 'description', 'subject', 'location', 'content-warning']);
+
 /**
- * The lowercased text muted words are matched against. A reaction's `+` or
- * empty content is a 👍 like, so a muted 👍 hides those too.
+ * The lowercased text muted words are matched against: the content plus the
+ * visible text some kinds keep in tags (titles, summaries, poll options, image
+ * alt text). A profile matches on its name, bio, and other visible fields, not
+ * the JSON keys. A reaction's `+` or empty content is a 👍 like, so a muted 👍
+ * hides those too.
  */
 function mutableText(event: NostrEvent): string {
   if (event.kind === 7) {
     const content = event.content.trim();
     if (content === '+' || content === '') return '👍';
   }
-  return event.content.toLowerCase();
+
+  if (event.kind === 0) {
+    try {
+      const metadata: unknown = JSON.parse(event.content);
+      if (metadata && typeof metadata === 'object') {
+        const record = metadata as Record<string, unknown>;
+        return PROFILE_TEXT_FIELDS
+          .map((field) => record[field])
+          .filter((value): value is string => typeof value === 'string')
+          .join('\n')
+          .toLowerCase();
+      }
+    } catch {
+      // Not JSON; fall back to the raw content.
+    }
+    return event.content.toLowerCase();
+  }
+
+  const parts = [event.content];
+  for (const [name, ...values] of event.tags) {
+    // A zap receipt's `description` is the zap request JSON, not prose.
+    if (TEXT_TAGS.has(name) && !(name === 'description' && event.kind === 9735)) {
+      if (values[0]) parts.push(values[0]);
+    } else if (name === 'option') {
+      if (values[1]) parts.push(values[1]);
+    } else if (name === 'imeta') {
+      for (const entry of values) {
+        if (entry?.startsWith('alt ')) parts.push(entry.slice(4));
+      }
+    }
+  }
+  return parts.join('\n').toLowerCase();
 }
 
 /**

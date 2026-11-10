@@ -54,9 +54,9 @@ export function RightSidebar() {
   }, [setDismissedAccounts]);
 
   const filteredAccounts = useMemo(() => {
-    if (!latestAccounts || dismissedAccounts.length === 0) return latestAccounts;
-    return latestAccounts.filter((e) => !dismissedAccounts.includes(e.pubkey));
-  }, [latestAccounts, dismissedAccounts]);
+    if (!latestAccounts) return latestAccounts;
+    return latestAccounts.filter((e) => !dismissedAccounts.includes(e.pubkey) && !isMuted(e));
+  }, [latestAccounts, dismissedAccounts, isMuted]);
 
   const trendingTags = trendingTagsResult?.tags;
   const labelCreatedAt = trendingTagsResult?.labelCreatedAt ?? 0;
