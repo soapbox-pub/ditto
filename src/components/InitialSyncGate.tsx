@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import type { NostrEvent, NostrMetadata } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1307,8 +1308,7 @@ function PackCard({
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
               const name =
-                member?.metadata?.name ||
-                member?.metadata?.display_name ||
+                profileName(member?.metadata) ||
                 intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
               return (
                 <MiniAvatar

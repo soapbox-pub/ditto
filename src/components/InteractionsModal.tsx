@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo, useEffect } from 'react';
 import { FormattedMessage, defineMessage, useIntl, type MessageDescriptor } from 'react-intl';
 import { Link } from 'react-router-dom';
@@ -335,7 +336,7 @@ function RepostRow({ entry }: { entry: RepostEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
 
   return (
@@ -374,7 +375,7 @@ function ReactionRow({ entry }: { entry: ReactionEntry }) {
   const author = useAuthor(entry.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(() => nip19.neventEncode({ id: entry.eventId, author: entry.pubkey }), [entry.eventId, entry.pubkey]);
   const customName = isCustomEmoji(entry.emoji) ? entry.emoji.slice(1, -1) : undefined;
 
@@ -426,7 +427,7 @@ function ZapRow({ zap }: { zap: UnifiedZap }) {
   const author = useAuthor(zap.senderPubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(
     () => nip19.neventEncode({ id: zap.linkEventId, author: zap.linkPubkey }),
     [zap.linkEventId, zap.linkPubkey],
@@ -506,7 +507,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
   const author = useAuthor(quote.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
 
   return (

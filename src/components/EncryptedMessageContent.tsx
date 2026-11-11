@@ -10,7 +10,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { getDisplayName } from '@/lib/getDisplayName';
+import { getDisplayName, profileName } from '@/lib/getDisplayName';
 import { Skeleton } from '@/components/ui/skeleton';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -140,7 +140,7 @@ export function EncryptedMessageCompact({ event, className }: EncryptedMessageCo
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const recipientPubkey = event.tags.find(([n]) => n === 'p')?.[1];
   const recipientAuthor = useAuthor(recipientPubkey ?? '');
   const recipientName = recipientPubkey

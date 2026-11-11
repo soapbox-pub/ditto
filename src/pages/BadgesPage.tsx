@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1175,7 +1176,7 @@ function FollowsFeedTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
 function IssuerName({ pubkey }: { pubkey: string }) {
   const intl = useIntl();
   const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? intl.formatMessage({ id: "common.anonymous", defaultMessage: "Anonymous" });
+  const name = profileName(author.data?.metadata) ?? intl.formatMessage({ id: "common.anonymous", defaultMessage: "Anonymous" });
   return (
     <span className="text-xs text-muted-foreground truncate">
       <FormattedMessage id="badgesPage.byIssuer" defaultMessage="by {name}" values={{ name }} />

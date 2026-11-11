@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { Link } from 'react-router-dom';
@@ -40,7 +41,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
   const nip05 = metadata?.nip05;
   const nip05Domain = getNip05Domain(nip05);

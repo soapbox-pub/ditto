@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { ArrowLeft, Loader2, Pencil, Send, Sticker, X } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -97,7 +98,7 @@ function SelectedRecipient({ pubkey, onClear }: { pubkey: string; onClear?: () =
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/60 min-w-0">
@@ -366,8 +367,7 @@ export function ComposeLetterSheet({ onClose, toPubkey }: ComposeLetterSheetProp
   };
 
   const recipientAuthor = useAuthor(resolvedRecipient);
-  const recipientName = recipientAuthor.data?.metadata?.name
-    || recipientAuthor.data?.metadata?.display_name
+  const recipientName = profileName(recipientAuthor.data?.metadata)
     || (resolvedRecipient
       ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
       : intl.formatMessage({ id: 'composeLetter.friend', defaultMessage: 'friend' }));

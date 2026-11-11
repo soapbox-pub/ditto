@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -113,7 +114,7 @@ function ZapRecipientLine({ pubkey }: { pubkey: string }) {
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (

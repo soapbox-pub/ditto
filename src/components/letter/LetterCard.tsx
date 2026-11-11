@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
@@ -57,7 +58,7 @@ export function LetterCard({ letter, mode }: LetterCardProps) {
   const queryClient = useQueryClient();
   const shareOrigin = useShareOrigin();
 
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(author.data?.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const avatar = author.data?.metadata?.picture;
   const npub = nip19.npubEncode(otherPubkey);
 

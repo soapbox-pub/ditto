@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useCallback } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -77,7 +78,7 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
+  const getDisplayName = (account: Account) => profileName(account.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   const handleLogout = async () => {
     setAccountPopoverOpen(false);
@@ -152,7 +153,7 @@ export function LeftSidebar() {
                   <Avatar shape={currentUserAvatarShape} className="size-10 shrink-0">
                     <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={metadata?.name} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                      {(metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }))[0]?.toUpperCase() ?? '?'}
+                      {(profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }))[0]?.toUpperCase() ?? '?'}
                     </AvatarFallback>
                   </Avatar>
                 )}
@@ -162,9 +163,9 @@ export function LeftSidebar() {
                   ) : (
                     <>
                       <span className="font-semibold text-sm truncate">
-                        {currentUserEvent && (metadata?.name || metadata?.display_name)
-                          ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
-                          : (metadata?.name || metadata?.display_name || <FormattedMessage id="common.anonymous" defaultMessage={"Anonymous"} />)}
+                        {currentUserEvent && profileName(metadata)
+                          ? <EmojifiedText tags={currentUserEvent.tags}>{profileName(metadata) || ''}</EmojifiedText>
+                          : (profileName(metadata) || <FormattedMessage id="common.anonymous" defaultMessage={"Anonymous"} />)}
                       </span>
                       {metadata?.nip05 && (
                         <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
@@ -306,7 +307,7 @@ export function LeftSidebar() {
                 </button>
                 <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
                   <LogOut className="size-4" />
-                  <span><FormattedMessage id="sidebar.logOutAs" defaultMessage={"Log out @{name}"} values={{ name: metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) }} /></span>
+                  <span><FormattedMessage id="sidebar.logOutAs" defaultMessage={"Log out @{name}"} values={{ name: profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) }} /></span>
                 </button>
               </div>
             </PopoverContent>

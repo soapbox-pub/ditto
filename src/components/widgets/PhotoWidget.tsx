@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -76,7 +77,7 @@ function PhotoCard({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
 
   const photo = useMemo(() => parseFirstPhoto(event.tags), [event.tags]);

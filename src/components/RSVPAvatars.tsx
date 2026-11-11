@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import type { NostrMetadata } from '@nostrify/nostrify';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -24,7 +25,7 @@ function RSVPAvatar({ pubkey, size = 'sm' }: { pubkey: string; size?: AvatarSize
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
 
-  const displayName = metadata?.name || metadata?.display_name || 'Anonymous';
+  const displayName = profileName(metadata) || 'Anonymous';
   const initial = displayName.charAt(0).toUpperCase();
 
   return (

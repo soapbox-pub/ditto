@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { nip19 } from 'nostr-tools';
 import { UserRoundCheck } from 'lucide-react';
@@ -303,7 +304,7 @@ function MentionItem({
 }) {
   const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;

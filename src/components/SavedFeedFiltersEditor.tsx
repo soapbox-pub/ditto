@@ -10,6 +10,7 @@
  * - `authors` (array of pubkeys)
  * - `search` (NIP-50 search string)
  */
+import { profileName } from '@/lib/getDisplayName';
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Globe, UserSearch,
@@ -612,7 +613,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
     try { const d = nip19.decode(pubkey); return d.type === 'npub' ? d.data : pubkey; } catch { return pubkey; }
   }, [pubkey]);
   const author = useAuthor(hexPubkey);
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || pubkey.slice(0, 10) + '...';
+  const name = profileName(author.data?.metadata) || pubkey.slice(0, 10) + '...';
   const picture = author.data?.metadata?.picture;
   return (
     <span className="inline-flex items-center gap-1.5 pl-1.5 pr-1 py-0.5 rounded-full bg-secondary border border-border text-xs max-w-[160px]">
@@ -636,7 +637,7 @@ export function AuthorChip({ pubkey, onRemove }: { pubkey: string; onRemove: () 
 export function AuthorFilterDropdown({ onCommit }: { onCommit: (pubkey: string, _label: string) => void }) {
   const intl = useIntl();
   const handleSelect = useCallback((profile: SearchProfile) => {
-    const label = profile.metadata.name || profile.metadata.display_name || profile.pubkey.slice(0, 16) + '...';
+    const label = profileName(profile.metadata) || profile.pubkey.slice(0, 16) + '...';
     onCommit(profile.pubkey, label);
   }, [onCommit]);
 

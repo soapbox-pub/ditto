@@ -7,6 +7,7 @@
  * Used for both feed NoteCards and naddr / nevent quote embeds.
  */
 
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -46,7 +47,7 @@ export function EmbeddedPublicationCard({
   const intl = useIntl();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const avatarShape = getAvatarShape(metadata);
 

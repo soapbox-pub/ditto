@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -50,7 +51,7 @@ export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps
   // Author data only needed for the AudioVisualizer fallback
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? 'Anonymous';
+  const displayName = profileName(metadata) ?? 'Anonymous';
   const avatarUrl = metadata?.picture;
 
   // If no waveform data, fall back to the existing AudioVisualizer

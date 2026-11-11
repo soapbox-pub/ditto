@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Award } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
@@ -130,7 +131,7 @@ function RecipientName({ pubkey }: { pubkey: string }) {
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const url = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {

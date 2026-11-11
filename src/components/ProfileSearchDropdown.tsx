@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -631,7 +632,7 @@ function Nip05IdentifierItem({
   const { data: pubkey, isLoading } = useNip05Resolve(identifier);
   const author = useAuthor(pubkey ?? undefined);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || (pubkey ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : identifier);
+  const displayName = profileName(metadata) || (pubkey ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : identifier);
   const tags = author.data?.event?.tags ?? [];
 
   if (isLoading) {
@@ -693,7 +694,7 @@ function PubkeyIdentifierItem({
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const tags = author.data?.event?.tags ?? [];
 
   return (
@@ -751,7 +752,7 @@ function EventIdentifierItem({
   const { data: event, isLoading } = useEvent(eventId, relays, authorHint);
   const author = useAuthor(event?.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || (event ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : undefined);
+  const displayName = profileName(metadata) || (event ? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : undefined);
 
   return (
     <button
@@ -814,7 +815,7 @@ function AddrIdentifierItem({
   const { data: event, isLoading } = useAddrEvent(addr, relays);
   const author = useAuthor(event?.pubkey ?? addr.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   // Try to get a title from tags
   const title = event?.tags.find(([t]) => t === 'title')?.[1];
@@ -996,7 +997,7 @@ function ProfileItem({
 }) {
   const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);

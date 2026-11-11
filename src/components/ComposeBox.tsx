@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { lazy, Suspense, useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
@@ -1257,7 +1258,7 @@ export function ComposeBox({
               <Avatar shape={avatarShape} className="size-12">
                 <AvatarImage src={metadata?.picture} imeta={userImeta?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                  {(metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }))[0]?.toUpperCase() ?? '?'}
+                  {(profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }))[0]?.toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
               {/* Birthday party hat — perched on the current user's avatar

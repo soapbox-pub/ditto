@@ -11,6 +11,7 @@
  *   7. Naming prompt, then ceremony complete
  */
 
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { defineMessage, defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -322,8 +323,7 @@ export function BlobbiHatchingCeremony({
         // initial allocation on first authenticated Island entry.
         if (!currentProfile) {
           const suggestedName =
-            authorData?.metadata?.name ||
-            authorData?.metadata?.display_name ||
+            profileName(authorData?.metadata) ||
             'Blobbonaut';
 
           const baseTags = buildBlobbonautTags(user.pubkey);

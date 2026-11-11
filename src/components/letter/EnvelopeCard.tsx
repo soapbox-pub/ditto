@@ -21,6 +21,7 @@
  * Label: name left-aligned, shorthand time right-aligned.
  */
 
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo, useState } from 'react';
 import { Clock, MoreHorizontal } from 'lucide-react';
 import { useIntl, type IntlShape } from 'react-intl';
@@ -95,7 +96,7 @@ export function EnvelopeCard({ letter, mode, index, onClick, minimal }: Envelope
   const { data: decrypted } = useDecryptLetter(letter);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(author.data?.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const avatar = author.data?.metadata?.picture;
   const timeStr = shortTimeAgo(letter.timestamp, intl);
 

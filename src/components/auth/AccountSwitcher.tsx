@@ -1,6 +1,7 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
+import { profileName } from '@/lib/getDisplayName';
 import { useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { ChevronDown, LogOut, UserIcon, UserPlus } from 'lucide-react';
@@ -37,7 +38,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   };
 
   const getDisplayName = (account: Account): string => {
-    return account.metadata.name || account.metadata.display_name || intl.formatMessage({ id: 'accountSwitcher.anonymous', defaultMessage: 'Anonymous' });
+    return profileName(account.metadata) || intl.formatMessage({ id: 'accountSwitcher.anonymous', defaultMessage: 'Anonymous' });
   }
 
   return (

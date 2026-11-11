@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { Users, PartyPopper, UserCheck } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -106,7 +107,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
           <div className="flex -space-x-1.5">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
-              const name = member?.metadata?.name || member?.metadata?.display_name || 'Anonymous';
+              const name = profileName(member?.metadata) || 'Anonymous';
               const shape = getAvatarShape(member?.metadata);
               return (
                 <Avatar

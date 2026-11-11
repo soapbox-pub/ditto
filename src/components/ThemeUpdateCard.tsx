@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
@@ -32,7 +33,7 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const authorEvent = author.data?.event;
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   const theme = useMemo(() => parseThemeDefinition(event), [event]);

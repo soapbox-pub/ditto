@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -150,7 +151,7 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   const activePubkey = user ? user.pubkey : ephemeralPubkey;
 
   const selfAddr = nip19.npubEncode(activePubkey);
-  const selfName = metadata?.name || metadata?.display_name || nip19.npubEncode(activePubkey).slice(0, 12);
+  const selfName = profileName(metadata) || nip19.npubEncode(activePubkey).slice(0, 12);
 
   // Publish a signed event using whichever signer is active (logged-in user or ephemeral key)
   const publishSigned = useCallback(async (template: Parameters<typeof ephemeralSigner.signEvent>[0]) => {

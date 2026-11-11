@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { Link } from 'react-router-dom';
 import { GripVertical, X, FileText, Scroll } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -63,7 +64,7 @@ function ProfileSidebarLabel({ pubkey }: { pubkey: string }) {
 
   return (
     <span className="truncate">
-      {metadata?.name || metadata?.display_name || <FormattedMessage id="common.anonymous" defaultMessage="Anonymous" />}
+      {profileName(metadata) || <FormattedMessage id="common.anonymous" defaultMessage="Anonymous" />}
     </span>
   );
 }

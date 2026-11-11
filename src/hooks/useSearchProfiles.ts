@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -49,8 +50,8 @@ function searchCachedProfiles(
     const aFollowed = followedPubkeys.has(a.pubkey) ? 0 : 1;
     const bFollowed = followedPubkeys.has(b.pubkey) ? 0 : 1;
     if (aFollowed !== bFollowed) return aFollowed - bFollowed;
-    const aName = (a.metadata.name || a.metadata.display_name || '').toLowerCase();
-    const bName = (b.metadata.name || b.metadata.display_name || '').toLowerCase();
+    const aName = (profileName(a.metadata) || '').toLowerCase();
+    const bName = (profileName(b.metadata) || '').toLowerCase();
     return aName.localeCompare(bName);
   });
 
@@ -168,8 +169,8 @@ export function useSearchProfiles(query: string) {
         const bFollowed = followedPubkeys.has(b.pubkey) ? 0 : 1;
         if (aFollowed !== bFollowed) return aFollowed - bFollowed;
 
-        const aName = (a.metadata.name || a.metadata.display_name || '').toLowerCase();
-        const bName = (b.metadata.name || b.metadata.display_name || '').toLowerCase();
+        const aName = (profileName(a.metadata) || '').toLowerCase();
+        const bName = (profileName(b.metadata) || '').toLowerCase();
         return aName.localeCompare(bName);
       })
       .slice(0, 10);

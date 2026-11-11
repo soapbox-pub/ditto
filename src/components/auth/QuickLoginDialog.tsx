@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState } from 'react';
 import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Loader2 } from 'lucide-react';
@@ -49,7 +50,7 @@ export function QuickLoginDialog({
 
   const metadata = author.data?.metadata;
   const displayName =
-    metadata?.display_name || metadata?.name || genericName(pubkey, intl);
+    profileName(metadata) || genericName(pubkey, intl);
   const picture = metadata?.picture;
 
   const handleLogin = async () => {

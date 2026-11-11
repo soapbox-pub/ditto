@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useEffect, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import QRCode from 'qrcode';
@@ -26,7 +27,7 @@ export function FollowQRDialog({ open, onOpenChange }: FollowQRDialogProps) {
   const [copied, setCopied] = useState(false);
 
   const metadata = author.data?.metadata;
-  const displayName = user ? metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : '';
+  const displayName = user ? profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' }) : '';
 
   // Links to the profile, where following is an explicit tap. There used to be
   // a dedicated /follow/:npub landing page that published a contact-list update

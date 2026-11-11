@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo, useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
@@ -162,7 +163,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const threadId = rootTag?.[1] ?? event.id;
   const conversationMuted = isMuted('thread', threadId);
   const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(author.data?.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   const nip19Id = encodeEventNip19(event);
   const mentionContent = `nostr:${nip19.npubEncode(event.pubkey)} `;

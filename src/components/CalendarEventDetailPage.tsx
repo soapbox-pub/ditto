@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
@@ -132,7 +133,7 @@ function PersonRow({ pubkey, label, size = 'md' }: { pubkey: string; label?: str
   const { data } = useAuthor(pubkey);
   const metadata: NostrMetadata | undefined = data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const name = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
   const avatarCls = size === 'sm' ? 'size-8' : 'size-11';
   const fallbackCls = size === 'sm' ? 'text-xs' : '';

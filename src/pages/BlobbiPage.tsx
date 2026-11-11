@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
@@ -3576,7 +3577,7 @@ function ActivityTabContent({ companion, projectedStats, socialOpen, onToggleSoc
 function CaretakerLink({ pubkey }: { pubkey: string }) {
   const intl = useIntl();
   const author = useAuthor(pubkey);
-  const displayName = author.data?.metadata?.name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(author.data?.metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profilePath = getProfileUrl(pubkey, author.data?.metadata);
 
   return (

@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
@@ -541,7 +542,7 @@ function FollowingUserRow({ pubkey, onNavigate }: { pubkey: string; onNavigate?:
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -1718,7 +1719,7 @@ function ProfilePageInner() {
   }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
   const bannerImeta = author.data?.imeta?.banner;
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   // NIP-24 birthday — parse from the raw kind 0 content and celebrate all day
   // when the profile's month/day match today (year is optional and unused).

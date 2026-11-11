@@ -3,6 +3,7 @@
  *
  * Settings sub-page for managing NIP-51 Follow Sets (kind 30000).
  */
+import { profileName } from '@/lib/getDisplayName';
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -46,7 +47,7 @@ function MiniAvatar({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   return (
     <Avatar shape={avatarShape} className="size-7 border-2 border-background shrink-0">
       <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />

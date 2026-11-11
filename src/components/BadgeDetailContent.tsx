@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
@@ -61,7 +62,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
   // Follow list (for "already following all" state on the Follow All split button)
@@ -489,7 +490,7 @@ function CommentsTab({ event, orderedReplies, commentsLoading }: {
 
 function AwardeeCard({ pubkey, metadata, pictureImeta }: { pubkey: string; metadata?: NostrMetadata; pictureImeta?: ImetaEntry }) {
   const intl = useIntl();
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
   const profileUrl = useProfileUrl(pubkey, metadata);

@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -70,7 +71,7 @@ export function PeopleAvatarStack({
         {previewPubkeys.map((pk) => {
           const member = membersMap?.get(pk);
           const displayName =
-            member?.metadata?.name || member?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+            profileName(member?.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
           const shape = getAvatarShape(member?.metadata);
           return (
             <Tooltip key={pk}>

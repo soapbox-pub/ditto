@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,7 +50,7 @@ export function MobileBottomNav() {
   // Hide the nav when search sheet is open so it doesn't compete for space
   const isHidden = hidden || searchOpen;
 
-  const displayName = metadata?.name || metadata?.display_name;
+  const displayName = profileName(metadata);
   const isOnProfile = user && location.pathname === profileUrl;
 
   return (

@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { Link } from 'react-router-dom';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -14,8 +15,8 @@ import { cn } from '@/lib/utils';
  */
 export function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const hasRealName = !!(author.data?.metadata?.name || author.data?.metadata?.display_name);
-  const displayName = author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? 'Anonymous';
+  const hasRealName = !!profileName(author.data?.metadata);
+  const displayName = profileName(author.data?.metadata) ?? 'Anonymous';
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (

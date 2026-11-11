@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useId, useMemo, useCallback } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -112,8 +113,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
-  const getDisplayName = (account: Account) => account.metadata.name || account.metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
+  const getDisplayName = (account: Account) => profileName(account.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 
   return (
     <>
@@ -165,8 +166,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </Avatar>
                 <div className="flex flex-col min-w-0 flex-1">
                   <span className="font-semibold text-sm truncate">
-                    {currentUserEvent && (metadata?.name || metadata?.display_name)
-                      ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name || metadata.display_name || ''}</EmojifiedText>
+                    {currentUserEvent && profileName(metadata)
+                      ? <EmojifiedText tags={currentUserEvent.tags}>{profileName(metadata) || ''}</EmojifiedText>
                       : displayName}
                   </span>
                   {metadata?.nip05 && (
@@ -305,7 +306,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <LogOut className="size-5 shrink-0" />
-                    <span><FormattedMessage id="sidebar.logOutAs" defaultMessage={"Log out @{name}"} values={{ name: metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) }} /></span>
+                    <span><FormattedMessage id="sidebar.logOutAs" defaultMessage={"Log out @{name}"} values={{ name: profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" }) }} /></span>
                   </button>
                 </div>
               )}

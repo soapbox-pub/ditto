@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { defineMessages, FormattedMessage, type IntlShape, useIntl } from 'react-intl';
@@ -1364,7 +1365,7 @@ function SelectedRecipientChip({
   const tags = profile?.event.tags ?? author.data?.event?.tags ?? [];
 
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
+    ? profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
     : kind === 'sp'
       ? intl.formatMessage({ id: 'sendBitcoin.recipient.spAddress', defaultMessage: 'Silent payment address' })
       : intl.formatMessage({ id: 'sendBitcoin.recipient.btcAddress', defaultMessage: 'Bitcoin address' });
@@ -1429,7 +1430,7 @@ function ProfileRow({
 }) {
   const intl = useIntl();
   const { metadata, pubkey } = profile;
-  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const subtitle = metadata.nip05 ?? nip19.npubEncode(pubkey);
 
   return (
@@ -1499,7 +1500,7 @@ function IdentifierRow({
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
+    ? profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' })
     : match.type === 'nip05' ? match.identifier : '';
 
   const subtitle = match.type === 'nip05'

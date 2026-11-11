@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Check, Copy, Loader2, QrCode, UserRoundCheck, X } from 'lucide-react';
@@ -971,7 +972,7 @@ function SelectedRecipientChip({
   const imeta = profile ? parseProfileImeta(profile.event.tags, profile.metadata) : author.data?.imeta;
 
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || intl.formatMessage({
+    ? profileName(metadata) || intl.formatMessage({
       id: 'monero.send.anonymous',
       defaultMessage: 'Anonymous',
     })
@@ -1034,7 +1035,7 @@ function ProfileRow({
 }) {
   const intl = useIntl();
   const { metadata } = profile;
-  const displayName = metadata.name || metadata.display_name || intl.formatMessage({
+  const displayName = profileName(metadata) || intl.formatMessage({
     id: 'monero.send.anonymous',
     defaultMessage: 'Anonymous',
   });
@@ -1111,7 +1112,7 @@ function IdentifierRow({
   const address = pubkey ? addresses.get(pubkey) : undefined;
 
   const displayName = pubkey
-    ? metadata?.name || metadata?.display_name || intl.formatMessage({
+    ? profileName(metadata) || intl.formatMessage({
       id: 'monero.send.anonymous',
       defaultMessage: 'Anonymous',
     })

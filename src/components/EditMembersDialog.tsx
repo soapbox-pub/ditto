@@ -7,6 +7,7 @@
  * new people. Search results that are already members can be removed in
  * place, so the whole membership is editable from one dialog.
  */
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Search, Loader2, Plus, UserPlus, Users, Check, X } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -75,7 +76,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
   const handleToggle = useCallback(async (pubkey: string, metadata: NostrMetadata | undefined) => {
     if (pendingPubkeys.has(pubkey)) return;
     const isMember = existingMembers.has(pubkey);
-    const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+    const name = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
     setPendingPubkeys((prev) => new Set(prev).add(pubkey));
     try {
       if (isMember) {
@@ -238,7 +239,7 @@ interface MemberRowProps {
 
 function MemberRow({ pubkey, metadata, pictureImeta, isMember, isPending, isSelected, onMouseEnter, onToggle }: MemberRowProps) {
   const intl = useIntl();
-  const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const name = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   return (
     <div

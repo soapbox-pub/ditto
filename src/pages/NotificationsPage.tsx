@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FormattedMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
 import { useEntryState } from '@/hooks/useEntryState';
@@ -614,7 +615,7 @@ function ActorAvatar({ pubkey }: { pubkey: string }) {
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const name = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const name = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, metadata);
   const shape = getAvatarShape(metadata);
   const isEmojiShape = !!shape;
@@ -701,7 +702,7 @@ function GroupHeader({
 function useActorName(pubkey: string): string {
   const intl = useIntl();
   const author = useAuthor(pubkey || 'dummy');
-  return author.data?.metadata?.name ?? author.data?.metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  return profileName(author.data?.metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 }
 
 function ActorLink({ pubkey, name }: { pubkey: string; name: string }) {
@@ -1452,7 +1453,7 @@ function NotificationHeader({
   const intl = useIntl();
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(actorPubkey, metadata);
 
   if (author.isLoading) {

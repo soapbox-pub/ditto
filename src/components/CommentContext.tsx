@@ -34,7 +34,7 @@ import { useBookInfo } from '@/hooks/useBookInfo';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useScryfallCard } from '@/hooks/useScryfallCard';
-import { getDisplayName } from '@/lib/getDisplayName';
+import { getDisplayName, profileName } from '@/lib/getDisplayName';
 import { getCountryInfo } from '@/lib/countries';
 import { extractGathererCard, type GathererCard } from '@/lib/linkEmbed';
 import { isNostrId } from '@/lib/nostrId';
@@ -793,7 +793,7 @@ function AuthorListCommentContext({ pubkey, kind, icon: Icon, noun, className }:
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const listLink = useMemo(
     () => `/${nip19.naddrEncode({ kind, pubkey, identifier: '' })}`,
@@ -832,7 +832,7 @@ function ProfileCommentContext({ pubkey, className }: { pubkey: string; classNam
   const intl = useIntl();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -856,7 +856,7 @@ function ProfileBadgesCommentContext({ root, className }: { root: CommentRoot; c
   const pubkey = root.addr?.pubkey ?? '';
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name ?? metadata?.display_name ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   // Build naddr link for the profile badges event

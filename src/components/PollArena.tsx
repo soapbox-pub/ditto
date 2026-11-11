@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -585,7 +586,7 @@ const Voter = memo(function Voter({ target, home, startedAt, reduced, delay, bod
   });
 
   const metadata = author?.metadata;
-  const name = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const name = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   const { spawnAt, runAt, strides, ms } = run;
   const arriveAt = runAt + ms;

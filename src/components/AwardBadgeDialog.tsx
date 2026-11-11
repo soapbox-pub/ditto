@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useCallback, useMemo } from 'react';
 import { Search, X, Award, Loader2, Check } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -126,7 +127,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
           <div className="px-4 pb-2">
             <div className="flex flex-wrap gap-1.5">
               {selected.map((profile) => {
-                const name = profile.metadata.name || profile.metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+                const name = profileName(profile.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
                 return (
                   <button
                     key={profile.pubkey}
@@ -213,7 +214,7 @@ export function AwardBadgeDialog({ open, onOpenChange, badgeATag, badgeName }: A
 
 function SearchResultItem({ profile, onSelect }: { profile: SearchProfile; onSelect: (p: SearchProfile) => void }) {
   const intl = useIntl();
-  const name = profile.metadata.name || profile.metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const name = profileName(profile.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const about = profile.metadata.about;
 
   return (

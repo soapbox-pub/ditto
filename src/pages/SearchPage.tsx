@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useAppContext } from '@/hooks/useAppContext';
 import {
@@ -990,7 +991,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
   const intl = useIntl();
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
   const metadata = profile.metadata as { name?: string; display_name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileAvatarShape = getAvatarShape(metadata);
   const tags = profile.event?.tags ?? [];
 
@@ -1078,7 +1079,7 @@ function FollowItem({ pubkey }: { pubkey: string }) {
   const metadata = author.data?.metadata;
   const avatarShape = getAvatarShape(metadata);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const tags = author.data?.event?.tags ?? [];
 
   if (author.isLoading) {

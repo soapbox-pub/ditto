@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 
@@ -84,7 +85,7 @@ export function ReplyContext({ pubkeys, parentEventId, parentRelayHint, parentAu
 function ReplyAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const intl = useIntl();
-  const name = author.data?.metadata?.name || author.data?.metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const name = profileName(author.data?.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   if (author.isLoading) {

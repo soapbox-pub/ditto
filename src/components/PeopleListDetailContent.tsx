@@ -15,6 +15,7 @@
  * automatically when the current user owns a kind 30000 follow set or a
  * kind 39089 follow pack.
  */
+import { profileName } from '@/lib/getDisplayName';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
@@ -759,7 +760,7 @@ export function MemberCard({
   const intl = useIntl();
   const navigate = useNavigate();
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const about = metadata?.about;
   const avatarShape = getAvatarShape(metadata);
   const { follow, unfollow, isPending } = useFollowActions();

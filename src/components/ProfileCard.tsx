@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -136,7 +137,7 @@ export function ProfileCard({
   const { refs: badgeRefs, isLoading: badgesLoading } = useProfileBadges(pubkey);
   const { badgeMap, isLoading: defsLoading } = useBadgeDefinitions(badgeRefs);
 
-  const displayName = metadata.name || metadata.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const initial = displayName[0]?.toUpperCase() ?? '?';
   const patch = (key: keyof NostrMetadata) => (v: string) => onChange?.({ [key]: v });
 

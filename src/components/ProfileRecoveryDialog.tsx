@@ -1,3 +1,4 @@
+import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
@@ -98,7 +99,7 @@ function ProfileSnapshotCard({
 }) {
   const intl = useIntl();
   const metadata = useMemo(() => parseMetadata(event.content), [event.content]);
-  const displayName = metadata?.name || metadata?.display_name || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
   const avatarShape = getAvatarShape(metadata);
 
   return (
