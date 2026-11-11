@@ -328,7 +328,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
   return (
   <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+      <DialogContent className="max-w-md p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-hidden [&>button]:hidden">
         <DialogTitle className="sr-only">
           <FormattedMessage id="profile.menu.title" defaultMessage="Profile options" />
         </DialogTitle>
@@ -530,7 +530,7 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
       )}
     >
       <span className="shrink-0">{icon}</span>
-      <span>{label}</span>
+      <span className="min-w-0 truncate">{label}</span>
     </button>
   );
 }
