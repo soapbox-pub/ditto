@@ -3,6 +3,22 @@ import plugin from "tailwindcss/plugin";
 import tailwindcssAnimate from "tailwindcss-animate";
 import typography from "@tailwindcss/typography";
 
+/** What takes a tap for itself inside a larger tap target (see the `pressed` variant). */
+const PRESS_TARGETS = [
+	'a',
+	'button',
+	'input',
+	'textarea',
+	'select',
+	'label',
+	'summary',
+	'video',
+	'[role="button"]',
+	'[role="link"]',
+	'[role="tab"]',
+	'.cursor-pointer',
+];
+
 export default {
 	content: [
 		"./pages/**/*.{ts,tsx}",
@@ -326,11 +342,18 @@ export default {
 		// `fullscreen:` variant — targets an element while it is the fullscreen element.
 		plugin(({ addVariant }) => {
 			addVariant('fullscreen', '&:fullscreen');
+			// While a finger is down on it, on touch screens: the feedback a mouse
+			// gets from hover. :active reaches every ancestor of what was touched,
+			// so a target stands down when the press is on a tap target inside it
+			// (a feed card whose like button is pressed stays as it is).
+			const pressed = `@media (hover: none) { &:active:not(:has(${PRESS_TARGETS.map((t) => `${t}:active`).join(', ')})) }`;
+			addVariant('pressed', pressed);
 			// Hover on devices with a real pointer only. Touch WebViews keep
 			// :hover on whatever was last tapped, so a plain hover: tint on a tap
 			// target (a post's action buttons, a feed card) stays lit after the
-			// tap. Use it for tints; hover-to-reveal controls keep hover:.
-			addVariant('can-hover', '@media (hover: hover) { &:hover }');
+			// tap. There the tint shows while the target is pressed instead. Use
+			// it for tints; hover-to-reveal controls keep hover:.
+			addVariant('can-hover', ['@media (hover: hover) { &:hover }', pressed]);
 		}),
 	],
 } satisfies Config;
