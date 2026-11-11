@@ -176,6 +176,8 @@ export function PollContent({ event }: { event: NostrEvent }) {
     for (const count of tally.values()) sum += count;
     return sum;
   }, [tally]);
+  // Multiple-choice voters can pick several options, so count people, not picks.
+  const voterCount = pollType === 'multiplechoice' ? (votes?.length ?? 0) : totalVotes;
 
   // Check if current user already voted
   const userVote = useMemo(() => {
@@ -186,11 +188,26 @@ export function PollContent({ event }: { event: NostrEvent }) {
   const hasVoted = !!userVote;
   const showResults = hasVoted || isExpired;
 
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+
+  const toggleOption = (optionId: string) => {
+    if (pollType !== 'multiplechoice') {
+      setSelectedOptions([optionId]);
+      return;
+    }
+    setSelectedOptions((prev) =>
+      prev.includes(optionId) ? prev.filter((id) => id !== optionId) : [...prev, optionId],
+    );
+  };
 
   const handleVote = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!selectedOption || !user || hasVoted || isExpired) return;
+    if (selectedOptions.length === 0 || !user || hasVoted || isExpired) return;
+
+    // Keep responses in the poll's option order.
+    const responseTags = options
+      .filter((opt) => selectedOptions.includes(opt.id))
+      .map((opt) => ['response', opt.id]);
 
     const votesKey = ['poll-votes', event.id];
     // Snapshot for rollback if the publish fails.
@@ -205,7 +222,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
       kind: 1018,
       tags: [
         ['e', event.id],
-        ['response', selectedOption],
+        ...responseTags,
       ],
       content: '',
       sig: '',
@@ -219,7 +236,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
       content: '',
       tags: [
         ['e', event.id],
-        ['response', selectedOption],
+        ...responseTags,
       ],
     }, {
       onSuccess: () => {
@@ -264,7 +281,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
             onClick={() => openVotersModal(null)}
             className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count: totalVotes }} />
+            <FormattedMessage id="poll.voteCount" defaultMessage="{count, plural, one {# vote} other {# votes}}" values={{ count: voterCount }} />
           </button>
         )}
       </div>
@@ -290,12 +307,13 @@ export function PollContent({ event }: { event: NostrEvent }) {
       {!showResults && (
         <div className={cn('mt-3', hasImages ? pollTileGridClass(options.length) : 'space-y-2')}>
           {options.map((opt) => {
-            const isSelected = selectedOption === opt.id;
+            const isSelected = selectedOptions.includes(opt.id);
 
             return (
               <div key={opt.id} className="relative">
                 <button
-                  onClick={() => setSelectedOption(opt.id)}
+                  onClick={() => toggleOption(opt.id)}
+                  aria-pressed={isSelected}
                   className={cn(
                     'w-full text-left rounded-lg border border-border-subtle text-sm transition-colors',
                     hasImages ? 'flex flex-col overflow-hidden' : 'px-3 py-2.5',
@@ -333,10 +351,10 @@ export function PollContent({ event }: { event: NostrEvent }) {
       {/* Vote button + voter avatars (voting mode only) */}
       {!showResults && (
         <div className="flex items-center justify-between mt-3">
-          {totalVotes > 0 ? (
+          {voterCount > 0 ? (
             <VoterAvatarsButton
               votes={votes ?? []}
-              totalVotes={totalVotes}
+              totalVotes={voterCount}
               onClick={() => openVotersModal(null)}
             />
           ) : (
@@ -345,10 +363,10 @@ export function PollContent({ event }: { event: NostrEvent }) {
           {user && (
             <button
               onClick={handleVote}
-              disabled={!selectedOption}
+              disabled={selectedOptions.length === 0}
               className={cn(
                 'text-sm font-semibold px-4 py-1.5 rounded-full transition-colors',
-                selectedOption
+                selectedOptions.length > 0
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-secondary text-muted-foreground cursor-not-allowed',
               )}
