@@ -16,6 +16,7 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQuery } from "@tanstack/react-query";
+import { useEntryState } from "@/hooks/useEntryState";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Eye, Film, Play, Radio } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -564,7 +565,7 @@ function LiveStreamCard({ event }: { event: NostrEvent }) {
 
 function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
   const { data: streams } = useClassifiedStreams(tab);
-  const [streamTab, setStreamTab] = useState<StreamTab>("live");
+  const [streamTab, setStreamTab] = useEntryState<StreamTab>("stream-tab", "live");
   const drag = useDragScroll<HTMLDivElement>();
 
   const totalCount =

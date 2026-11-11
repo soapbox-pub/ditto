@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useEntryState } from '@/hooks/useEntryState';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Loader2 } from 'lucide-react';
@@ -45,7 +46,7 @@ export function LettersPage() {
   const intl = useIntl();
   const { user } = useCurrentUser();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('inbox');
+  const [tab, setTab] = useEntryState<Tab>('tab', 'inbox');
   const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
 
   useLayoutOptions({ showFAB: false, hasSubHeader: !!user });

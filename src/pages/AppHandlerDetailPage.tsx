@@ -1,7 +1,8 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Loader2, MessageCircle, Package } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useEntryState } from '@/hooks/useEntryState';
 import { useInView } from '@/hooks/useInView';
 
 import { AppHandlerContent } from '@/components/AppHandlerContent';
@@ -43,7 +44,7 @@ function hasMatchingClientTag(event: NostrEvent, addr: string): boolean {
  */
 export function AppHandlerDetailPage({ event }: { event: NostrEvent }) {
   const intl = useIntl();
-  const [activeTab, setActiveTab] = useState<Tab>('feed');
+  const [activeTab, setActiveTab] = useEntryState<Tab>('tab', 'feed');
 
   // The addressable coordinate for this handler: "31990:<pubkey>:<d>".
   const addr = useMemo(() => {

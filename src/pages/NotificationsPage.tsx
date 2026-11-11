@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { FormattedMessage, defineMessages, useIntl, type MessageDescriptor } from 'react-intl';
+import { useEntryState } from '@/hooks/useEntryState';
 import { useInView } from '@/hooks/useInView';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
@@ -291,7 +292,7 @@ export function NotificationsPage() {
 
   useLayoutOptions({ hasSubHeader: true });
 
-  const [activeTab, setActiveTab] = useState<NotificationTab>('all');
+  const [activeTab, setActiveTab] = useEntryState<NotificationTab>('tab', 'all');
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const {

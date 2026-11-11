@@ -1,6 +1,7 @@
+import { useEntryState } from "@/hooks/useEntryState";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Flame, Loader2, Swords, TrendingUp } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useInView } from "@/hooks/useInView";
 import { ClientUsersChart } from "@/components/ClientUsersChart";
@@ -23,7 +24,7 @@ export function TrendsPage() {
     description: intl.formatMessage({ id: "trends.seoDescription", defaultMessage: "Trending hashtags and posts on Nostr" }),
   });
 
-  const [trendSort, setTrendSort] = useState<SortMode>("hot");
+  const [trendSort, setTrendSort] = useEntryState<SortMode>("sort", "hot");
 
   const refreshQueryKey = useMemo(
     () => [['client-counts'], ['infinite-sorted-posts', trendSort]],

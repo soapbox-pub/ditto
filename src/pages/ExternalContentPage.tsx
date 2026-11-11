@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useEntryState } from '@/hooks/useEntryState';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { ArrowLeft, Globe, MessageCircle, MessageSquare, MoreHorizontal, Repeat2, Star, AlertTriangle, PanelLeft, Trash2 } from 'lucide-react';
 import { Link, useLocation, useParams } from 'react-router-dom';
@@ -464,7 +465,7 @@ function BookContentTabs({ isbn, commentRoot, orderedReplies, commentsLoading, f
   const intl = useIntl();
   const { user } = useCurrentUser();
   const { data: reviews = [], isLoading: reviewsLoading } = useBookReviews(isbn);
-  const [activeTab, setActiveTab] = useState<BookTab>('comments');
+  const [activeTab, setActiveTab] = useEntryState<BookTab>('book-tab', 'comments');
 
   const commentCount = orderedReplies.length;
   const reviewCount = reviews.length;

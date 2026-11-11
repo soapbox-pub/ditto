@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { Music } from 'lucide-react';
 import { useIntl } from 'react-intl';
+import { useEntryState } from '@/hooks/useEntryState';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { PageHeader } from '@/components/PageHeader';
@@ -37,7 +38,7 @@ export function MusicPage() {
   const intl = useIntl();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<MusicTab>('discover');
+  const [activeTab, setActiveTab] = useEntryState<MusicTab>('tab', 'discover');
 
   useSeoMeta({
     title: intl.formatMessage({ id: 'musicPage.seoTitle', defaultMessage: 'Music | {appName}' }, { appName: config.appName }),
