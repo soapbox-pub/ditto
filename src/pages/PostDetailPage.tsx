@@ -28,6 +28,7 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { useGoBack } from "@/hooks/useGoBack";
 import { holdChromeUntilUserScroll } from "@/hooks/useScrollDirection";
 import { useAfterPushSlide } from "@/hooks/useAfterPushSlide";
+import { useArrivedByScrollRestore } from "@/hooks/useIsScrollRestore";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the detail page bundle. */
 const ArticleContent = lazy(() => import("@/components/ArticleContent").then(m => ({ default: m.ArticleContent })));
 const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
@@ -1890,8 +1891,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // Keep the focused post pinned while ancestor content loads above it.
   const focusedPostRef = useRef<HTMLElement>(null);
   const ancestorRef = useRef<HTMLDivElement>(null);
+  // Not on a return, which puts the page back where it was left
+  // (ScrollToTop), nor in the copy of the previous page under a pushed one
+  // (BackSwipe): the pin scrolls the window, which there is another page's.
+  const isReturn = useArrivedByScrollRestore();
   useEffect(() => {
-    if (!parentEventId || !focusedPostRef.current) return;
+    if (!parentEventId || !focusedPostRef.current || isReturn) return;
 
     const post = focusedPostRef.current;
     // The thread above stays in view, up to THREAD_FOCUS_RATIO of the screen,
@@ -1946,7 +1951,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       root.style.overflowAnchor = prevOverflowAnchor;
       clearTimeout(pulseTimer);
     };
-  }, [parentEventId]);
+  }, [parentEventId, isReturn]);
 
   // Extract client from tags
   const clientTag = event.tags.find(([name]) => name === "client");

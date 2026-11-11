@@ -85,7 +85,11 @@ function MainLayoutInner() {
 
   if (inUnderlay) {
     return (
-      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
+      <div
+        className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}
+        // The top bar this page would have, for a swipe back to draw the bar towards.
+        data-underlay-top-bar={hideTopBar ? 'none' : hasSubHeader ? 'flat' : 'arc'}
+      >
         {/* Without the top bar in flow above it, the column keeps the bar's
             padding but not the margin that pulls it up behind the bar. */}
         <div
@@ -167,8 +171,11 @@ function MainLayoutInner() {
         </Suspense>
       </div>
 
-      {/* Swipe right on a pushed page to go back, with the previous page underneath */}
-      <BackSwipe column={centerColumnEl} />
+      {/* Swipe right on a pushed page to go back, with the previous page underneath.
+          Its tab bar shows where it rests: a swipe brings the bars back. */}
+      <NavHiddenContext.Provider value={false}>
+        <BackSwipe column={centerColumnEl} />
+      </NavHiddenContext.Provider>
 
       {/* Mobile bottom nav - only on small screens, slides out on scroll */}
       {!hideBottomNav && <MobileBottomNav />}

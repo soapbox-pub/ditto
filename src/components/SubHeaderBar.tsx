@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useContext, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { useNavHidden } from '@/contexts/LayoutContext';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { SubHeaderBarContext } from '@/components/SubHeaderBarContext';
 
 interface HoverSlice {
@@ -57,6 +58,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   const [hover, setHover] = useState<HoverSlice | null>(null);
   const [active, setActive] = useState<HoverSlice | null>(null);
   const navHidden = useNavHidden();
+  const inUnderlay = useContext(PageUnderlayContext);
 
   // Track whether the sticky bar has actually reached the top of the viewport
   // by watching getBoundingClientRect().top on scroll. We show the safe-area
@@ -142,10 +144,12 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
       if (soft) setStuck(top <= (parseFloat(getComputedStyle(bar).top) || 0) + 1);
     };
 
-    window.addEventListener('scroll', check, { passive: true });
+    // The copy of a page under a pushed one (BackSwipe) scrolls in a box of
+    // its own, whose scroll events only reach the window while capturing.
+    window.addEventListener('scroll', check, { passive: true, capture: inUnderlay });
     check();
-    return () => window.removeEventListener('scroll', check);
-  }, [pinned, soft]);
+    return () => window.removeEventListener('scroll', check, inUnderlay);
+  }, [pinned, soft, inUnderlay]);
 
   const showSafeAreaPadding = pinned && navHidden && atTop;
 

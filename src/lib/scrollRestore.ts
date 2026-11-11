@@ -9,12 +9,31 @@ import { saveScrollAnchor, type SavedScroll } from '@/lib/scrollPositions';
  */
 const RESTORE_WINDOW_MS = 1000;
 
+/**
+ * How long (ms) the page has to have sat on its target before a restore lets
+ * go of it. Landing once isn't settling: the rows around the target mount a
+ * frame or two later and resize, and letting go at the first landing left the
+ * page to jump under the reader.
+ */
+const SETTLE_MS = 300;
+
 /** Events that mean the user has taken over scrolling; the restore stops. */
 const USER_INPUT_EVENTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
 
 /** Scroll offsets are doubles on zoomed pages; treat sub-pixel gaps as equal. */
 function near(a: number, b: number): boolean {
   return Math.abs(a - b) < 1;
+}
+
+let correctedAt = -Infinity;
+
+/**
+ * When (`performance.now()`) a restore last had to move the page towards its
+ * target. `BackSwipe` keeps its copy of the page over the real one until the
+ * page has stopped being moved.
+ */
+export function getScrollRestoreCorrectedAt(): number {
+  return correctedAt;
 }
 
 export function findScrollAnchor(key: string): Element | null {
@@ -26,11 +45,12 @@ export function findScrollAnchor(key: string): Element | null {
 }
 
 /**
- * Bring the page back to `saved`, then keep correcting on subsequent frames
- * while layout is still settling. Gives up after `windowMs`, or as soon as
- * the user scrolls on their own. With `hold`, it keeps the target in place
- * for the whole window instead of stopping once it first lands. Returns a
- * function that stops the restore early.
+ * Bring the page back to `saved`, then keep correcting while layout is still
+ * settling: on every frame, and whenever the page changes height, before that
+ * change is painted. Lets go once the target has held for `SETTLE_MS`, after
+ * `windowMs`, or as soon as the user scrolls on their own. With `hold`, it
+ * keeps the target in place for the whole window. Returns a function that
+ * stops the restore early.
  *
  * With a valid anchor, the target is "anchor element's top edge at the same
  * viewport offset as before". Without one (or while the element hasn't been
@@ -48,10 +68,12 @@ export function restoreScroll(
   const anchor = saved.anchor && near(saved.anchor.y, saved.y) ? saved.anchor : undefined;
   let raf = 0;
   let done = false;
+  let observer: ResizeObserver | undefined;
 
   const stop = () => {
     done = true;
     cancelAnimationFrame(raf);
+    observer?.disconnect();
     for (const type of USER_INPUT_EVENTS) window.removeEventListener(type, stop, true);
   };
   for (const type of USER_INPUT_EVENTS) {
@@ -80,19 +102,38 @@ export function restoreScroll(
     return false;
   };
 
+  /** Since when the target has held; undefined while the page is off it. */
+  let landedAt: number | undefined;
+  const correct = () => {
+    if (step()) {
+      landedAt ??= performance.now();
+    } else {
+      landedAt = undefined;
+      correctedAt = performance.now();
+    }
+  };
+
   const tick = () => {
     if (done) return;
-    if (performance.now() > deadline || (step() && !hold)) {
+    correct();
+    const now = performance.now();
+    if (now > deadline || (!hold && landedAt !== undefined && now - landedAt >= SETTLE_MS)) {
       stop();
       return;
     }
     raf = requestAnimationFrame(tick);
   };
 
-  // Always re-check on the next frame even if the first step already landed:
-  // the first step runs before paint, and content-visibility unlocks and
-  // image loads in the following frame can still move the target.
-  step();
+  // The first step runs before the page's first paint. Resize callbacks run
+  // after layout and before paint, so a row that mounts or resizes above the
+  // target is corrected in the frame it happens rather than the one after.
+  correct();
+  if (typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(() => {
+      if (!done) correct();
+    });
+    observer.observe(document.body);
+  }
   raf = requestAnimationFrame(tick);
 
   return stop;

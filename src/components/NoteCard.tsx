@@ -55,7 +55,7 @@ import {
   Tag,
 } from "lucide-react";
 import { nip19 } from "nostr-tools";
-import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useInView } from "@/hooks/useInView";
 import { defineMessage, FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 import { Link } from "react-router-dom";
@@ -207,6 +207,7 @@ import { encodeEventAddress } from "@/lib/encodeEvent";
 import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 import { parseProfileImeta } from "@/lib/profileImeta";
+import { isSlideRender } from "@/lib/pushTransition";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 
 
@@ -1803,6 +1804,13 @@ function TruncatedNoteContent({
     const observer = new ResizeObserver(() => measure());
     observer.observe(el);
     return () => observer.disconnect();
+  }, [measure]);
+
+  // Except on a slide or a return, where the first frame is one the user is
+  // watching and the page is laid out before paint anyway (to put the scroll
+  // back): there a long post is folded before it is painted, not a frame after.
+  useLayoutEffect(() => {
+    if (isSlideRender()) measure();
   }, [measure]);
 
   return (

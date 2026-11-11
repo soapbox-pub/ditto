@@ -29,6 +29,9 @@ const UNMOUNT_MARGIN_PX = 3000;
  */
 const ESTIMATED_HEIGHT_PX = 300;
 
+/** How far beyond the screen (px) a held row still mounts before the first paint. */
+const RETURN_MOUNT_MARGIN_PX = 100;
+
 type VisibilityCallback = (entry: IntersectionObserverEntry) => void;
 
 /**
@@ -118,9 +121,8 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
   // Mounting them only holds the slide back, and their content settling
   // afterwards (embeds, media) shifts the post the user is returning to.
   // Rows near the screen mount as it plays.
-  const [inView, setInView] = useState(
-    () => initialInView && !(isSlideRender() && cacheKey && getRememberedHeight(cacheKey)),
-  );
+  const [held] = useState(() => !!(isSlideRender() && cacheKey && getRememberedHeight(cacheKey)));
+  const [inView, setInView] = useState(initialInView && !held);
   const heightRef = useRef<number>((cacheKey && getRememberedHeight(cacheKey)) || ESTIMATED_HEIGHT_PX);
 
   // Heights are remembered from the page on screen only. The hidden copy of
@@ -130,6 +132,17 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
   const rememberKey = inUnderlay ? undefined : cacheKey;
   const cacheKeyRef = useRef(rememberKey);
   cacheKeyRef.current = rememberKey;
+
+  // A held row that turns out to be on screen mounts before the first paint.
+  // By now ScrollToTop has put the page where it was left, so the row knows
+  // where it is; waiting for the observer showed it blank for a frame or two.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!held || inUnderlay || !el) return;
+    const { top, bottom } = el.getBoundingClientRect();
+    if (bottom > -RETURN_MOUNT_MARGIN_PX && top < window.innerHeight + RETURN_MOUNT_MARGIN_PX) setInView(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
 
   // Only the crossing that can change this item's state is watched: the mount
   // margin while it is a placeholder, the unmount margin while it is mounted.
@@ -176,7 +189,7 @@ export function LazyFeedItem({ children, initialInView = false, className, cache
       data-scroll-key={cacheKey}
       style={{ containIntrinsicSize: `auto ${heightRef.current}px` }}
     >
-      {inView ? children : <div style={{ height: heightRef.current }} aria-hidden="true" />}
+      {inView ? children : <div style={{ height: heightRef.current }} aria-hidden="true" data-feed-placeholder="" />}
     </div>
   );
 }

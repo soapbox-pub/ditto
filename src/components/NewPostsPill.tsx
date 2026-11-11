@@ -1,6 +1,8 @@
+import { useContext } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { useNavHidden } from '@/contexts/LayoutContext';
+import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 
 interface NewPostsPillProps {
   /** Number of new posts waiting. The pill is hidden when this is 0. */
@@ -18,8 +20,11 @@ interface NewPostsPillProps {
  */
 export function NewPostsPill({ count, onClick }: NewPostsPillProps) {
   const navHidden = useNavHidden();
+  // The copy of a page under a pushed one (BackSwipe) counts arrivals of its
+  // own, which the page a swipe back lands on starts without.
+  const inUnderlay = useContext(PageUnderlayContext);
 
-  if (count <= 0) return null;
+  if (count <= 0 || inUnderlay) return null;
 
   return (
     <div
