@@ -49,9 +49,13 @@ async function queryAllEvents(
   return events;
 }
 
+export type ProfileRecoveryTab = 'profile' | 'follows' | 'theme';
+
 interface ProfileRecoveryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Tab shown when the dialog opens. */
+  defaultTab?: ProfileRecoveryTab;
 }
 
 /** Parse kind 0 content into NostrMetadata, returning undefined on failure. */
@@ -663,7 +667,7 @@ function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
 
 // ─── Main Dialog ──────────────────────────────────────────────────────
 
-export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDialogProps) {
+export function ProfileRecoveryDialog({ open, onOpenChange, defaultTab = 'profile' }: ProfileRecoveryDialogProps) {
   const close = () => onOpenChange(false);
 
   return (
@@ -675,7 +679,7 @@ export function ProfileRecoveryDialog({ open, onOpenChange }: ProfileRecoveryDia
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
           <div className="px-6">
             <TabsList className="w-full">
               <TabsTrigger value="profile" className="flex-1 gap-1.5">

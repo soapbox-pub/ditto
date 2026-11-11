@@ -1,4 +1,4 @@
-import { CloudDownload, CloudUpload, Download, FileText, TriangleAlert, X } from 'lucide-react';
+import { Award, ChevronRight, CloudDownload, CloudUpload, Download, FileText, Palette, RotateCcw, TriangleAlert, User, Users, VolumeX, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { defineMessage, FormattedMessage, FormattedNumber, useIntl, type MessageDescriptor } from 'react-intl';
 import { Navigate } from 'react-router-dom';
@@ -6,6 +6,9 @@ import { Navigate } from 'react-router-dom';
 import { InfoTip } from '@/components/InfoTip';
 import { IntroImage } from '@/components/IntroImage';
 import { PageHeader } from '@/components/PageHeader';
+import { BadgeRecoveryDialog } from '@/components/BadgeRecoveryDialog';
+import { MuteListRecoveryDialog } from '@/components/MuteListRecoveryDialog';
+import { ProfileRecoveryDialog, type ProfileRecoveryTab } from '@/components/ProfileRecoveryDialog';
 import { RelayProgressList } from '@/components/RelayProgressList';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +51,42 @@ const ISSUE_LABELS: Record<ImportIssueKind, MessageDescriptor> = {
   }),
 };
 
+type RecoveryTarget = ProfileRecoveryTab | 'mutes' | 'badges';
+
+/** Replaceable events with a version-history dialog, in the order they're listed. */
+const RECOVERY_ROWS: { target: RecoveryTarget; icon: LucideIcon; label: MessageDescriptor; description: MessageDescriptor }[] = [
+  {
+    target: 'profile',
+    icon: User,
+    label: defineMessage({ id: 'settings.data.recovery.profile', defaultMessage: 'Profile' }),
+    description: defineMessage({ id: 'settings.data.recovery.profileDescription', defaultMessage: 'Your name, picture, bio, and links' }),
+  },
+  {
+    target: 'follows',
+    icon: Users,
+    label: defineMessage({ id: 'settings.data.recovery.follows', defaultMessage: 'Follows' }),
+    description: defineMessage({ id: 'settings.data.recovery.followsDescription', defaultMessage: 'Everyone you follow' }),
+  },
+  {
+    target: 'theme',
+    icon: Palette,
+    label: defineMessage({ id: 'settings.data.recovery.theme', defaultMessage: 'Profile theme' }),
+    description: defineMessage({ id: 'settings.data.recovery.themeDescription', defaultMessage: 'The colors and fonts on your profile' }),
+  },
+  {
+    target: 'mutes',
+    icon: VolumeX,
+    label: defineMessage({ id: 'settings.data.recovery.mutes', defaultMessage: 'Mute list' }),
+    description: defineMessage({ id: 'settings.data.recovery.mutesDescription', defaultMessage: 'Muted people, words, hashtags, and threads' }),
+  },
+  {
+    target: 'badges',
+    icon: Award,
+    label: defineMessage({ id: 'settings.data.recovery.badges', defaultMessage: 'Badges' }),
+    description: defineMessage({ id: 'settings.data.recovery.badgesDescription', defaultMessage: 'The badges you show on your profile' }),
+  },
+];
+
 /** Determinate bar for the local phases of an import (signing, saving). */
 function PhaseBar({ label, current, total }: { label: React.ReactNode; current: number; total: number }) {
   const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
@@ -88,6 +127,9 @@ export function DataSettingsPage() {
   const [fullPull, setFullPull] = useState(false);
   const [fullPush, setFullPush] = useState(false);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const [recovery, setRecovery] = useState<RecoveryTarget | null>(null);
+  // Kept after closing so the profile dialog doesn't flip tabs while it animates out.
+  const [profileTab, setProfileTab] = useState<ProfileRecoveryTab>('profile');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useSeoMeta({
@@ -140,6 +182,15 @@ export function DataSettingsPage() {
         variant: 'destructive',
       });
     }
+  }
+
+  function openRecovery(target: RecoveryTarget) {
+    if (target === 'profile' || target === 'follows' || target === 'theme') setProfileTab(target);
+    setRecovery(target);
+  }
+
+  function recoveryOpenChange(target: RecoveryTarget) {
+    return (open: boolean) => setRecovery(open ? target : null);
   }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -516,7 +567,53 @@ export function DataSettingsPage() {
             )}
           </div>
         </div>
+
+        {/* Restore previous versions */}
+        <div>
+          <div className="relative px-3 py-3.5">
+            <h2 className="text-base font-semibold flex items-center gap-1.5">
+              <RotateCcw className="size-4" />
+              <FormattedMessage id="settings.data.recovery" defaultMessage={"Restore previous versions"} />
+            </h2>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+          </div>
+
+          <div className="pt-4 pb-6 space-y-2">
+            <p className="px-3 text-xs text-muted-foreground leading-relaxed">
+              <FormattedMessage id="settings.data.recoveryDescription" defaultMessage={"Some of your data is a single event that each change replaces. If a bad edit or another app wiped something out, pick an older copy your relays still hold and publish it again."} />
+            </p>
+
+            <ul className="divide-y divide-border-subtle">
+              {RECOVERY_ROWS.map(({ target, icon: Icon, label, description }) => (
+                <li key={target}>
+                  <button
+                    type="button"
+                    onClick={() => openRecovery(target)}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="inset-well flex size-9 shrink-0 items-center justify-center rounded-lg">
+                      <Icon className="size-4 text-muted-foreground" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium"><FormattedMessage {...label} /></span>
+                      <span className="block text-xs text-muted-foreground"><FormattedMessage {...description} /></span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
+
+      <ProfileRecoveryDialog
+        open={recovery === 'profile' || recovery === 'follows' || recovery === 'theme'}
+        onOpenChange={recoveryOpenChange(profileTab)}
+        defaultTab={profileTab}
+      />
+      <MuteListRecoveryDialog open={recovery === 'mutes'} onOpenChange={recoveryOpenChange('mutes')} />
+      <BadgeRecoveryDialog open={recovery === 'badges'} onOpenChange={recoveryOpenChange('badges')} />
 
       {/* Warning details */}
       <Dialog open={issuesOpen} onOpenChange={setIssuesOpen}>
