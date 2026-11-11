@@ -135,20 +135,20 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
       {/* Actions */}
       <div className="flex items-center gap-2 mt-2.5">
         <Link to={profileUrl}>
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground can-hover:text-foreground">
             <FormattedMessage id="themeUpdateCard.viewProfile" defaultMessage="View Profile" />
           </Button>
         </Link>
         {isOwn ? (
           <Link to="/themes">
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground can-hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
               <FormattedMessage id="themeUpdateCard.editTheme" defaultMessage="Edit Theme" />
             </Button>
           </Link>
         ) : (
           <Link to="/themes">
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground can-hover:text-primary">
               <Copy className="size-3.5 mr-1" />
               <FormattedMessage id="themeUpdateCard.copyTheme" defaultMessage="Copy Theme" />
             </Button>

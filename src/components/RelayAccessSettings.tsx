@@ -55,7 +55,7 @@ function RelayRow({ url, onRemove, removeLabel, disabled, badge }: {
         onClick={onRemove}
         disabled={disabled}
         aria-label={removeLabel}
-        className="size-7 shrink-0 text-muted-foreground hover:bg-transparent hover:text-destructive"
+        className="size-7 shrink-0 text-muted-foreground can-hover:bg-transparent can-hover:text-destructive"
       >
         <X className="size-3.5" />
       </Button>
@@ -214,7 +214,7 @@ export function RelayAccessSettings() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 shrink-0 px-2 text-xs text-muted-foreground hover:text-destructive"
+                      className="h-7 shrink-0 px-2 text-xs text-muted-foreground can-hover:text-destructive"
                       onClick={() => void handleBlockDenied(url)}
                       disabled={isUpdating}
                     >

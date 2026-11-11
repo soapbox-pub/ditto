@@ -402,7 +402,7 @@ export function InlineSingCard({
               <Button
                 onClick={startRecording}
                 disabled={isPublishing}
-                className="rounded-full px-6 bg-purple-500 hover:bg-purple-600"
+                className="rounded-full px-6 bg-purple-500 can-hover:bg-purple-600"
               >
                 <Mic className="size-4 mr-2" />
                 <FormattedMessage id="blobbiRoom.dock.sing" defaultMessage="Sing" />
@@ -434,7 +434,7 @@ export function InlineSingCard({
                 <Button
                   onClick={handleConfirm}
                   disabled={!canConfirm}
-                  className="rounded-full px-6 bg-purple-500 hover:bg-purple-600"
+                  className="rounded-full px-6 bg-purple-500 can-hover:bg-purple-600"
                 >
                   {isPublishing ? (
                     <Loader2 className="size-4 mr-2 animate-spin" />
@@ -470,7 +470,7 @@ export function InlineSingCard({
               size="icon"
               variant="ghost"
               onClick={handleClose}
-              className="size-10 rounded-full shrink-0 text-muted-foreground hover:text-foreground"
+              className="size-10 rounded-full shrink-0 text-muted-foreground can-hover:text-foreground"
             >
               <X className="size-4" />
             </Button>
@@ -485,7 +485,7 @@ export function InlineSingCard({
               variant="ghost"
               onClick={handleClose}
               disabled={isPublishing}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground can-hover:text-foreground"
             >
               <X className="size-3 mr-1" />
               <FormattedMessage id="common.cancel" defaultMessage="Cancel" />

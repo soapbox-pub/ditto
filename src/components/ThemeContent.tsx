@@ -142,7 +142,7 @@ export function ThemeContent({ event, expanded }: ThemeContentProps) {
       <div className="flex items-center gap-2 empty:hidden" onClick={(e) => e.stopPropagation()}>
         {isDefinition && identifier && isOwn && (
           <Link to="/themes">
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground can-hover:text-accent">
               <Pencil className="size-3.5 mr-1" />
               <FormattedMessage id="themeContent.editTheme" defaultMessage="Edit Theme" />
             </Button>

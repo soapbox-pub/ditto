@@ -435,7 +435,7 @@ function SortableFieldRow({ id, index, type, accept, valuePlaceholder, isUploadi
         variant="ghost"
         size="icon"
         onClick={onRemove}
-        className="h-9 w-9 text-destructive hover:text-destructive"
+        className="h-9 w-9 text-destructive can-hover:text-destructive"
       >
         <Trash2 className="size-4" />
       </Button>
@@ -971,7 +971,7 @@ export function ProfileSettings() {
           <div className="lg:hidden">
             <Collapsible open={showMobilePreview} onOpenChange={setShowMobilePreview}>
               <CollapsibleTrigger asChild>
-                <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
+                <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto can-hover:bg-transparent can-hover:text-foreground">
                   <span className="text-sm font-medium flex items-center gap-1.5">
                     <Eye className="size-3.5" />
                     <FormattedMessage id="settings.profile.fields.previewTitle" defaultMessage={"Profile Fields Preview"} />
@@ -1008,7 +1008,7 @@ export function ProfileSettings() {
           {/* Advanced */}
           <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
             <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent hover:text-foreground">
+              <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto can-hover:bg-transparent can-hover:text-foreground">
                 <span className="text-sm font-medium"><FormattedMessage id="settings.profile.advanced" defaultMessage={"Advanced"} /></span>
                 <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
               </Button>
@@ -1274,7 +1274,7 @@ function BirthdaySection() {
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-destructive hover:text-destructive"
+            className="h-9 w-9 text-destructive can-hover:text-destructive"
             onClick={handleRemove}
             disabled={saving}
             aria-label={intl.formatMessage({ id: 'settings.profile.birthday.removeAriaLabel', defaultMessage: "Remove birthday" })}
@@ -1402,7 +1402,7 @@ function BackupKeySection() {
             type="button"
             variant="ghost"
             size="icon"
-            className="h-full px-2 hover:bg-transparent"
+            className="h-full px-2 can-hover:bg-transparent"
             onClick={handleCopy}
             aria-label={intl.formatMessage({ id: 'settings.profile.backupKey.copyAriaLabel', defaultMessage: "Copy secret key" })}
           >
@@ -1416,7 +1416,7 @@ function BackupKeySection() {
             type="button"
             variant="ghost"
             size="icon"
-            className="h-full px-2 hover:bg-transparent"
+            className="h-full px-2 can-hover:bg-transparent"
             onClick={() => setShowKey((v) => !v)}
             aria-label={showKey ? intl.formatMessage({ id: 'settings.profile.backupKey.hideAriaLabel', defaultMessage: "Hide secret key" }) : intl.formatMessage({ id: 'settings.profile.backupKey.revealAriaLabel', defaultMessage: "Reveal secret key" })}
           >

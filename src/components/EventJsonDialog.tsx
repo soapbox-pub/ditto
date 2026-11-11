@@ -41,7 +41,7 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
       variant="ghost"
       size="icon"
       onClick={handleCopy}
-      className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+      className="size-6 shrink-0 text-muted-foreground can-hover:text-foreground"
     >
       {copied ? <Check className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
     </Button>

@@ -418,7 +418,7 @@ export function VineCard({
 				<Button
 					variant="outline"
 					size="sm"
-					className="gap-1.5 mt-1 rounded-full px-6 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm"
+					className="gap-1.5 mt-1 rounded-full px-6 bg-white/10 border-white/20 text-white can-hover:bg-white/20 can-hover:text-white backdrop-blur-sm"
 					onClick={(e) => {
 						e.stopPropagation();
 						setCwRevealed(true);

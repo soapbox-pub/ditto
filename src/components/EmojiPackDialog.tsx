@@ -692,7 +692,7 @@ function EmojiEntryRow({ entry: e, invalid, sortable, busy, onShortcodeChange, o
         type="button"
         size="icon"
         variant="ghost"
-        className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+        className="size-8 shrink-0 text-muted-foreground can-hover:text-destructive"
         onClick={() => onRemove(e.id)}
         aria-label={e.shortcode
           ? intl.formatMessage({ id: 'emojiPackDialog.removeNamed', defaultMessage: 'Remove {shortcode}' }, { shortcode: e.shortcode })

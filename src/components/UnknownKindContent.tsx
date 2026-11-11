@@ -235,7 +235,7 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                className="h-7 gap-1.5 px-2 text-xs text-muted-foreground can-hover:text-foreground"
                 onClick={(e) => e.stopPropagation()}
               >
                 {showDetails

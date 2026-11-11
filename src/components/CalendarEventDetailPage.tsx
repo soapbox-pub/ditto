@@ -391,7 +391,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
               <Button
                 size="sm"
                 variant={activeStatus === 'accepted' ? 'default' : 'outline'}
-                className={cn('flex-1 rounded-full', activeStatus === 'accepted' && 'bg-green-600 hover:bg-green-700 text-white')}
+                className={cn('flex-1 rounded-full', activeStatus === 'accepted' && 'bg-green-600 can-hover:bg-green-700 text-white')}
                 onClick={() => setSelectedStatus('accepted')}
               >
                 <Check className="size-3.5 mr-1.5" /> <FormattedMessage {...rsvpLabels.accepted} />
@@ -399,7 +399,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
               <Button
                 size="sm"
                 variant={activeStatus === 'tentative' ? 'default' : 'outline'}
-                className={cn('flex-1 rounded-full', activeStatus === 'tentative' && 'bg-amber-500 hover:bg-amber-600 text-white')}
+                className={cn('flex-1 rounded-full', activeStatus === 'tentative' && 'bg-amber-500 can-hover:bg-amber-600 text-white')}
                 onClick={() => setSelectedStatus('tentative')}
               >
                 <HelpCircle className="size-3.5 mr-1.5" /> <FormattedMessage {...rsvpLabels.tentative} />
@@ -407,7 +407,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
               <Button
                 size="sm"
                 variant={activeStatus === 'declined' ? 'default' : 'outline'}
-                className={cn('flex-1 rounded-full', activeStatus === 'declined' && 'bg-destructive hover:bg-destructive/90 text-destructive-foreground')}
+                className={cn('flex-1 rounded-full', activeStatus === 'declined' && 'bg-destructive can-hover:bg-destructive/90 text-destructive-foreground')}
                 onClick={() => setSelectedStatus('declined')}
               >
                 <XIcon className="size-3.5 mr-1.5" /> <FormattedMessage {...rsvpLabels.declined} />

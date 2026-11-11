@@ -238,7 +238,7 @@ export function InlineMusicPlayer({
               variant="ghost"
               onClick={handleClose}
               disabled={isPublishing}
-              className="size-9 rounded-full text-muted-foreground hover:text-foreground"
+              className="size-9 rounded-full text-muted-foreground can-hover:text-foreground"
             >
               <X className="size-4" />
             </Button>

@@ -40,7 +40,7 @@ function MarkdownHelpPopover() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 text-muted-foreground can-hover:text-foreground"
           aria-label={intl.formatMessage({ id: 'milkdownToolbar.help.title', defaultMessage: 'Markdown Quick Reference' })}
         >
           <HelpCircle className="h-4 w-4" />
@@ -89,7 +89,7 @@ function ToolbarButton({ icon, label, shortcut, onClick, active }: ToolbarButton
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "h-8 w-8 text-muted-foreground hover:text-foreground",
+        "h-8 w-8 text-muted-foreground can-hover:text-foreground",
         active && "bg-muted text-foreground"
       )}
     >

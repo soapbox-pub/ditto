@@ -149,8 +149,8 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
             className={cn(
               'size-7 shrink-0 transition-opacity focus-visible:opacity-100',
               isPinned
-                ? 'text-primary hover:text-primary'
-                : 'text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100',
+                ? 'text-primary can-hover:text-primary'
+                : 'text-muted-foreground can-hover:text-foreground opacity-0 group-hover:opacity-100',
             )}
             onClick={(e) => { e.stopPropagation(); togglePin(); }}
             disabled={pinPending}
@@ -175,7 +175,7 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
             <Button
               size="icon"
               variant="ghost"
-              className="size-7 text-muted-foreground hover:text-foreground"
+              className="size-7 text-muted-foreground can-hover:text-foreground"
               onClick={() => { setEditing(true); setRenameValue(list.title); }}
               title={intl.formatMessage({ id: 'userLists.rename', defaultMessage: 'Rename' })}
             >
@@ -184,7 +184,7 @@ function ListRow({ list, onDelete }: { list: UserList; onDelete: (list: UserList
             <Button
               size="icon"
               variant="ghost"
-              className="size-7 text-muted-foreground hover:text-destructive"
+              className="size-7 text-muted-foreground can-hover:text-destructive"
               onClick={() => onDelete(list)}
               title={intl.formatMessage({ id: 'userLists.delete', defaultMessage: 'Delete' })}
             >
@@ -260,7 +260,7 @@ export function UserListsPage() {
       <PageHeader title={intl.formatMessage({ id: 'userLists.title', defaultMessage: 'Lists' })} icon={<Scroll className="size-5" />}>
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground can-hover:text-foreground">
               <Info className="size-4" />
             </Button>
           </DialogTrigger>

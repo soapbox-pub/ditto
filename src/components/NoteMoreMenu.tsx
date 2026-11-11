@@ -658,7 +658,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
         <div className="py-1">
           <Button
             variant="ghost"
-            className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
+            className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground can-hover:bg-secondary/60 rounded-none"
             onClick={close}
           >
             <FormattedMessage id="note.moreMenu.close" defaultMessage="Close" />

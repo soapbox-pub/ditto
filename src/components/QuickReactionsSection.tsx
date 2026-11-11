@@ -125,7 +125,7 @@ export function QuickReactionsSection() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 shrink-0 text-xs text-muted-foreground can-hover:text-foreground"
             disabled={!ready}
             onClick={() => save([], { clearUnseen: true })}
           >

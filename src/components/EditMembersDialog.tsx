@@ -271,7 +271,7 @@ function MemberRow({ pubkey, metadata, pictureImeta, isMember, isPending, isSele
         size="sm"
         variant={isMember ? 'outline' : 'default'}
         className={`h-7 px-2.5 text-xs shrink-0 gap-1 ${
-          isMember ? 'text-destructive hover:text-destructive hover:bg-destructive/10' : ''
+          isMember ? 'text-destructive can-hover:text-destructive can-hover:bg-destructive/10' : ''
         }`}
         disabled={isPending}
         onClick={(e) => { e.stopPropagation(); onToggle(pubkey, metadata); }}

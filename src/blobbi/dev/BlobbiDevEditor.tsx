@@ -594,7 +594,7 @@ export function BlobbiDevEditor({
           <Button
             onClick={handleApply}
             disabled={isUpdating || !hasChanges}
-            className="bg-amber-500 hover:bg-amber-600 text-white"
+            className="bg-amber-500 can-hover:bg-amber-600 text-white"
           >
             {isUpdating ? (
               <>

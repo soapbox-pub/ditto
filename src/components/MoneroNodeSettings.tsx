@@ -278,7 +278,7 @@ export function MoneroNodeSettings() {
                     variant="ghost"
                     onClick={() => handleRemove(url)}
                     disabled={nodes.length <= 1}
-                    className="rounded-full size-8 p-0 text-muted-foreground hover:text-destructive"
+                    className="rounded-full size-8 p-0 text-muted-foreground can-hover:text-destructive"
                     title={intl.formatMessage({
                       id: 'settings.wallet.remove',
                       defaultMessage: 'Remove',

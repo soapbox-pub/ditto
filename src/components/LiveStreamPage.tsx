@@ -373,7 +373,7 @@ function ZapButton({ event }: { event: NostrEvent }) {
   // Lightning is an opt-in tab inside the dialog.
   return (
     <ZapDialog target={event}>
-      <Button variant="outline" size="icon" className="shrink-0 size-9 rounded-full text-amber-500 hover:text-amber-400 hover:bg-amber-500/10">
+      <Button variant="outline" size="icon" className="shrink-0 size-9 rounded-full text-amber-500 can-hover:text-amber-400 can-hover:bg-amber-500/10">
         <Zap className="size-4" />
       </Button>
     </ZapDialog>

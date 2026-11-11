@@ -283,7 +283,7 @@ export function WalletSettings() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleRemoveConnection(connection.connectionString)}
-                          className="rounded-full text-muted-foreground hover:text-destructive"
+                          className="rounded-full text-muted-foreground can-hover:text-destructive"
                           title={intl.formatMessage({ id: 'settings.wallet.removeWallet', defaultMessage: "Remove wallet" })}
                         >
                           <Trash2 className="size-3.5" />
@@ -377,7 +377,7 @@ export function WalletSettings() {
                       variant="ghost"
                       onClick={() => handleRemoveEsplora(url)}
                       disabled={esploraApis.length <= 1}
-                      className="rounded-full size-8 p-0 text-muted-foreground hover:text-destructive"
+                      className="rounded-full size-8 p-0 text-muted-foreground can-hover:text-destructive"
                       title={esploraApis.length <= 1 ? intl.formatMessage({ id: 'settings.wallet.oneApiRequired', defaultMessage: "At least one API is required" }) : intl.formatMessage({ id: 'settings.wallet.remove', defaultMessage: "Remove" })}
                     >
                       <Trash2 className="size-3.5" />

@@ -609,7 +609,7 @@ function DownloadStep({
           type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+          className="absolute right-0 top-0 h-full px-3 can-hover:bg-transparent"
           onClick={() => setShowKey(!showKey)}
           aria-label={showKey
             ? intl.formatMessage({ id: 'onboarding.download.hideKey', defaultMessage: 'Hide key' })

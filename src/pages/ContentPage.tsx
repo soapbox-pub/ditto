@@ -59,7 +59,7 @@ export function ContentPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                className="h-7 text-xs gap-1.5 text-muted-foreground can-hover:text-foreground"
                 onClick={() => setRecoveryOpen(true)}
               >
                 <RotateCcw className="size-3.5" />

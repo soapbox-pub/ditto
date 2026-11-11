@@ -201,7 +201,7 @@ export function BadgeDetailContent({ event }: { event: NostrEvent }) {
           {isIssuer && (
             <Button
               variant="default"
-              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground can-hover:bg-primary/90 border border-transparent"
               onClick={() => setAwardDialogOpen(true)}
             >
               <Gift className="size-3.5" />

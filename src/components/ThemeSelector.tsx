@@ -993,7 +993,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                         size="sm"
                         onClick={handleDeleteTheme}
                         disabled={isPublishing}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="text-destructive can-hover:text-destructive can-hover:bg-destructive/10"
                       >
                         <Trash2 className="size-3.5 mr-1.5" />
                         <FormattedMessage id="themeSelector.deleteTheme" defaultMessage="Delete Theme" />

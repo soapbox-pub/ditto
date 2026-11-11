@@ -56,7 +56,7 @@ export function AdvancedSettingsPage() {
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+                className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
               >
                 <span className="text-base font-semibold"><FormattedMessage id="settings.wallet.title" defaultMessage={"Wallet"} /></span>
                 {walletOpen ? (

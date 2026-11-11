@@ -54,7 +54,7 @@ export function AcceptBadgeButton({ awardEvent, prominent }: AcceptBadgeButtonPr
   if (prominent) {
     return (
       <Button
-        className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md hover:scale-105 active:scale-95 transition-all"
+        className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md can-hover:scale-105 active:scale-95 transition-all"
         onClick={(e) => {
           e.stopPropagation();
           acceptBadge({ aTag, awardEventId: awardEvent.id });
@@ -78,7 +78,7 @@ export function AcceptBadgeButton({ awardEvent, prominent }: AcceptBadgeButtonPr
     <Button
       size="sm"
       variant="outline"
-      className="h-7 px-2.5 text-xs font-medium gap-1 transition-colors hover:bg-primary hover:text-primary-foreground"
+      className="h-7 px-2.5 text-xs font-medium gap-1 transition-colors can-hover:bg-primary can-hover:text-primary-foreground"
       onClick={(e) => {
         e.stopPropagation();
         acceptBadge({ aTag, awardEventId: awardEvent.id });

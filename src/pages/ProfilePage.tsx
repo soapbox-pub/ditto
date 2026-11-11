@@ -460,7 +460,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
         <div className="py-1">
           <Button
             variant="ghost"
-            className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
+            className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground can-hover:bg-secondary/60 rounded-none"
             onClick={close}
           >
             <FormattedMessage id="widgets.common.close" defaultMessage="Close" />
@@ -2573,7 +2573,7 @@ function ProfilePageInner() {
             {!isOwnProfile && birthdayNpub && (
               <Button
                 variant="outline"
-                className="absolute top-3 left-3 z-10 max-w-[calc(100%-4.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 hover:bg-background/85 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300"
+                className="absolute top-3 left-3 z-10 max-w-[calc(100%-4.5rem)] rounded-full font-bold backdrop-blur-sm border-amber-400/60 bg-background/70 text-amber-700 can-hover:bg-background/85 can-hover:text-amber-800 dark:text-amber-400 dark:can-hover:text-amber-300"
                 onClick={() => setBirthdayComposeOpen(true)}
                 disabled={!user}
                 title={user ? undefined : intl.formatMessage({ id: 'profile.birthday.loginHint', defaultMessage: 'Log in to wish a happy birthday' })}
@@ -2694,7 +2694,7 @@ function ProfilePageInner() {
                     <Button
                       className={cn(
                         'rounded-full font-bold',
-                        isFollowing && 'bg-transparent border border-border text-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50',
+                        isFollowing && 'bg-transparent border border-border text-foreground can-hover:bg-destructive/10 can-hover:text-destructive can-hover:border-destructive/50',
                       )}
                       variant={isFollowing ? 'outline' : 'default'}
                       onClick={handleToggleFollow}
@@ -2885,7 +2885,7 @@ function ProfilePageInner() {
             <Button
               variant="outline"
               size="icon"
-              className="mt-3 size-8 rounded-full text-muted-foreground hover:text-foreground"
+              className="mt-3 size-8 rounded-full text-muted-foreground can-hover:text-foreground"
               onClick={() => setJingleMuted((m) => !m)}
               aria-label={jingleMuted
                 ? intl.formatMessage({ id: 'profile.birthday.playMusic', defaultMessage: 'Play birthday music' })

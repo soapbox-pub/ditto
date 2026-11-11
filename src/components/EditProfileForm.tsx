@@ -544,7 +544,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                         variant="ghost"
                         size="icon"
                         onClick={() => remove(index)}
-                        className="h-9 w-9 text-destructive hover:text-destructive"
+                        className="h-9 w-9 text-destructive can-hover:text-destructive"
                         title={intl.formatMessage({ id: 'editProfile.fields.removeField', defaultMessage: "Remove field" })}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -563,7 +563,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full justify-between p-0 h-auto hover:bg-transparent"
+                  className="w-full justify-between p-0 h-auto can-hover:bg-transparent"
                 >
                   <span className="text-xs font-medium text-muted-foreground"><FormattedMessage id="editProfile.advanced" defaultMessage={"Advanced Settings"} /></span>
                   {showAdvanced ? (

@@ -219,7 +219,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
             <Button
               type="button"
               variant="secondary"
-              className="bg-primary/10 text-primary hover:bg-primary/20"
+              className="bg-primary/10 text-primary can-hover:bg-primary/20"
               style={cutCorners('0.85rem')}
               disabled={!safeUrl}
               onClick={handleCopy}
@@ -317,7 +317,7 @@ function ArmadaInviteCard({ invite, className, variant = 'embed' }: ArmadaInvite
             type="button"
             variant="secondary"
             size="icon"
-            className="shrink-0 bg-primary/10 text-primary hover:bg-primary/20"
+            className="shrink-0 bg-primary/10 text-primary can-hover:bg-primary/20"
             style={cutCorners('0.7rem')}
             aria-label={copied
               ? intl.formatMessage({ id: 'armadaInvite.linkCopied', defaultMessage: 'Link copied' })

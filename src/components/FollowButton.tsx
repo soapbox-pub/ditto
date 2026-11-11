@@ -65,7 +65,7 @@ export function FollowButton({ pubkey, className, size = 'sm' }: FollowButtonPro
       variant={isFollowing ? 'outline' : 'default'}
       className={cn(
         'rounded-full font-bold',
-        isFollowing && 'bg-background border border-border text-foreground hover:bg-destructive hover:text-destructive-foreground hover:border-destructive',
+        isFollowing && 'bg-background border border-border text-foreground can-hover:bg-destructive can-hover:text-destructive-foreground can-hover:border-destructive',
         className,
       )}
       onClick={handleToggleFollow}

@@ -94,7 +94,7 @@ function RelayListDetail({ relays }: { relays: RelayListEntry[] }) {
       {overflow.length > 0 && !showAll && (
         <Button
           variant="ghost"
-          className="h-auto w-full justify-center rounded-none py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+          className="h-auto w-full justify-center rounded-none py-2.5 text-xs font-medium text-muted-foreground can-hover:bg-muted/40 can-hover:text-foreground"
           onClick={() => setShowAll(true)}
         >
           <FormattedMessage

@@ -358,7 +358,7 @@ function MyBadgesContent({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              className="h-7 text-xs gap-1.5 text-muted-foreground can-hover:text-foreground"
               onClick={() => setRecoveryOpen(true)}
             >
               <RotateCcw className="size-3.5" />
@@ -507,7 +507,7 @@ function PendingBadgeList({
       {/* Actions */}
       <div className="flex justify-center gap-3 pb-4 pt-1">
         <Button
-          className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md hover:scale-105 active:scale-95 transition-all"
+          className="rounded-full px-6 h-10 text-sm font-semibold gap-2 shadow-md can-hover:scale-105 active:scale-95 transition-all"
           onClick={handleAccept}
           disabled={isAccepting}
           style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}

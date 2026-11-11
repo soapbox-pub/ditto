@@ -167,7 +167,7 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground can-hover:bg-destructive/90"
           >
             {isPending ? (
               <FormattedMessage id="reportDialog.submitting" defaultMessage="Submitting..." />

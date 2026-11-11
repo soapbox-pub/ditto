@@ -471,7 +471,7 @@ export function RelayListManager() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-7 text-muted-foreground hover:text-foreground shrink-0"
+                        className="size-7 text-muted-foreground can-hover:text-foreground shrink-0"
                       >
                         <Settings className="h-3.5 w-3.5" />
                       </Button>
@@ -509,7 +509,7 @@ export function RelayListManager() {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleRemoveRelay(relay.url)}
-                    className="size-7 text-muted-foreground hover:text-destructive hover:bg-transparent shrink-0"
+                    className="size-7 text-muted-foreground can-hover:text-destructive can-hover:bg-transparent shrink-0"
                   >
                     <X className="h-3.5 w-3.5" />
                   </Button>

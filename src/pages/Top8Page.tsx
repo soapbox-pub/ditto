@@ -125,7 +125,7 @@ function Top8Row({ pubkey, rank, onRemove }: Top8RowProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="shrink-0 rounded-full size-8 text-muted-foreground hover:text-destructive"
+        className="shrink-0 rounded-full size-8 text-muted-foreground can-hover:text-destructive"
         onClick={() => onRemove(pubkey)}
         aria-label={intl.formatMessage(
           { id: 'top8.edit.remove', defaultMessage: 'Remove {name} from your Top 8' },

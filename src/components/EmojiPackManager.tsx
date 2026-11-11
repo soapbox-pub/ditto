@@ -243,7 +243,7 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+          className="size-9 shrink-0 text-muted-foreground can-hover:text-foreground"
           onClick={() => pack.event && onEdit?.(pack.event)}
           disabled={!pack.event}
           aria-label={intl.formatMessage({ id: 'emojiPackManager.edit', defaultMessage: 'Edit {name}' }, { name })}
@@ -254,7 +254,7 @@ function PackRow({ pack, mode, onEdit }: PackRowProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+          className="size-9 shrink-0 text-muted-foreground can-hover:text-destructive"
           onClick={onRemove}
           disabled={isPending}
           aria-label={intl.formatMessage({ id: 'emojiPackManager.remove', defaultMessage: 'Remove {name}' }, { name })}

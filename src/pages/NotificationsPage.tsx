@@ -1145,7 +1145,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 can-hover:bg-primary can-hover:text-primary-foreground transition-colors"
               onClick={() => navigate('/letters')}
             >
               <Mail className="size-3.5" />
@@ -1153,7 +1153,7 @@ function LetterNotification({ item, isNew }: { item: NotificationItem; isNew: bo
             </Button>
             <Button
               variant="default"
-              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent"
+              className="rounded-full px-5 h-9 text-sm font-medium gap-1.5 bg-primary text-primary-foreground can-hover:bg-primary/90 border border-transparent"
               onClick={() => navigate(`/letters/compose?to=${nip19.npubEncode(item.event.pubkey)}`)}
             >
               <InkPenIcon className="size-3.5" strokeWidth={2} />

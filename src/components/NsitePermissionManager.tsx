@@ -119,7 +119,7 @@ export function NsitePermissionManager({ siteId }: NsitePermissionManagerProps) 
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+              className="h-7 px-2 text-xs text-destructive can-hover:text-destructive"
               onClick={handleClearAll}
             >
               <FormattedMessage id="nsitePermissions.revokeAll" defaultMessage="Revoke all" />

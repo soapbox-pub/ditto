@@ -71,7 +71,7 @@ export function AdvancedSettings() {
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold"><FormattedMessage id="settings.advanced.system" defaultMessage={"System"} /></span>
               {systemOpen ? (
@@ -221,7 +221,7 @@ export function AdvancedSettings() {
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Languages className="h-4 w-4" />
@@ -274,7 +274,7 @@ export function AdvancedSettings() {
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Coins className="h-4 w-4" />
@@ -337,7 +337,7 @@ export function AdvancedSettings() {
           <CollapsibleTrigger asChild>
             <Button
               variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
             >
               <span className="flex items-center gap-2 text-base font-semibold">
                 <Bug className="h-4 w-4" />
@@ -430,7 +430,7 @@ export function AdvancedSettings() {
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+                className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
               >
                 <span className="flex items-center gap-2 text-base font-semibold text-destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -456,7 +456,7 @@ export function AdvancedSettings() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    className="border-destructive/50 text-destructive can-hover:bg-destructive can-hover:text-destructive-foreground"
                     onClick={() => setVanishDialogOpen(true)}
                   >
                     <FormattedMessage id="settings.deleteAccount" defaultMessage={"Delete Account"} />

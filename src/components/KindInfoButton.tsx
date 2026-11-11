@@ -28,7 +28,7 @@ export function KindInfoButton({ kindDef, icon, open, onOpenChange }: KindInfoBu
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground hover:text-foreground">
+        <Button variant="ghost" size="icon" className="size-8 rounded-full text-muted-foreground can-hover:text-foreground">
           <Info className="size-4" />
         </Button>
       </DialogTrigger>

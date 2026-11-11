@@ -320,7 +320,7 @@ export function ProfileCard({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="w-full text-destructive hover:text-destructive"
+                      className="w-full text-destructive can-hover:text-destructive"
                       onClick={() => { onAvatarShape?.(''); setEmojiPickerOpen(false); }}
                     >
                       <XIcon className="size-3.5 mr-1.5" />
@@ -408,7 +408,7 @@ export function ProfileCard({
           <Collapsible open={fieldsOpen} onOpenChange={setFieldsOpen} className="mt-3">
             <div className="flex items-center justify-between">
               <CollapsibleTrigger asChild>
-                <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground">
+                <Button type="button" variant="ghost" className="w-full justify-between px-0 h-auto can-hover:bg-transparent text-sm font-medium text-muted-foreground">
                   <FormattedMessage id="editProfile.fields.label" defaultMessage="Profile Fields" />
                   <ChevronDown className="size-4 transition-transform duration-200 [[data-state=open]_&]:rotate-180" strokeWidth={4} />
                 </Button>
@@ -440,7 +440,7 @@ export function ProfileCard({
                      onChange={(e) => updateField(i, 'value', e.target.value)}
                      className="h-8 text-base md:text-sm"
                   />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeField(i)} aria-label={intl.formatMessage({ id: 'editProfile.fields.removeField', defaultMessage: 'Remove field' })} className="h-8 w-8 text-destructive hover:text-destructive">
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeField(i)} aria-label={intl.formatMessage({ id: 'editProfile.fields.removeField', defaultMessage: 'Remove field' })} className="h-8 w-8 text-destructive can-hover:text-destructive">
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>

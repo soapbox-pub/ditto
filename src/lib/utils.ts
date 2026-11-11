@@ -1,5 +1,15 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+
+// `can-hover:` is `hover:` kept off touch screens (see tailwind.config.ts), so
+// the two override each other: a caller's `hover:bg-*` replaces a component's
+// `can-hover:bg-*` rather than losing to it in the stylesheet.
+const twMerge = extendTailwindMerge({
+  experimentalParseClassName({ className, parseClassName }) {
+    const parsed = parseClassName(className)
+    return { ...parsed, modifiers: parsed.modifiers.map((m) => (m === "can-hover" ? "hover" : m)) }
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

@@ -143,7 +143,7 @@ export function RequestToVanishDialog({ open, onOpenChange }: RequestToVanishDia
             <FormattedMessage id="common.cancel" defaultMessage="Cancel" />
           </Button>
           <Button
-            className="flex-1 gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40"
+            className="flex-1 gap-1.5 bg-destructive text-destructive-foreground can-hover:bg-destructive/90 disabled:opacity-40"
             onClick={handleSubmit}
             disabled={!allChecked || isPending}
           >

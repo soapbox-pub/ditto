@@ -354,7 +354,7 @@ export function LetterDetailSheet({ letter, onClose, onReply }: LetterDetailShee
               <Button
                 variant="default"
                 size="lg"
-                className="gap-3 rounded-full px-12 text-lg h-14 bg-primary text-primary-foreground hover:bg-primary/90 pointer-events-auto"
+                className="gap-3 rounded-full px-12 text-lg h-14 bg-primary text-primary-foreground can-hover:bg-primary/90 pointer-events-auto"
                 style={{ filter: 'drop-shadow(0 2px 8px hsl(var(--primary) / 0.25))' }}
                 onClick={(e) => {
                   e.stopPropagation();

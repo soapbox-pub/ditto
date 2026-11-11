@@ -1093,7 +1093,7 @@ export function BlobbiHatchingCeremony({
                       disabled={isNaming}
                       className={cn(
                         'max-w-[12rem] mx-auto h-10 px-8 text-sm font-light tracking-wide',
-                        'bg-white/15 hover:bg-white/22 text-white/80 border-transparent',
+                        'bg-white/15 can-hover:bg-white/22 text-white/80 border-transparent',
                         'rounded-full transition-all duration-300',
                         'focus-visible:ring-0 focus-visible:ring-offset-0',
                       )}
