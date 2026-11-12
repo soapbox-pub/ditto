@@ -5457,6 +5457,7 @@
   "versionCheck.seeAll": "すべて見る",
   "versionCheck.viewChangelog": "変更履歴を見る",
   "versionCheck.whatsNew": "v{version}の新機能",
+  "versionHistory.copies": "{count, plural, other {#回保存}}",
   "video.exitFullscreen": "全画面表示を終了",
   "video.fallbackTitle": "動画",
   "video.fullscreen": "全画面表示",

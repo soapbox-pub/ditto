@@ -18,7 +18,7 @@ import {
   VersionListSkeleton,
   VersionRow,
 } from '@/components/VersionHistory';
-import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
+import { collapseVersions, formatVersionDate, queryAllVersions, stableStringify, versionKey } from '@/lib/versionHistory';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
@@ -149,12 +149,31 @@ function ThemeSummary({ event }: { event: NostrEvent }) {
   );
 }
 
+// ─── Version Keys ─────────────────────────────────────────────────────
+
+/** Profiles match on their fields, whatever order the JSON lists them in. */
+function profileKey(event: NostrEvent): string {
+  const metadata = parseMetadata(event.content);
+  return metadata ? stableStringify(metadata) : event.content;
+}
+
+/** Follow lists match on who and what they follow; content is a deprecated relay list. */
+function followsKey(event: NostrEvent): string {
+  return versionKey(event, { unorderedTags: true, ignoreContent: true });
+}
+
+function themeKey(event: NostrEvent): string {
+  return versionKey(event);
+}
+
 // ─── History Tab ──────────────────────────────────────────────────────
 
 interface HistoryTabProps {
   kind: number;
   /** Drops versions this tab can't show. */
   accept?: (event: NostrEvent) => boolean;
+  /** What makes two versions the same; identical ones show as one row. */
+  keyOf: (event: NostrEvent) => string | undefined;
   /** Queries holding the live copy, refreshed after a restore. */
   invalidate: (pubkey: string) => QueryKey[];
   restoredTitle: MessageDescriptor;
@@ -164,7 +183,7 @@ interface HistoryTabProps {
   onClose: () => void;
 }
 
-function HistoryTab({ kind, accept, invalidate, restoredTitle, empty, leading, summary, onClose }: HistoryTabProps) {
+function HistoryTab({ kind, accept, keyOf, invalidate, restoredTitle, empty, leading, summary, onClose }: HistoryTabProps) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -190,6 +209,7 @@ function HistoryTab({ kind, accept, invalidate, restoredTitle, empty, leading, s
 
   const events = history.data ?? [];
   const currentId = events[0]?.id;
+  const versions = useMemo(() => collapseVersions(history.data ?? [], keyOf), [history.data, keyOf]);
 
   const handleRestore = async (event: NostrEvent) => {
     if (!pubkey) return;
@@ -239,7 +259,7 @@ function HistoryTab({ kind, accept, invalidate, restoredTitle, empty, leading, s
 
   return (
     <VersionList>
-      {events.map((event) => (
+      {versions.map(({ event, copies }) => (
         <VersionRow
           key={event.id}
           event={event}
@@ -247,6 +267,7 @@ function HistoryTab({ kind, accept, invalidate, restoredTitle, empty, leading, s
           isRestoring={restoringId === event.id}
           disabled={restoringId !== null}
           onRestore={() => handleRestore(event)}
+          copies={copies}
           leading={leading?.(event)}
         >
           {summary(event)}
@@ -300,6 +321,7 @@ export function ProfileRecoveryDialog({ open, onOpenChange, defaultTab = 'profil
           <TabsContent value="profile" className="m-0 focus-visible:ring-0 focus-visible:ring-offset-0">
             <HistoryTab
               kind={0}
+              keyOf={profileKey}
               invalidate={(pubkey) => [['author', pubkey]]}
               restoredTitle={messages.profileRestored}
               empty={messages.emptyProfile}
@@ -312,6 +334,7 @@ export function ProfileRecoveryDialog({ open, onOpenChange, defaultTab = 'profil
           <TabsContent value="follows" className="m-0 focus-visible:ring-0 focus-visible:ring-offset-0">
             <HistoryTab
               kind={3}
+              keyOf={followsKey}
               invalidate={() => [['follow-list']]}
               restoredTitle={messages.followsRestored}
               empty={messages.emptyFollows}
@@ -324,6 +347,7 @@ export function ProfileRecoveryDialog({ open, onOpenChange, defaultTab = 'profil
             <HistoryTab
               kind={ACTIVE_THEME_KIND}
               accept={(event) => parseActiveProfileTheme(event) !== null}
+              keyOf={themeKey}
               invalidate={(pubkey) => [['activeProfileTheme', pubkey]]}
               restoredTitle={messages.themeRestored}
               empty={messages.emptyTheme}

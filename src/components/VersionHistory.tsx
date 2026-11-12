@@ -47,26 +47,29 @@ interface VersionRowProps {
   /** Another row is restoring; hold this one still until it finishes. */
   disabled: boolean;
   onRestore: () => void;
+  /** Identical copies folded into this row, including itself. */
+  copies?: number;
   /** Avatar, swatch, or icon at the start of the row. */
   leading?: React.ReactNode;
   children?: React.ReactNode;
 }
 
 /** One saved version: a summary, when it was saved, and either a Current pill or a Restore button. */
-export function VersionRow({ event, isCurrent, isRestoring, disabled, onRestore, leading, children }: VersionRowProps) {
+export function VersionRow({ event, isCurrent, isRestoring, disabled, onRestore, copies, leading, children }: VersionRowProps) {
   return (
     <li className="flex items-center gap-3 px-5 py-3">
       {leading}
       <div className="min-w-0 flex-1 space-y-1">
         {children}
-        <VersionDate event={event} />
+        <VersionDate event={event} copies={copies} />
       </div>
       <VersionAction isCurrent={isCurrent} isRestoring={isRestoring} disabled={disabled} onRestore={onRestore} />
     </li>
   );
 }
 
-export function VersionDate({ event }: { event: NostrEvent }) {
+/** When a version was saved, and how many times if identical copies were folded into it. */
+export function VersionDate({ event, copies = 1 }: { event: NostrEvent; copies?: number }) {
   const intl = useIntl();
 
   return (
@@ -74,6 +77,16 @@ export function VersionDate({ event }: { event: NostrEvent }) {
       <time dateTime={new Date(event.created_at * 1000).toISOString()}>
         {formatVersionDate(event.created_at, intl)}
       </time>
+      {copies > 1 && (
+        <>
+          {' · '}
+          <FormattedMessage
+            id="versionHistory.copies"
+            defaultMessage="{count, plural, one {saved # time} other {saved # times}}"
+            values={{ count: copies }}
+          />
+        </>
+      )}
     </p>
   );
 }

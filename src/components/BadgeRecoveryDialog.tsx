@@ -12,7 +12,7 @@ import {
   VersionListSkeleton,
   VersionRow,
 } from '@/components/VersionHistory';
-import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
+import { collapseVersions, formatVersionDate, queryAllVersions, versionKey } from '@/lib/versionHistory';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
@@ -169,6 +169,9 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
 
   const badgeEvents = badgeHistory.data ?? [];
   const currentBadgeId = badgeEvents[0]?.id;
+  // Badge order is display order, so it counts. Legacy kind 30008 copies match
+  // their kind 10008 restores once the `d` tag is set aside.
+  const versions = collapseVersions(badgeEvents, (event) => versionKey(event, { ignoreTags: ['d'] }));
 
   const handleRestore = async (event: NostrEvent) => {
     setRestoringId(event.id);
@@ -228,7 +231,7 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
 
   return (
     <VersionList>
-      {badgeEvents.map((event) => {
+      {versions.map(({ event, copies }) => {
         const summary = parsedSnapshots.get(event.id);
         if (!summary) return null;
 
@@ -237,6 +240,7 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
             key={event.id}
             event={event}
             isCurrent={event.id === currentBadgeId}
+            copies={copies}
             isRestoring={restoringId === event.id}
             disabled={restoringId !== null}
             onRestore={() => handleRestore(event)}

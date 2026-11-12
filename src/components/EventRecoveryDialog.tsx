@@ -14,7 +14,7 @@ import {
   VersionListEmpty,
   VersionListSkeleton,
 } from '@/components/VersionHistory';
-import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
+import { collapseVersions, formatVersionDate, queryAllVersions, versionKey } from '@/lib/versionHistory';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { isAddressableKind } from '@/lib/eventKinds';
@@ -111,6 +111,7 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
   // since this menu was opened) — in that case we still mark the actual newest
   // as current to avoid letting the user "restore" what is already current.
   const currentId = events[0].id;
+  const versions = collapseVersions(events, (snapshot) => versionKey(snapshot));
 
   const handleRestore = async (snapshot: NostrEvent) => {
     setRestoringId(snapshot.id);
@@ -149,10 +150,10 @@ function RecoveryContent({ event, onClose }: RecoveryContentProps) {
 
   return (
     <VersionList>
-      {events.map((snapshot) => (
+      {versions.map(({ event: snapshot, copies }) => (
         <li key={snapshot.id} className="space-y-2 px-5 py-3">
           <div className="flex items-center justify-between gap-3">
-            <VersionDate event={snapshot} />
+            <VersionDate event={snapshot} copies={copies} />
             <VersionAction
               isCurrent={snapshot.id === currentId}
               isRestoring={restoringId === snapshot.id}

@@ -12,7 +12,7 @@ import {
   VersionListSkeleton,
   VersionRow,
 } from '@/components/VersionHistory';
-import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
+import { collapseVersions, formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -212,6 +212,15 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
   const muteEvents = muteHistory.data ?? [];
   const currentMuteId = muteEvents[0]?.id;
   const summaries = parsedSnapshots.data;
+  // Private items are re-encrypted on every publish, so compare what they decrypt to.
+  // The public half is keyed too: moving a mute between public and private is a change.
+  // A snapshot that didn't fully decrypt can't be compared and keeps its own row.
+  const versions = collapseVersions(muteEvents, (event) => {
+    const summary = summaries?.get(event.id);
+    if (!summary || summary.decryptionFailed) return undefined;
+    const itemKey = (items: MuteListItem[]) => items.map((item) => `${item.type}:${item.value}`).sort().join('\n');
+    return `${itemKey(parseMuteTags(event.tags))}\0${itemKey(summary.items)}`;
+  });
 
   const handleRestore = async (event: NostrEvent) => {
     setRestoringId(event.id);
@@ -268,7 +277,7 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
 
   return (
     <VersionList>
-      {muteEvents.map((event) => {
+      {versions.map(({ event, copies }) => {
         const summary = summaries?.get(event.id);
         if (!summary) return null;
 
@@ -277,6 +286,7 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
             key={event.id}
             event={event}
             isCurrent={event.id === currentMuteId}
+            copies={copies}
             isRestoring={restoringId === event.id}
             disabled={restoringId !== null}
             onRestore={() => handleRestore(event)}

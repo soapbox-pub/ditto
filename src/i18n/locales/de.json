@@ -5457,6 +5457,7 @@
   "versionCheck.seeAll": "Alle ansehen",
   "versionCheck.viewChangelog": "Änderungsprotokoll ansehen",
   "versionCheck.whatsNew": "Neu in v{version}",
+  "versionHistory.copies": "{count, plural, one {# Mal gespeichert} other {# Mal gespeichert}}",
   "video.exitFullscreen": "Vollbild beenden",
   "video.fallbackTitle": "Video",
   "video.fullscreen": "Vollbild",
