@@ -66,6 +66,8 @@
 
   body {
     @apply bg-background text-foreground;
+    /* Unclassed text follows the Text size setting too (`lib/fontScale.ts`). */
+    font-size: calc(1rem * var(--font-scale, 1));
   }
 
   /* On touch screens a long-press on a link or image lifts it as a drag

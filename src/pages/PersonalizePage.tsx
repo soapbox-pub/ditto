@@ -4,6 +4,7 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import type { ReactNode } from 'react';
 
 import { ThemePreferencesSection } from '@/components/ContentSettings';
+import { FontScaleSettings } from '@/components/FontScaleSettings';
 import { IntroImage } from '@/components/IntroImage';
 import { PageHeader } from '@/components/PageHeader';
 import { QuickReactionsSection } from '@/components/QuickReactionsSection';
@@ -54,6 +55,7 @@ export function PersonalizePage() {
             description={<FormattedMessage id="settings.personalize.themesDescription" defaultMessage="Choose a theme, build your own, or browse ones others have shared" />}
           />
           <ThemePreferencesSection />
+          <FontScaleSettings />
         </Section>
 
         {user && (

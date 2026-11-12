@@ -3,6 +3,9 @@ import plugin from "tailwindcss/plugin";
 import tailwindcssAnimate from "tailwindcss-animate";
 import typography from "@tailwindcss/typography";
 
+/** A length times the Text size setting (`--font-scale`, `lib/fontScale.ts`); only font sizes use it. */
+const scaled = (length: string) => `calc(${length} * var(--font-scale, 1))`;
+
 /** What takes a tap for itself inside a larger tap target (see the `can-hover` variant). */
 const PRESS_TARGETS = [
 	'a',
@@ -48,6 +51,22 @@ export default {
 		extend: {
 			spacing: {
 				'22': '5.5rem',
+			},
+			// Tailwind's defaults (size, line height) scaled by the Text size setting.
+			fontSize: {
+				xs: [scaled('0.75rem'), scaled('1rem')],
+				sm: [scaled('0.875rem'), scaled('1.25rem')],
+				base: [scaled('1rem'), scaled('1.5rem')],
+				lg: [scaled('1.125rem'), scaled('1.75rem')],
+				xl: [scaled('1.25rem'), scaled('1.75rem')],
+				'2xl': [scaled('1.5rem'), scaled('2rem')],
+				'3xl': [scaled('1.875rem'), scaled('2.25rem')],
+				'4xl': [scaled('2.25rem'), scaled('2.5rem')],
+				'5xl': [scaled('3rem'), '1'],
+				'6xl': [scaled('3.75rem'), '1'],
+				'7xl': [scaled('4.5rem'), '1'],
+				'8xl': [scaled('6rem'), '1'],
+				'9xl': [scaled('8rem'), '1'],
 			},
 			fontFamily: {
 				sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],

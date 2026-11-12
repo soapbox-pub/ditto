@@ -84,5 +84,11 @@
     });
     meta.setAttribute('content', hex);
   }
+
+  // Text size; see src/lib/fontScale.ts, the key's only writer.
+  try {
+    var scale = Number(localStorage.getItem('ditto:font-scale'));
+    if (scale) root.style.setProperty('--font-scale', String(scale / 100));
+  } catch (e) {}
 })();
 // @license-end
