@@ -1,54 +1,30 @@
 import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { defineMessage, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
+import { useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrMetadata } from '@nostrify/nostrify';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { parseProfileImeta } from '@/lib/profileImeta';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
+import {
+  VersionHistoryBody,
+  VersionHistoryDialog,
+  VersionList,
+  VersionListEmpty,
+  VersionListSkeleton,
+  VersionRow,
+} from '@/components/VersionHistory';
+import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
 import { coreToTokens } from '@/themes';
-import { cn } from '@/lib/utils';
-import { Check, Loader2, RotateCcw, User, Users, Palette } from 'lucide-react';
-
-/**
- * Query all events matching a filter using `req()` instead of `query()`.
- * This bypasses NSet deduplication in NPool.query(), which discards older
- * versions of replaceable events. We need all historical versions for recovery.
- */
-async function queryAllEvents(
-  nostr: { req(filters: NostrFilter[], opts?: { signal?: AbortSignal }): AsyncIterable<['EVENT', string, NostrEvent] | ['EOSE', string] | ['CLOSED', string, string]> },
-  filters: NostrFilter[],
-  signal: AbortSignal,
-): Promise<NostrEvent[]> {
-  const events: NostrEvent[] = [];
-  const seen = new Set<string>();
-
-  for await (const msg of nostr.req(filters, { signal })) {
-    if (msg[0] === 'EOSE' || msg[0] === 'CLOSED') break;
-    if (msg[0] === 'EVENT') {
-      const event = msg[2];
-      if (!seen.has(event.id)) {
-        seen.add(event.id);
-        events.push(event);
-      }
-    }
-  }
-
-  return events;
-}
+import { User, Users, Palette } from 'lucide-react';
 
 export type ProfileRecoveryTab = 'profile' | 'follows' | 'theme';
 
@@ -68,215 +44,45 @@ function parseMetadata(content: string): NostrMetadata | undefined {
   }
 }
 
-/** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number, intl: IntlShape): string {
-  return intl.formatDate(new Date(timestamp * 1000), {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 /** Extracts HSL color string for inline styles. */
 function hsl(value: string): string {
   return `hsl(${value})`;
 }
 
-// ─── Profile Snapshot Card ────────────────────────────────────────────
+// ─── Row Summaries ────────────────────────────────────────────────────
 
-function ProfileSnapshotCard({
-  event,
-  isCurrent,
-  onRestore,
-  isRestoring,
-}: {
-  event: NostrEvent;
-  isCurrent: boolean;
-  onRestore: () => void;
-  isRestoring: boolean;
-}) {
+function ProfileSummary({ event }: { event: NostrEvent }) {
   const intl = useIntl();
   const metadata = useMemo(() => parseMetadata(event.content), [event.content]);
   const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
-  const avatarShape = getAvatarShape(metadata);
 
   return (
-    <div
-      className={cn(
-        'group relative rounded-xl border border-border-subtle p-4 transition-all',
-        isCurrent
-          ? 'border-primary/40 bg-primary/5'
-          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
-      )}
-    >
-      {/* Top-right action: "Current" badge or "Restore" button */}
-      <div className="absolute top-3 right-3">
-        {isCurrent ? (
-          <div className="flex items-center gap-1 text-xs font-medium text-primary">
-            <Check className="size-3.5" />
-            <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
-          </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
-          </Button>
-        )}
-      </div>
-
-      <div className="flex items-start gap-3 pr-24">
-        {/* Avatar */}
-        <Avatar shape={avatarShape} className="size-11 shrink-0 ring-2 ring-background">
-          {metadata?.picture ? (
-            <AvatarImage src={metadata.picture} imeta={parseProfileImeta(event.tags, metadata)?.picture} alt={displayName} />
-          ) : null}
-          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-            {displayName[0]?.toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-
-        {/* Info */}
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="font-semibold text-sm truncate">{displayName}</div>
-          {metadata?.nip05 && (
-            <div className="text-xs text-muted-foreground truncate">{metadata.nip05}</div>
-          )}
-          {metadata?.about && (
-            <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{metadata.about}</div>
-          )}
-          <div className="text-[11px] text-muted-foreground/70 pt-0.5">
-            {formatDate(event.created_at, intl)}
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      <p className="truncate text-sm font-semibold">{displayName}</p>
+      {metadata?.nip05 && <p className="truncate text-xs text-muted-foreground">{metadata.nip05}</p>}
+      {metadata?.about && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{metadata.about}</p>}
+    </>
   );
 }
 
-// ─── Theme Snapshot Card ──────────────────────────────────────────────
-
-function ThemeSnapshotCard({
-  event,
-  isCurrent,
-  onRestore,
-  isRestoring,
-}: {
-  event: NostrEvent;
-  isCurrent: boolean;
-  onRestore: () => void;
-  isRestoring: boolean;
-}) {
+function ProfileAvatar({ event }: { event: NostrEvent }) {
   const intl = useIntl();
-  const parsed = useMemo(() => parseActiveProfileTheme(event), [event]);
-  const title = event.tags.find(([n]) => n === 'title')?.[1]
-    ?? intl.formatMessage({ id: 'profileRecovery.themeFallbackTitle', defaultMessage: 'Profile Theme' });
-  const tokens = useMemo(() => (parsed ? coreToTokens(parsed.colors) : null), [parsed]);
-
-  if (!parsed || !tokens) {
-    return null;
-  }
+  const metadata = useMemo(() => parseMetadata(event.content), [event.content]);
+  const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
 
   return (
-    <div
-      className={cn(
-        'group relative rounded-xl border border-border-subtle overflow-hidden transition-all',
-        isCurrent
-          ? 'border-primary/40 bg-primary/5'
-          : 'border-border-subtle hover:border-primary/20',
-      )}
-    >
-      {/* Top-right action: "Current" badge or "Restore" button.
-          Floats over the theme mockup — use backdrop-blur to stay legible on any theme. */}
-      <div className="absolute top-3 right-3 z-10">
-        {isCurrent ? (
-          <div className="flex items-center gap-1 text-xs font-medium text-primary bg-background/80 backdrop-blur-sm rounded-full px-2 py-0.5">
-            <Check className="size-3.5" />
-            <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
-          </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5 bg-background/80 backdrop-blur-sm"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
-          </Button>
-        )}
-      </div>
-
-      {/* Theme mini-mockup */}
-      <div
-        className="aspect-[3/1] relative"
-        style={{ backgroundColor: hsl(tokens.background) }}
-      >
-        {parsed.background?.url && (
-          <img
-            src={parsed.background.url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-40"
-            decoding="async"
-          />
-        )}
-        <div className="p-4 space-y-2 relative">
-          <div
-            className="h-2.5 w-3/4 rounded-full"
-            style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.5 }}
-          />
-          <div
-            className="h-2.5 w-1/2 rounded-full"
-            style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.35 }}
-          />
-          <div
-            className="h-5 w-20 rounded"
-            style={{ backgroundColor: hsl(tokens.primary) }}
-          />
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="px-4 py-3 min-w-0">
-        <div className="text-sm font-medium truncate">{title}</div>
-        <div className="text-[11px] text-muted-foreground/70">
-          {formatDate(event.created_at, intl)}
-        </div>
-      </div>
-    </div>
+    <Avatar shape={getAvatarShape(metadata)} className="size-11 shrink-0 self-start">
+      {metadata?.picture ? (
+        <AvatarImage src={metadata.picture} imeta={parseProfileImeta(event.tags, metadata)?.picture} alt={displayName} />
+      ) : null}
+      <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+        {displayName[0]?.toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
-// ─── Follows Snapshot Card ─────────────────────────────────────────────
-
-function FollowsSnapshotCard({
-  event,
-  isCurrent,
-  onRestore,
-  isRestoring,
-}: {
-  event: NostrEvent;
-  isCurrent: boolean;
-  onRestore: () => void;
-  isRestoring: boolean;
-}) {
-  const intl = useIntl();
+function FollowsSummary({ event }: { event: NostrEvent }) {
   // Reverse so newest follows (appended to the end of the tag list) appear first.
   const followedPubkeys = useMemo(
     () =>
@@ -286,93 +92,79 @@ function FollowsSnapshotCard({
         .reverse(),
     [event.tags],
   );
-  const followCount = followedPubkeys.length;
+
+  if (followedPubkeys.length === 0) {
+    return (
+      <p className="text-sm font-semibold text-muted-foreground">
+        <FormattedMessage id="profileRecovery.noFollows" defaultMessage="No follows" />
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <p className="text-sm font-semibold">
+        <FormattedMessage
+          id="profileRecovery.followCount"
+          defaultMessage="{count, plural, one {# follow} other {# follows}}"
+          values={{ count: followedPubkeys.length }}
+        />
+      </p>
+      <PeopleAvatarStack pubkeys={followedPubkeys} maxVisible={6} size="sm" />
+    </>
+  );
+}
+
+/** A small swatch of the theme: its background, a line of text, and its accent. */
+function ThemeSwatch({ event }: { event: NostrEvent }) {
+  const parsed = useMemo(() => parseActiveProfileTheme(event), [event]);
+  const tokens = useMemo(() => (parsed ? coreToTokens(parsed.colors) : null), [parsed]);
+  if (!parsed || !tokens) return null;
 
   return (
     <div
-      className={cn(
-        'group relative rounded-xl border border-border-subtle p-4 transition-all',
-        isCurrent
-          ? 'border-primary/40 bg-primary/5'
-          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
-      )}
+      className="relative size-11 shrink-0 overflow-hidden rounded-xl"
+      style={{ backgroundColor: hsl(tokens.background) }}
+      aria-hidden
     >
-      {/* Top-right action: "Current" badge or "Restore" button */}
-      <div className="absolute top-3 right-3">
-        {isCurrent ? (
-          <div className="flex items-center gap-1 text-xs font-medium text-primary">
-            <Check className="size-3.5" />
-            <FormattedMessage id="muteRecovery.current" defaultMessage="Current" />
-          </div>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            <FormattedMessage id="muteRecovery.restore" defaultMessage="Restore" />
-          </Button>
-        )}
-      </div>
-
-      {followCount > 0 ? (
-        <div className="pr-24">
-          <PeopleAvatarStack pubkeys={followedPubkeys} maxVisible={8} size="md" />
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground pr-24">
-          <FormattedMessage id="profileRecovery.noFollows" defaultMessage="No follows" />
-        </div>
+      {parsed.background?.url && (
+        <img src={parsed.background.url} alt="" className="absolute inset-0 size-full object-cover opacity-40" decoding="async" />
       )}
-
-      <div className="text-[11px] text-muted-foreground/70 mt-2">
-        {formatDate(event.created_at, intl)}
+      <div className="relative flex h-full flex-col justify-center gap-1 px-2">
+        <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.6 }} />
+        <div className="h-1.5 w-2/3 rounded-full" style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.45 }} />
+        <div className="h-2.5 w-1/2 rounded-full" style={{ backgroundColor: hsl(tokens.primary) }} />
       </div>
     </div>
   );
 }
 
-// ─── Empty State ──────────────────────────────────────────────────────
+function ThemeSummary({ event }: { event: NostrEvent }) {
+  const title = event.tags.find(([n]) => n === 'title')?.[1];
 
-function EmptyState({ label }: { label: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <p className="text-sm text-muted-foreground">{label}</p>
-    </div>
+    <p className="truncate text-sm font-semibold">
+      {title ?? <FormattedMessage id="profileRecovery.themeFallbackTitle" defaultMessage="Profile Theme" />}
+    </p>
   );
 }
 
-// ─── Loading Skeleton ─────────────────────────────────────────────────
+// ─── History Tab ──────────────────────────────────────────────────────
 
-function SnapshotSkeleton() {
-  return (
-    <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border border-border-subtle p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <Skeleton className="size-11 rounded-full shrink-0" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-40" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+interface HistoryTabProps {
+  kind: number;
+  /** Drops versions this tab can't show. */
+  accept?: (event: NostrEvent) => boolean;
+  /** Queries holding the live copy, refreshed after a restore. */
+  invalidate: (pubkey: string) => QueryKey[];
+  restoredTitle: MessageDescriptor;
+  empty: MessageDescriptor;
+  leading?: (event: NostrEvent) => React.ReactNode;
+  summary: (event: NostrEvent) => React.ReactNode;
+  onClose: () => void;
 }
 
-// ─── Profile History Tab ──────────────────────────────────────────────
-
-function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
+function HistoryTab({ kind, accept, invalidate, restoredTitle, empty, leading, summary, onClose }: HistoryTabProps) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -382,26 +174,25 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
   const [restoringId, setRestoringId] = useState<string | null>(null);
 
   const pubkey = user?.pubkey;
+  const queryKey = ['profile-recovery', `kind${kind}`, pubkey];
 
-  const profileHistory = useQuery<NostrEvent[]>({
-    queryKey: ['profile-recovery', 'kind0', pubkey],
+  const history = useQuery<NostrEvent[]>({
+    queryKey,
     queryFn: async () => {
       if (!pubkey) return [];
-      const events = await queryAllEvents(
-        nostr,
-        [{ kinds: [0], authors: [pubkey] }],
-        AbortSignal.timeout(10000),
-      );
-      return events.sort((a, b) => b.created_at - a.created_at);
+      const filter: NostrFilter = { kinds: [kind], authors: [pubkey] };
+      const events = await queryAllVersions(nostr, [filter], AbortSignal.timeout(10000));
+      return accept ? events.filter(accept) : events;
     },
     enabled: !!pubkey,
     staleTime: 30_000,
   });
 
-  const profileEvents = profileHistory.data ?? [];
-  const currentProfileId = profileEvents[0]?.id;
+  const events = history.data ?? [];
+  const currentId = events[0]?.id;
 
   const handleRestore = async (event: NostrEvent) => {
+    if (!pubkey) return;
     setRestoringId(event.id);
     try {
       await publishEvent({
@@ -412,15 +203,15 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
       });
 
       toast({
-        title: intl.formatMessage({ id: 'profileRecovery.profileRestored', defaultMessage: 'Profile restored' }),
+        title: intl.formatMessage(restoredTitle),
         description: intl.formatMessage(
           { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at, intl) },
+          { date: formatVersionDate(event.created_at, intl) },
         ),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind0', pubkey] });
-      queryClient.invalidateQueries({ queryKey: ['author', pubkey] });
+      queryClient.invalidateQueries({ queryKey });
+      for (const key of invalidate(pubkey)) queryClient.invalidateQueries({ queryKey: key });
 
       onClose();
     } catch (error) {
@@ -438,283 +229,111 @@ function ProfileHistoryTab({ onClose }: { onClose: () => void }) {
     }
   };
 
-  if (profileHistory.isLoading) {
-    return <SnapshotSkeleton />;
+  if (history.isLoading) {
+    return <VersionListSkeleton />;
   }
 
-  if (profileEvents.length === 0) {
-    return (
-      <EmptyState
-        label={intl.formatMessage({
-          id: 'profileRecovery.emptyProfile',
-          defaultMessage: 'No profile history found. Your relay may not store historical events.',
-        })}
-      />
-    );
+  if (events.length === 0) {
+    return <VersionListEmpty><FormattedMessage {...empty} /></VersionListEmpty>;
   }
 
   return (
-    <>
-      {profileEvents.map((event) => (
-        <ProfileSnapshotCard
+    <VersionList>
+      {events.map((event) => (
+        <VersionRow
           key={event.id}
           event={event}
-          isCurrent={event.id === currentProfileId}
-          onRestore={() => handleRestore(event)}
+          isCurrent={event.id === currentId}
           isRestoring={restoringId === event.id}
-        />
-      ))}
-    </>
-  );
-}
-
-// ─── Theme History Tab ────────────────────────────────────────────────
-
-function ThemeHistoryTab({ onClose }: { onClose: () => void }) {
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { toast } = useToast();
-  const intl = useIntl();
-  const queryClient = useQueryClient();
-  const [restoringId, setRestoringId] = useState<string | null>(null);
-
-  const pubkey = user?.pubkey;
-
-  const themeHistory = useQuery<NostrEvent[]>({
-    queryKey: ['profile-recovery', 'kind16767', pubkey],
-    queryFn: async () => {
-      if (!pubkey) return [];
-      const events = await queryAllEvents(
-        nostr,
-        [{ kinds: [ACTIVE_THEME_KIND], authors: [pubkey] }],
-        AbortSignal.timeout(10000),
-      );
-      return events
-        .sort((a, b) => b.created_at - a.created_at)
-        .filter((e) => parseActiveProfileTheme(e) !== null);
-    },
-    enabled: !!pubkey,
-    staleTime: 30_000,
-  });
-
-  const themeEvents = themeHistory.data ?? [];
-  const currentThemeId = themeEvents[0]?.id;
-
-  const handleRestore = async (event: NostrEvent) => {
-    setRestoringId(event.id);
-    try {
-      await publishEvent({
-        kind: event.kind,
-        content: event.content,
-        tags: event.tags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
-
-      toast({
-        title: intl.formatMessage({ id: 'profileRecovery.themeRestored', defaultMessage: 'Theme restored' }),
-        description: intl.formatMessage(
-          { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at, intl) },
-        ),
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind16767', pubkey] });
-      queryClient.invalidateQueries({ queryKey: ['activeProfileTheme', pubkey] });
-
-      onClose();
-    } catch (error) {
-      console.error('Failed to restore event:', error);
-      toast({
-        title: intl.formatMessage({ id: 'profileRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
-        description: intl.formatMessage({
-          id: 'profileRecovery.restoreFailedDescription',
-          defaultMessage: 'Could not republish the event. Please try again.',
-        }),
-        variant: 'destructive',
-      });
-    } finally {
-      setRestoringId(null);
-    }
-  };
-
-  if (themeHistory.isLoading) {
-    return <SnapshotSkeleton />;
-  }
-
-  if (themeEvents.length === 0) {
-    return (
-      <EmptyState
-        label={intl.formatMessage({
-          id: 'profileRecovery.emptyTheme',
-          defaultMessage: 'No theme history found. Your relay may not store historical events.',
-        })}
-      />
-    );
-  }
-
-  return (
-    <>
-      {themeEvents.map((event) => (
-        <ThemeSnapshotCard
-          key={event.id}
-          event={event}
-          isCurrent={event.id === currentThemeId}
+          disabled={restoringId !== null}
           onRestore={() => handleRestore(event)}
-          isRestoring={restoringId === event.id}
-        />
+          leading={leading?.(event)}
+        >
+          {summary(event)}
+        </VersionRow>
       ))}
-    </>
-  );
-}
-
-// ─── Follows History Tab ──────────────────────────────────────────────
-
-function FollowsHistoryTab({ onClose }: { onClose: () => void }) {
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-  const { toast } = useToast();
-  const intl = useIntl();
-  const queryClient = useQueryClient();
-  const [restoringId, setRestoringId] = useState<string | null>(null);
-
-  const pubkey = user?.pubkey;
-
-  const followsHistory = useQuery<NostrEvent[]>({
-    queryKey: ['profile-recovery', 'kind3', pubkey],
-    queryFn: async () => {
-      if (!pubkey) return [];
-      const events = await queryAllEvents(
-        nostr,
-        [{ kinds: [3], authors: [pubkey] }],
-        AbortSignal.timeout(10000),
-      );
-      return events.sort((a, b) => b.created_at - a.created_at);
-    },
-    enabled: !!pubkey,
-    staleTime: 30_000,
-  });
-
-  const followsEvents = followsHistory.data ?? [];
-  const currentFollowsId = followsEvents[0]?.id;
-
-  const handleRestore = async (event: NostrEvent) => {
-    setRestoringId(event.id);
-    try {
-      await publishEvent({
-        kind: event.kind,
-        content: event.content,
-        tags: event.tags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
-
-      toast({
-        title: intl.formatMessage({ id: 'profileRecovery.followsRestored', defaultMessage: 'Follow list restored' }),
-        description: intl.formatMessage(
-          { id: 'profileRecovery.restoredFrom', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at, intl) },
-        ),
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['profile-recovery', 'kind3', pubkey] });
-      queryClient.invalidateQueries({ queryKey: ['follow-list'] });
-
-      onClose();
-    } catch (error) {
-      console.error('Failed to restore event:', error);
-      toast({
-        title: intl.formatMessage({ id: 'profileRecovery.restoreFailed', defaultMessage: 'Restore failed' }),
-        description: intl.formatMessage({
-          id: 'profileRecovery.restoreFailedDescription',
-          defaultMessage: 'Could not republish the event. Please try again.',
-        }),
-        variant: 'destructive',
-      });
-    } finally {
-      setRestoringId(null);
-    }
-  };
-
-  if (followsHistory.isLoading) {
-    return <SnapshotSkeleton />;
-  }
-
-  if (followsEvents.length === 0) {
-    return (
-      <EmptyState
-        label={intl.formatMessage({
-          id: 'profileRecovery.emptyFollows',
-          defaultMessage: 'No follow list history found. Your relay may not store historical events.',
-        })}
-      />
-    );
-  }
-
-  return (
-    <>
-      {followsEvents.map((event) => (
-        <FollowsSnapshotCard
-          key={event.id}
-          event={event}
-          isCurrent={event.id === currentFollowsId}
-          onRestore={() => handleRestore(event)}
-          isRestoring={restoringId === event.id}
-        />
-      ))}
-    </>
+    </VersionList>
   );
 }
 
 // ─── Main Dialog ──────────────────────────────────────────────────────
 
+const messages = {
+  profileRestored: defineMessage({ id: 'profileRecovery.profileRestored', defaultMessage: 'Profile restored' }),
+  emptyProfile: defineMessage({ id: 'profileRecovery.emptyProfile', defaultMessage: 'No profile history found. Your relay may not store historical events.' }),
+  followsRestored: defineMessage({ id: 'profileRecovery.followsRestored', defaultMessage: 'Follow list restored' }),
+  emptyFollows: defineMessage({ id: 'profileRecovery.emptyFollows', defaultMessage: 'No follow list history found. Your relay may not store historical events.' }),
+  themeRestored: defineMessage({ id: 'profileRecovery.themeRestored', defaultMessage: 'Theme restored' }),
+  emptyTheme: defineMessage({ id: 'profileRecovery.emptyTheme', defaultMessage: 'No theme history found. Your relay may not store historical events.' }),
+};
+
+const TAB_TRIGGER_CLASS =
+  'gap-1.5 rounded-full bg-secondary px-3.5 py-1.5 text-muted-foreground hover:text-foreground focus-visible:ring-offset-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none';
+
 export function ProfileRecoveryDialog({ open, onOpenChange, defaultTab = 'profile' }: ProfileRecoveryDialogProps) {
   const close = () => onOpenChange(false);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-2">
-          <DialogTitle className="text-lg font-bold">
-            <FormattedMessage id="profileRecovery.title" defaultMessage="Profile Recovery" />
-          </DialogTitle>
-        </DialogHeader>
+    <VersionHistoryDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<FormattedMessage id="profileRecovery.title" defaultMessage="Profile Recovery" />}
+      description={<FormattedMessage id="profileRecovery.description" defaultMessage="Pick an older version to publish again." />}
+    >
+      <Tabs key={defaultTab} defaultValue={defaultTab} className="flex min-h-0 flex-1 flex-col">
+        <TabsList className="h-auto shrink-0 justify-start gap-2 rounded-none bg-transparent p-0 px-5 pb-2">
+          <TabsTrigger value="profile" className={TAB_TRIGGER_CLASS}>
+            <User className="size-3.5" />
+            <FormattedMessage id="profileRecovery.tabProfile" defaultMessage="Profile" />
+          </TabsTrigger>
+          <TabsTrigger value="follows" className={TAB_TRIGGER_CLASS}>
+            <Users className="size-3.5" />
+            <FormattedMessage id="profileRecovery.tabFollows" defaultMessage="Follows" />
+          </TabsTrigger>
+          <TabsTrigger value="theme" className={TAB_TRIGGER_CLASS}>
+            <Palette className="size-3.5" />
+            <FormattedMessage id="profileRecovery.tabTheme" defaultMessage="Theme" />
+          </TabsTrigger>
+        </TabsList>
 
-        <Tabs key={defaultTab} defaultValue={defaultTab} className="w-full">
-          <div className="px-6">
-            <TabsList className="w-full">
-              <TabsTrigger value="profile" className="flex-1 gap-1.5">
-                <User className="size-3.5" />
-                <FormattedMessage id="profileRecovery.tabProfile" defaultMessage="Profile" />
-              </TabsTrigger>
-              <TabsTrigger value="follows" className="flex-1 gap-1.5">
-                <Users className="size-3.5" />
-                <FormattedMessage id="profileRecovery.tabFollows" defaultMessage="Follows" />
-              </TabsTrigger>
-              <TabsTrigger value="theme" className="flex-1 gap-1.5">
-                <Palette className="size-3.5" />
-                <FormattedMessage id="profileRecovery.tabTheme" defaultMessage="Theme" />
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        <VersionHistoryBody>
+          <TabsContent value="profile" className="m-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+            <HistoryTab
+              kind={0}
+              invalidate={(pubkey) => [['author', pubkey]]}
+              restoredTitle={messages.profileRestored}
+              empty={messages.emptyProfile}
+              leading={(event) => <ProfileAvatar event={event} />}
+              summary={(event) => <ProfileSummary event={event} />}
+              onClose={close}
+            />
+          </TabsContent>
 
-          <Separator className="mt-3" />
+          <TabsContent value="follows" className="m-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+            <HistoryTab
+              kind={3}
+              invalidate={() => [['follow-list']]}
+              restoredTitle={messages.followsRestored}
+              empty={messages.emptyFollows}
+              summary={(event) => <FollowsSummary event={event} />}
+              onClose={close}
+            />
+          </TabsContent>
 
-          <ScrollArea className="h-[420px]">
-            <TabsContent value="profile" className="m-0 p-4 space-y-3">
-              <ProfileHistoryTab onClose={close} />
-            </TabsContent>
-
-            <TabsContent value="follows" className="m-0 p-4 space-y-3">
-              <FollowsHistoryTab onClose={close} />
-            </TabsContent>
-
-            <TabsContent value="theme" className="m-0 p-4 space-y-3">
-              <ThemeHistoryTab onClose={close} />
-            </TabsContent>
-          </ScrollArea>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+          <TabsContent value="theme" className="m-0 focus-visible:ring-0 focus-visible:ring-offset-0">
+            <HistoryTab
+              kind={ACTIVE_THEME_KIND}
+              accept={(event) => parseActiveProfileTheme(event) !== null}
+              invalidate={(pubkey) => [['activeProfileTheme', pubkey]]}
+              restoredTitle={messages.themeRestored}
+              empty={messages.emptyTheme}
+              leading={(event) => <ThemeSwatch event={event} />}
+              summary={(event) => <ThemeSummary event={event} />}
+              onClose={close}
+            />
+          </TabsContent>
+        </VersionHistoryBody>
+      </Tabs>
+    </VersionHistoryDialog>
   );
 }

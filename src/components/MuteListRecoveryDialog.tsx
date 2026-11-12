@@ -1,62 +1,28 @@
 import { useState } from 'react';
-import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
+import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
+import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import {
+  VersionHistoryBody,
+  VersionHistoryDialog,
+  VersionList,
+  VersionListEmpty,
+  VersionListSkeleton,
+  VersionRow,
+} from '@/components/VersionHistory';
+import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { setCachedMuteItems, parseMuteTags, type MuteListItem } from '@/hooks/useMuteList';
-import { cn } from '@/lib/utils';
-import { Check, Loader2, RotateCcw, ShieldOff, UserX, Hash, MessageSquareOff, AlertTriangle } from 'lucide-react';
-
-/**
- * Query all events matching a filter using `req()` instead of `query()`.
- * This bypasses NSet deduplication in NPool.query(), which discards older
- * versions of replaceable events. We need all historical versions for recovery.
- */
-async function queryAllEvents(
-  nostr: { req(filters: NostrFilter[], opts?: { signal?: AbortSignal }): AsyncIterable<['EVENT', string, NostrEvent] | ['EOSE', string] | ['CLOSED', string, string]> },
-  filters: NostrFilter[],
-  signal: AbortSignal,
-): Promise<NostrEvent[]> {
-  const events: NostrEvent[] = [];
-  const seen = new Set<string>();
-
-  for await (const msg of nostr.req(filters, { signal })) {
-    if (msg[0] === 'EOSE' || msg[0] === 'CLOSED') break;
-    if (msg[0] === 'EVENT') {
-      const event = msg[2];
-      if (!seen.has(event.id)) {
-        seen.add(event.id);
-        events.push(event);
-      }
-    }
-  }
-
-  return events;
-}
+import { ShieldOff, UserX, Hash, MessageSquareOff, AlertTriangle, Type } from 'lucide-react';
 
 interface MuteListRecoveryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-/** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number, intl: IntlShape): string {
-  return intl.formatDate(new Date(timestamp * 1000), {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 /**
@@ -155,149 +121,41 @@ async function parseMuteSnapshot(
   };
 }
 
-// ─── Mute Snapshot Card ───────────────────────────────────────────────
+// ─── Mute Snapshot Summary ────────────────────────────────────────────
 
-function MuteSnapshotCard({
-  summary,
-  event,
-  isCurrent,
-  onRestore,
-  isRestoring,
-}: {
-  summary: MuteSummary;
-  event: NostrEvent;
-  isCurrent: boolean;
-  onRestore: () => void;
-  isRestoring: boolean;
-}) {
+function MuteSummaryRow({ summary }: { summary: MuteSummary }) {
   const intl = useIntl();
-  const parts: string[] = [];
-  if (summary.pubkeys > 0) parts.push(`${summary.pubkeys} ${summary.pubkeys === 1 ? 'user' : 'users'}`);
-  if (summary.hashtags > 0) parts.push(`${summary.hashtags} ${summary.hashtags === 1 ? 'hashtag' : 'hashtags'}`);
-  if (summary.words > 0) parts.push(`${summary.words} ${summary.words === 1 ? 'word' : 'words'}`);
-  if (summary.threads > 0) parts.push(`${summary.threads} ${summary.threads === 1 ? 'thread' : 'threads'}`);
+  const counts = [
+    { key: 'pubkeys', icon: UserX, count: summary.pubkeys },
+    { key: 'hashtags', icon: Hash, count: summary.hashtags },
+    { key: 'words', icon: Type, count: summary.words },
+    { key: 'threads', icon: MessageSquareOff, count: summary.threads },
+  ].filter(({ count }) => count > 0);
 
   return (
-    <div
-      className={cn(
-        'group relative rounded-xl border border-border-subtle p-4 transition-all',
-        isCurrent
-          ? 'border-primary/40 bg-primary/5'
-          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
-      )}
-    >
-      {isCurrent && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
-          <Check className="size-3.5" />
-          <FormattedMessage id="muteRecovery.current" defaultMessage={"Current"} />
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center size-11 shrink-0 rounded-full bg-primary/10">
-          <ShieldOff className="size-5 text-primary" />
-        </div>
-
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="font-semibold text-sm">
-            <FormattedMessage id="muteRecovery.mutedItems" defaultMessage={"{count, plural, one {{formatted} muted item} other {{formatted} muted items}}"} values={{ count: summary.total, formatted: intl.formatNumber(summary.total) }} />
-          </div>
-
-          {parts.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {summary.pubkeys > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <UserX className="size-3" />
-                  {summary.pubkeys}
-                </span>
-              )}
-              {summary.hashtags > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Hash className="size-3" />
-                  {summary.hashtags}
-                </span>
-              )}
-              {summary.words > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <MessageSquareOff className="size-3" />
-                  {summary.words}
-                </span>
-              )}
-              {summary.threads > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <MessageSquareOff className="size-3" />
-                  <FormattedMessage id="muteRecovery.threadCount" defaultMessage={"{count} threads"} values={{ count: summary.threads }} />
-                </span>
-              )}
-            </div>
-          )}
-
-          {summary.decryptionFailed && (
-            <div className="flex items-center gap-1 text-[11px] text-amber-500">
-              <AlertTriangle className="size-3" />
-              <FormattedMessage id="muteRecovery.decryptionFailed" defaultMessage={"Could not decrypt private items"} />
-            </div>
-          )}
-
-          <div className="text-[11px] text-muted-foreground/70 pt-0.5">
-            {formatDate(event.created_at, intl)}
-          </div>
-        </div>
-      </div>
-
-      {!isCurrent && (
-        <div className="mt-3 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            <FormattedMessage id="muteRecovery.restore" defaultMessage={"Restore"} />
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Empty State ──────────────────────────────────────────────────────
-
-function EmptyState() {
-
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <p className="text-sm text-muted-foreground">
-        <FormattedMessage id="muteRecovery.empty" defaultMessage={"No mute list history found. Your relay may not store historical events."} />
+    <>
+      <p className="text-sm font-semibold">
+        <FormattedMessage id="muteRecovery.mutedItems" defaultMessage={"{count, plural, one {{formatted} muted item} other {{formatted} muted items}}"} values={{ count: summary.total, formatted: intl.formatNumber(summary.total) }} />
       </p>
-    </div>
-  );
-}
 
-// ─── Loading Skeleton ─────────────────────────────────────────────────
-
-function SnapshotSkeleton() {
-  return (
-    <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border border-border-subtle p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-11 rounded-full shrink-0" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-40" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </div>
+      {counts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {counts.map(({ key, icon: Icon, count }) => (
+            <span key={key} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">
+              <Icon className="size-3" />
+              <FormattedNumber value={count} />
+            </span>
+          ))}
         </div>
-      ))}
-    </div>
+      )}
+
+      {summary.decryptionFailed && (
+        <p className="flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="size-3" />
+          <FormattedMessage id="muteRecovery.decryptionFailed" defaultMessage={"Could not decrypt private items"} />
+        </p>
+      )}
+    </>
   );
 }
 
@@ -320,12 +178,7 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
     queryKey: ['mute-recovery', 'kind10000', pubkey],
     queryFn: async () => {
       if (!pubkey) return [];
-      const events = await queryAllEvents(
-        nostr,
-        [{ kinds: [10000], authors: [pubkey] }],
-        AbortSignal.timeout(10000),
-      );
-      return events.sort((a, b) => b.created_at - a.created_at);
+      return queryAllVersions(nostr, [{ kinds: [10000], authors: [pubkey] }], AbortSignal.timeout(10000));
     },
     enabled: !!pubkey,
     staleTime: 30_000,
@@ -381,7 +234,7 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
 
       toast({
         title: intl.formatMessage({ id: 'muteRecovery.restored', defaultMessage: "Mute list restored" }),
-        description: intl.formatMessage({ id: 'muteRecovery.restoredDescription', defaultMessage: "Successfully restored from {date}." }, { date: formatDate(event.created_at, intl) }),
+        description: intl.formatMessage({ id: 'muteRecovery.restoredDescription', defaultMessage: "Successfully restored from {date}." }, { date: formatVersionDate(event.created_at, intl) }),
       });
 
       queryClient.invalidateQueries({ queryKey: ['mute-recovery', 'kind10000', pubkey] });
@@ -402,31 +255,42 @@ function MuteHistoryContent({ onClose }: { onClose: () => void }) {
   };
 
   if (muteHistory.isLoading || (muteHistory.data && muteHistory.data.length > 0 && parsedSnapshots.isLoading)) {
-    return <SnapshotSkeleton />;
+    return <VersionListSkeleton />;
   }
 
   if (muteEvents.length === 0) {
-    return <EmptyState />;
+    return (
+      <VersionListEmpty>
+        <FormattedMessage id="muteRecovery.empty" defaultMessage={"No mute list history found. Your relay may not store historical events."} />
+      </VersionListEmpty>
+    );
   }
 
   return (
-    <>
+    <VersionList>
       {muteEvents.map((event) => {
         const summary = summaries?.get(event.id);
         if (!summary) return null;
 
         return (
-          <MuteSnapshotCard
+          <VersionRow
             key={event.id}
             event={event}
-            summary={summary}
             isCurrent={event.id === currentMuteId}
-            onRestore={() => handleRestore(event)}
             isRestoring={restoringId === event.id}
-          />
+            disabled={restoringId !== null}
+            onRestore={() => handleRestore(event)}
+            leading={
+              <div className="flex size-11 shrink-0 items-center justify-center self-start rounded-full bg-primary/10">
+                <ShieldOff className="size-5 text-primary" />
+              </div>
+            }
+          >
+            <MuteSummaryRow summary={summary} />
+          </VersionRow>
         );
       })}
-    </>
+    </VersionList>
   );
 }
 
@@ -436,21 +300,15 @@ export function MuteListRecoveryDialog({ open, onOpenChange }: MuteListRecoveryD
   const close = () => onOpenChange(false);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-lg font-bold"><FormattedMessage id="muteRecovery.title" defaultMessage={"Mute List Recovery"} /></DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            <FormattedMessage id="muteRecovery.description" defaultMessage={"Browse and restore previous versions of your mute list."} />
-          </p>
-        </DialogHeader>
-
-        <ScrollArea className="h-[420px]">
-          <div className="p-4 space-y-3">
-            <MuteHistoryContent onClose={close} />
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+    <VersionHistoryDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<FormattedMessage id="muteRecovery.title" defaultMessage={"Mute List Recovery"} />}
+      description={<FormattedMessage id="muteRecovery.description" defaultMessage={"Browse and restore previous versions of your mute list."} />}
+    >
+      <VersionHistoryBody>
+        <MuteHistoryContent onClose={close} />
+      </VersionHistoryBody>
+    </VersionHistoryDialog>
   );
 }

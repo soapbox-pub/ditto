@@ -1,13 +1,18 @@
 import { useState, useMemo } from 'react';
-import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent } from '@nostrify/nostrify';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import {
+  VersionHistoryBody,
+  VersionHistoryDialog,
+  VersionList,
+  VersionListEmpty,
+  VersionListSkeleton,
+  VersionRow,
+} from '@/components/VersionHistory';
+import { formatVersionDate, queryAllVersions } from '@/lib/versionHistory';
 import { BadgeThumbnail } from '@/components/BadgeThumbnail';
 import { parseBadgeDefinition, type BadgeData } from '@/lib/parseBadgeDefinition';
 import { parseProfileBadges } from '@/lib/parseProfileBadges';
@@ -15,50 +20,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { BADGE_PROFILE_KIND, BADGE_PROFILE_KIND_LEGACY, BADGE_DEFINITION_KIND } from '@/lib/badgeUtils';
-import { cn } from '@/lib/utils';
-import { Award, Check, Loader2, RotateCcw } from 'lucide-react';
-
-/**
- * Query all events matching a filter using `req()` instead of `query()`.
- * This bypasses NSet deduplication in NPool.query(), which discards older
- * versions of replaceable events. We need all historical versions for recovery.
- */
-async function queryAllEvents(
-  nostr: { req(filters: NostrFilter[], opts?: { signal?: AbortSignal }): AsyncIterable<['EVENT', string, NostrEvent] | ['EOSE', string] | ['CLOSED', string, string]> },
-  filters: NostrFilter[],
-  signal: AbortSignal,
-): Promise<NostrEvent[]> {
-  const events: NostrEvent[] = [];
-  const seen = new Set<string>();
-
-  for await (const msg of nostr.req(filters, { signal })) {
-    if (msg[0] === 'EOSE' || msg[0] === 'CLOSED') break;
-    if (msg[0] === 'EVENT') {
-      const event = msg[2];
-      if (!seen.has(event.id)) {
-        seen.add(event.id);
-        events.push(event);
-      }
-    }
-  }
-
-  return events;
-}
+import { Award } from 'lucide-react';
 
 interface BadgeRecoveryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-/** Format a unix timestamp into a human-readable date string. */
-function formatDate(timestamp: number, intl: IntlShape): string {
-  return intl.formatDate(new Date(timestamp * 1000), {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 /** Summary of badges parsed from a snapshot. */
@@ -77,143 +43,41 @@ function parseBadgeSnapshot(event: NostrEvent): BadgeSummary {
   };
 }
 
-// ─── Badge Snapshot Card ──────────────────────────────────────────────
+// ─── Badge Snapshot Summary ───────────────────────────────────────────
 
-function BadgeSnapshotCard({
-  summary,
-  event,
-  isCurrent,
-  onRestore,
-  isRestoring,
-  badgeMap,
-}: {
-  summary: BadgeSummary;
-  event: NostrEvent;
-  isCurrent: boolean;
-  onRestore: () => void;
-  isRestoring: boolean;
-  badgeMap: Map<string, BadgeData>;
-}) {
-  const intl = useIntl();
+function BadgeSummaryRow({ summary, badgeMap }: { summary: BadgeSummary; badgeMap: Map<string, BadgeData> }) {
   /** Show up to 5 badge thumbnails in the preview. */
   const previewRefs = summary.refs.slice(0, 5);
   const remaining = Math.max(0, summary.count - previewRefs.length);
 
   return (
-    <div
-      className={cn(
-        'group relative rounded-xl border border-border-subtle p-4 transition-all',
-        isCurrent
-          ? 'border-primary/40 bg-primary/5'
-          : 'border-border-subtle hover:border-primary/20 hover:bg-secondary/30',
-      )}
-    >
-      {isCurrent && (
-        <div className="absolute top-3 right-3 flex items-center gap-1 text-xs font-medium text-primary">
-          <Check className="size-3.5" />
-          <FormattedMessage id="badgeRecovery.current" defaultMessage="Current" />
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center size-11 shrink-0 rounded-full bg-primary/10">
-          <Award className="size-5 text-primary" />
-        </div>
-
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="font-semibold text-sm">
-            <FormattedMessage
-              id="badgeRecovery.badgeCount"
-              defaultMessage="{count, plural, one {# badge} other {# badges}}"
-              values={{ count: summary.count }}
-            />
-          </div>
-
-          {/* Badge thumbnail previews */}
-          {previewRefs.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {previewRefs.map((ref) => {
-                const badge = badgeMap.get(ref.aTag);
-                return badge ? (
-                  <BadgeThumbnail key={ref.aTag} badge={badge} size={24} className="shrink-0" />
-                ) : (
-                  <div
-                    key={ref.aTag}
-                    className="size-6 rounded border border-border bg-secondary/30 flex items-center justify-center shrink-0"
-                  >
-                    <Award className="size-3 text-muted-foreground" />
-                  </div>
-                );
-              })}
-              {remaining > 0 && (
-                <span className="text-[11px] text-muted-foreground">
-                  +{remaining}
-                </span>
-              )}
-            </div>
-          )}
-
-          <div className="text-[11px] text-muted-foreground/70 pt-0.5">
-            {formatDate(event.created_at, intl)}
-          </div>
-        </div>
-      </div>
-
-      {!isCurrent && (
-        <div className="mt-3 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs rounded-lg gap-1.5"
-            onClick={onRestore}
-            disabled={isRestoring}
-          >
-            {isRestoring ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="size-3.5" />
-            )}
-            <FormattedMessage id="badgeRecovery.restore" defaultMessage="Restore" />
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Empty State ──────────────────────────────────────────────────────
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <p className="text-sm text-muted-foreground">
+    <>
+      <p className="text-sm font-semibold">
         <FormattedMessage
-          id="badgeRecovery.empty"
-          defaultMessage="No badge list history found. Your relay may not store historical events."
+          id="badgeRecovery.badgeCount"
+          defaultMessage="{count, plural, one {# badge} other {# badges}}"
+          values={{ count: summary.count }}
         />
       </p>
-    </div>
-  );
-}
 
-// ─── Loading Skeleton ─────────────────────────────────────────────────
-
-function SnapshotSkeleton() {
-  return (
-    <div className="space-y-3">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border border-border-subtle p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <Skeleton className="size-11 rounded-full shrink-0" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-40" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-          </div>
+      {previewRefs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {previewRefs.map((ref) => {
+            const badge = badgeMap.get(ref.aTag);
+            return badge ? (
+              <BadgeThumbnail key={ref.aTag} badge={badge} size={24} className="shrink-0" />
+            ) : (
+              <div key={ref.aTag} className="flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary">
+                <Award className="size-3 text-muted-foreground" />
+              </div>
+            );
+          })}
+          {remaining > 0 && (
+            <span className="text-[11px] text-muted-foreground">+{remaining}</span>
+          )}
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
 
@@ -235,7 +99,7 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
     queryKey: ['badge-recovery', 'history', pubkey],
     queryFn: async () => {
       if (!pubkey) return [];
-      const events = await queryAllEvents(
+      return queryAllVersions(
         nostr,
         [
           { kinds: [BADGE_PROFILE_KIND], authors: [pubkey] },
@@ -243,7 +107,6 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
         ],
         AbortSignal.timeout(10000),
       );
-      return events.sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!pubkey,
     staleTime: 30_000,
@@ -325,7 +188,7 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
         title: intl.formatMessage({ id: 'badgeRecovery.restored', defaultMessage: 'Badge list restored' }),
         description: intl.formatMessage(
           { id: 'badgeRecovery.restoredDescription', defaultMessage: 'Successfully restored from {date}.' },
-          { date: formatDate(event.created_at, intl) },
+          { date: formatVersionDate(event.created_at, intl) },
         ),
       });
 
@@ -349,32 +212,45 @@ function BadgeHistoryContent({ onClose }: { onClose: () => void }) {
   };
 
   if (badgeHistory.isLoading) {
-    return <SnapshotSkeleton />;
+    return <VersionListSkeleton />;
   }
 
   if (badgeEvents.length === 0) {
-    return <EmptyState />;
+    return (
+      <VersionListEmpty>
+        <FormattedMessage
+          id="badgeRecovery.empty"
+          defaultMessage="No badge list history found. Your relay may not store historical events."
+        />
+      </VersionListEmpty>
+    );
   }
 
   return (
-    <>
+    <VersionList>
       {badgeEvents.map((event) => {
         const summary = parsedSnapshots.get(event.id);
         if (!summary) return null;
 
         return (
-          <BadgeSnapshotCard
+          <VersionRow
             key={event.id}
             event={event}
-            summary={summary}
             isCurrent={event.id === currentBadgeId}
-            onRestore={() => handleRestore(event)}
             isRestoring={restoringId === event.id}
-            badgeMap={badgeMap}
-          />
+            disabled={restoringId !== null}
+            onRestore={() => handleRestore(event)}
+            leading={
+              <div className="flex size-11 shrink-0 items-center justify-center self-start rounded-full bg-primary/10">
+                <Award className="size-5 text-primary" />
+              </div>
+            }
+          >
+            <BadgeSummaryRow summary={summary} badgeMap={badgeMap} />
+          </VersionRow>
         );
       })}
-    </>
+    </VersionList>
   );
 }
 
@@ -384,26 +260,20 @@ export function BadgeRecoveryDialog({ open, onOpenChange }: BadgeRecoveryDialogP
   const close = () => onOpenChange(false);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 rounded-2xl overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle className="text-lg font-bold">
-            <FormattedMessage id="badgeRecovery.title" defaultMessage="Badge List Recovery" />
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            <FormattedMessage
-              id="badgeRecovery.description"
-              defaultMessage="Browse and restore previous versions of your accepted badges."
-            />
-          </p>
-        </DialogHeader>
-
-        <ScrollArea className="h-[420px]">
-          <div className="p-4 space-y-3">
-            <BadgeHistoryContent onClose={close} />
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+    <VersionHistoryDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<FormattedMessage id="badgeRecovery.title" defaultMessage="Badge List Recovery" />}
+      description={
+        <FormattedMessage
+          id="badgeRecovery.description"
+          defaultMessage="Browse and restore previous versions of your accepted badges."
+        />
+      }
+    >
+      <VersionHistoryBody>
+        <BadgeHistoryContent onClose={close} />
+      </VersionHistoryBody>
+    </VersionHistoryDialog>
   );
 }

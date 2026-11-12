@@ -591,8 +591,8 @@ export function DataSettingsPage() {
                     onClick={() => openRecovery(target)}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="inset-well flex size-9 shrink-0 items-center justify-center rounded-lg">
-                      <Icon className="size-4 text-muted-foreground" />
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <Icon className="size-4 text-primary" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium"><FormattedMessage {...label} /></span>
