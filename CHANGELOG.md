@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.46.2] - 2026-11-11
+
+Going back now lands you exactly where you were, on the same tab and at the same spot. Taps feel right on your phone, with a quick pressed look under your finger and no buttons stuck lit afterward. Multiple-choice polls take more than one pick, names show the way people chose them, and you can restore old versions of your profile, follows, theme, mutes, and badges from Import & Export.
+
+### Added
+- Restore old versions of your profile, follows, theme, mutes, and badges from the Import & Export page
+
+### Changed
+- Rows and buttons show a pressed look under your finger on touch screens
+- Profiles show their display name first
+- The restore version dialogs get a fresh look, and identical saved versions show up only once
+
+### Fixed
+- Going back to a page no longer drifts the scroll position or tucks its tabs under the top bar
+- Going back to Trends, Music, Notifications, and other tabbed pages returns to the tab you left on
+- Multiple-choice polls let you pick more than one option
+- Buttons no longer stay lit after you tap them on touch screens
+- Names that are just a long key are skipped, and long names stay on one line in the post menu
+
 ## [2.46.1] - 2026-11-10
 
 Swiping back is smooth now. The page you return to shows up right away in its own colors, with no flicker or gap, and search results are waiting where you left them. Opening a reply keeps the post it answers in view, and posts opened from search stay open.
