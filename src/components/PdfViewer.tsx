@@ -12,7 +12,7 @@
  * see `parsePublication()` / `sanitizeUrl()`.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { ExternalLink, Download, FileText, BookOpen } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -64,40 +64,25 @@ function PdfFrame({ url, title, className }: { url: string; title: string; class
   );
 }
 
-export function PdfViewer({ url, title, label: labelProp, className }: PdfViewerProps) {
-  const intl = useIntl();
-  const label = labelProp ?? intl.formatMessage({ id: 'pdfViewer.read', defaultMessage: 'Read' });
-  const [open, setOpen] = useState(false);
-  // On native the inline WebView PDF experience is inconsistent; prefer the
-  // native open/share sheet there instead of an embedded frame.
-  const isNative = Capacitor.isNativePlatform();
+interface PdfReaderDialogProps {
+  /** Sanitized https PDF URL. */
+  url: string;
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Optional trigger element (rendered via DialogTrigger asChild). */
+  trigger?: ReactNode;
+}
 
+/** Full-screen reader dialog: a toolbar (open externally, download) above the embedded PDF. */
+export function PdfReaderDialog({ url, title, open, onOpenChange, trigger }: PdfReaderDialogProps) {
+  const intl = useIntl();
   const filename = /\.pdf($|\?)/i.test(url) ? undefined : `${title}.pdf`;
 
-  const openExternally = () => {
-    void openUrl(url);
-  };
-
-  // Native: the "Read" button opens the PDF in the device's viewer directly.
-  if (isNative) {
-    return (
-      <Button className={className} onClick={openExternally}>
-        <BookOpen className="mr-2 size-4" />
-        {label}
-      </Button>
-    );
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className={className}>
-          <BookOpen className="mr-2 size-4" />
-          {label}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
 
-      {/* Reader dialog */}
       <DialogContent
         className="flex h-[95dvh] w-screen max-w-none flex-col gap-0 rounded-none border-0 p-0 sm:h-[95vh] sm:w-[95vw] sm:max-w-[95vw] sm:rounded-xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
@@ -109,7 +94,7 @@ export function PdfViewer({ url, title, label: labelProp, className }: PdfViewer
             <Button
               variant="ghost"
               size="icon"
-              onClick={openExternally}
+              onClick={() => void openUrl(url)}
               aria-label={intl.formatMessage({ id: 'pdfViewer.openInNewTab', defaultMessage: 'Open PDF in new tab' })}
             >
               <ExternalLink className="size-4" />
@@ -124,5 +109,37 @@ export function PdfViewer({ url, title, label: labelProp, className }: PdfViewer
         <PdfFrame url={url} title={title} className="min-h-0 flex-1" />
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function PdfViewer({ url, title, label: labelProp, className }: PdfViewerProps) {
+  const intl = useIntl();
+  const label = labelProp ?? intl.formatMessage({ id: 'pdfViewer.read', defaultMessage: 'Read' });
+  const [open, setOpen] = useState(false);
+
+  // On native the inline WebView PDF experience is inconsistent; the "Read"
+  // button opens the PDF in the device's viewer directly.
+  if (Capacitor.isNativePlatform()) {
+    return (
+      <Button className={className} onClick={() => void openUrl(url)}>
+        <BookOpen className="mr-2 size-4" />
+        {label}
+      </Button>
+    );
+  }
+
+  return (
+    <PdfReaderDialog
+      url={url}
+      title={title}
+      open={open}
+      onOpenChange={setOpen}
+      trigger={
+        <Button className={className}>
+          <BookOpen className="mr-2 size-4" />
+          {label}
+        </Button>
+      }
+    />
   );
 }

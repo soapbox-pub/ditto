@@ -322,33 +322,18 @@ export default {
 				'100%': { transform: 'translate(var(--spark-x, 0px), var(--spark-y, 0px)) scale(0.5)', opacity: '0' }
 			},
 			'magazine-drop': {
-				// Pulp magazine card: the issue is tossed onto the table,
-				// lands a touch past flat, and settles.
+				// Pulp magazine: the issue is tossed down, lands a touch
+				// past flat, and settles.
 				'0%': { transform: 'translate3d(0, -40px, 0) rotate(10deg) scale(1.18)', opacity: '0' },
 				'55%': { transform: 'translate3d(0, 3px, 0) rotate(-1deg) scale(0.98)', opacity: '1' },
 				'78%': { transform: 'translate3d(0, -2px, 0) rotate(0.5deg) scale(1.01)' },
 				'100%': { transform: 'none', opacity: '1' }
 			},
 			'magazine-dust': {
-				// Puff of table dust where the magazine lands.
+				// Puff of dust where the magazine lands.
 				'0%, 45%': { transform: 'scale(0.7)', opacity: '0' },
 				'60%': { opacity: '0.8' },
 				'100%': { transform: 'scale(1.5)', opacity: '0' }
-			},
-			'terminal-boot': {
-				// Terminal readout line typing itself in left to right.
-				'0%': { clipPath: 'inset(0 100% 0 0)', opacity: '0' },
-				'1%': { opacity: '1' },
-				'100%': { clipPath: 'inset(0 0 0 0)', opacity: '1' }
-			},
-			'terminal-blink': {
-				'0%, 100%': { opacity: '1' },
-				'50%': { opacity: '0' }
-			},
-			'crt-scan': {
-				// Faint scan bar rolling down a CRT readout.
-				'0%': { transform: 'translateY(-100%)' },
-				'100%': { transform: 'translateY(300%)' }
 			}
 			},
 			animation: {
@@ -382,10 +367,7 @@ export default {
 				'reaction-spark': 'reaction-spark 0.6s cubic-bezier(0.16, 1, 0.3, 1) 90ms both',
 				'reaction-halo': 'success-halo 0.5s cubic-bezier(0.16, 1, 0.3, 1) 90ms both',
 				'magazine-drop': 'magazine-drop 0.75s cubic-bezier(0.2, 0.8, 0.3, 1) both',
-				'magazine-dust': 'magazine-dust 0.9s ease-out both',
-				'terminal-boot': 'terminal-boot 0.45s steps(16, end) both',
-				'terminal-blink': 'terminal-blink 1s steps(1, end) infinite',
-				'crt-scan': 'crt-scan 6s linear infinite'
+				'magazine-dust': 'magazine-dust 0.9s ease-out both'
 			}
 		}
 	},

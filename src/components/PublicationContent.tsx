@@ -15,12 +15,13 @@ import { useMemo } from 'react';
 import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { BookOpen, Newspaper, Calendar, Globe, FileText, ExternalLink, Download } from 'lucide-react';
+import { BookOpen, Calendar, Globe, FileText, ExternalLink, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { PdfViewer } from '@/components/PdfViewer';
+import { PulpMagazine } from '@/components/PulpMagazineCard';
 import { useMagazineIssues } from '@/hooks/useMagazineIssues';
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
@@ -69,25 +70,27 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
     <div className={cn('mt-3 space-y-6', className)}>
       <div className="flex flex-col gap-6 sm:flex-row">
         {/* Cover */}
-        <div className="mx-auto shrink-0 sm:mx-0">
-          {pub.image ? (
-            <img
-              src={pub.image}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-40 rounded-xl border border-border-subtle object-cover shadow-md aspect-[2/3] sm:w-48"
-            />
-          ) : (
-            <div className="flex w-40 items-center justify-center rounded-xl border border-border-subtle bg-muted aspect-[2/3] sm:w-48">
-              {isIssue ? (
-                <Newspaper className="size-16 text-muted-foreground" />
-              ) : (
+        {isIssue ? (
+          <div className="mx-auto shrink-0 px-2 py-4 sm:mx-0">
+            <PulpMagazine event={event} size="detail" />
+          </div>
+        ) : (
+          <div className="mx-auto shrink-0 sm:mx-0">
+            {pub.image ? (
+              <img
+                src={pub.image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="w-40 rounded-xl border border-border-subtle object-cover shadow-md aspect-[2/3] sm:w-48"
+              />
+            ) : (
+              <div className="flex w-40 items-center justify-center rounded-xl border border-border-subtle bg-muted aspect-[2/3] sm:w-48">
                 <BookOpen className="size-16 text-muted-foreground" />
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Metadata */}
         <div className="min-w-0 flex-1">
@@ -196,20 +199,10 @@ function MagazineContent({ event, className }: PublicationContentProps) {
 
   return (
     <div className={cn('mt-3 space-y-6', className)}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        {pub.image ? (
-          <img
-            src={pub.image}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="mx-auto size-24 rounded-xl border border-border-subtle object-cover shadow-sm sm:mx-0"
-          />
-        ) : (
-          <div className="mx-auto flex size-24 items-center justify-center rounded-xl border border-border-subtle bg-muted sm:mx-0">
-            <Newspaper className="size-10 text-muted-foreground" />
-          </div>
-        )}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+        <div className="mx-auto shrink-0 px-2 py-4 sm:mx-0">
+          <PulpMagazine event={event} size="detail" />
+        </div>
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <FormattedMessage id="publication.magazine" defaultMessage="Magazine" />
@@ -240,16 +233,16 @@ function MagazineContent({ event, className }: PublicationContentProps) {
         </h2>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10 px-2 pt-4 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-2">
-                <Skeleton className="w-full rounded-lg aspect-[2/3]" />
+                <Skeleton className="w-full rounded-sm aspect-[3/4]" />
                 <Skeleton className="h-4 w-3/4" />
               </div>
             ))}
           </div>
         ) : sortedIssues.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10 px-2 pt-4 sm:grid-cols-3">
             {sortedIssues.map((issue) => (
               <IssueGridItem key={issue.id} event={issue} />
             ))}
@@ -273,21 +266,9 @@ function IssueGridItem({ event }: { event: NostrEvent }) {
   const naddr = useMemo(() => publicationNaddr(event), [event]);
 
   return (
-    <Link to={`/${naddr}`} className="group block space-y-2">
-      {pub.image ? (
-        <img
-          src={pub.image}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="w-full rounded-lg border border-border-subtle object-cover shadow-sm transition-transform aspect-[2/3] group-hover:scale-[1.02]"
-        />
-      ) : (
-        <div className="flex w-full items-center justify-center rounded-lg border border-border-subtle bg-muted aspect-[2/3]">
-          <Newspaper className="size-10 text-muted-foreground" />
-        </div>
-      )}
-      <div>
+    <div className="space-y-3">
+      <PulpMagazine event={event} size="grid" />
+      <Link to={`/${naddr}`} className="group block">
         {pub.issue && (
           <p className="text-xs font-medium text-primary">
             <FormattedMessage id="publication.issueNumber" defaultMessage="Issue {issue}" values={{ issue: pub.issue }} />
@@ -296,7 +277,7 @@ function IssueGridItem({ event }: { event: NostrEvent }) {
         <p className="line-clamp-2 text-sm font-medium leading-snug group-hover:underline">
           {pub.title}
         </p>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
