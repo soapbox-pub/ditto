@@ -95,7 +95,7 @@ export interface PaymentMethodDef {
 }
 
 /** Loose lightning-address / LNURL shape check. */
-function isLightningAuthority(s: string): boolean {
+export function isLightningAuthority(s: string): boolean {
   const v = s.trim();
   if (!v) return false;
   // lud16 lightning address: user@domain.tld
@@ -106,7 +106,7 @@ function isLightningAuthority(s: string): boolean {
 }
 
 /** Bitcoin authority: a mainnet on-chain address OR a BIP-352 silent payment code. */
-function isBitcoinAuthority(s: string): boolean {
+export function isBitcoinAuthority(s: string): boolean {
   const v = s.trim();
   if (!v) return false;
   if (isSilentPaymentAddress(v)) return validateSilentPaymentAddress(v);

@@ -37,6 +37,9 @@ import { parseImetaEntries, parseImetaMap, type ImetaEntry } from '@/lib/imeta';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseArmadaInvite, type ArmadaInvite } from '@/lib/armadaInvite';
 import { isNostrId } from '@/lib/nostrId';
+import { parseBitcoinUri } from '@/lib/esploraApi';
+import { isBitcoinAuthority, isLightningAuthority } from '@/lib/paymentTargets';
+import { PaymentUriLink } from '@/components/PaymentUriLink';
 import { HASHTAG_PATTERN } from '@/lib/hashtag';
 import { stripTrackingParams } from '@/lib/trackingParams';
 import { highlightSourceAttrs } from '@/lib/highlightSource';
@@ -313,7 +316,30 @@ type ContentToken =
   | { type: 'hashtag'; tag: string; raw: string }
   | { type: 'relay-link'; url: string }
   | { type: 'lightning-invoice'; invoice: string }
+  | { type: 'payment-uri'; scheme: 'bitcoin' | 'lightning'; uri: string; address: string }
   | { type: 'blossom-uri'; uri: BlossomUri; raw: string };
+
+/** Trailing punctuation that ends a sentence rather than a URI. */
+const TRAILING_PUNCT_REGEX = /[.,;:!?)\]]+$/;
+
+/**
+ * Validate a `bitcoin:` (BIP-21) or `lightning:` URI from note content.
+ * Returns the address it pays, or `null` when the payload isn't a well-formed
+ * address — an unvalidated string must never be offered as a payment target.
+ */
+function parsePaymentUri(raw: string): { scheme: 'bitcoin' | 'lightning'; address: string } | null {
+  const bip21 = parseBitcoinUri(raw);
+  if (bip21) {
+    if (bip21.address && isBitcoinAuthority(bip21.address)) return { scheme: 'bitcoin', address: bip21.address };
+    if (!bip21.address && bip21.sp && isBitcoinAuthority(bip21.sp)) return { scheme: 'bitcoin', address: bip21.sp };
+    return null;
+  }
+  const lightning = /^lightning:(.+)$/i.exec(raw);
+  if (lightning && isLightningAuthority(lightning[1])) {
+    return { scheme: 'lightning', address: lightning[1] };
+  }
+  return null;
+}
 
 /**
  * Regex segment matching a single visual emoji unit, including:
@@ -414,7 +440,10 @@ export function NoteContent({
       + '|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)'
       + `|(^|${BARE_NIP19_BOUNDARY})@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)`
       + `|(${HASHTAG_PATTERN})`
-      + '|(blossom:[a-f0-9]{64}\\.[a-z0-9]+(?:\\?[^\\s]*)?)',
+      + '|(blossom:[a-f0-9]{64}\\.[a-z0-9]+(?:\\?[^\\s]*)?)'
+      // bitcoin: BIP-21 URIs and lightning: addresses / LNURLs (a lightning:
+      // BOLT11 invoice is claimed by the first branch).
+      + '|((?:bitcoin|lightning):[^\\s<>"]+)',
       'giu',
     );
 
@@ -430,6 +459,7 @@ export function NoteContent({
       let url = match[2];
       const hashtag = match[8];
       const blossom = match[9];
+      const paymentUri = match[10];
       const { 3: nostrPrefix, 4: nostrData, 5: bareBoundary, 6: barePrefix, 7: bareData } = match;
       let index = match.index;
       hadMatches = true;
@@ -646,6 +676,16 @@ export function NoteContent({
         }
         // Unparseable → leave as plain text.
         result.push({ type: 'text', value: fullMatch });
+      } else if (paymentUri) {
+        // Punctuation closing the sentence goes back to the following text.
+        const uri = paymentUri.replace(TRAILING_PUNCT_REGEX, '');
+        fullMatch = uri;
+        const parsed = parsePaymentUri(uri);
+        if (parsed) {
+          result.push({ type: 'payment-uri', uri, ...parsed });
+        } else {
+          result.push({ type: 'text', value: fullMatch });
+        }
       }
 
       lastIndex = index + fullMatch.length;
@@ -1082,6 +1122,8 @@ export function NoteContent({
               return <span key={i} className="text-primary break-all">{token.invoice}</span>;
             }
             return <LightningInvoiceCard key={i} invoice={token.invoice} />;
+          case 'payment-uri':
+            return <PaymentUriLink key={i} scheme={token.scheme} uri={token.uri} address={token.address} />;
           case 'blossom-uri':
             if (disableEmbeds || disableMediaEmbeds) {
               return null;
