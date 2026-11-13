@@ -156,8 +156,6 @@ export function TestApp({ children }: TestAppProps) {
     hideMediaFromStrangers: false,
     sentryDsn: "",
     sentryEnabled: false,
-    plausibleDomain: "",
-    plausibleEndpoint: "",
     savedFeeds: [],
     autoplayVideos: false,
     stripTrackingParams: true,

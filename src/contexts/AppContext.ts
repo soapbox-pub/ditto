@@ -398,10 +398,6 @@ export interface AppConfig {
   sentryDsn: string;
   /** Whether the user has enabled Sentry error reporting. */
   sentryEnabled: boolean;
-  /** Plausible Analytics domain (empty string = disabled). */
-  plausibleDomain: string;
-  /** Plausible Analytics API endpoint (empty string = use default). */
-  plausibleEndpoint: string;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
   /** Autoplay videos in feeds and previews (muted). Default: false. */

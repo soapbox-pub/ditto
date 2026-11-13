@@ -11,6 +11,18 @@ import { useNostrPublish } from './useNostrPublish';
 import { useBackgroundQuiet } from './useBackgroundQuiet';
 import { createLiveCursor } from '@/lib/backgroundQuiet';
 
+/** Minimum time between `sendUpdate` events, advertised to the app. */
+const SEND_UPDATE_INTERVAL_MS = 1000;
+
+/** Largest `sendUpdate` payload in bytes, advertised to the app. */
+const SEND_UPDATE_MAX_SIZE = 65536;
+
+/** Updates waiting for their turn before more are dropped. */
+const MAX_QUEUED_UPDATES = 10;
+
+/** Realtime messages each user may sign per second. */
+const MAX_REALTIME_PER_SECOND = 20;
+
 /**
  * Creates a `Webxdc` API instance backed by Nostr kind 4932 state update events.
  *
@@ -165,6 +177,35 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     }
   }, [user, publishEvent, ephemeralSigner, nostr]);
 
+  // Every update is signed as the user, so the limits advertised to the app
+  // are enforced here: oversized updates are dropped, and the rest are sent
+  // at most once per interval, queued up to a cap.
+  const updateQueueRef = useRef<Array<() => void>>([]);
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUpdateSentRef = useRef(0);
+
+  const pumpUpdates = useCallback(() => {
+    updateTimerRef.current = null;
+    const wait = lastUpdateSentRef.current + SEND_UPDATE_INTERVAL_MS - Date.now();
+    if (wait > 0) {
+      updateTimerRef.current = setTimeout(pumpUpdates, wait);
+      return;
+    }
+    const send = updateQueueRef.current.shift();
+    if (!send) return;
+    lastUpdateSentRef.current = Date.now();
+    send();
+    if (updateQueueRef.current.length) {
+      updateTimerRef.current = setTimeout(pumpUpdates, SEND_UPDATE_INTERVAL_MS);
+    }
+  }, []);
+
+  // Send what's still queued on close rather than lose the app's state.
+  useEffect(() => () => {
+    if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
+    for (const send of updateQueueRef.current.splice(0)) send();
+  }, []);
+
   const sendUpdate = useCallback((update: SendingStatusUpdate<unknown>, _description: '') => {
     const tags: string[][] = [
       ['i', uuid],
@@ -174,15 +215,29 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     if (update.document) tags.push(['document', update.document]);
     if (update.summary) tags.push(['summary', update.summary]);
 
-    publishSigned({
-      kind: 4932,
-      content: JSON.stringify(update.payload),
-      tags,
-      created_at: Math.floor(Date.now() / 1000),
-    }).catch((err) => {
-      console.error('Failed to publish webxdc update:', err);
+    const content = JSON.stringify(update.payload) ?? 'null';
+    const size = new TextEncoder().encode(content + (update.info ?? '') + (update.document ?? '') + (update.summary ?? '')).length;
+    if (size > SEND_UPDATE_MAX_SIZE) {
+      console.error(`Webxdc update dropped: ${size} bytes exceeds sendUpdateMaxSize (${SEND_UPDATE_MAX_SIZE})`);
+      return;
+    }
+    if (updateQueueRef.current.length >= MAX_QUEUED_UPDATES) {
+      console.error('Webxdc update dropped: the app is sending updates faster than sendUpdateInterval');
+      return;
+    }
+
+    updateQueueRef.current.push(() => {
+      publishSigned({
+        kind: 4932,
+        content,
+        tags,
+        created_at: Math.floor(Date.now() / 1000),
+      }).catch((err) => {
+        console.error('Failed to publish webxdc update:', err);
+      });
     });
-  }, [uuid, publishSigned]);
+    if (!updateTimerRef.current) pumpUpdates();
+  }, [uuid, publishSigned, pumpUpdates]);
 
   const setUpdateListener = useCallback(async (
     cb: (update: ReceivedStatusUpdate<unknown>) => void,
@@ -224,6 +279,8 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     realtimeAbortRef.current = abortController;
 
     let realtimeListener: ((data: Uint8Array) => void) | null = null;
+    // Send times within the last second, for the realtime rate cap.
+    const recentSends: number[] = [];
 
     // Subscribe to ephemeral kind 20932 events for this UUID
     const startSubscription = async () => {
@@ -265,6 +322,12 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
           throw new Error('Realtime payload exceeds 128,000 byte limit');
         }
 
+        // Realtime data is lossy by design, so excess messages are dropped.
+        const now = Date.now();
+        while (recentSends.length && recentSends[0] <= now - 1000) recentSends.shift();
+        if (recentSends.length >= MAX_REALTIME_PER_SECOND) return;
+        recentSends.push(now);
+
         // Base64-encode the Uint8Array
         let binary = '';
         for (let i = 0; i < data.length; i++) {
@@ -292,8 +355,8 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   return useMemo((): WebxdcAPI<unknown> => ({
     selfAddr,
     selfName,
-    sendUpdateInterval: 1000,
-    sendUpdateMaxSize: 65536,
+    sendUpdateInterval: SEND_UPDATE_INTERVAL_MS,
+    sendUpdateMaxSize: SEND_UPDATE_MAX_SIZE,
     sendUpdate,
     setUpdateListener,
     getAllUpdates,

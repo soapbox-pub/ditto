@@ -16,7 +16,6 @@ import { PushNotificationsProvider } from "@/components/PushNotificationsProvide
 import NostrProvider from "@/components/NostrProvider";
 import { NostrSync } from "@/components/NostrSync";
 import { NotificationStream } from "@/components/NotificationStream";
-import { PlausibleProvider } from "@/components/PlausibleProvider";
 import { SentryProvider } from "@/components/SentryProvider";
 
 
@@ -210,8 +209,6 @@ const hardcodedConfig: AppConfig = {
   hideMediaFromStrangers: false,
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || "",
   sentryEnabled: true,
-  plausibleDomain: import.meta.env.VITE_PLAUSIBLE_DOMAIN || "",
-  plausibleEndpoint: import.meta.env.VITE_PLAUSIBLE_ENDPOINT || "",
   savedFeeds: [],
   autoplayVideos: false,
   stripTrackingParams: true,
@@ -264,32 +261,30 @@ export function App() {
       <I18nProvider>
         <NsecPasteGuard />
         <SentryProvider>
-          <PlausibleProvider>
-            <QueryClientProvider client={queryClient}>
-              <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
-                <ActiveAccountSync />
-                <LogoutCleanup />
-                <NostrProvider>
-                  <NostrSync />
-                  <RelayAuthPrompt />
-                  <NotificationStream />
-                  <MoneroBackgroundSync />
+          <QueryClientProvider client={queryClient}>
+            <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
+              <ActiveAccountSync />
+              <LogoutCleanup />
+              <NostrProvider>
+                <NostrSync />
+                <RelayAuthPrompt />
+                <NotificationStream />
+                <MoneroBackgroundSync />
 
-                  <PushNotificationsProvider>
-                    <NWCProvider>
-                      <EmotionDevProvider>
-                        <TooltipProvider>
-                          <InitialSyncGate>
-                            <AppRouter />
-                          </InitialSyncGate>
-                        </TooltipProvider>
-                      </EmotionDevProvider>
-                    </NWCProvider>
-                  </PushNotificationsProvider>
-                </NostrProvider>
-              </NostrLoginProvider>
-            </QueryClientProvider>
-          </PlausibleProvider>
+                <PushNotificationsProvider>
+                  <NWCProvider>
+                    <EmotionDevProvider>
+                      <TooltipProvider>
+                        <InitialSyncGate>
+                          <AppRouter />
+                        </InitialSyncGate>
+                      </TooltipProvider>
+                    </EmotionDevProvider>
+                  </NWCProvider>
+                </PushNotificationsProvider>
+              </NostrProvider>
+            </NostrLoginProvider>
+          </QueryClientProvider>
         </SentryProvider>
       </I18nProvider>
     </AppProvider>

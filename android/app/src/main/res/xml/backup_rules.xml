@@ -7,7 +7,8 @@
     Google Drive backups. Keychain/KeyStore entries used by
     capacitor-secure-storage-plugin are not backed up by default, so we don't
     need to exclude those explicitly; but we also exclude the plugin's
-    SharedPreferences for defense in depth.
+    SharedPreferences (`cap_sec`): if KeyStore setup fails, the plugin falls
+    back to storing values there as plain base64, nsec included.
 
     See: https://developer.android.com/guide/topics/data/autobackup
 -->
@@ -17,8 +18,8 @@
     <exclude domain="database" path="webview.db" />
     <exclude domain="database" path="webviewCache.db" />
 
-    <!-- capacitor-secure-storage-plugin fallback SharedPreferences -->
-    <exclude domain="sharedpref" path="CapacitorSecureStoragePluginSharedPreferences.xml" />
+    <!-- capacitor-secure-storage-plugin SharedPreferences -->
+    <exclude domain="sharedpref" path="cap_sec.xml" />
 
     <!-- Capacitor preferences plugin — may contain app-level settings -->
     <exclude domain="sharedpref" path="CapacitorStorage.xml" />

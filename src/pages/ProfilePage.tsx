@@ -127,6 +127,7 @@ import { decodeNip19, tryNpubEncode } from '@/lib/safeNip19';
 import { parseBirthdayFromContent, isBirthdayToday } from '@/lib/birthday';
 import { startBirthdayJingle, stopBirthdayJingle } from '@/lib/birthdayJingle';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
 import { themeEventToConfig } from '@/lib/themeEvent';
 import { startThemePreview, usePageThemeOverride } from '@/lib/themePreview';
 import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
@@ -812,15 +813,17 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
               <BitcoinQRModal address={field.value} />
             </MountOnOpen>
           </Dialog>
-          <a
-            href={`https://mempool.space/address/${field.value}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
-            title={intl.formatMessage({ id: 'profile.bitcoin.viewOnMempool', defaultMessage: 'View on mempool.space' })}
-          >
-            <ExternalLink className="size-4" />
-          </a>
+          {validateBitcoinAddress(field.value) && (
+            <a
+              href={`https://mempool.space/address/${field.value}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+              title={intl.formatMessage({ id: 'profile.bitcoin.viewOnMempool', defaultMessage: 'View on mempool.space' })}
+            >
+              <ExternalLink className="size-4" />
+            </a>
+          )}
         </div>
       </div>
     );

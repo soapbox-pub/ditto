@@ -34,6 +34,7 @@ import { mimeFromExt } from '@/lib/mediaUrls';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
 import { parseImetaEntries } from '@/lib/imeta';
 import { companionEncryption, type FileEncryption } from '@/lib/encryptedFile';
 import { DecryptedImage } from '@/components/DecryptedImage';
@@ -406,14 +407,16 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
                 <BitcoinQRModal address={field.value} />
               </MountOnOpen>
             </Dialog>
-            <a
-              href={`https://mempool.space/address/${field.value}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
-            >
-              <ExternalLink className="size-4" />
-            </a>
+            {validateBitcoinAddress(field.value) && (
+              <a
+                href={`https://mempool.space/address/${field.value}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+              >
+                <ExternalLink className="size-4" />
+              </a>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">

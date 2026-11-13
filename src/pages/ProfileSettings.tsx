@@ -11,6 +11,7 @@ import { defineMessage, FormattedMessage, useIntl, type IntlShape } from 'react-
 
 import { saveNsec } from '@/lib/credentialManager';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { publishedImageUrl } from '@/lib/metadataSchema';
 import { parseNip05Address } from '@/lib/nip05';
 import { parseBirthdayFromContent, daysInMonth, type Birthday } from '@/lib/birthday';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
@@ -551,8 +552,8 @@ export function ProfileSettings() {
       form.reset({
         name: metadata.name ?? '',
         about: metadata.about ?? '',
-        picture: metadata.picture ?? '',
-        banner: metadata.banner ?? '',
+        picture: publishedImageUrl(event?.content, 'picture') ?? '',
+        banner: publishedImageUrl(event?.content, 'banner') ?? '',
         website: metadata.website ?? '',
         nip05: metadata.nip05 ?? '',
         lud16: metadata.lud16 ?? '',

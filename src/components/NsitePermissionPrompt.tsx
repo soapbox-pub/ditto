@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { AlertTriangle, Check, KeyRound, Lock, Pen, ShieldAlert, X } from 'lucide-react';
 
@@ -30,6 +30,9 @@ interface NsitePermissionPromptProps {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** How long Allow stays disabled after the prompt opens. */
+const ALLOW_DELAY_MS = 750;
 
 function getPromptIcon(type: NsitePromptState['type']) {
   switch (type) {
@@ -73,6 +76,28 @@ const messages = defineMessages({
     defaultMessage: 'This will replace your Ditto settings, including your relays and content filters.',
   },
   settingsRead: { id: 'nsite.prompt.settingsRead', defaultMessage: 'This record contains your Ditto settings.' },
+  dangerVanish: {
+    id: 'nsite.prompt.danger.vanish',
+    defaultMessage: 'This asks relays to permanently erase your account and everything you have posted.',
+  },
+  dangerFutureDated: {
+    id: 'nsite.prompt.danger.futureDated',
+    defaultMessage: 'This event is dated in the future. Until then, it would override any changes you make to it.',
+  },
+  dangerProfile: { id: 'nsite.prompt.danger.profile', defaultMessage: 'This would clear these fields from your profile: {fields}.' },
+  dangerList: {
+    id: 'nsite.prompt.danger.list',
+    defaultMessage: '{label}: this would remove {removed} of your {total, plural, one {# entry} other {# entries}}.',
+  },
+  dangerPrivateList: { id: 'nsite.prompt.danger.privateList', defaultMessage: '{label}: this would erase your private entries.' },
+  dangerDeleteLists: {
+    id: 'nsite.prompt.danger.deleteLists',
+    defaultMessage: 'This would delete your profile, your follows, or one of your lists.',
+  },
+  dangerDeleteMany: {
+    id: 'nsite.prompt.danger.deleteMany',
+    defaultMessage: 'This would delete {count} of your posts.',
+  },
   rememberSession: { id: 'nsite.prompt.rememberSession', defaultMessage: 'Remember until this app is closed' },
   rememberSite: { id: 'nsite.prompt.rememberSite', defaultMessage: 'Remember for this site' },
 });
@@ -112,6 +137,32 @@ function getPromptDescription(prompt: NsitePromptState, intl: IntlShape): string
   }
 }
 
+/** Warning for an event that would wipe the user's data, or null. */
+function getDestructiveWarning(prompt: NsitePromptState, intl: IntlShape): string | null {
+  const { warning } = prompt;
+  if (!warning) return null;
+  switch (warning.type) {
+    case 'vanish':
+      return intl.formatMessage(messages.dangerVanish);
+    case 'futureDated':
+      return intl.formatMessage(messages.dangerFutureDated);
+    case 'profile':
+      return intl.formatMessage(messages.dangerProfile, { fields: intl.formatList(warning.fields.slice(0, 6)) });
+    case 'list':
+      return intl.formatMessage(messages.dangerList, {
+        label: getKindLabel(intl, warning.kind),
+        removed: warning.removed,
+        total: warning.total,
+      });
+    case 'privateList':
+      return intl.formatMessage(messages.dangerPrivateList, { label: getKindLabel(intl, warning.kind) });
+    case 'deleteLists':
+      return intl.formatMessage(messages.dangerDeleteLists);
+    case 'deleteMany':
+      return intl.formatMessage(messages.dangerDeleteMany, { count: warning.count });
+  }
+}
+
 /** Warning for records holding key material or settings, or null. */
 function getSensitiveWarning(prompt: NsitePromptState, intl: IntlShape): string | null {
   const { type, record } = prompt;
@@ -146,14 +197,29 @@ export function NsitePermissionPrompt({
   const [remember, setRemember] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
+  // The site decides when this prompt opens, over a frame it controls. Allow
+  // waits a moment, and a pointer press must start on it, so a click the site
+  // lured the user into making doesn't land on it.
+  const [armed, setArmed] = useState(false);
+  const pressedRef = useRef(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setArmed(true), ALLOW_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   const canRemember = prompt.rememberMode !== 'never';
-  const handleAllow = () => onResolve({ allowed: true, remember: canRemember && remember });
+  const handleAllow = (e: MouseEvent) => {
+    // `detail` is 0 for keyboard activation, which has no pointer press.
+    if (!armed || (e.detail !== 0 && !pressedRef.current)) return;
+    onResolve({ allowed: true, remember: canRemember && remember });
+  };
   const handleDeny = () => onResolve({ allowed: false, remember: canRemember && remember });
 
   const icon = getPromptIcon(prompt.type);
   const title = getPromptTitle(prompt, intl);
   const description = getPromptDescription(prompt, intl);
-  const warning = getSensitiveWarning(prompt, intl);
+  const destructive = getDestructiveWarning(prompt, intl);
+  const warning = destructive ?? getSensitiveWarning(prompt, intl);
 
   // For signEvent, show a preview of the event content.
   const eventContent = prompt.event?.content as string | undefined;
@@ -268,7 +334,10 @@ export function NsitePermissionPrompt({
             <FormattedMessage id="nsite.prompt.deny" defaultMessage="Deny" />
           </Button>
           <Button
+            variant={destructive ? 'destructive' : 'default'}
             className="flex-1 gap-1.5"
+            disabled={!armed}
+            onPointerDown={() => { pressedRef.current = armed; }}
             onClick={handleAllow}
           >
             <Check className="size-3.5" />

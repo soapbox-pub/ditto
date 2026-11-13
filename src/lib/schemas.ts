@@ -9,8 +9,11 @@ import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
 
 
-/** HSL value string like "258 70% 55%" */
-const HslValue = z.string().regex(/^\d/);
+/**
+ * HSL value string like "258 70% 55%" (decimals allowed). Strict, because it
+ * is written into the theme's `<style>` as a CSS custom property.
+ */
+const HslValue = z.string().regex(/^\d{1,3}(\.\d+)?\s+\d{1,3}(\.\d+)?%\s+\d{1,3}(\.\d+)?%$/);
 
 /** Zod schema for CoreThemeColors (the 3 core colors) */
 export const CoreThemeColorsSchema = z.object({
@@ -312,8 +315,6 @@ export const AppConfigSchema = z.object({
   hideMediaFromStrangers: z.boolean().optional(),
   sentryDsn: z.string(),
   sentryEnabled: z.boolean(),
-  plausibleDomain: z.string(),
-  plausibleEndpoint: z.string(),
   savedFeeds: z.array(z.unknown()).transform((arr) =>
     arr.flatMap((item) => {
       if (typeof item !== 'object' || item === null) return [];

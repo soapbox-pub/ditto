@@ -13,14 +13,14 @@
         <exclude domain="file" path="app_webview/" />
         <exclude domain="database" path="webview.db" />
         <exclude domain="database" path="webviewCache.db" />
-        <exclude domain="sharedpref" path="CapacitorSecureStoragePluginSharedPreferences.xml" />
+        <exclude domain="sharedpref" path="cap_sec.xml" />
         <exclude domain="sharedpref" path="CapacitorStorage.xml" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="app_webview/" />
         <exclude domain="database" path="webview.db" />
         <exclude domain="database" path="webviewCache.db" />
-        <exclude domain="sharedpref" path="CapacitorSecureStoragePluginSharedPreferences.xml" />
+        <exclude domain="sharedpref" path="cap_sec.xml" />
         <exclude domain="sharedpref" path="CapacitorStorage.xml" />
     </device-transfer>
 </data-extraction-rules>

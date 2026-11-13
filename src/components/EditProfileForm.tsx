@@ -28,6 +28,7 @@ import { useNostr } from '@nostrify/react';
 import { useUploadProfileImage } from '@/hooks/useUploadProfileImage';
 import { completeProfileImetaTags } from '@/lib/computeProfileImeta';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
+import { publishedImageUrl } from '@/lib/metadataSchema';
 import { parseNip05Address } from '@/lib/nip05';
 import { carriedProfileTags } from '@/lib/profileImeta';
 import {
@@ -135,8 +136,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({ onValuesChange
       form.reset({
         name: metadata.name || '',
         about: metadata.about || '',
-        picture: metadata.picture || '',
-        banner: metadata.banner || '',
+        picture: publishedImageUrl(event?.content, 'picture') ?? '',
+        banner: publishedImageUrl(event?.content, 'banner') ?? '',
         website: metadata.website || '',
         nip05: metadata.nip05 || '',
         lud16: metadata.lud16 || '',

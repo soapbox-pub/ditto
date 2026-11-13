@@ -6,11 +6,19 @@
  * stored decision exists, a prompt is shown to the user. Only one prompt is
  * shown at a time; requests that arrive while one is open are rejected.
  */
+import { useNostr } from '@nostrify/react';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
+import {
+  destructiveLookupFilter,
+  detectDestructiveEvent,
+  type NsiteDestructiveWarning,
+  type NsiteEventTemplate,
+} from '@/lib/nsiteDestructive';
 import {
   describeNsiteRecord,
   getNsitePermission,
@@ -47,6 +55,8 @@ export interface NsitePromptState {
    * `unknown` means a self-decrypt whose ciphertext matched no known record.
    */
   record?: NsiteRecordInfo | 'unknown';
+  /** For signEvent: why the event would wipe the user's data, if it would. */
+  warning?: NsiteDestructiveWarning;
   /** How long the user's decision may be remembered. */
   rememberMode: NsiteRememberMode;
 }
@@ -141,6 +151,7 @@ export function useNsiteSignerRpc({
 }: UseNsiteSignerRpcOptions): UseNsiteSignerRpcResult {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const { nostr } = useNostr();
   const { store } = useNostrStorage();
   const [pendingPrompt, setPendingPrompt] = useState<NsitePromptState | null>(null);
 
@@ -243,6 +254,30 @@ export function useNsiteSignerRpc({
       }
     },
     [siteId, siteName, user, showPrompt],
+  );
+
+  /**
+   * Whether signing `template` would wipe the user's profile or lists, or
+   * delete them. The current copy is read from relays and the local store, so
+   * a relay miss doesn't hide what would be lost.
+   */
+  const findDestructiveWarning = useCallback(
+    async (template: NsiteEventTemplate): Promise<NsiteDestructiveWarning | null> => {
+      if (!user) return null;
+      const filter = destructiveLookupFilter(template, user.pubkey);
+      let found: NostrEvent[] = [];
+      if (filter) {
+        const results = await Promise.allSettled([
+          nostr.query([filter], { signal: AbortSignal.timeout(5000) }),
+          store.query([filter]),
+        ]);
+        found = results
+          .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+          .filter((e) => e.pubkey === user.pubkey);
+      }
+      return detectDestructiveEvent(template, found, Math.floor(Date.now() / 1000));
+    },
+    [nostr, store, user],
   );
 
   /**
@@ -369,6 +404,16 @@ export function useNsiteSignerRpc({
 
           const kind = event.kind as number;
 
+          // Build the event template the signer expects.
+          const template = {
+            kind,
+            content: (event.content as string) ?? '',
+            tags: (event.tags as string[][]) ?? [],
+            created_at: (event.created_at as number) ?? Math.floor(Date.now() / 1000),
+          };
+
+          let scope: NsitePermissionScope = { type: 'signEvent', kind, dTag: null };
+          let record: NsiteRecordInfo | undefined;
           if (kind === 30078) {
             // Relays match `#d` filters against every `d` tag, so a second
             // one would let a grant for one record overwrite another.
@@ -376,25 +421,19 @@ export function useNsiteSignerRpc({
               throw new Error('Events with more than one d tag are not allowed');
             }
             const dTag = getDTag(event.tags);
-            const record = describeNsiteRecord(kind, dTag, config.appId);
-            await checkPermission(
-              { type: 'signEvent', kind, dTag },
-              { type: 'signEvent', kind, event, record, rememberMode: record.sensitive ? 'never' : 'always' },
-            );
-          } else {
-            await checkPermission(
-              { type: 'signEvent', kind, dTag: null },
-              { type: 'signEvent', kind, event, rememberMode: 'always' },
-            );
+            scope = { type: 'signEvent', kind, dTag };
+            record = describeNsiteRecord(kind, dTag, config.appId);
           }
 
-          // Build the event template the signer expects.
-          const template = {
-            kind: event.kind as number,
-            content: (event.content as string) ?? '',
-            tags: (event.tags as string[][]) ?? [],
-            created_at: (event.created_at as number) ?? Math.floor(Date.now() / 1000),
-          };
+          // A grant to sign a kind doesn't cover wiping what's stored under
+          // it, so destructive events are asked about every time. A remembered
+          // denial still stands.
+          const warning = await findDestructiveWarning(template) ?? undefined;
+          if (warning && getNsitePermission(siteId, user.pubkey, scope) === 'deny') {
+            throw new Error('User rejected');
+          }
+          const rememberMode = warning || record?.sensitive ? 'never' : 'always';
+          await checkPermission(scope, { type: 'signEvent', kind, event, record, warning, rememberMode });
 
           const signed = await signer.signEvent(template);
           return signed;
@@ -470,7 +509,7 @@ export function useNsiteSignerRpc({
           throw new Error(`Method not found: ${method}`);
       }
     },
-    [user, config.appId, checkPermission, gatedDecrypt],
+    [user, siteId, config.appId, checkPermission, gatedDecrypt, findDestructiveWarning],
   );
 
   return { onRpc, pendingPrompt, resolvePrompt };

@@ -90,9 +90,9 @@ export function PrivacyPolicyPage() {
         <section className="space-y-2">
           <h2 className="text-base font-bold text-foreground">Analytics</h2>
           <p>
-            {config.appName} may use privacy-friendly analytics (such as Plausible) to understand general usage
-            patterns. These analytics do not use cookies, do not track individual users, and do not collect
-            personal information.
+            {config.appName} itself contains no analytics or tracking scripts. The web version is served through a
+            hosting gateway that, like any web server, receives the address of each page you open, along with your
+            IP address and browser information.
           </p>
         </section>
 

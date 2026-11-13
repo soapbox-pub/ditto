@@ -1,4 +1,5 @@
 import type { IntlShape } from 'react-intl';
+import { validateBitcoinAddress } from '@/lib/bitcoinAddress';
 import { embedLabel } from '@/lib/linkEmbed';
 import { getCountryInfo } from '@/lib/countries';
 
@@ -29,9 +30,10 @@ export function parseExternalUri(uri: string): ExternalContent {
   if (btcTxMatch) {
     return { type: 'bitcoin-tx', value: uri, txid: btcTxMatch[1].toLowerCase() };
   }
-  // NIP-73 Bitcoin address: bitcoin:address:<address>
+  // NIP-73 Bitcoin address: bitcoin:address:<address>. The address lands in
+  // API and mempool.space paths, so it must be a real one.
   const btcAddrMatch = uri.match(/^bitcoin:address:(.+)$/);
-  if (btcAddrMatch) {
+  if (btcAddrMatch && validateBitcoinAddress(btcAddrMatch[1])) {
     return { type: 'bitcoin-address', value: uri, address: btcAddrMatch[1] };
   }
   if (uri.startsWith('http://') || uri.startsWith('https://')) {

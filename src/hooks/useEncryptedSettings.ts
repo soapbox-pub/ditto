@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter, NostrSigner } from '@nostrify/nostrify';
+import type { z } from 'zod';
 
 import { useAppContext } from '@/hooks/useAppContext';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
@@ -130,20 +131,51 @@ export interface EncryptedSettings {
   emojiUsage?: EmojiUsageEntry[];
 }
 
+/**
+ * Decrypt a settings event's content without validating it, to rebuild from
+ * when writing: fields this version can't read are carried over untouched.
+ * Throws if it can't be decrypted or parsed.
+ */
+async function decryptRawSettings(
+  nip44: NonNullable<NostrSigner['nip44']>,
+  pubkey: string,
+  content: string,
+): Promise<Record<string, unknown>> {
+  const json: unknown = JSON.parse(await nip44.decrypt(pubkey, content));
+  return json !== null && typeof json === 'object' && !Array.isArray(json) ? json as Record<string, unknown> : {};
+}
+
+/**
+ * Validate settings field by field, so one invalid field doesn't discard the
+ * rest. Invalid fields are dropped: they feed the theme's `<style>` and other
+ * sinks. Fields this version doesn't know pass through, as with the schema.
+ */
+function validateSettings(json: Record<string, unknown>): EncryptedSettings {
+  const result = EncryptedSettingsSchema.safeParse(json);
+  if (result.success) return result.data as EncryptedSettings;
+
+  console.warn('Encrypted settings failed validation, using partial data:', result.error.issues);
+  const shape: Record<string, z.ZodType | undefined> = EncryptedSettingsSchema.shape;
+  const valid: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(json)) {
+    const fieldSchema = shape[key];
+    if (!fieldSchema) {
+      valid[key] = value;
+      continue;
+    }
+    const field = fieldSchema.safeParse(value);
+    if (field.success) valid[key] = field.data;
+  }
+  return valid as EncryptedSettings;
+}
+
 /** Decrypt and validate a settings event's content. Throws if it can't be decrypted or parsed. */
 async function decryptSettings(
   nip44: NonNullable<NostrSigner['nip44']>,
   pubkey: string,
   content: string,
 ): Promise<EncryptedSettings> {
-  const json = JSON.parse(await nip44.decrypt(pubkey, content));
-  const result = EncryptedSettingsSchema.safeParse(json);
-  if (!result.success) {
-    console.warn('Encrypted settings failed validation, using partial data:', result.error.issues);
-    // Return whatever fields are valid rather than wiping everything
-    return (json ?? {}) as EncryptedSettings;
-  }
-  return result.data as EncryptedSettings;
+  return validateSettings(await decryptRawSettings(nip44, pubkey, content));
 }
 
 /** The newer of two versions of the same replaceable event. */
@@ -242,7 +274,7 @@ export function useEncryptedSettings() {
         // A decryption failure throws here on purpose: rebuilding from an
         // empty base would publish only `patch` and wipe every other setting.
         currentSettings = base?.content
-          ? await decryptSettings(user.signer.nip44, user.pubkey, base.content)
+          ? await decryptRawSettings(user.signer.nip44, user.pubkey, base.content) as EncryptedSettings
           : {};
       }
       // Carry the emoji usage table on every write. Signers that prompt per
@@ -297,7 +329,7 @@ export function useEncryptedSettings() {
     // settings cache entry is keyed correctly and NostrSync picks it up.
     onSuccess: ({ updatedSettings, signedEvent }) => {
       queryClient.setQueryData(['encryptedSettings', user?.pubkey], signedEvent);
-      queryClient.setQueryData(['parsedSettings', signedEvent.id], updatedSettings);
+      queryClient.setQueryData(['parsedSettings', signedEvent.id], validateSettings({ ...updatedSettings }));
       // Cache is now up to date — pending ref no longer needed
       pendingSettings.current = null;
       // Persist the sync timestamp so the next page load can skip the spinner
