@@ -132,6 +132,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeSno: true,
       feedIncludeBlobbi: true,
       feedIncludeTarot: false,
+      feedIncludePublications: false,
       showBirdstar: false,
       feedIncludeBirdDetections: false,
       feedIncludeBirdex: false,

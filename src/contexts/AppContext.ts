@@ -251,6 +251,8 @@ export interface FeedSettings {
   feedIncludeBlobbi: boolean;
   /** Include tarot readings (kind 2256, NIP-TR) in the follows/global feed */
   feedIncludeTarot: boolean;
+  /** Include magazines, magazine issues, and ebooks (kinds 34609, 39731, 33953) in the follows/global feed */
+  feedIncludePublications: boolean;
   /** Show Birdstar (kind 2473 bird detections + kind 30621 custom constellations) link in sidebar */
   showBirdstar: boolean;
   /** Include bird detections (kind 2473) in the follows/global feed */

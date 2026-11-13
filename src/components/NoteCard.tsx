@@ -62,7 +62,8 @@ import { Link } from "react-router-dom";
 /** Lazy-loaded markdown-heavy components — keeps react-markdown + unified pipeline out of the main feed bundle. */
 const EmbeddedArticleCard = lazy(() => import("@/components/EmbeddedArticleCard").then(m => ({ default: m.EmbeddedArticleCard })));
 const ClassifiedListingContent = lazy(() => import("@/components/ClassifiedListingContent").then(m => ({ default: m.ClassifiedListingContent })));
-const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
+const EmbeddedPublicationCard = lazy(() => import("@/components/EmbeddedPublicationCard").then(m => ({ default: m.EmbeddedPublicationCard })));
+const PulpMagazineCard = lazy(() => import("@/components/PulpMagazineCard").then(m => ({ default: m.PulpMagazineCard })));const BlobbiStateCard = lazy(() => import("@/components/BlobbiStateCard").then(m => ({ default: m.BlobbiStateCard })));
 const BlobbiSocialActions = lazy(() => import("@/components/BlobbiSocialActions").then(m => ({ default: m.BlobbiSocialActions })));
 import { useInteractionReaction, INVENTORY_TO_REACTION } from '@/blobbi/ui/hooks/useInteractionReaction';
 import type { InventoryAction } from '@/blobbi/actions/lib/blobbi-action-utils';
@@ -793,6 +794,10 @@ const NoteCardImpl = memo(function NoteCardImpl({
         ) : isClassifiedListing ? (
           <Suspense fallback={<Skeleton className="h-24 w-full rounded-lg" />}>
             <ClassifiedListingContent event={event} />
+          </Suspense>
+        ) : isPublication && event.kind !== EBOOK_KIND ? (
+          <Suspense fallback={<Skeleton className="mt-3 h-72 w-full rounded-2xl" />}>
+            <PulpMagazineCard event={event} />
           </Suspense>
         ) : isPublication ? (
           <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>

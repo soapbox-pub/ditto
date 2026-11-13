@@ -15,21 +15,19 @@ import { useMemo } from 'react';
 import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 import { Link } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useQuery } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
 import { BookOpen, Newspaper, Calendar, Globe, FileText, ExternalLink, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { PdfViewer } from '@/components/PdfViewer';
+import { useMagazineIssues } from '@/hooks/useMagazineIssues';
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
 import {
   parsePublication,
   publicationNaddr,
   formatFileSize,
-  magazineIssuesFilterValue,
   MAGAZINE_KIND,
   MAGAZINE_ISSUE_KIND,
   EBOOK_KIND,
@@ -193,34 +191,8 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
 // ── Magazine (parent, lists issues) ─────────────────────────────────────────
 
 function MagazineContent({ event, className }: PublicationContentProps) {
-  const { nostr } = useNostr();
   const pub = useMemo(() => parsePublication(event), [event]);
-
-  const { data: issues, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['magazine-issues', event.pubkey, pub.identifier],
-    queryFn: async (c) => {
-      const events = await nostr.query(
-        [
-          {
-            kinds: [MAGAZINE_ISSUE_KIND],
-            '#a': [magazineIssuesFilterValue(event.pubkey, pub.identifier)],
-            limit: 100,
-          },
-        ],
-        { signal: c.signal },
-      );
-      // Only trust issues published by the magazine's own author.
-      return events.filter((e) => e.pubkey === event.pubkey);
-    },
-  });
-
-  const sortedIssues = useMemo(() => {
-    return [...(issues ?? [])].sort((a, b) => {
-      const pa = Number(a.tags.find(([n]) => n === 'published_at')?.[1]) || a.created_at;
-      const pb = Number(b.tags.find(([n]) => n === 'published_at')?.[1]) || b.created_at;
-      return pb - pa;
-    });
-  }, [issues]);
+  const { issues: sortedIssues, isLoading } = useMagazineIssues(event.pubkey, pub.identifier);
 
   return (
     <div className={cn('mt-3 space-y-6', className)}>

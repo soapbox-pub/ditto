@@ -46,6 +46,7 @@ import {
   Smile,
   SmilePlus,
   Wallet,
+  Newspaper,
   Sparkles,
   Stars,
   Tag,
@@ -345,6 +346,7 @@ export const CONTENT_KIND_ICONS: Record<string, IconComponent> = {
   campaigns: HandHeart,
   attestations: ShieldCheck,
   "classified-listings": Tag,
+  publications: Newspaper,
   ...Object.fromEntries(
     SIDEBAR_ITEMS.filter((s) => s.icon).map((s) => [s.id, s.icon]),
   ),

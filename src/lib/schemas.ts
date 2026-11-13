@@ -227,6 +227,7 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeSno: z.boolean().optional(),
   feedIncludeBlobbi: z.boolean().optional(),
   feedIncludeTarot: z.boolean().optional(),
+  feedIncludePublications: z.boolean().optional(),
   showBadgeAwards: z.boolean().optional(),
   feedIncludeBadgeAwards: z.boolean().optional(),
   showBirdstar: z.boolean().optional(),

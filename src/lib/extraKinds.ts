@@ -2,7 +2,7 @@ import type { FeedSettings } from '@/contexts/AppContext';
 import type { NostrEvent } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
 import { defineMessage, type IntlShape, type MessageDescriptor } from 'react-intl';
-import { Bird, Box, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Link2, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
+import { Bird, BookOpen, Box, CircleAlert, CircleCheck, CircleDashed, CircleDot, CircleX, ClipboardCheck, Crown, GitBranch, GitPullRequest, GitPullRequestArrow, Globe, Heart, History, Link2, Server, Stars, UserCheck, UserRoundPen, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 
@@ -305,6 +305,20 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'media',
     blurb: defineMessage({ id: 'extraKinds.torrents.blurb', defaultMessage: 'Torrents indexed on Nostr: a title, a file list, and an info hash, enough to open the magnet link in your torrent client. No files are stored on Nostr itself.' }),
     sites: [{ url: 'https://dtan.xyz', name: 'dtan' }],
+  },
+  // Publications (feed-only — magazines, issues, and ebooks open on their naddr detail page)
+  {
+    kind: 34609,
+    id: 'publications',
+    feedKey: 'feedIncludePublications',
+    extraFeedKinds: [39731, 33953],
+    label: defineMessage({ id: 'extraKinds.publications.label', defaultMessage: 'Magazines & Ebooks' }),
+    description: defineMessage({ id: 'extraKinds.publications.description', defaultMessage: 'Digital magazines, magazine issues, and ebooks (kinds 34609, 39731, 33953)' }),
+    addressable: true,
+    section: 'media',
+    feedOnly: true,
+    blurb: defineMessage({ id: 'extraKinds.publications.blurb', defaultMessage: 'Magazines, their issues, and ebooks published to Nostr as PDFs and EPUBs. Fresh issues land in the feed like a magazine tossed on the table; open one to read it right in the app.' }),
+    sites: [{ url: 'https://pressstr.shakespeare.wtf', name: 'PressStr' }],
   },
   // Social
   {
@@ -1099,6 +1113,9 @@ const KIND_SPECIFIC_LABELS: Record<number, MessageDescriptor> = {
   31990: defineMessage({ id: 'extraKinds.specific.k31990', defaultMessage: 'app' }),
   30063: defineMessage({ id: 'extraKinds.specific.k30063', defaultMessage: 'software release' }),
   3063: defineMessage({ id: 'extraKinds.specific.k3063', defaultMessage: 'software asset' }),
+  34609: defineMessage({ id: 'extraKinds.specific.k34609', defaultMessage: 'magazine' }),
+  39731: defineMessage({ id: 'extraKinds.specific.k39731', defaultMessage: 'magazine issue' }),
+  33953: defineMessage({ id: 'extraKinds.specific.k33953', defaultMessage: 'ebook' }),
 };
 
 /**
@@ -1132,6 +1149,7 @@ const KIND_SPECIFIC_ICONS: Partial<Record<number, ComponentType<{ className?: st
   12473: Bird,
   30621: Stars,
   7849: ClipboardCheck,
+  33953: BookOpen,
 };
 
 /**
