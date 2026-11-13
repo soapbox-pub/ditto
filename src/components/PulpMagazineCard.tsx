@@ -26,7 +26,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { Capacitor } from '@capacitor/core';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 
+import { useMediaGate } from '@/components/MediaGate';
 import { PdfReaderDialog } from '@/components/PdfViewer';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useInView } from '@/hooks/useInView';
@@ -127,6 +129,11 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, concealSensit
   /** Whether a publication's content warning should keep it covered. */
   const isWarned = (p: Publication) => config.contentWarningPolicy !== 'show' && getContentWarning(p.event) !== undefined;
   const concealed = Boolean(concealSensitive && isWarned(pub));
+  // "Hide media from people I don't follow": cover art, logos, and the fanned
+  // issues aren't fetched until revealed. The generated pulp cover is drawn
+  // locally, so the magazine still shows.
+  const mediaGate = useMediaGate();
+  const hideArt = concealed || mediaGate.active;
 
   const { issues } = useMagazineIssues(event.pubkey, pub.identifier, isMagazine);
   const issuePubs = useMemo(() => issues.map(parsePublication), [issues]);
@@ -199,18 +206,16 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, concealSensit
     }
   };
 
-  const stackedIssues = issuePubs.filter((p) => p.image && !isWarned(p)).slice(0, 2);
+  const stackedIssues = mediaGate.active ? [] : issuePubs.filter((p) => p.image && !isWarned(p)).slice(0, 2);
 
   return (
-    <>
+    <div className={cn('relative shrink-0', SIZE_CLASSES[size], className)}>
       <div
         ref={viewRef}
         className={cn(
-          'group/mag relative shrink-0 rounded-sm outline-none [perspective:900px]',
+          'group/mag relative rounded-sm outline-none [perspective:900px]',
           'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background',
           interactive && 'cursor-pointer',
-          SIZE_CLASSES[size],
-          className,
         )}
         {...(interactive && {
           role: 'button',
@@ -265,10 +270,26 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, concealSensit
               />
             ))}
 
-            <MagazineCover pub={pub} issueCount={isMagazine ? issues.length : undefined} hideArt={concealed} />
+            <MagazineCover pub={pub} issueCount={isMagazine ? issues.length : undefined} hideArt={hideArt} sensitive={concealed} />
           </div>
         </div>
       </div>
+
+      {/* Grid items share their magazine's reveal, so only the main magazine offers one. */}
+      {mediaGate.active && !concealed && size !== 'grid' && (
+        <button
+          type="button"
+          className="absolute -bottom-7 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={(e) => {
+            e.stopPropagation();
+            mediaGate.reveal();
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Eye className="size-3.5" aria-hidden />
+          <FormattedMessage id="pulpMagazine.showCover" defaultMessage="Show cover" />
+        </button>
+      )}
 
       {readTarget?.fileUrl && readTarget.format === 'PDF' && !readTargetWarned && (
         // The dialog portals out, but React events still bubble through this
@@ -277,6 +298,7 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, concealSensit
           {opening && (
             <MagazineOpening
               pub={readTarget}
+              hideArt={mediaGate.active}
               onDone={() => {
                 setOpening(false);
                 setReaderOpen(true);
@@ -286,7 +308,7 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, concealSensit
           <PdfReaderDialog url={readTarget.fileUrl} title={readTarget.title} open={readerOpen} onOpenChange={setReaderOpen} />
         </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -302,7 +324,7 @@ const OPEN_DURATION_MS = 900;
  * PDF itself is still rendered by the browser's built-in viewer in the reader
  * dialog, so no untrusted file is parsed by the app.
  */
-function MagazineOpening({ pub, onDone }: { pub: Publication; onDone: () => void }) {
+function MagazineOpening({ pub, hideArt, onDone }: { pub: Publication; hideArt?: boolean; onDone: () => void }) {
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
@@ -344,7 +366,7 @@ function MagazineOpening({ pub, onDone }: { pub: Publication; onDone: () => void
           {/* The cover, hinged on its spine */}
           <div className="relative origin-left animate-magazine-open [transform-style:preserve-3d]">
             <div className="[backface-visibility:hidden]">
-              <MagazineCover pub={pub} />
+              <MagazineCover pub={pub} hideArt={hideArt} />
             </div>
             {/* Inside of the cover */}
             <div
@@ -363,7 +385,19 @@ function MagazineOpening({ pub, onDone }: { pub: Publication; onDone: () => void
 // The magazine cover
 // ---------------------------------------------------------------------------
 
-function MagazineCover({ pub, issueCount, hideArt }: { pub: Publication; issueCount?: number; hideArt?: boolean }) {
+function MagazineCover({
+  pub,
+  issueCount,
+  hideArt,
+  sensitive,
+}: {
+  pub: Publication;
+  issueCount?: number;
+  /** Draw the generated cover with no fetched images. */
+  hideArt?: boolean;
+  /** Content-warned: label the sticker "Sensitive". */
+  sensitive?: boolean;
+}) {
   const [coverFailed, setCoverFailed] = useState(false);
   const palette = paletteFor(pub.identifier || pub.title);
   // Issues carry real cover art; magazines (and coverless issues) get a pulp cover.
@@ -455,7 +489,7 @@ function MagazineCover({ pub, issueCount, hideArt }: { pub: Publication; issueCo
         }}
       />
 
-      <CoverSticker pub={pub} issueCount={issueCount} sensitive={hideArt} />
+      <CoverSticker pub={pub} issueCount={issueCount} sensitive={sensitive} />
     </div>
   );
 }

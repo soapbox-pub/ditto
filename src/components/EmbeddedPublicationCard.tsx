@@ -20,9 +20,11 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useStrangerMediaGate } from '@/hooks/useStrangerMediaGate';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { isBlockedEvent } from '@/lib/blockedTerms';
 import { getContentWarning } from '@/lib/contentWarning';
+import { useMediaRevealed } from '@/lib/revealedMedia';
 import { cn } from '@/lib/utils';
 import {
   parsePublication,
@@ -71,6 +73,12 @@ export function EmbeddedPublicationCard({
   const KindIcon = isMagazine || isIssue ? Newspaper : BookOpen;
 
   const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${naddrId}`, event);
+  // "Hide media from people I don't follow" — quotes may sit outside any
+  // MediaGateProvider, so check directly. A reveal anywhere for this event
+  // (e.g. on its own page) carries over.
+  const strangerGated = useStrangerMediaGate(event.pubkey);
+  const mediaRevealed = useMediaRevealed(event.id);
+  const hideCover = strangerGated && !mediaRevealed;
 
   // Quote embeds bypass the content-warning guard, so apply the policy here:
   // drop the card on "hide", and on "blur" keep the cover art and summary off
@@ -108,7 +116,7 @@ export function EmbeddedPublicationCard({
     >
       {/* Cover */}
       <div className="shrink-0">
-        {pub.image && !warned ? (
+        {pub.image && !warned && !hideCover ? (
           <img
             src={pub.image}
             alt=""

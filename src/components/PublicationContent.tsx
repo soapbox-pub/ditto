@@ -71,7 +71,7 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
       <div className="flex flex-col gap-6 sm:flex-row">
         {/* Cover */}
         {isIssue ? (
-          <div className="mx-auto shrink-0 px-2 py-4 sm:mx-0">
+          <div className="mx-auto shrink-0 px-2 pb-10 pt-4 sm:mx-0">
             <PulpMagazine event={event} size="detail" />
           </div>
         ) : (
@@ -200,7 +200,7 @@ function MagazineContent({ event, className }: PublicationContentProps) {
   return (
     <div className={cn('mt-3 space-y-6', className)}>
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-        <div className="mx-auto shrink-0 px-2 py-4 sm:mx-0">
+        <div className="mx-auto shrink-0 px-2 pb-10 pt-4 sm:mx-0">
           <PulpMagazine event={event} size="detail" />
         </div>
         <div className="min-w-0 flex-1 text-center sm:text-left">

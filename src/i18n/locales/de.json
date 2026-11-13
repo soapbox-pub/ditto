@@ -4133,6 +4133,7 @@
   "pullRequestCard.tip": "Spitze",
   "pulpMagazine.open": "{title} öffnen",
   "pulpMagazine.readTitle": "{title} lesen",
+  "pulpMagazine.showCover": "Cover anzeigen",
   "pulpMagazine.sticker.issue": "Nr. {issue}",
   "pulpMagazine.sticker.issueCount": "{count, plural, one {# Ausgabe} other {# Ausgaben}}",
   "pulpMagazine.sticker.new": "Neu!",

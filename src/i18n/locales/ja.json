@@ -4133,6 +4133,7 @@
   "pullRequestCard.tip": "先端",
   "pulpMagazine.open": "{title}を開く",
   "pulpMagazine.readTitle": "{title}を読む",
+  "pulpMagazine.showCover": "表紙を表示",
   "pulpMagazine.sticker.issue": "第{issue}号",
   "pulpMagazine.sticker.issueCount": "{count}号",
   "pulpMagazine.sticker.new": "新刊！",
