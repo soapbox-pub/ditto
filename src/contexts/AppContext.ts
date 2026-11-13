@@ -17,9 +17,6 @@ export type Theme = "light" | "dark" | "system" | "custom";
  */
 export type ContentWarningPolicy = "blur" | "hide" | "show";
 
-/** How to handle events with a NIP-36 content-warning tag. */
-export type NsfwPolicy = "blur" | "hide" | "show";
-
 /**
  * How to display monetary amounts (zap totals, wallet balances, etc.).
  * - "usd": Convert sats to USD using the current BTC/USD price. Falls back
