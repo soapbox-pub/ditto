@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { HeldImage, useMediaGate } from '@/components/MediaGate';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { decodeBlurhash, isValidBlurhash } from '@/lib/blurhash';
 import type { ImetaEntry } from '@/lib/imeta';
@@ -27,9 +28,10 @@ interface ImetaImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>
  * once every source has failed.
  *
  * It stays a bare `<img>`, so typography (`prose-img`) and caller classes
- * style it exactly as before.
+ * style it exactly as before. Held behind the surrounding post's MediaGate.
  */
 export function ImetaImage({ src, imeta, style, onLoad, onError, ...rest }: ImetaImageProps) {
+  const gated = useMediaGate().active;
   const fallback = useBlossomFallback(src, imeta?.fallbacks);
   const imgRef = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -44,6 +46,15 @@ export function ImetaImage({ src, imeta, style, onLoad, onError, ...rest }: Imet
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true);
   }, [fallback.src]);
+
+  if (gated) {
+    return (
+      <HeldImage
+        className={rest.className}
+        style={{ ...(dimensions && { aspectRatio: `${dimensions.width} / ${dimensions.height}` }), ...style }}
+      />
+    );
+  }
 
   if (fallback.failed) return null;
 

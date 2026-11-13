@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GatedImg } from '@/components/MediaGate';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -153,7 +154,7 @@ function ScreenshotLightbox({
           )}
 
           {/* Image */}
-          <img
+          <GatedImg
             src={images[index]}
             alt={intl.formatMessage({ id: 'softwareApp.screenshotAlt', defaultMessage: 'Screenshot {index} of {total}' }, { index: index + 1, total: images.length })}
             className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl select-none"
@@ -216,7 +217,7 @@ function ScreenshotStrip({ images, maxHeight, maxCount }: { images: string[]; ma
             }}
             aria-label={intl.formatMessage({ id: 'softwareApp.viewScreenshot', defaultMessage: 'View screenshot {index}' }, { index: i + 1 })}
           >
-            <img
+            <GatedImg
               src={url}
               alt=""
               className={`${maxHeight} rounded-xl object-cover shadow-sm`}
@@ -278,7 +279,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
         {/* Header: icon + name + summary */}
         <div className="flex items-start gap-3">
           {icon ? (
-            <img
+            <GatedImg
               src={icon}
               alt={name}
               className="size-12 rounded-xl object-cover shrink-0 shadow-sm"
@@ -350,7 +351,7 @@ export function SoftwareAppContent({ event, compact }: SoftwareAppContentProps) 
       {/* Header: icon + name + summary */}
       <div className="flex items-start gap-4">
         {icon ? (
-          <img
+          <GatedImg
             src={icon}
             alt={name}
             className="size-16 rounded-2xl object-cover shrink-0 shadow-md"

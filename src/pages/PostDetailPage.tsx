@@ -2485,7 +2485,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         try { parsedMeta = JSON.parse(event.content); } catch { /* ignore */ }
         return (
           <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
-            <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} imeta={parseProfileImeta(event.tags, parsedMeta)} />
+            <ProfileCard pubkey={event.pubkey} metadata={parsedMeta} imeta={parseProfileImeta(event.tags, parsedMeta)} gated />
 
             {/* Date row */}
             <div className="py-2 sidebar:py-2.5 mt-3 text-xs sidebar:text-sm text-muted-foreground">

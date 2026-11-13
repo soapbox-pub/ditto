@@ -3,7 +3,7 @@ import { ExternalLink, Music, SmilePlus } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmojifiedText } from '@/components/CustomEmoji';
-import { LinkEmbed } from '@/components/LinkEmbed';
+import { GatedLinkEmbed } from '@/components/LinkEmbed';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
 
@@ -85,7 +85,7 @@ export function StatusContent({ event, expanded = false, className }: StatusCont
       {/* Linked URL — a rich preview on the detail page, a compact chip in the feed. */}
       {!cleared && url && (
         expanded ? (
-          <LinkEmbed url={url} showActions={false} />
+          <GatedLinkEmbed url={url} showActions={false} />
         ) : (
           <a
             href={url}

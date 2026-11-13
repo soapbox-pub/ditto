@@ -49,7 +49,7 @@ import { isPeopleListKind } from '@/lib/packUtils';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { NoteContent } from '@/components/NoteContent';
-import { MediaGate, MediaGateProvider } from '@/components/MediaGate';
+import { GatedImg, MediaGate, MediaGateProvider } from '@/components/MediaGate';
 import { LiveChatContext } from '@/components/LiveChatContext';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -133,6 +133,21 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
     return <EmbeddedNoteTombstone eventId={eventId} relays={relays} authorHint={effectiveAuthorHint} className={className} />;
   }
 
+  // Gate the quoted event's media on its own author, not the quoting post's.
+  return (
+    <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
+      <EmbeddedEventBody event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />
+    </MediaGateProvider>
+  );
+}
+
+/** Route a fetched quoted event to its kind's compact card. */
+function EmbeddedEventBody({ event, className, disableHoverCards, highlightText }: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+  highlightText?: string;
+}) {
   // NIP-62 vanish events get their own dramatic inline card
   if (event.kind === VANISH_KIND) {
     return <EmbeddedVanishCardWrapper event={event} className={className} />;
@@ -446,7 +461,7 @@ function EmbeddedQuizResultCard({
         </p>
       )}
       {image && (
-        <img
+        <GatedImg
           src={image}
           alt=""
           loading="lazy"
@@ -658,7 +673,7 @@ function EmbeddedBadgeAwardCard({ event, className, disableHoverCards }: { event
       <div className="px-3 py-2.5 flex items-center gap-2.5 min-w-0">
         {/* Badge thumbnail or fallback icon */}
         {badge ? (
-          <BadgeThumbnail badge={badge} size={36} className="shrink-0" />
+          <BadgeThumbnail badge={badge} size={36} className="shrink-0" gated />
         ) : (
           <div className="flex items-center justify-center size-9 rounded-lg bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shrink-0">
             <Award className="size-4 text-primary" />

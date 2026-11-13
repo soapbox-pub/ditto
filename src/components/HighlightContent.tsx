@@ -7,7 +7,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
-import { LinkEmbed } from '@/components/LinkEmbed';
+import { GatedLinkEmbed } from '@/components/LinkEmbed';
 import { isNostrId } from '@/lib/nostrId';
 import { parseAddr, type ParsedAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -171,7 +171,7 @@ export function HighlightContent({ event, expanded = false, className, disableSo
               className="my-0"
             />
           ) : (
-            <LinkEmbed url={source.url} showActions={false} />
+            <GatedLinkEmbed url={source.url} showActions={false} />
           )}
         </div>
       )}

@@ -10,6 +10,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { emojiPackPicture, useAddEmojiPack, useRemoveEmojiPack } from '@/hooks/useEmojiPacks';
 import { useToast } from '@/hooks/useToast';
 import { CustomEmojiImg } from '@/components/CustomEmoji';
+import { MediaGate, useMediaGate } from '@/components/MediaGate';
 import { FallbackImage } from '@/components/FallbackImage';
 import { cn } from '@/lib/utils';
 import { optimisticPatchEventTags, rollbackEvent, toggleTag } from '@/lib/optimisticEvent';
@@ -60,6 +61,7 @@ interface EmojiPackContentProps {
 export function EmojiPackContent({ event }: EmojiPackContentProps) {
   const intl = useIntl();
   const pack = useMemo(() => parseEmojiPack(event), [event]);
+  const mediaGated = useMediaGate().active;
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { mutateAsync: addPack } = useAddEmojiPack();
@@ -150,6 +152,7 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
       {/* Pack header */}
       <div className="flex items-start gap-3">
         <FallbackImage
+          gated
           src={pack.picture}
           alt={pack.name}
           className="size-12 rounded-lg object-cover shrink-0 border border-border-subtle"
@@ -163,8 +166,9 @@ export function EmojiPackContent({ event }: EmojiPackContentProps) {
         </div>
       </div>
 
-      {/* Emoji grid preview */}
-      {showEmojis.length > 0 && (
+      {/* Emoji grid preview — one reveal for the whole pack when held */}
+      {showEmojis.length > 0 && mediaGated && <MediaGate className="mt-0" />}
+      {showEmojis.length > 0 && !mediaGated && (
         <div className="object-card p-3">
           <div className="flex flex-wrap gap-1.5">
             {showEmojis.map((emoji) => (

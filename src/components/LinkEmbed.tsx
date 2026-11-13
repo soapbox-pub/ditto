@@ -7,6 +7,7 @@ import { ArchiveOrgEmbed } from '@/components/ArchiveOrgEmbed';
 import { BlueskyEmbed } from '@/components/BlueskyEmbed';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { LinkPreview } from '@/components/LinkPreview';
+import { HeldLinkPreview, useMediaGate } from '@/components/MediaGate';
 import { MastodonEmbed } from '@/components/MastodonEmbed';
 import { RedditEmbed } from '@/components/RedditEmbed';
 import { SpotifyEmbed } from '@/components/SpotifyEmbed';
@@ -84,6 +85,17 @@ export function LinkEmbed({ url, className, navigateToComments, showActions = tr
       <DiscussBar url={url} showActions={showActions} />
     </div>
   );
+}
+
+/**
+ * {@link LinkEmbed} for a link a post's author chose: held as a bare link
+ * behind the post's MediaGate, like links in note text. (`LinkEmbed` itself
+ * isn't gated, since it also previews the viewer's own links in the composer.)
+ */
+export function GatedLinkEmbed(props: LinkEmbedProps) {
+  const { active } = useMediaGate();
+  if (active) return <HeldLinkPreview url={props.url} className={props.className} />;
+  return <LinkEmbed {...props} />;
 }
 
 /** Info bar below an embed with title, domain, external link, and "Discuss" button. */

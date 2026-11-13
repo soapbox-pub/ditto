@@ -8,6 +8,7 @@ import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { NoteContent } from '@/components/NoteContent';
 import { Badge } from '@/components/ui/badge';
 import { RSVPAvatars } from '@/components/RSVPAvatars';
+import { GatedImg } from '@/components/MediaGate';
 
 interface CalendarEventContentProps {
   event: NostrEvent;
@@ -141,7 +142,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
           {/* Cover image with capped height, or gradient placeholder */}
           {image ? (
             <div className="relative h-[180px] overflow-hidden">
-              <img
+              <GatedImg
                 src={image}
                 alt={title ?? intl.formatMessage({ id: 'calendarEvent.imageAlt', defaultMessage: 'Calendar event' })}
                 className="h-full w-full object-cover"
@@ -218,7 +219,7 @@ export function CalendarEventContent({ event, compact, className }: CalendarEven
           {/* Cover image or gradient header */}
           {image ? (
             <div className="aspect-video rounded-lg overflow-hidden">
-              <img
+              <GatedImg
                 src={image}
                 alt={title ?? intl.formatMessage({ id: 'calendarEvent.imageAlt', defaultMessage: 'Calendar event' })}
                 className="h-full w-full object-cover"

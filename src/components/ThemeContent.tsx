@@ -17,6 +17,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { parseThemeDefinition, parseActiveProfileTheme, themeEventToConfig, THEME_DEFINITION_KIND, ACTIVE_THEME_KIND } from '@/lib/themeEvent';
 import { startThemePreview } from '@/lib/themePreview';
 import { coreToTokens, type CoreThemeColors, type ThemeSource, type ThemeTokens } from '@/themes';
+import { GatedImg } from '@/components/MediaGate';
 
 interface ThemeContentProps {
   event: NostrEvent;
@@ -208,7 +209,7 @@ function ThemeMockup({
       >
         {/* Background image layer */}
         {backgroundUrl && (
-          <img
+          <GatedImg
             src={backgroundUrl}
             alt=""
             className="absolute inset-0 w-full h-full object-cover opacity-40"

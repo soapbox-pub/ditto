@@ -23,6 +23,7 @@ import {
 } from "@/lib/nsiteSubdomain";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { cn } from "@/lib/utils";
+import { GatedImg } from '@/components/MediaGate';
 
 interface NsiteCardProps {
 	event: NostrEvent;
@@ -139,7 +140,7 @@ export function NsiteCard({ event, autoPlayKey }: NsiteCardProps) {
 			>
 				{image && (
 					<div className="w-full overflow-hidden bg-muted">
-						<img
+						<GatedImg
 							src={image}
 							alt=""
 							className="w-full h-[180px] object-cover transition-transform duration-300 group-hover:scale-[1.02]"

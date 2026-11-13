@@ -13,6 +13,7 @@ import { NostrURI } from '@/lib/NostrURI';
 import { parseAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -129,7 +130,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
           {/* Banner hero */}
           {banner && (
             <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
-              <img
+              <GatedImg
                 src={banner}
                 alt=""
                 className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
@@ -144,7 +145,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             {/* App icon — overlaps the banner hero like a profile avatar */}
             <div className={banner ? '-mt-7' : 'pt-3.5'}>
               {picture ? (
-                <img
+                <GatedImg
                   src={picture}
                   alt={name}
                   className="size-14 rounded-xl object-cover shrink-0 border-3 border-background bg-background shadow-sm"
@@ -247,7 +248,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
         {/* Banner hero */}
         {banner && (
           <div className="relative aspect-[2/1] bg-gradient-to-br from-muted/50 to-muted overflow-hidden">
-            <img
+            <GatedImg
               src={banner}
               alt=""
               className="size-full object-cover"
@@ -265,7 +266,7 @@ export function AppHandlerContent({ event, compact }: AppHandlerContentProps) {
             banner ? '-mt-10' : 'pt-4',
           )}>
             {picture ? (
-              <img
+              <GatedImg
                 src={picture}
                 alt={name}
                 className="size-20 rounded-2xl object-cover shrink-0 border-4 border-background bg-background shadow-sm"

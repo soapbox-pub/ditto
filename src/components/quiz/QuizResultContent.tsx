@@ -11,6 +11,7 @@ import { tryNaddrEncode } from '@/lib/safeNip19';
 import { cn } from '@/lib/utils';
 
 import type { NostrEvent } from '@nostrify/nostrify';
+import { GatedImg } from '@/components/MediaGate';
 
 interface QuizResultContentProps {
   event: NostrEvent;
@@ -93,7 +94,7 @@ export function QuizResultContent({ event, expanded = false, className }: QuizRe
               return (
                 <div key={outcome.id}>
                   {image && (
-                    <img
+                    <GatedImg
                       src={image}
                       alt={outcome.label}
                       loading="lazy"

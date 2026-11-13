@@ -5229,6 +5229,7 @@
   "stickerPicker.title": "ステッカー",
   "strangerMedia.description": "この投稿は、あなたがフォローしていない人からのものです。",
   "strangerMedia.reveal": "表示",
+  "strangerMedia.showImage": "メディアは非表示です。表示する",
   "strangerMedia.showPreview": "プレビューを表示",
   "strangerMedia.title": "メディアを非表示にしています",
   "streak.atRisk": "{hours, plural, one {あと#時間でストリークが途切れます。何か投稿して続けましょう。} other {あと#時間でストリークが途切れます。何か投稿して続けましょう。}}",

@@ -11,6 +11,8 @@ interface BadgeThumbnailProps {
   /** Pixel size for both width and height. Default: 48 */
   size?: number;
   className?: string;
+  /** Hold the image behind the surrounding post's MediaGate. Off for profile UI (hover cards, badge pages). */
+  gated?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface BadgeThumbnailProps {
  * Includes a mouse-only 3D tilt effect. Touch events are ignored so tapping
  * through to badge detail views and normal scrolling are not disrupted.
  */
-export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailProps) {
+export function BadgeThumbnail({ badge, size = 48, className, gated }: BadgeThumbnailProps) {
   const thumbUrl = pickBadgeImage(badge, size);
   // Tight perspective relative to the small thumbnail makes the 3D rotation
   // clearly visible even on 28-48px elements.
@@ -56,6 +58,7 @@ export function BadgeThumbnail({ badge, size = 48, className }: BadgeThumbnailPr
     >
       <FallbackImage
         src={thumbUrl}
+        gated={gated}
         alt={badge.name}
         className={cn('rounded-lg object-cover', className)}
         style={{ width: size, height: size }}

@@ -16,6 +16,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
+import { MediaGate } from '@/components/MediaGate';
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -182,13 +183,15 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
     const appName = altText?.replace(/^Webxdc app:\s*/i, '') ?? summary ?? fileName.replace('.xdc', '');
     return (
       <div className="mt-3">
-        <WebxdcEmbed
-          url={url}
-          uuid={webxdcId}
-          icon={thumb}
-          encryption={encryption}
-          showNameCard={false}
-        />
+        <MediaGate className="mt-0">
+          <WebxdcEmbed
+            url={url}
+            uuid={webxdcId}
+            icon={thumb}
+            encryption={encryption}
+            showNameCard={false}
+          />
+        </MediaGate>
         <DescriptionCard title={appName} text={description} />
       </div>
     );

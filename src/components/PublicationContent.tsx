@@ -34,6 +34,7 @@ import {
   EBOOK_KIND,
   type Publication,
 } from '@/lib/publications';
+import { GatedImg } from '@/components/MediaGate';
 
 interface PublicationContentProps {
   event: NostrEvent;
@@ -77,7 +78,7 @@ function PublicationFileContent({ event, className }: PublicationContentProps) {
         ) : (
           <div className="mx-auto shrink-0 sm:mx-0">
             {pub.image ? (
-              <img
+              <GatedImg
                 src={pub.image}
                 alt=""
                 loading="lazy"

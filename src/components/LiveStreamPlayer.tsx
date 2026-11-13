@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { BLANK_POSTER } from '@/lib/blankPoster';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { exitFullscreen, fullscreenElement, requestPlayerFullscreen, videoIsNativeFullscreen } from '@/lib/fullscreen';
+import { MediaGate } from '@/components/MediaGate';
 
 interface LiveStreamPlayerProps {
   src: string;
@@ -17,7 +18,19 @@ interface LiveStreamPlayerProps {
   artist?: string;
 }
 
-export function LiveStreamPlayer({ src, poster, className, title, artist }: LiveStreamPlayerProps) {
+/**
+ * Held behind the surrounding post's {@link MediaGate} ("hide media from
+ * people I don't follow"): nothing is fetched until the viewer reveals it.
+ */
+export function LiveStreamPlayer(props: LiveStreamPlayerProps) {
+  return (
+    <MediaGate>
+      <LiveStreamPlayerInner {...props} />
+    </MediaGate>
+  );
+}
+
+function LiveStreamPlayerInner({ src, poster, className, title, artist }: LiveStreamPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);

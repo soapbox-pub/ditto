@@ -1,5 +1,6 @@
 import type { ImgHTMLAttributes, ReactNode } from 'react';
 
+import { HeldImage, useMediaGate } from '@/components/MediaGate';
 import { useProfileImageSource } from '@/hooks/useProfileImageSource';
 import type { ImetaEntry } from '@/lib/imeta';
 
@@ -16,6 +17,12 @@ interface FallbackImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, '
   fallback?: ReactNode;
   /** Rendered while an encrypted image decrypts. Defaults to `fallback`. */
   placeholder?: ReactNode;
+  /**
+   * Hold the image behind the surrounding post's MediaGate. Opt-in, because
+   * this also renders non-post images (hover cards, profile pages) that can
+   * sit inside a post's gate without belonging to its author.
+   */
+  gated?: boolean;
 }
 
 /**
@@ -27,8 +34,10 @@ interface FallbackImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, '
  * pack and community icons — which were plain `<img>` elements, each one blank
  * the moment the single server named in its URL went down.
  */
-export function FallbackImage({ src, imeta, fallback = null, placeholder, alt, ...props }: FallbackImageProps) {
-  const source = useProfileImageSource(src, imeta);
+export function FallbackImage({ src, imeta, fallback = null, placeholder, gated, alt, ...props }: FallbackImageProps) {
+  const held = useMediaGate().active && gated;
+  const source = useProfileImageSource(held ? undefined : src, held ? undefined : imeta);
+  if (held) return src ? <HeldImage className={props.className} style={props.style} /> : <>{fallback}</>;
   if (source.pending) return <>{placeholder ?? fallback}</>;
   if (!source.src || source.failed) return <>{fallback}</>;
   return <img {...props} src={source.src} alt={alt ?? source.imeta?.alt ?? ''} onError={source.onError} />;

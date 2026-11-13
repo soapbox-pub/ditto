@@ -5229,6 +5229,7 @@
   "stickerPicker.title": "Sticker",
   "strangerMedia.description": "Dieser Beitrag ist von jemandem, dem du nicht folgst.",
   "strangerMedia.reveal": "Anzeigen",
+  "strangerMedia.showImage": "Medien ausgeblendet. Anzeigen",
   "strangerMedia.showPreview": "Vorschau anzeigen",
   "strangerMedia.title": "Medien ausgeblendet",
   "streak.atRisk": "{hours, plural, one {Deine Serie endet in # Stunde. Poste etwas, um sie am Laufen zu halten.} other {Deine Serie endet in # Stunden. Poste etwas, um sie am Laufen zu halten.}}",

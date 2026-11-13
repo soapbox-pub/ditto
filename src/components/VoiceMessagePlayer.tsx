@@ -7,6 +7,7 @@ import { AudioVisualizer } from '@/components/AudioVisualizer';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { MediaGate } from '@/components/MediaGate';
 
 /** Parse NIP-A0 imeta fields from an event's tags. */
 function parseVoiceImeta(tags: string[][]): { waveform?: number[]; duration?: number } {
@@ -43,8 +44,19 @@ interface VoiceMessagePlayerProps {
  * When NIP-A0 waveform data is available in `imeta` tags, renders a static
  * amplitude bar visualization with playback progress. Otherwise falls back
  * to the existing AudioVisualizer sinewave player.
+ *
+ * Held behind the surrounding post's {@link MediaGate} ("hide media from
+ * people I don't follow"): nothing is fetched until the viewer reveals it.
  */
-export function VoiceMessagePlayer({ event, className }: VoiceMessagePlayerProps) {
+export function VoiceMessagePlayer(props: VoiceMessagePlayerProps) {
+  return (
+    <MediaGate>
+      <VoiceMessagePlayerInner {...props} />
+    </MediaGate>
+  );
+}
+
+function VoiceMessagePlayerInner({ event, className }: VoiceMessagePlayerProps) {
   const audioUrl = event.content.trim();
   const { waveform, duration: imetaDuration } = useMemo(() => parseVoiceImeta(event.tags), [event.tags]);
 

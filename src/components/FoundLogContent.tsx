@@ -10,6 +10,7 @@ import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { isNostrId } from '@/lib/nostrId';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { GatedImg } from '@/components/MediaGate';
 
 function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
@@ -91,7 +92,7 @@ export function FoundLogContent({ event }: { event: NostrEvent }) {
       {/* Image */}
       {images.length > 0 && (
         <div className="mt-3 rounded-2xl overflow-hidden">
-          <img
+          <GatedImg
             src={images[0]}
             alt={intl.formatMessage({ id: 'foundLog.imageAlt', defaultMessage: 'Found log' })}
             className="w-full max-h-[300px] object-cover"

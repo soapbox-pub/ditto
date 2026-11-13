@@ -16,6 +16,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { formatTime } from '@/lib/formatTime';
 import { BLANK_POSTER } from '@/lib/blankPoster';
 import { exitFullscreen, fullscreenElement, requestPlayerFullscreen, videoIsNativeFullscreen } from '@/lib/fullscreen';
+import { MediaGate } from '@/components/MediaGate';
 
 interface VideoPlayerProps {
   src: string;
@@ -94,7 +95,19 @@ function useHls(videoRef: React.RefObject<HTMLVideoElement | null>, src: string)
   return { isHls };
 }
 
-export function VideoPlayer({ src: originalSrc, poster: originalPoster, className, dim, blurhash, title, artist, autoPlay, encryption, maxHeight }: VideoPlayerProps) {
+/**
+ * Held behind the surrounding post's {@link MediaGate} ("hide media from
+ * people I don't follow"): nothing is fetched until the viewer reveals it.
+ */
+export function VideoPlayer(props: VideoPlayerProps) {
+  return (
+    <MediaGate>
+      <VideoPlayerInner {...props} />
+    </MediaGate>
+  );
+}
+
+function VideoPlayerInner({ src: originalSrc, poster: originalPoster, className, dim, blurhash, title, artist, autoPlay, encryption, maxHeight }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

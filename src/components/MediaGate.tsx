@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useMemo, type CSSProperties, type ImgHTMLAttributes } from 'react';
 import { ImageOff, Eye } from 'lucide-react';
-import { FormattedMessage } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { Button } from '@/components/ui/button';
 import { useStrangerMediaGate } from '@/hooks/useStrangerMediaGate';
 import { revealMedia, useMediaRevealed } from '@/lib/revealedMedia';
@@ -155,4 +155,57 @@ export function HeldLinkPreview({ url, className }: { url: string; className?: s
       </button>
     </span>
   );
+}
+
+/**
+ * Stand-in for a single held image (a thumbnail, banner, or cover): keeps the
+ * image's box, loads nothing, and reveals the post's media when clicked. For
+ * images too small or too numerous to each carry a full {@link MediaGate}
+ * overlay.
+ */
+export function HeldImage({ className, style }: { className?: string; style?: CSSProperties }) {
+  const intl = useIntl();
+  const { reveal } = useMediaGate();
+  const label = intl.formatMessage({ id: 'strangerMedia.showImage', defaultMessage: 'Media hidden. Show it' });
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'flex min-h-8 min-w-8 cursor-pointer items-center justify-center bg-muted text-muted-foreground transition-colors hover:text-foreground',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        className,
+      )}
+      style={style}
+      onClick={(e) => {
+        // Often sits inside a link or a clickable card.
+        e.preventDefault();
+        e.stopPropagation();
+        reveal();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          reveal();
+        }
+      }}
+    >
+      <ImageOff className="size-5 max-h-[60%] max-w-[60%]" aria-hidden />
+    </span>
+  );
+}
+
+/**
+ * An `<img>` held behind the surrounding post's {@link MediaGateProvider}:
+ * renders a {@link HeldImage} (and fetches nothing) while the post's media is
+ * gated. Use for event-sourced images in kind renderers.
+ */
+export function GatedImg(props: ImgHTMLAttributes<HTMLImageElement>) {
+  const { active } = useMediaGate();
+  if (active) return <HeldImage className={props.className} style={props.style} />;
+  return <img {...props} />;
 }

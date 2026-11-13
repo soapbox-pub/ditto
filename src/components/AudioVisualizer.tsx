@@ -12,6 +12,7 @@ import { EncryptedFileNotice } from '@/components/EncryptedFileNotice';
 import type { FileEncryption } from '@/lib/encryptedFile';
 import type { ImetaEntry } from '@/lib/imeta';
 import { formatTime } from '@/lib/formatTime';
+import { MediaGate } from '@/components/MediaGate';
 
 interface AudioVisualizerProps {
   src: string;
@@ -41,8 +42,19 @@ interface AudioVisualizerProps {
  * A music file that carries its own tags or cover art (read out of the file,
  * not the event) shows its cover in place of the avatar and its title,
  * artist and album across the top.
+ *
+ * Held behind the surrounding post's {@link MediaGate} ("hide media from
+ * people I don't follow"): nothing is fetched until the viewer reveals it.
  */
-export function AudioVisualizer({
+export function AudioVisualizer(props: AudioVisualizerProps) {
+  return (
+    <MediaGate>
+      <AudioVisualizerInner {...props} />
+    </MediaGate>
+  );
+}
+
+function AudioVisualizerInner({
   src: originalSrc,
   mime: declaredMime,
   encryption,

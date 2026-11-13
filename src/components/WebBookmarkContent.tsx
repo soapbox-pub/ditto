@@ -9,6 +9,7 @@ import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { sanitizeUrl, displayHost } from '@/lib/sanitizeUrl';
 import { openUrl } from '@/lib/downloadFile';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 interface WebBookmarkContentProps {
   event: NostrEvent;
@@ -96,7 +97,7 @@ export function WebBookmarkContent({ event, expanded = false, className }: WebBo
       >
         {image && (
           <div className="relative w-full overflow-hidden bg-muted/30" style={{ aspectRatio: '1.91' }}>
-            <img
+            <GatedImg
               src={image}
               alt=""
               loading="lazy"

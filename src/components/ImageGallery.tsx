@@ -24,6 +24,7 @@ import { getAvatarShape } from '@/lib/avatarShape';
 import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useInView } from '@/hooks/useInView';
 import { growFromOrigin, takeLightboxOrigin } from '@/lib/lightboxOrigin';
+import { MediaGate } from '@/components/MediaGate';
 
 /** Minimal imeta fields needed for pre-load sizing and decryption. */
 interface ImetaDimensions {
@@ -61,8 +62,19 @@ interface ImageGalleryProps {
  * Image grid + full-screen lightbox gallery.
  * Clicking an image opens a cinematic overlay with prev/next navigation,
  * keyboard support (arrow keys, Escape), and swipe gestures.
+ *
+ * Held behind the surrounding post's {@link MediaGate} ("hide media from
+ * people I don't follow"): nothing is fetched until the viewer reveals it.
  */
-export function ImageGallery({
+export function ImageGallery(props: ImageGalleryProps) {
+  return (
+    <MediaGate>
+      <ImageGalleryInner {...props} />
+    </MediaGate>
+  );
+}
+
+function ImageGalleryInner({
   images,
   className,
   maxVisible = 4,

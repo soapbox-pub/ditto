@@ -12,6 +12,7 @@ import { parseQuiz } from '@/lib/quiz';
 import { cn } from '@/lib/utils';
 
 import type { NostrEvent } from '@nostrify/nostrify';
+import { GatedImg } from '@/components/MediaGate';
 
 interface QuizContentProps {
   event: NostrEvent;
@@ -59,7 +60,7 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
     return (
       <div className={cn('mt-2 space-y-3', className)}>
         {quiz.image && (
-          <img
+          <GatedImg
             src={quiz.image}
             alt=""
             loading="lazy"
@@ -90,7 +91,7 @@ export function QuizContent({ event, expanded = false, className }: QuizContentP
   return (
     <div className={cn('mt-3 space-y-4', className)}>
       {quiz.image && (
-        <img
+        <GatedImg
           src={quiz.image}
           alt=""
           className="max-h-80 w-full rounded-xl border border-border-subtle object-cover"

@@ -12,6 +12,7 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { encodeEventAddress } from '@/lib/encodeEvent';
 import { formatPeopleListTitle, parsePeopleList, getDisplayPubkeys } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { GatedImg } from '@/components/MediaGate';
 
 /** Max avatars shown in the embedded preview stack. */
 const EMBED_AVATAR_LIMIT = 6;
@@ -88,7 +89,7 @@ export function EmbeddedPeopleListCard({ event, className, disableHoverCards }: 
       {/* Cover image — only for packs/sets that declare one */}
       {safeImage && (
         <div className="rounded-lg overflow-hidden">
-          <img
+          <GatedImg
             src={safeImage}
             alt={title}
             className="w-full max-h-[140px] object-cover"

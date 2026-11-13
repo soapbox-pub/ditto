@@ -105,7 +105,7 @@ export function ProfileBadgesContent({ event }: ProfileBadgesContentProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 {badge ? (
-                  <BadgeThumbnail badge={badge} size={48} />
+                  <BadgeThumbnail badge={badge} size={48} gated />
                 ) : (
                   <div className="size-12 rounded-lg border border-border-subtle bg-background flex items-center justify-center">
                     <Award className="size-6 text-muted-foreground" />

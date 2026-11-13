@@ -32,6 +32,7 @@ import {
 import { openUrl } from '@/lib/downloadFile';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 const ArticleContent = lazy(() =>
   import('@/components/ArticleContent').then((m) => ({ default: m.ArticleContent })),
@@ -93,7 +94,7 @@ export function CampaignContent({ event, expanded = false, className }: Campaign
         )}
       >
         {banner ? (
-          <img
+          <GatedImg
             src={banner}
             alt=""
             loading="lazy"

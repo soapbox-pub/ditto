@@ -13,6 +13,7 @@ import { openUrl } from '@/lib/downloadFile';
 import { displayHost } from '@/lib/sanitizeUrl';
 import { parseClassifiedListing, formatListingPrice, listingResidualContent, type ParsedClassifiedListing } from '@/lib/classifiedListing';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 interface ClassifiedListingContentProps {
   event: NostrEvent;
@@ -71,7 +72,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
         {mainImage && (
           <div className="space-y-2.5 min-w-0">
             <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
-              <img
+              <GatedImg
                 src={mainImage}
                 alt={title}
                 decoding="async"
@@ -100,7 +101,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
                         active ? 'ring-2 ring-primary' : 'opacity-60 hover:opacity-100',
                       )}
                     >
-                      <img src={url} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
+                      <GatedImg src={url} alt="" loading="lazy" decoding="async" className="absolute inset-0 size-full object-cover" />
                     </button>
                   );
                 })}
@@ -225,7 +226,7 @@ function ListingFeedCard({ listing, className }: { listing: ParsedClassifiedList
         {cover && (
           <div className="shrink-0 p-3">
             <div className="relative size-28 sm:size-40 overflow-hidden rounded-xl bg-muted">
-              <img
+              <GatedImg
                 src={cover}
                 alt={title}
                 loading="lazy"

@@ -55,6 +55,7 @@ export function EmbeddedProfileCard({ event, className, disableHoverCards }: Emb
       {banner && (
         <div className="overflow-hidden rounded-lg empty:hidden">
           <FallbackImage
+            gated
             src={banner}
             imeta={bannerImeta}
             className="max-h-[100px] w-full object-cover"

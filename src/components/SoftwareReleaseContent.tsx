@@ -28,6 +28,7 @@ import { CHANGELOG_SANITIZE_SCHEMA } from '@/lib/changelogMarkdown';
 import { openUrl } from '@/lib/downloadFile';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 /** Get a tag value by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -371,7 +372,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
 
   if (compact) {
     const compactIcon = appIcon ? (
-      <img
+      <GatedImg
         src={appIcon}
         alt=""
         className="size-10 rounded-xl object-cover shrink-0 shadow-sm"
@@ -433,7 +434,7 @@ export function SoftwareReleaseContent({ event, compact }: SoftwareReleaseConten
 
   const appPath = appNaddr ? `/${appNaddr}` : undefined;
   const iconEl = appIcon ? (
-    <img
+    <GatedImg
       src={appIcon}
       alt=""
       className="size-6 rounded-md object-cover"

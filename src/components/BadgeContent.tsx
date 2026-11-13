@@ -5,6 +5,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { useCardTilt } from '@/hooks/useCardTilt';
 import { parseBadgeDefinition } from '@/lib/parseBadgeDefinition';
+import { GatedImg, useMediaGate } from '@/components/MediaGate';
 
 interface BadgeContentProps {
   event: NostrEvent;
@@ -82,6 +83,8 @@ function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string;
   // actually loaded.
   const { src, onError, failed } = useBlossomFallback(primary);
   const heroImage = failed ? undefined : src;
+  // The glare mask loads the image too, so it waits for the reveal.
+  const gated = useMediaGate().active;
 
   const imageMask: React.CSSProperties | undefined = heroImage ? {
     maskImage: `url("${heroImage}")`,
@@ -139,7 +142,7 @@ function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string;
       className="relative z-[1] select-none"
     >
       {heroImage ? (
-        <img
+        <GatedImg
           src={heroImage}
           alt={badgeName}
           className="size-28 rounded-2xl object-cover drop-shadow-lg"
@@ -153,7 +156,7 @@ function BadgeImageTilt({ heroImage: primary, badgeName }: { heroImage?: string;
         </div>
       )}
       {/* Specular glare overlay */}
-      {heroImage && imageMask && (
+      {heroImage && imageMask && !gated && (
         <div
           ref={glareRef}
           className="absolute pointer-events-none"

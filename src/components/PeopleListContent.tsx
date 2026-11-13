@@ -6,6 +6,7 @@ import { useIntl } from 'react-intl';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
 import { formatPeopleListTitle, getDisplayPubkeys, parsePeopleList } from '@/lib/packUtils';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { GatedImg } from '@/components/MediaGate';
 
 /**
  * Compact feed card for kind 30000 (follow set) or 39089 (follow pack):
@@ -46,7 +47,7 @@ export function PeopleListContent({ event }: { event: NostrEvent }) {
       {/* Cover image */}
       {safeImage && (
         <div className="rounded-2xl overflow-hidden mb-3">
-          <img
+          <GatedImg
             src={safeImage}
             alt={title}
             className="w-full max-h-[200px] object-cover"

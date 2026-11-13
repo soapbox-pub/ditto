@@ -18,6 +18,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { formatTime } from '@/lib/formatTime';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 /** Shared play/pause button used across all audio cards. */
 function PlayButton({ isPlaying, isActive, onClick, size = 'lg', loading }: {
@@ -146,7 +147,7 @@ export function MusicPlaylistContent({ event }: { event: NostrEvent }) {
       {/* Cover artwork — clicks bubble up to NoteCard for navigation */}
       {parsed.artwork ? (
         <div className="aspect-video max-h-[200px] w-full overflow-hidden">
-          <img src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <GatedImg src={parsed.artwork} alt={parsed.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
         </div>
       ) : (
         <div className="flex items-center justify-center bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-[100px]">

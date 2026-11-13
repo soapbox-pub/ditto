@@ -7,6 +7,7 @@ import { Tag } from 'lucide-react';
 import { EmbeddedCardShell } from '@/components/EmbeddedCardShell';
 import { parseClassifiedListing, formatListingPrice } from '@/lib/classifiedListing';
 import { cn } from '@/lib/utils';
+import { GatedImg } from '@/components/MediaGate';
 
 interface EmbeddedClassifiedListingCardProps {
   event: NostrEvent;
@@ -54,7 +55,7 @@ export function EmbeddedClassifiedListingCard({ event, className, disableHoverCa
         {/* Product photo — square thumbnail */}
         {cover && (
           <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:size-24">
-            <img
+            <GatedImg
               src={cover}
               alt=""
               loading="lazy"

@@ -112,6 +112,8 @@ export interface ProfileCardProps {
   /** When provided, render an editable profile fields section below bio */
   extraFields?: ProfileField[];
   onExtraFieldsChange?: (fields: ProfileField[]) => void;
+  /** Hold the banner behind the surrounding post's MediaGate (profile-update posts). */
+  gated?: boolean;
 }
 
 export function ProfileCard({
@@ -125,6 +127,7 @@ export function ProfileCard({
   showNip05 = true,
   extraFields,
   onExtraFieldsChange,
+  gated,
 }: ProfileCardProps) {
   const intl = useIntl();
   const editable = !!onChange;
@@ -205,7 +208,7 @@ export function ProfileCard({
       >
         {/* An <img> rather than a CSS background so a dead Blossom server can
             be detected and the banner walked to a mirror. */}
-        <FallbackImage src={bannerUrl} imeta={imeta?.banner} className="absolute inset-0 size-full object-cover" />
+        <FallbackImage src={bannerUrl} imeta={imeta?.banner} gated={gated} className="absolute inset-0 size-full object-cover" />
         {!metadata.banner && <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
         {editable && !metadata.banner && (
           <div className="absolute inset-0 flex items-center justify-center">

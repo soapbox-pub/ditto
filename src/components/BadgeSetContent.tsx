@@ -61,6 +61,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
         <div className="relative isolate overflow-hidden rounded-2xl border border-border-subtle bg-black">
           <div className="aspect-[3/1] w-full">
             <FallbackImage
+              gated
               src={image}
               alt={title}
               className="size-full object-cover"
@@ -130,7 +131,7 @@ export function BadgeSetContent({ event }: BadgeSetContentProps) {
                 onClick={(e) => e.stopPropagation()}
               >
                 {badge ? (
-                  <BadgeThumbnail badge={badge} size={48} />
+                  <BadgeThumbnail badge={badge} size={48} gated />
                 ) : (
                   <div className="size-12 rounded-lg border border-border-subtle bg-background flex items-center justify-center">
                     <Award className="size-6 text-muted-foreground" />

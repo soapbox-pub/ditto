@@ -11,6 +11,7 @@ import { openUrl } from "@/lib/downloadFile";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { getEffectiveStreamStatus } from "@/lib/streamStatus";
 import { cn } from "@/lib/utils";
+import { GatedImg } from '@/components/MediaGate';
 
 /** NIP-53 Meeting Space ("Interactive room"). The other handled kind is the
  *  30313 Meeting Room event ("Conference event"). */
@@ -119,7 +120,7 @@ export function InteractiveRoomContent({ event, expanded }: { event: NostrEvent;
       <div className="rounded-xl overflow-hidden border border-border-subtle">
         {imageUrl ? (
           <div className="relative w-full aspect-video overflow-hidden bg-muted">
-            <img
+            <GatedImg
               src={imageUrl}
               alt=""
               className="w-full h-full object-cover"

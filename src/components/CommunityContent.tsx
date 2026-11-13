@@ -131,6 +131,7 @@ export function CommunityContent({ event }: { event: NostrEvent }) {
       {image ? (
         <div className="relative -mx-4 aspect-[21/9] overflow-hidden">
           <FallbackImage
+            gated
             src={image}
             alt={name}
             className="w-full h-full object-cover"

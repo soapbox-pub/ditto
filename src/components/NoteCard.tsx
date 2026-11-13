@@ -89,7 +89,7 @@ import { BrokenEventFallback } from "@/components/BrokenEventFallback";
 import { CommentContext } from "@/components/CommentContext";
 import { LiveChatContext } from "@/components/LiveChatContext";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
-import { MediaGate, MediaGateProvider } from "@/components/MediaGate";
+import { GatedImg, MediaGate, MediaGateProvider } from "@/components/MediaGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EmojifiedText, ReactionEmoji } from "@/components/CustomEmoji";
 import { ActivityCard, ActorRow } from "@/components/ActivityCard";
@@ -218,7 +218,7 @@ function ProfileCardContent({ event }: { event: NostrEvent }) {
   try { metadata = JSON.parse(event.content); } catch { /* ignore */ }
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-      <ProfileCard pubkey={event.pubkey} metadata={metadata} imeta={parseProfileImeta(event.tags, metadata)} showNip05={false} />
+      <ProfileCard pubkey={event.pubkey} metadata={metadata} imeta={parseProfileImeta(event.tags, metadata)} showNip05={false} gated />
     </div>
   );
 }
@@ -2183,7 +2183,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
           </div>
         ) : imageUrl ? (
           <div className="relative w-full aspect-video overflow-hidden bg-muted">
-            <img
+            <GatedImg
               src={imageUrl}
               alt=""
               className="w-full h-full object-cover"

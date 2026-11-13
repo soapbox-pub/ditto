@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { scryfallImageUrl } from '@/lib/scryfall';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { GatedImg } from '@/components/MediaGate';
 
 function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
@@ -219,7 +220,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
       {/* Banner image */}
       {banner && (
         <div className="rounded-2xl overflow-hidden mb-3">
-          <img
+          <GatedImg
             src={banner}
             alt={title ?? intl.formatMessage({ id: 'magicDeck.bannerAlt', defaultMessage: 'Magic deck' })}
             className="w-full max-h-[200px] object-cover"

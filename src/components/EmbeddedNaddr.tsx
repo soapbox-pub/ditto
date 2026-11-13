@@ -30,6 +30,7 @@ import { SNO_KIND } from '@/lib/sno';
 import { isPeopleListKind } from '@/lib/packUtils';
 import { EmbeddedArticleCard } from '@/components/EmbeddedArticleCard';
 import { EmbeddedPublicationCard } from '@/components/EmbeddedPublicationCard';
+import { GatedImg, MediaGateProvider } from '@/components/MediaGate';
 import { EmbeddedAttestationCard } from '@/components/EmbeddedAttestationCard';
 import { ATTESTATION_KIND } from '@/lib/attestation';
 import { EmbeddedClassifiedListingCard } from '@/components/EmbeddedClassifiedListingCard';
@@ -160,6 +161,22 @@ function EmbeddedNaddrInner({ addr, relays, className, disableHoverCards, source
   if (isError || !event) {
     return <EmbeddedNaddrTombstone addr={addr} relays={relays} className={className} />;
   }
+
+  // Gate the quoted event's media on its own author, not the quoting post's.
+  return (
+    <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
+      <EmbeddedNaddrBody event={event} className={className} disableHoverCards={disableHoverCards} sourceUrl={sourceUrl} />
+    </MediaGateProvider>
+  );
+}
+
+/** Route a fetched addressable event to its kind's compact card. */
+function EmbeddedNaddrBody({ event, className, disableHoverCards, sourceUrl }: {
+  event: NostrEvent;
+  className?: string;
+  disableHoverCards?: boolean;
+  sourceUrl?: string;
+}) {
 
   // Badge definitions get a compact showcase instead of a link-preview card
   if (event.kind === 30009) {
@@ -356,7 +373,7 @@ function EmbeddedBadgeCard({ event, className }: { event: NostrEvent; className?
         {/* Badge image */}
         <div className="relative z-[1]">
           {heroImage ? (
-            <img
+            <GatedImg
               src={heroImage}
               alt={badge.name}
               className="size-20 rounded-xl object-cover drop-shadow-lg"
@@ -504,7 +521,7 @@ export function EmbeddedProfileBadgesCard({ event, className }: { event: NostrEv
                 </div>
               );
               return (
-                <BadgeThumbnail key={ref.aTag} badge={badge} size={32} />
+                <BadgeThumbnail key={ref.aTag} badge={badge} size={32} gated />
               );
             })}
             {remaining > 0 && (
@@ -668,7 +685,7 @@ function EmbeddedCampaignCard({
     >
       <div className="relative w-full overflow-hidden rounded-lg aspect-[16/9] bg-gradient-to-br from-primary/15 via-primary/5 to-secondary">
         {banner ? (
-          <img
+          <GatedImg
             src={banner}
             alt=""
             loading="lazy"
@@ -862,7 +879,7 @@ function EmbeddedStreamCard({
       {/* Thumbnail with status + viewer overlay */}
       <div className="relative w-full overflow-hidden rounded-lg aspect-video bg-muted">
         {imageUrl ? (
-          <img
+          <GatedImg
             src={imageUrl}
             alt=""
             loading="lazy"
@@ -1011,7 +1028,7 @@ function EmbeddedWebBookmarkCard({
     >
       {image && (
         <div className="relative w-full overflow-hidden rounded-lg bg-muted/30" style={{ aspectRatio: '1.91' }}>
-          <img
+          <GatedImg
             src={image}
             alt=""
             loading="lazy"
