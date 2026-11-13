@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Coins, Languages } from 'lucide-react';
+import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Braces, Coins, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { RawEventPublisher } from '@/components/RawEventPublisher';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
@@ -32,6 +33,7 @@ export function AdvancedSettings() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [sentryOpen, setSentryOpen] = useState(false);
+  const [rawEventOpen, setRawEventOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
   const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
@@ -422,6 +424,36 @@ export function AdvancedSettings() {
           </CollapsibleContent>
         </Collapsible>
       </div>
+
+      {/* Raw Event Section — only when logged in */}
+      {user && (
+        <div>
+          <Collapsible open={rawEventOpen} onOpenChange={setRawEventOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
+              >
+                <span className="flex items-center gap-2 text-base font-semibold">
+                  <Braces className="h-4 w-4" />
+                  <FormattedMessage id="settings.advanced.rawEvent" defaultMessage={"Publish Raw Event"} />
+                </span>
+                {rawEventOpen ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-3 pt-3 pb-4">
+                <RawEventPublisher />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
+      )}
 
       {/* Danger Zone Section — only when logged in */}
       {user && (
