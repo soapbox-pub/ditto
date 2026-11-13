@@ -64,7 +64,7 @@ const STARBURST_POINTS = Array.from({ length: 32 }, (_, i) => {
 }).join(' ');
 
 const SIZE_CLASSES = {
-  feed: 'w-40 sm:w-48',
+  feed: 'w-56 sm:w-72',
   detail: 'w-44 sm:w-52',
   grid: 'w-full',
 } as const;
@@ -88,7 +88,7 @@ export function PulpMagazineCard({ event, className }: { event: NostrEvent; clas
   const { onClick: openDetail } = useOpenPost(`/${naddr}`, event);
 
   return (
-    <div className={cn('mt-3 flex px-2 pb-6 pt-5', className)}>
+    <div className={cn('mt-3 flex justify-center px-6 pb-8 pt-6', className)}>
       {/* Nothing to read yet (e.g. a magazine with no issues): open its page. */}
       <PulpMagazine event={event} size="feed" onUnreadable={() => openDetail()} />
     </div>
@@ -284,6 +284,8 @@ function MagazineCover({ pub, issueCount }: { pub: Publication; issueCount?: num
         )}
         style={{
           backgroundColor: palette.bg,
+          // Cover type scales with the cover's width (cqw), so it reads the same at every size.
+          containerType: 'inline-size',
           clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - var(--ear)), calc(100% - var(--ear)) 100%, 0 100%)',
         }}
       >
@@ -356,7 +358,7 @@ function MagazineCover({ pub, issueCount }: { pub: Publication; issueCount?: num
 
 function PulpCover({ pub, palette }: { pub: Publication; palette: (typeof COVER_PALETTES)[number] }) {
   const title = pub.title.toUpperCase();
-  const titleSize = title.length <= 12 ? '1.65rem' : title.length <= 24 ? '1.2rem' : '0.95rem';
+  const titleSize = title.length <= 12 ? '16.5cqw' : title.length <= 24 ? '12cqw' : '9.5cqw';
 
   return (
     <div className="absolute inset-0 flex flex-col">
@@ -405,8 +407,8 @@ function PulpCover({ pub, palette }: { pub: Publication; palette: (typeof COVER_
       {/* Tagline */}
       {pub.summary && (
         <p
-          className="relative mx-2 mb-2 ml-12 line-clamp-2 px-1.5 py-1 text-[9px] leading-tight"
-          style={{ fontFamily: PRINT_FONT, background: palette.paper, color: '#2b2118' }}
+          className="relative mx-2 mb-2 ml-12 line-clamp-2 px-1.5 py-1 leading-tight"
+          style={{ fontFamily: PRINT_FONT, fontSize: '5.6cqw', background: palette.paper, color: '#2b2118' }}
         >
           {pub.summary}
         </p>
