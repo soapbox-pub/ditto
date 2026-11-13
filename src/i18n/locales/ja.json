@@ -4202,6 +4202,7 @@
   "rawEvent.error.object": "イベントはJSONオブジェクトである必要があります。",
   "rawEvent.error.tags": "「tags」は文字列の配列の配列である必要があります。",
   "rawEvent.label": "イベントJSON",
+  "rawEvent.preview": "フィードでの表示",
   "rawEvent.publish": "署名して公開",
   "rawEvent.published": "イベントを公開しました",
   "rawEvent.template": "テンプレート",

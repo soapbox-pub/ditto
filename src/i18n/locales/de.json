@@ -4202,6 +4202,7 @@
   "rawEvent.error.object": "Das Event muss ein JSON-Objekt sein.",
   "rawEvent.error.tags": "„tags“ muss ein Array aus String-Arrays sein.",
   "rawEvent.label": "Event-JSON",
+  "rawEvent.preview": "Feed-Vorschau",
   "rawEvent.publish": "Signieren & veröffentlichen",
   "rawEvent.published": "Event veröffentlicht",
   "rawEvent.template": "Starten mit",

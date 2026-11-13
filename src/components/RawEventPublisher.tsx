@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom';
 import { defineMessage, FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from 'react-intl';
 import { AlertTriangle, Loader2, Send } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { getEventHash } from 'nostr-tools/pure';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { NoteCard } from '@/components/NoteCard';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish, type EventTemplate } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { shouldHideFeedEvent } from '@/lib/feedUtils';
@@ -185,6 +188,7 @@ function parseEventJson(text: string): ParseResult {
 export function RawEventPublisher() {
   const intl = useIntl();
   const { toast } = useToast();
+  const { user } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const [text, setText] = useState(() => starterJson(1));
   const [published, setPublished] = useState<NostrEvent>();
@@ -195,6 +199,16 @@ export function RawEventPublisher() {
     () => (parsed && 'template' in parsed ? getWarnings(parsed.template, intl) : []),
     [parsed, intl],
   );
+
+  // The event as the feed would get it, rendered with the feed's own card. Its
+  // id is the real hash of the unsigned event, so lookups keyed on it are valid.
+  const previewEvent = useMemo<NostrEvent | undefined>(() => {
+    if (!user || !parsed || !('template' in parsed)) return undefined;
+    const { kind, content, tags, created_at } = parsed.template;
+    const unsigned = { kind, content, tags, created_at: created_at ?? Math.floor(Date.now() / 1000), pubkey: user.pubkey };
+    const event = { ...unsigned, id: getEventHash(unsigned), sig: '' };
+    return KIND_LABELS[kind] && !shouldHideFeedEvent(event) ? event : undefined;
+  }, [user, parsed]);
 
   const handlePublish = async () => {
     if (!parsed || 'error' in parsed) return;
@@ -286,6 +300,18 @@ export function RawEventPublisher() {
             </li>
           ))}
         </ul>
+      )}
+
+      {previewEvent && (
+        <div>
+          <p className="text-sm font-medium mb-2">
+            <FormattedMessage id="rawEvent.preview" defaultMessage="Feed preview" />
+          </p>
+          {/* Inert: the preview's links and actions point at an event that doesn't exist yet. */}
+          <div inert className="rounded-2xl border border-border-subtle overflow-hidden">
+            <NoteCard event={previewEvent} compact />
+          </div>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
