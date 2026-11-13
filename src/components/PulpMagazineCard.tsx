@@ -25,11 +25,14 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Capacitor } from '@capacitor/core';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { useNavigate } from 'react-router-dom';
 
 import { PdfReaderDialog } from '@/components/PdfViewer';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useInView } from '@/hooks/useInView';
 import { useMagazineIssues } from '@/hooks/useMagazineIssues';
 import { useOpenPost } from '@/hooks/useOpenPost';
+import { getContentWarning } from '@/lib/contentWarning';
 import { openUrl } from '@/lib/downloadFile';
 import { loadBundledFont } from '@/lib/fonts';
 import {
@@ -105,19 +108,36 @@ interface PulpMagazineProps {
   size?: keyof typeof SIZE_CLASSES;
   /** Called on click when there's no file to read. Without it, an unreadable magazine isn't clickable. */
   onUnreadable?: () => void;
+  /**
+   * Set when nothing above this magazine has applied the content-warning
+   * guard to `event` (e.g. the issues grid). A warned issue then gets a plain
+   * cover with no art, and clicking calls `onUnreadable` instead of reading.
+   */
+  concealSensitive?: boolean;
   className?: string;
 }
 
-export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: PulpMagazineProps) {
+export function PulpMagazine({ event, size = 'feed', onUnreadable, concealSensitive, className }: PulpMagazineProps) {
   const intl = useIntl();
+  const navigate = useNavigate();
+  const { config } = useAppContext();
   const pub = useMemo(() => parsePublication(event), [event]);
   const isMagazine = event.kind === MAGAZINE_KIND;
+
+  /** Whether a publication's content warning should keep it covered. */
+  const isWarned = (p: Publication) => config.contentWarningPolicy !== 'show' && getContentWarning(p.event) !== undefined;
+  const concealed = Boolean(concealSensitive && isWarned(pub));
 
   const { issues } = useMagazineIssues(event.pubkey, pub.identifier, isMagazine);
   const issuePubs = useMemo(() => issues.map(parsePublication), [issues]);
 
   // What clicking reads: the issue itself, or a magazine's latest readable issue.
-  const readTarget = isMagazine ? issuePubs.find((p) => p.fileUrl) : pub.fileUrl ? pub : undefined;
+  const readTarget = concealed
+    ? undefined
+    : isMagazine ? issuePubs.find((p) => p.fileUrl) : pub.fileUrl ? pub : undefined;
+  // A magazine's latest issue never went through the guard, so a warned one
+  // opens on its own page (where the guard applies) instead of the reader.
+  const readTargetWarned = isMagazine && readTarget !== undefined && isWarned(readTarget);
   const [readerOpen, setReaderOpen] = useState(false);
   const [opening, setOpening] = useState(false);
   const interactive = Boolean(readTarget || onUnreadable);
@@ -154,6 +174,8 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
   const open = () => {
     if (!readTarget?.fileUrl) {
       onUnreadable?.();
+    } else if (readTargetWarned) {
+      navigate(`/${publicationNaddr(readTarget.event)}`);
     } else if (readTarget.format === 'PDF' && !Capacitor.isNativePlatform()) {
       // Swing the cover open first, then hand off to the reader.
       if (prefersReducedMotion()) setReaderOpen(true);
@@ -177,7 +199,7 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
     }
   };
 
-  const stackedIssues = useMemo(() => issuePubs.filter((p) => p.image).slice(0, 2), [issuePubs]);
+  const stackedIssues = issuePubs.filter((p) => p.image && !isWarned(p)).slice(0, 2);
 
   return (
     <>
@@ -243,12 +265,12 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
               />
             ))}
 
-            <MagazineCover pub={pub} issueCount={isMagazine ? issues.length : undefined} />
+            <MagazineCover pub={pub} issueCount={isMagazine ? issues.length : undefined} hideArt={concealed} />
           </div>
         </div>
       </div>
 
-      {readTarget?.fileUrl && readTarget.format === 'PDF' && (
+      {readTarget?.fileUrl && readTarget.format === 'PDF' && !readTargetWarned && (
         // The dialog portals out, but React events still bubble through this
         // tree — keep reader clicks and keys from reaching an enclosing card.
         <div className="contents" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -341,11 +363,11 @@ function MagazineOpening({ pub, onDone }: { pub: Publication; onDone: () => void
 // The magazine cover
 // ---------------------------------------------------------------------------
 
-function MagazineCover({ pub, issueCount }: { pub: Publication; issueCount?: number }) {
+function MagazineCover({ pub, issueCount, hideArt }: { pub: Publication; issueCount?: number; hideArt?: boolean }) {
   const [coverFailed, setCoverFailed] = useState(false);
   const palette = paletteFor(pub.identifier || pub.title);
   // Issues carry real cover art; magazines (and coverless issues) get a pulp cover.
-  const useArtCover = pub.kind !== MAGAZINE_KIND && pub.image && !coverFailed;
+  const useArtCover = pub.kind !== MAGAZINE_KIND && pub.image && !coverFailed && !hideArt;
 
   return (
     <div className="relative [--ear:18px] group-hover/mag:[--ear:0px] group-focus-visible/mag:[--ear:0px]">
@@ -381,7 +403,7 @@ function MagazineCover({ pub, issueCount }: { pub: Publication; issueCount?: num
             onError={() => setCoverFailed(true)}
           />
         ) : (
-          <PulpCover pub={pub} palette={palette} />
+          <PulpCover pub={pub} palette={palette} hideArt={hideArt} />
         )}
 
         {/* Barcode */}
@@ -433,12 +455,12 @@ function MagazineCover({ pub, issueCount }: { pub: Publication; issueCount?: num
         }}
       />
 
-      <CoverSticker pub={pub} issueCount={issueCount} />
+      <CoverSticker pub={pub} issueCount={issueCount} sensitive={hideArt} />
     </div>
   );
 }
 
-function PulpCover({ pub, palette }: { pub: Publication; palette: (typeof COVER_PALETTES)[number] }) {
+function PulpCover({ pub, palette, hideArt }: { pub: Publication; palette: (typeof COVER_PALETTES)[number]; hideArt?: boolean }) {
   const title = pub.title.toUpperCase();
   const titleSize = title.length <= 12 ? '16.5cqw' : title.length <= 24 ? '12cqw' : '9.5cqw';
 
@@ -473,7 +495,7 @@ function PulpCover({ pub, palette }: { pub: Publication; palette: (typeof COVER_
 
       {/* Cover illustration */}
       <div className="relative flex flex-1 items-center justify-center px-4 py-2">
-        {pub.image && (
+        {pub.image && !hideArt && (
           <div className="relative w-[70%] rotate-[-3deg] p-[3px] shadow-[2px_3px_6px_rgba(0,0,0,0.35)]" style={{ background: palette.paper }}>
             <img src={pub.image} alt="" loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
             {/* Halftone print dots */}
@@ -499,8 +521,10 @@ function PulpCover({ pub, palette }: { pub: Publication; palette: (typeof COVER_
   );
 }
 
-function CoverSticker({ pub, issueCount }: { pub: Publication; issueCount?: number }) {
-  const label = pub.issue ? (
+function CoverSticker({ pub, issueCount, sensitive }: { pub: Publication; issueCount?: number; sensitive?: boolean }) {
+  const label = sensitive ? (
+    <FormattedMessage id="pulpMagazine.sticker.sensitive" defaultMessage="Sensitive" />
+  ) : pub.issue ? (
     <FormattedMessage id="pulpMagazine.sticker.issue" defaultMessage="No. {issue}" values={{ issue: pub.issue.slice(0, 9) }} />
   ) : issueCount ? (
     <FormattedMessage id="pulpMagazine.sticker.issueCount" defaultMessage="{count, plural, one {# issue} other {# issues}}" values={{ count: issueCount }} />

@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 import { FormattedMessage, useIntl, type IntlShape } from 'react-intl';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { BookOpen, Calendar, Globe, FileText, ExternalLink, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -264,10 +264,13 @@ function MagazineContent({ event, className }: PublicationContentProps) {
 function IssueGridItem({ event }: { event: NostrEvent }) {
   const pub: Publication = useMemo(() => parsePublication(event), [event]);
   const naddr = useMemo(() => publicationNaddr(event), [event]);
+  const navigate = useNavigate();
 
   return (
     <div className="space-y-3">
-      <PulpMagazine event={event} size="grid" />
+      {/* Grid items skip the content-warning guard, so a warned issue stays
+          covered and opens its own (guarded) page instead of the reader. */}
+      <PulpMagazine event={event} size="grid" concealSensitive onUnreadable={() => navigate(`/${naddr}`)} />
       <Link to={`/${naddr}`} className="group block">
         {pub.issue && (
           <p className="text-xs font-medium text-primary">

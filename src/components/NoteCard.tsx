@@ -801,7 +801,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           </Suspense>
         ) : isPublication ? (
           <Suspense fallback={<Skeleton className="h-28 w-full rounded-lg" />}>
-            <EmbeddedPublicationCard event={event} className="mt-2" hideAuthor />
+            <EmbeddedPublicationCard event={event} className="mt-2" hideAuthor guarded />
           </Suspense>
         ) : isMagicDeck ? (
           <MagicDeckContent event={event} />

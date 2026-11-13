@@ -3,14 +3,21 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { useAppContext } from '@/hooks/useAppContext';
+import { isBlockedEvent } from '@/lib/blockedTerms';
+import { getContentWarning } from '@/lib/contentWarning';
 import { MAGAZINE_ISSUE_KIND, magazineIssuesFilterValue } from '@/lib/publications';
 
 /**
  * Fetch the issues (kind 39731) of a magazine (kind 34609), newest first.
- * Only issues published by the magazine's own author are trusted.
+ * Only issues published by the magazine's own author are trusted. Issues with
+ * a blocked hashtag are dropped, as are content-warned issues when the
+ * content-warning policy is "hide".
  */
 export function useMagazineIssues(pubkey: string, identifier: string, enabled = true) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const hideWarned = config.contentWarningPolicy === 'hide';
 
   const query = useQuery<NostrEvent[]>({
     queryKey: ['magazine-issues', pubkey, identifier],
@@ -32,12 +39,14 @@ export function useMagazineIssues(pubkey: string, identifier: string, enabled = 
   });
 
   const sorted = useMemo(() => {
-    return [...(query.data ?? [])].sort((a, b) => {
-      const pa = Number(a.tags.find(([n]) => n === 'published_at')?.[1]) || a.created_at;
-      const pb = Number(b.tags.find(([n]) => n === 'published_at')?.[1]) || b.created_at;
-      return pb - pa;
-    });
-  }, [query.data]);
+    return (query.data ?? [])
+      .filter((e) => !isBlockedEvent(e) && !(hideWarned && getContentWarning(e) !== undefined))
+      .sort((a, b) => {
+        const pa = Number(a.tags.find(([n]) => n === 'published_at')?.[1]) || a.created_at;
+        const pb = Number(b.tags.find(([n]) => n === 'published_at')?.[1]) || b.created_at;
+        return pb - pa;
+      });
+  }, [query.data, hideWarned]);
 
   return { ...query, issues: sorted };
 }

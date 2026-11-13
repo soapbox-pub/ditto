@@ -16,10 +16,13 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { isBlockedEvent } from '@/lib/blockedTerms';
+import { getContentWarning } from '@/lib/contentWarning';
 import { cn } from '@/lib/utils';
 import {
   parsePublication,
@@ -36,6 +39,8 @@ interface EmbeddedPublicationCardProps {
   disableHoverCards?: boolean;
   /** When true, hides the author byline (context already shows the author). */
   hideAuthor?: boolean;
+  /** When true, the caller already applied the content-warning guard to this event. */
+  guarded?: boolean;
 }
 
 export function EmbeddedPublicationCard({
@@ -43,8 +48,10 @@ export function EmbeddedPublicationCard({
   className,
   disableHoverCards,
   hideAuthor,
+  guarded,
 }: EmbeddedPublicationCardProps) {
   const intl = useIntl();
+  const { config } = useAppContext();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
@@ -64,6 +71,15 @@ export function EmbeddedPublicationCard({
   const KindIcon = isMagazine || isIssue ? Newspaper : BookOpen;
 
   const { onClick: openCard, onAuxClick: auxOpenCard } = useOpenPost(`/${naddrId}`, event);
+
+  // Quote embeds bypass the content-warning guard, so apply the policy here:
+  // drop the card on "hide", and on "blur" keep the cover art and summary off
+  // screen (the image is never fetched) until the publication is opened.
+  const cwReason = guarded ? undefined : getContentWarning(event);
+  const warned = cwReason !== undefined && config.contentWarningPolicy !== 'show';
+  if (author.data?.blocked || isBlockedEvent(event) || (cwReason !== undefined && config.contentWarningPolicy === 'hide')) {
+    return null;
+  }
 
   return (
     <div
@@ -92,7 +108,7 @@ export function EmbeddedPublicationCard({
     >
       {/* Cover */}
       <div className="shrink-0">
-        {pub.image ? (
+        {pub.image && !warned ? (
           <img
             src={pub.image}
             alt=""
@@ -132,7 +148,13 @@ export function EmbeddedPublicationCard({
           <p className="line-clamp-1 text-sm text-muted-foreground"><FormattedMessage id="publicationCard.byAuthors" defaultMessage="by {authors}" values={{ authors: intl.formatList(pub.authors) }} /></p>
         )}
 
-        {pub.summary && (
+        {warned ? (
+          <p className="mt-0.5 line-clamp-2 text-sm italic text-muted-foreground">
+            {cwReason
+              ? <FormattedMessage id="embeddedNote.contentWarningReason" defaultMessage="Content warning “{reason}”" values={{ reason: cwReason }} />
+              : <FormattedMessage id="publicationCard.contentWarning" defaultMessage="Content warning" />}
+          </p>
+        ) : pub.summary && (
           <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{pub.summary}</p>
         )}
 
