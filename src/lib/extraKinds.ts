@@ -9,8 +9,8 @@ import { CONTENT_KIND_ICONS } from '@/lib/sidebarItems';
 /** A sub-kind that lives under a parent ExtraKindDef. */
 export interface SubKindDef {
   kind: number;
-  /** Key in FeedSettings that controls visibility within the parent page. */
-  showKey: keyof FeedSettings;
+  /** Key in FeedSettings that controls visibility within the parent page (omit when the parent has no page). */
+  showKey?: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds. */
   feedKey: keyof FeedSettings;
   /** Additional kind numbers to include alongside `kind` when the feed toggle is on. */
@@ -310,15 +310,36 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   {
     kind: 34609,
     id: 'publications',
-    feedKey: 'feedIncludePublications',
-    extraFeedKinds: [39731, 33953],
     label: defineMessage({ id: 'extraKinds.publications.label', defaultMessage: 'Magazines & Ebooks' }),
-    description: defineMessage({ id: 'extraKinds.publications.description', defaultMessage: 'Digital magazines, magazine issues, and ebooks (kinds 34609, 39731, 33953)' }),
+    description: defineMessage({ id: 'extraKinds.publications.description', defaultMessage: 'Digital magazines, magazine issues, and ebooks' }),
     addressable: true,
     section: 'media',
     feedOnly: true,
     blurb: defineMessage({ id: 'extraKinds.publications.blurb', defaultMessage: 'Magazines, their issues, and ebooks published to Nostr as PDFs and EPUBs. Fresh issues land in the feed like a magazine tossed on the table; open one to read it right in the app.' }),
     sites: [{ url: 'https://pressstr.shakespeare.wtf', name: 'PressStr' }],
+    subKinds: [
+      {
+        kind: 34609,
+        feedKey: 'feedIncludeMagazines',
+        label: defineMessage({ id: 'extraKinds.publications.k34609.label', defaultMessage: 'Magazines' }),
+        description: defineMessage({ id: 'extraKinds.publications.k34609.description', defaultMessage: 'Magazine announcements (kind 34609)' }),
+        addressable: true,
+      },
+      {
+        kind: 39731,
+        feedKey: 'feedIncludeMagazineIssues',
+        label: defineMessage({ id: 'extraKinds.publications.k39731.label', defaultMessage: 'Magazine Issues' }),
+        description: defineMessage({ id: 'extraKinds.publications.k39731.description', defaultMessage: 'Individual magazine issues (kind 39731)' }),
+        addressable: true,
+      },
+      {
+        kind: 33953,
+        feedKey: 'feedIncludeEbooks',
+        label: defineMessage({ id: 'extraKinds.publications.k33953.label', defaultMessage: 'Ebooks' }),
+        description: defineMessage({ id: 'extraKinds.publications.k33953.description', defaultMessage: 'Standalone PDF and EPUB books (kind 33953)' }),
+        addressable: true,
+      },
+    ],
   },
   // Social
   {
@@ -1046,7 +1067,7 @@ export function getPageKinds(def: ExtraKindDef, feedSettings: FeedSettings): num
   if (!def.subKinds) return [def.kind];
 
   return def.subKinds
-    .filter((sub) => feedSettings[sub.showKey])
+    .filter((sub) => !sub.showKey || feedSettings[sub.showKey])
     .flatMap((sub) => sub.extraFeedKinds ? [sub.kind, ...sub.extraFeedKinds] : [sub.kind]);
 }
 
