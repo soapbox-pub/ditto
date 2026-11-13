@@ -127,8 +127,8 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
   void loadBundledFont('Special Elite');
 
   // Drop into place the first time it's seen.
-  const { ref: viewRef, inView } = useInView({ threshold: 0.35 });
   const [landed, setLanded] = useState(false);
+  const { ref: viewRef, inView } = useInView({ threshold: 0.35, skip: landed });
   if (inView && !landed) setLanded(true);
 
   const planeRef = useRef<HTMLDivElement>(null);
