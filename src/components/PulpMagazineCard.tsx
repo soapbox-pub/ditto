@@ -20,7 +20,8 @@
  * Used by the feed (`PulpMagazineCard`) and the publication detail view.
  */
 
-import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { Capacitor } from '@capacitor/core';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -118,6 +119,7 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
   // What clicking reads: the issue itself, or a magazine's latest readable issue.
   const readTarget = isMagazine ? issuePubs.find((p) => p.fileUrl) : pub.fileUrl ? pub : undefined;
   const [readerOpen, setReaderOpen] = useState(false);
+  const [opening, setOpening] = useState(false);
   const interactive = Boolean(readTarget || onUnreadable);
 
   // Fonts are bundled; this is a no-op once loaded.
@@ -153,7 +155,9 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
     if (!readTarget?.fileUrl) {
       onUnreadable?.();
     } else if (readTarget.format === 'PDF' && !Capacitor.isNativePlatform()) {
-      setReaderOpen(true);
+      // Swing the cover open first, then hand off to the reader.
+      if (prefersReducedMotion()) setReaderOpen(true);
+      else setOpening(true);
     } else {
       // EPUBs can't render inline, and native WebViews read PDFs poorly.
       void openUrl(readTarget.fileUrl);
@@ -248,10 +252,88 @@ export function PulpMagazine({ event, size = 'feed', onUnreadable, className }: 
         // The dialog portals out, but React events still bubble through this
         // tree — keep reader clicks and keys from reaching an enclosing card.
         <div className="contents" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+          {opening && (
+            <MagazineOpening
+              pub={readTarget}
+              onDone={() => {
+                setOpening(false);
+                setReaderOpen(true);
+              }}
+            />
+          )}
           <PdfReaderDialog url={readTarget.fileUrl} title={readTarget.title} open={readerOpen} onOpenChange={setReaderOpen} />
         </div>
       )}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Opening animation: the cover swings open on its spine before the reader
+// ---------------------------------------------------------------------------
+
+/** How long the cover takes to swing open (keep in sync with the animations). */
+const OPEN_DURATION_MS = 900;
+
+/**
+ * Purely decorative: it only animates the cover art already on screen. The
+ * PDF itself is still rendered by the browser's built-in viewer in the reader
+ * dialog, so no untrusted file is parsed by the app.
+ */
+function MagazineOpening({ pub, onDone }: { pub: Publication; onDone: () => void }) {
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  // Hand off on a timer rather than animationend, which never fires if the
+  // animation is interrupted or the tab is hidden.
+  useEffect(() => {
+    const timer = window.setTimeout(() => onDoneRef.current(), OPEN_DURATION_MS + 150);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return createPortal(
+    <div
+      aria-hidden
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 animate-in fade-in duration-300"
+      onClick={() => onDoneRef.current()}
+    >
+      <div className="w-[min(60vw,20rem)] [perspective:1800px]">
+        {/* The book slides right as it opens so the spread ends up centered. */}
+        <div className="relative animate-magazine-open-shift [transform-style:preserve-3d]">
+          {/* First page, revealed under the cover */}
+          <div
+            className="absolute inset-0 overflow-hidden rounded-r-[3px] shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+            style={{ background: 'linear-gradient(90deg, #d9ccae 0%, #f3ead3 6%, #f6eedb 100%)' }}
+          >
+            <div className="absolute inset-0 opacity-[0.1] mix-blend-multiply" style={{ backgroundImage: NOISE }} />
+            <div className="relative flex h-full flex-col justify-center gap-3 p-[10%]" style={{ containerType: 'inline-size' }}>
+              <p className="line-clamp-4 text-[#2b2118]" style={{ fontFamily: MASTHEAD_FONT, fontSize: '9cqw', lineHeight: 1 }}>
+                {pub.title}
+              </p>
+              <div className="h-[2px] w-1/3 bg-[#2b2118]/60" />
+              {pub.summary && (
+                <p className="line-clamp-6 text-[#2b2118]/80" style={{ fontFamily: PRINT_FONT, fontSize: '5cqw', lineHeight: 1.35 }}>
+                  {pub.summary}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* The cover, hinged on its spine */}
+          <div className="relative origin-left animate-magazine-open [transform-style:preserve-3d]">
+            <div className="[backface-visibility:hidden]">
+              <MagazineCover pub={pub} />
+            </div>
+            {/* Inside of the cover */}
+            <div
+              className="absolute inset-0 rounded-[3px] [backface-visibility:hidden] [transform:rotateY(180deg)]"
+              style={{ background: 'linear-gradient(270deg, #cbbd9c 0%, #ece2c8 8%, #efe6cf 100%)' }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

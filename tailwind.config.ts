@@ -334,6 +334,18 @@ export default {
 				'0%, 45%': { transform: 'scale(0.7)', opacity: '0' },
 				'60%': { opacity: '0.8' },
 				'100%': { transform: 'scale(1.5)', opacity: '0' }
+			},
+			'magazine-open': {
+				// Pulp magazine reader hand-off: the cover swings open on its spine.
+				'0%': { transform: 'rotateY(0deg)' },
+				'100%': { transform: 'rotateY(-165deg)' }
+			},
+			'magazine-open-shift': {
+				// ...while the whole book rises and slides right so the open
+				// spread ends up centered.
+				'0%': { transform: 'translateX(0) scale(0.85)', opacity: '0' },
+				'20%': { opacity: '1' },
+				'100%': { transform: 'translateX(50%) scale(1)', opacity: '1' }
 			}
 			},
 			animation: {
@@ -367,7 +379,10 @@ export default {
 				'reaction-spark': 'reaction-spark 0.6s cubic-bezier(0.16, 1, 0.3, 1) 90ms both',
 				'reaction-halo': 'success-halo 0.5s cubic-bezier(0.16, 1, 0.3, 1) 90ms both',
 				'magazine-drop': 'magazine-drop 0.75s cubic-bezier(0.2, 0.8, 0.3, 1) both',
-				'magazine-dust': 'magazine-dust 0.9s ease-out both'
+				'magazine-dust': 'magazine-dust 0.9s ease-out both',
+				// 0.9s total — keep in sync with OPEN_DURATION_MS in PulpMagazineCard.
+				'magazine-open': 'magazine-open 0.75s cubic-bezier(0.45, 0, 0.2, 1) 0.15s both',
+				'magazine-open-shift': 'magazine-open-shift 0.9s cubic-bezier(0.45, 0, 0.2, 1) both'
 			}
 		}
 	},
