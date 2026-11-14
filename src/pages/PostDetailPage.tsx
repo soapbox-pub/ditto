@@ -266,6 +266,7 @@ import { shareOrCopy } from "@/lib/share";
 import { parseProfileImeta } from "@/lib/profileImeta";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/motion";
+import { impactLight } from "@/lib/haptics";
 
 interface PostDetailPageProps {
   eventId: string;
@@ -2499,7 +2500,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <button
                 className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
                 title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
-                onClick={() => setReplyOpen(true)}
+                onClick={() => { impactLight(); setReplyOpen(true); }}
               >
                 <MessageCircle className="size-5" />
                 <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />
@@ -2569,7 +2570,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <button
               className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
               title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
-              onClick={() => setReplyOpen(true)}
+              onClick={() => { impactLight(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-5" />
               <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />

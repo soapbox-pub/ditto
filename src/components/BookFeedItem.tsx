@@ -30,6 +30,7 @@ import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { cn } from '@/lib/utils';
 import { BOOKSTR_KINDS, extractISBNFromEvent, parseBookReview, ratingToStars } from '@/lib/bookstr';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { impactLight } from '@/lib/haptics';
 
 interface BookFeedItemProps {
   event: NostrEvent;
@@ -228,7 +229,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
             <button
               className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
               title={intl.formatMessage({ id: 'bookFeedItem.reply', defaultMessage: 'Reply' })}
-              onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
+              onClick={(e) => { e.stopPropagation(); impactLight(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-5" />
               <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />

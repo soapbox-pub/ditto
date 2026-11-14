@@ -3,7 +3,7 @@ import { Copy, Check, ExternalLink, X, Loader2, ChevronDown, MessageCircle } fro
 import { useQuery } from '@tanstack/react-query';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { openUrl } from '@/lib/downloadFile';
-import { impactMedium } from '@/lib/haptics';
+import { impactLight, impactMedium } from '@/lib/haptics';
 import { HelpTip } from '@/components/HelpTip';
 import { Button } from '@/components/ui/button';
 import {
@@ -347,6 +347,8 @@ export function ZapDialogImpl({
   const open = isControlled ? controlledOpen : uncontrolledOpen;
   const setOpen = useCallback(
     (next: boolean) => {
+      // A light tap as the dialog opens; the zap itself lands harder.
+      if (next) impactLight();
       if (isControlled) {
         onOpenChange?.(next);
       } else {

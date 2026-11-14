@@ -211,6 +211,7 @@ import { parseProfileImeta } from "@/lib/profileImeta";
 import { isSlideRender } from "@/lib/pushTransition";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { prefersReducedMotion } from "@/lib/motion";
+import { impactLight } from "@/lib/haptics";
 
 
 /** Profile card for use in feeds (kind 0). */
@@ -1052,6 +1053,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           title={intl.formatMessage({ id: "noteCard.reply", defaultMessage: "Reply" })}
           onClick={(e) => {
             e.stopPropagation();
+            impactLight();
             reply();
           }}
         >

@@ -12,6 +12,7 @@ import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { AnimatedCount } from '@/components/AnimatedCount';
 import { isPeopleListKind, parsePeopleList } from '@/lib/packUtils';
 import { cn } from '@/lib/utils';
+import { impactLight } from '@/lib/haptics';
 
 interface PostActionBarProps {
   event: NostrEvent;
@@ -59,7 +60,7 @@ export function PostActionBar({
         type="button"
         className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 action-press", compact ? "p-1.5 sm:p-2" : "p-2")}
         title={replyLabel ?? intl.formatMessage({ id: 'postActionBar.reply', defaultMessage: 'Reply' })}
-        onClick={onReply}
+        onClick={() => { impactLight(); onReply(); }}
       >
         <MessageCircle className={compact ? "size-[18px] sm:size-5" : "size-5"} />
         <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />

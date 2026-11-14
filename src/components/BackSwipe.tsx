@@ -13,6 +13,7 @@ import { getPageThemeCss } from '@/lib/pageTheme';
 import { getSavedScroll } from '@/lib/scrollPositions';
 import { getScrollRestoreCorrectedAt } from '@/lib/scrollRestore';
 import { getTopBarFlatness, paintTopBarArc, resetTopBarArc } from '@/lib/topBarArc';
+import { selectionChanged } from '@/lib/haptics';
 
 /** Parallax shift of the previous page at the start of a swipe, as a fraction of the width. */
 const UNDERLAY_SHIFT = 0.25;
@@ -310,6 +311,7 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
           // happens in the layout effect below, on the frame the previous
           // page renders.
           swapping.current = true;
+          selectionChanged();
           paintArc(1);
           // The copy stays rendered across the swap, though the entry behind
           // the one going back to is a different one.
