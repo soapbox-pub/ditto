@@ -51,6 +51,7 @@ export function MobileBottomNav() {
     ? location.pathname === homePath
     : location.pathname === '/' || location.pathname === homePath;
   const isOnRootAs = (id: string) => location.pathname === '/' && config.homePage === id;
+  const isOnNotifications = location.pathname === '/notifications' || isOnRootAs('notifications');
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -98,7 +99,9 @@ export function MobileBottomNav() {
               isOnHome ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <HomeIcon className="size-5" />
+            <span className={cn('flex', isOnHome && 'motion-safe:animate-nav-pop')}>
+              <HomeIcon className="size-5" />
+            </span>
             <span className="text-[10px] font-medium">{homeLabel}</span>
           </Link>
 
@@ -110,7 +113,9 @@ export function MobileBottomNav() {
               searchOpen ? 'text-primary' : 'text-muted-foreground',
             )}
           >
-            <Search className="size-5" />
+            <span className={cn('flex', searchOpen && 'motion-safe:animate-nav-pop')}>
+              <Search className="size-5" />
+            </span>
             <span className="text-[10px] font-medium"><FormattedMessage id="nav.search" defaultMessage={"Search"} /></span>
           </button>
 
@@ -118,16 +123,20 @@ export function MobileBottomNav() {
           {user && (
             <Link
               to="/notifications"
-              onClick={() => { selectionChanged(); setSearchOpen(false); }}
+              onClick={() => {
+                selectionChanged();
+                setSearchOpen(false);
+                if (isOnNotifications) window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                location.pathname === '/notifications' || isOnRootAs('notifications') ? 'text-primary' : 'text-muted-foreground',
+                isOnNotifications ? 'text-primary' : 'text-muted-foreground',
               )}
             >
-              <span className="relative">
+              <span className={cn('relative flex', isOnNotifications && 'motion-safe:animate-nav-pop')}>
                 <Bell className="size-5" />
                 {hasUnread && (
-                  <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
+                  <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full motion-safe:animate-in motion-safe:zoom-in-0 motion-safe:duration-300" />
                 )}
               </span>
               <span className="text-[10px] font-medium"><FormattedMessage id="nav.notifications" defaultMessage={"Notifications"} /></span>
@@ -138,13 +147,23 @@ export function MobileBottomNav() {
           {user ? (
             <Link
               to={profileUrl}
-              onClick={() => { selectionChanged(); setSearchOpen(false); }}
+              onClick={() => {
+                selectionChanged();
+                setSearchOpen(false);
+                if (isOnProfile) window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
                 isOnProfile ? 'text-primary' : 'text-muted-foreground',
               )}
             >
-              <Avatar shape={getAvatarShape(metadata)} className="size-5">
+              <Avatar
+                shape={getAvatarShape(metadata)}
+                className={cn(
+                  'size-5 ring-offset-1 ring-offset-background transition-shadow',
+                  isOnProfile && 'ring-2 ring-primary motion-safe:animate-nav-pop',
+                )}
+              >
                 <AvatarImage src={metadata?.picture} imeta={imeta?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
                   {displayName?.[0]?.toUpperCase() || <User className="size-3" />}

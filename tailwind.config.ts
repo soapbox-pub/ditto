@@ -354,6 +354,13 @@ export default {
 				'60%': { transform: 'translateY(6%) scale(1.04)', opacity: '1' },
 				'100%': { transform: 'none', opacity: '1' }
 			},
+			'nav-pop': {
+				// Bottom nav: the icon of the tab you land on dips and springs up.
+				'0%': { transform: 'scale(1)' },
+				'30%': { transform: 'scale(0.82)' },
+				'65%': { transform: 'scale(1.14)' },
+				'100%': { transform: 'scale(1)' }
+			},
 			'count-in-up': {
 				// AnimatedCount: the new number rolls up from below...
 				'0%': { transform: 'translateY(90%)', opacity: '0' },
@@ -417,6 +424,7 @@ export default {
 				'new-posts-pill-in': 'new-posts-pill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				'new-posts-avatar-in': 'success-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				'new-posts-arrow': 'new-posts-arrow 3s ease-in-out 1s infinite',
+				'nav-pop': 'nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
 				'count-in-up': 'count-in-up 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15) both',
 				'count-out-up': 'count-out-up 0.25s ease-in both',
 				'count-in-down': 'count-in-down 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15) both',
