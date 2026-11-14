@@ -12,6 +12,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
@@ -583,6 +586,13 @@ export function ZapDialogImpl({
     payWithWebLN,
   };
 
+  // A bottom sheet on phones, which a drag down dismisses; a dialog on wide screens.
+  const asSheet = useMediaQuery('(max-width: 899px)');
+  const Root = asSheet ? Drawer : Dialog;
+  const Trigger = asSheet ? DrawerTrigger : DialogTrigger;
+  const Content = asSheet ? DrawerContent : DialogContent;
+  const Title = asSheet ? DrawerTitle : DialogTitle;
+
   // Zap button shows for any logged-in user except when targeting oneself.
   // Campaigns bypass the self-check: a creator donating to their own
   // campaign is legitimate.
@@ -596,17 +606,22 @@ export function ZapDialogImpl({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Root open={open} onOpenChange={setOpen} {...(asSheet ? { shouldScaleBackground: false } : {})}>
       {children && (
-        <DialogTrigger asChild>
+        <Trigger asChild>
           <div className={`cursor-pointer ${className || ''}`} onClick={(e) => e.stopPropagation()}>
             {children}
           </div>
-        </DialogTrigger>
+        </Trigger>
       )}
-      <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
-        <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold flex items-center gap-1.5 min-w-0">
+      <Content
+        className={asSheet
+          ? 'max-h-[95dvh] border-border-subtle overflow-hidden'
+          : 'max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden'}
+        data-testid="zap-modal"
+      >
+        <div className="flex items-center justify-between px-4 h-12 shrink-0">
+          <Title className="text-base font-semibold flex items-center gap-1.5 min-w-0">
             {success ? (
               <FormattedMessage id="zapDialog.success" defaultMessage="Success" />
             ) : campaign ? (
@@ -652,7 +667,7 @@ export function ZapDialogImpl({
                 <HelpTip faqId="send-bitcoin-onchain" />
               </>
             )}
-          </DialogTitle>
+          </Title>
           <button
             onClick={() => setOpen(false)}
             aria-label={intl.formatMessage({ id: 'zapDialog.close', defaultMessage: 'Close' })}
@@ -661,7 +676,7 @@ export function ZapDialogImpl({
             <X className="size-5" />
           </button>
         </div>
-        <div className="overflow-y-auto max-h-[calc(95vh-3rem)]">
+        <div className={cn('overflow-y-auto', asSheet ? 'min-h-0 overscroll-contain safe-area-bottom' : 'max-h-[calc(95vh-3rem)]')}>
           {nonstandardInvoiceFrom && (invoice || success?.kind === 'lightning') && (
             <div className="px-4 pt-2">
               <NonstandardInvoiceNotice callback={nonstandardInvoiceFrom} />
@@ -700,8 +715,8 @@ export function ZapDialogImpl({
             />
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </Content>
+    </Root>
   );
 }
 

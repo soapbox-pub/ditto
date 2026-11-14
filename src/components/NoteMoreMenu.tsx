@@ -21,11 +21,7 @@ import {
   RotateCcw,
   EyeOff,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { AdaptiveDialog } from '@/components/AdaptiveDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -536,9 +532,12 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85dvh] p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-y-auto [&>button]:hidden">
-        <DialogTitle className="sr-only"><FormattedMessage id="note.moreMenu.title" defaultMessage="Post options" /></DialogTitle>
+    <AdaptiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<FormattedMessage id="note.moreMenu.title" defaultMessage="Post options" />}
+      className="max-w-md max-h-[85dvh] p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-y-auto"
+    >
 
         {/* Post preview — delegates to the shared EmbeddedPost used by quote
             posts and reply indicators so every surface renders events the same way. */}
@@ -665,7 +664,6 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
             <FormattedMessage id="note.moreMenu.close" defaultMessage="Close" />
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+    </AdaptiveDialog>
   );
 }
