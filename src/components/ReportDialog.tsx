@@ -112,20 +112,24 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
         </AdaptiveDialogDescription>
 
         <div className="flex-1 overflow-y-auto min-h-0 -mx-6 px-6">
+          {/* Rows bleed into the padding so their radios line up with the title.
+              A reason's description shows once it's picked. */}
           <RadioGroup
             value={reportType}
             onValueChange={(v) => setReportType(v as ReportType)}
-            className="mt-2 space-y-1"
+            className="-mx-3 gap-0"
           >
             {REPORT_TYPES.map((type) => (
               <label
                 key={type.value}
-                className="flex items-start gap-3 rounded-lg px-3 py-2.5 cursor-pointer transition-colors hover:bg-secondary/60"
+                className="flex items-start gap-3 rounded-lg px-3 py-2.5 cursor-pointer transition-colors can-hover:bg-secondary/60"
               >
                 <RadioGroupItem value={type.value} className="mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <span className="text-sm font-medium"><FormattedMessage {...type.label} /></span>
-                  <p className="text-xs text-muted-foreground mt-0.5"><FormattedMessage {...type.description} /></p>
+                  {reportType === type.value && (
+                    <p className="text-xs text-muted-foreground mt-0.5 motion-safe:animate-in motion-safe:fade-in"><FormattedMessage {...type.description} /></p>
+                  )}
                 </div>
               </label>
             ))}
@@ -151,7 +155,7 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
           </div>
         </div>
 
-        <div className="flex gap-2 justify-end pt-2 shrink-0">
+        <div className="flex gap-2 justify-end pt-2 shrink-0 max-sidebar:[&>*]:flex-1">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
