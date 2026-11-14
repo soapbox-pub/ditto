@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.46.3] - 2026-11-14
+
+Ditto moves with you now. Profiles shrink and blur as you scroll and stretch when you pull to refresh, the bars glide away under your thumb, counts roll as they change, and menus slide up as sheets you can swipe away. Magazines land in your feed as pulp issues you can flip open, text size is adjustable, Bitcoin and Lightning addresses become payment links, and a round of security hardening keeps your account safer.
+
+### Added
+- Profiles react to your scroll: the avatar shrinks, the banner blurs, and the name rises into the top bar
+- Pull down on a profile to stretch its banner and refresh, then land on its posts
+- Magazines show up in the feed as a pulp magazine you can swing open to read, with their own feed toggle
+- A Text size slider in Settings → Personalize
+- Bitcoin and Lightning addresses in posts are tappable payment links
+- Publish raw events from Settings → Advanced, with a preview and starter templates
+- The new posts pill shows who posted
+- A grabbable scrollbar for mouse and stylus users
+
+### Changed
+- The top bar, tabs, and bottom bar slide away with your scroll and settle when you stop
+- Pull to refresh stretches, ticks when it's ready, and springs back
+- Reply, repost, like, and zap counts roll to their new values, and likes count the moment you tap
+- The tab underline slides to the tab you pick, and the bottom bar icons pop when you land on them
+- Tapping Notifications or Profile again scrolls back to the top
+- Action buttons press in under your finger, repost arrows spin, and taps on reply and zap give a light tick
+- New posts grow in at the top of your feed after a refresh
+- On phones, post and profile menus, followers, interactions, add to list, and report open as sheets you swipe down to close
+- Android's back gesture closes open menus, sheets, and search before leaving the page
+- Avatars, banners, and images fade in as they load instead of popping
+- Stickers are grouped one section per pack
+- Highlights, image zoom, and loading placeholders hold still when your device asks for less motion
+
+### Fixed
+- Switching tabs on a profile no longer jumps back to the top of the page
+- Fullscreen video controls stay clear of Android's gesture bar, back leaves fullscreen, and the page no longer jumps to the top
+- Long names on follow updates no longer widen the feed
+- A profile's Posts & replies tab no longer fills up with their reactions
+- Hiding media from strangers now covers magazines, more post types, and quoted posts
+- Custom emojis the picker can't show no longer clutter its search and recent row
+- Security hardening: sites using your account must ask before wiping data, Android backups leave your keys out, and the analytics script is gone
+
 ## [2.46.2] - 2026-11-11
 
 Going back now lands you exactly where you were, on the same tab and at the same spot. Taps feel right on your phone, with a quick pressed look under your finger and no buttons stuck lit afterward. Multiple-choice polls take more than one pick, names show the way people chose them, and you can restore old versions of your profile, follows, theme, mutes, and badges from Import & Export.
