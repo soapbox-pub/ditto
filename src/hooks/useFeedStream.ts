@@ -26,6 +26,9 @@ const MAX_STREAM_RELAYS = 10;
 /** Most posts asked back for the stretch a stream spent quiet in the background. */
 const RESUME_LIMIT = 200;
 
+/** How many distinct recent authors to report for the pill's avatars. */
+const MAX_AUTHORS = 3;
+
 /** Which core feed tabs support live auto-refresh. */
 type StreamableTab = 'follows' | 'loved' | 'global' | 'communities';
 
@@ -65,11 +68,13 @@ interface UseFeedStreamOptions {
  * (see {@link Feed}). New posts are only counted while the user is scrolled down,
  * so a pill never appears over content the user is already at the top of.
  *
- * @returns `newPostCount` (waiting posts) and `reset()` to clear the counter
- *          (call after flushing/refreshing).
+ * @returns `newPostCount` (waiting posts), `newPostAuthors` (the most recent
+ *          distinct authors among them, newest first), and `reset()` to clear
+ *          the counter (call after flushing/refreshing).
  */
 export function useFeedStream(options: UseFeedStreamOptions): {
   newPostCount: number;
+  newPostAuthors: string[];
   reset: () => void;
 } {
   const { tab, authors, kinds, showReplies, enabled = true, since } = options;
@@ -81,6 +86,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   const { shouldFilterEvent } = useContentFilters();
 
   const [newPostCount, setNewPostCount] = useState(0);
+  const [newPostAuthors, setNewPostAuthors] = useState<string[]>([]);
   // Backgrounded the stream closes, then resumes from where it
   // paused (see @/lib/backgroundQuiet) so the count still covers that stretch.
   const quiet = useBackgroundQuiet();
@@ -95,6 +101,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
   const reset = useCallback(() => {
     seenRef.current = new Set();
     setNewPostCount(0);
+    setNewPostAuthors([]);
   }, []);
 
   // Reset the counter when the user returns to the top. Not measured on mount:
@@ -159,6 +166,7 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     if (!live.resumed) {
       seenRef.current = new Set();
       setNewPostCount(0);
+      setNewPostAuthors([]);
     }
 
     const backfillSince = live.resumed ? live.since : sinceRef.current;
@@ -215,6 +223,9 @@ export function useFeedStream(options: UseFeedStreamOptions): {
 
       seenRef.current.add(event.id);
       setNewPostCount((c) => c + 1);
+      setNewPostAuthors((prev) => prev[0] === event.pubkey
+        ? prev
+        : [event.pubkey, ...prev.filter((pk) => pk !== event.pubkey)].slice(0, MAX_AUTHORS));
     }
 
     return () => {
@@ -226,5 +237,5 @@ export function useFeedStream(options: UseFeedStreamOptions): {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nostr, tab, authorsKey, kindsKey, relaysKey, enabled, quiet]);
 
-  return { newPostCount, reset };
+  return { newPostCount, newPostAuthors, reset };
 }

@@ -3169,6 +3169,7 @@
   "nav.wikipedia": "ウィキペディア",
   "nav.world": "ワールド",
   "newPostsPill.label": "{count, plural, other {#件の新しい投稿}}",
+  "newPostsPill.posted": "{authors, plural, other {が投稿しました}}",
   "nip05Badge.viewFeed": "{domain}のフィードを見る",
   "nostrEventSidebar.event": "イベント",
   "nostrEventSidebar.remove": "削除",

@@ -346,6 +346,19 @@ export default {
 				'0%': { transform: 'translateX(0) scale(0.85)', opacity: '0' },
 				'20%': { opacity: '1' },
 				'100%': { transform: 'translateX(50%) scale(1)', opacity: '1' }
+			},
+			'new-posts-pill-in': {
+				// New posts pill: drops down from under the header, overshoots
+				// a touch, and settles.
+				'0%': { transform: 'translateY(-120%) scale(0.85)', opacity: '0' },
+				'60%': { transform: 'translateY(6%) scale(1.04)', opacity: '1' },
+				'100%': { transform: 'none', opacity: '1' }
+			},
+			'new-posts-arrow': {
+				// New posts pill arrow: a gentle upward nudge toward the top.
+				'0%, 70%, 100%': { transform: 'translateY(0)' },
+				'80%': { transform: 'translateY(-3px)' },
+				'90%': { transform: 'translateY(1px)' }
 			}
 			},
 			animation: {
@@ -382,7 +395,10 @@ export default {
 				'magazine-dust': 'magazine-dust 0.9s ease-out both',
 				// 0.9s total — keep in sync with OPEN_DURATION_MS in PulpMagazineCard.
 				'magazine-open': 'magazine-open 0.75s cubic-bezier(0.45, 0, 0.2, 1) 0.15s both',
-				'magazine-open-shift': 'magazine-open-shift 0.9s cubic-bezier(0.45, 0, 0.2, 1) both'
+				'magazine-open-shift': 'magazine-open-shift 0.9s cubic-bezier(0.45, 0, 0.2, 1) both',
+				'new-posts-pill-in': 'new-posts-pill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				'new-posts-avatar-in': 'success-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				'new-posts-arrow': 'new-posts-arrow 3s ease-in-out 1s infinite'
 			}
 		}
 	},

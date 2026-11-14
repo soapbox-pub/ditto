@@ -3169,6 +3169,7 @@
   "nav.wikipedia": "Wikipedia",
   "nav.world": "Welt",
   "newPostsPill.label": "{count, plural, one {# neuer Beitrag} other {# neue Beiträge}}",
+  "newPostsPill.posted": "{authors, plural, one {hat gepostet} other {haben gepostet}}",
   "nip05Badge.viewFeed": "Feed von {domain} ansehen",
   "nostrEventSidebar.event": "Ereignis",
   "nostrEventSidebar.remove": "Entfernen",

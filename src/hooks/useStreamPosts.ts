@@ -685,16 +685,27 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Count only buffered events that pass the same filters so the "N new posts"
   // pill reflects the actual number the user will see after flushing.
-  const filteredNewPostCount = useMemo(() => {
-    return streamBufferRef.current.filter(matchesFilters).length;
+  const filteredNewPosts = useMemo(() => {
+    return streamBufferRef.current.filter(matchesFilters);
   // streamBufferCount is used as a dependency to re-evaluate when the buffer changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamBufferCount, matchesFilters]);
 
+  // The latest few distinct authors in the buffer, newest arrival first.
+  const newPostAuthors = useMemo(() => {
+    const authors: string[] = [];
+    for (let i = filteredNewPosts.length - 1; i >= 0 && authors.length < 3; i--) {
+      const { pubkey } = filteredNewPosts[i];
+      if (!authors.includes(pubkey)) authors.push(pubkey);
+    }
+    return authors;
+  }, [filteredNewPosts]);
+
   return {
     posts,
     isLoading,
-    newPostCount: filteredNewPostCount,
+    newPostCount: filteredNewPosts.length,
+    newPostAuthors,
     flushStreamBuffer,
     flushedIds,
     // Pagination

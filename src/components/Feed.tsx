@@ -311,7 +311,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     !isHotSortedGlobal &&
     (feedTabForQuery === 'follows' || feedTabForQuery === 'loved' || feedTabForQuery === 'global');
 
-  const { newPostCount, reset: resetNewPosts } = useFeedStream({
+  const { newPostCount, newPostAuthors, reset: resetNewPosts } = useFeedStream({
     tab: feedTabForQuery,
     authors: streamAuthors,
     kinds,
@@ -627,7 +627,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         <PullToRefresh onRefresh={handleRefresh}>
           {/* New posts pill — live auto-refresh. Never re-sorts the feed:
               tapping it refreshes and scrolls to top. */}
-          <NewPostsPill count={newPostCount} onClick={handleShowNewPosts} />
+          <NewPostsPill count={newPostCount} authors={newPostAuthors} onClick={handleShowNewPosts} />
           {feedItems.length > 0 ? (
             <div>
               {feedItems.map((item: FeedItem, index: number) => (
