@@ -9,9 +9,14 @@ interface SubHeaderBarContextValue {
   onHover: (slice: HoverSlice | null) => void;
   onActive: (slice: HoverSlice | null) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  /**
+   * The window scroll at which the bar rests stuck right above the start of
+   * what it heads, or null while it isn't stuck (the page above it is in view).
+   */
+  getStuckScrollY: () => number | null;
 }
 
-export const SubHeaderBarContext = createContext<SubHeaderBarContextValue>({ onHover: () => {}, onActive: () => {}, scrollContainerRef: { current: null } });
+export const SubHeaderBarContext = createContext<SubHeaderBarContextValue>({ onHover: () => {}, onActive: () => {}, scrollContainerRef: { current: null }, getStuckScrollY: () => null });
 
 export function useSubHeaderBarHover() {
   return useContext(SubHeaderBarContext);

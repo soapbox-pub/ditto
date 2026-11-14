@@ -25,6 +25,19 @@ export function holdChromeUntilUserScroll(): void {
   for (const reveal of revealListeners) reveal();
 }
 
+/** Set by {@link scrollWithoutMovingChrome}: the next scroll leaves the chrome where it is. */
+let skipNextScroll = false;
+
+/**
+ * Jump the window to `top` without the chrome reading it as the user
+ * scrolling (a tab switch moving the page under a stuck tab bar).
+ */
+export function scrollWithoutMovingChrome(top: number): void {
+  if (Math.abs(window.scrollY - top) < 1) return;
+  skipNextScroll = true;
+  window.scrollTo({ top });
+}
+
 /**
  * Slides the mobile chrome (top bar, tab bar, bottom nav, compose button) out
  * of the way as the user scrolls down and back as they scroll up, following
@@ -80,6 +93,10 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
       clearTimeout(settleTimer);
 
       if (chromeHeld) return;
+      if (skipNextScroll) {
+        skipNextScroll = false;
+        return;
+      }
 
       if (y <= NEAR_TOP) {
         apply(0, false);

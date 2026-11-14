@@ -3152,6 +3152,10 @@ function ProfilePageInner() {
 
         <div style={{ height: ARC_OVERHANG_PX }} />
 
+        {/* At least a screen tall, so switching tabs while the bar is stuck
+            can keep it stuck however short the new tab's content is. */}
+        <div className="min-h-[100dvh]">
+
         {/* Add/edit single tab modal */}
         {pubkey && tabModalOpen && (
           <ProfileTabEditModal
@@ -3714,6 +3718,7 @@ function ProfilePageInner() {
             </PortalContainerProvider>
           </DialogContent>
         </Dialog>
+        </div>
       </PullToRefresh>
       </main>
   );

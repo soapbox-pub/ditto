@@ -1,5 +1,6 @@
 import { useRef, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { scrollWithoutMovingChrome } from '@/hooks/useScrollDirection';
 import { useSubHeaderBarHover, useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 
 interface TabButtonProps {
@@ -22,11 +23,12 @@ interface TabButtonProps {
  *
  * Behaviour (see gitlab#109):
  * - Clicking the **active** tab smooth-scrolls to the top.
- * - Switching to a **different** tab resets scroll position instantly.
+ * - Switching to a **different** tab jumps to the start of its content,
+ *   keeping a stuck tab bar stuck.
  */
 export function TabButton({ label, active, onClick, disabled, className, children }: TabButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
-  const { onHover, scrollContainerRef } = useSubHeaderBarHover();
+  const { onHover, scrollContainerRef, getStuckScrollY } = useSubHeaderBarHover();
   const { reportSlice } = useActiveTabIndicator(active, ref);
 
   // Auto-scroll the active tab into view when the container overflows
@@ -59,7 +61,11 @@ export function TabButton({ label, active, onClick, disabled, className, childre
     if (active) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      window.scrollTo({ top: 0 });
+      // The new tab starts at its top, with the bar where it is: still stuck
+      // if it was (not back up at the top of the page, above a profile's
+      // header), and left alone if the page above it is in view.
+      const stuckY = getStuckScrollY();
+      if (stuckY !== null) scrollWithoutMovingChrome(stuckY);
       onClick();
     }
   };

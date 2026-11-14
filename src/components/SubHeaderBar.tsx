@@ -63,6 +63,8 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   // A pinned bar fills the safe area above it only then, so the fill never
   // shows while the bar is still mid-page.
   const barRef = useRef<HTMLDivElement>(null);
+  // Zero-height marker just before the bar, holding the bar's unstuck place.
+  const restRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
 
   // Width of the arc area, to turn the active tab's pixel slice into a
@@ -148,11 +150,22 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
     const keep = (set: React.Dispatch<React.SetStateAction<HoverSlice | null>>) =>
       (next: HoverSlice | null) =>
         set((prev) => (prev && next && prev.left === next.left && prev.width === next.width ? prev : next));
-    return { onHover: keep(setHover), onActive: keep(setActive), scrollContainerRef: scrollRef };
+    // Where the bar would sit unstuck is where the marker before it is.
+    const getStuckScrollY = () => {
+      const bar = barRef.current;
+      const marker = restRef.current;
+      if (!bar || !marker) return null;
+      const barTop = bar.getBoundingClientRect().top;
+      const restTop = marker.getBoundingClientRect().top;
+      if (restTop >= barTop - 1) return null;
+      return Math.max(0, window.scrollY + restTop - barTop);
+    };
+    return { onHover: keep(setHover), onActive: keep(setActive), scrollContainerRef: scrollRef, getStuckScrollY };
   }, []);
 
   return (
     <SubHeaderBarContext.Provider value={contextValue}>
+      <div ref={restRef} aria-hidden="true" />
       <div
         ref={barRef}
         className={cn(
