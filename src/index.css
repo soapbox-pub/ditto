@@ -63,11 +63,12 @@
   }
 
   /* Reserve the page scrollbar's gutter so the layout doesn't jump sideways
-     when a page grows long enough to scroll. Radix's scroll lock still adds a
+     when a page grows long enough to scroll. `both-edges` mirrors it on the
+     left so centered content stays centered. Radix's scroll lock still adds a
      margin to make room for a bar that would vanish; the gutter already does
      that, so cancel it. */
   html {
-    scrollbar-gutter: stable;
+    scrollbar-gutter: stable both-edges;
   }
   html body[data-scroll-locked] {
     margin-right: 0 !important;
