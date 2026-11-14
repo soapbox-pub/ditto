@@ -103,7 +103,7 @@ export function LeftSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <nav className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-none">
         <SidebarNavList
           items={visibleItems}
           editing={editing}
