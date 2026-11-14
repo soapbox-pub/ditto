@@ -303,7 +303,7 @@ const GridImage = memo(function GridImage({
           width={dimensions?.width}
           height={dimensions?.height}
           className={cn(
-            'absolute inset-0 w-full h-full object-cover transition-all duration-300 hover:scale-[1.02]',
+            'absolute inset-0 w-full h-full object-cover transition-all duration-300 motion-safe:hover:scale-[1.02]',
             loaded ? 'opacity-100' : 'opacity-0',
           )}
           loading="lazy"

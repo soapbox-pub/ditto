@@ -1263,7 +1263,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       <article
         className={cn(
           "relative px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          highlight && "animate-highlight-fade",
+          highlight && "motion-safe:animate-highlight-fade",
           className,
         )}
         onClick={handleCardClick}
@@ -1357,7 +1357,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       <article
         className={cn(
           "px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-          highlight && "animate-highlight-fade",
+          highlight && "motion-safe:animate-highlight-fade",
           className,
         )}
         onClick={onRecipientClick}
@@ -1665,7 +1665,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       ref={celebrationRef}
       className={cn(
         "relative px-4 py-3 border-b border-border-subtle can-hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden",
-        highlight && "animate-highlight-fade",
+        highlight && "motion-safe:animate-highlight-fade",
         className,
       )}
       onClick={handleCardClick}

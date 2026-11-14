@@ -365,6 +365,13 @@
 
 
 
+  /* Loading placeholders hold still for anyone who asked for less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pulse {
+      animation: none;
+    }
+  }
+
   /* A post's action buttons: color changes fade, and the button gives a
      little under the finger. */
   .action-press {
