@@ -21,30 +21,72 @@
 @layer base {
   * {
     @apply border-border;
-    scrollbar-width: none;
+    /* Firefox: a visible, grabbable thumb. WebKit/Chromium styling below. */
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
   }
 
+  /* Mouse and stylus users get a scrollbar they can see and grab. The thumb is
+     a pill inset by a transparent border, so it reads as a distinct handle and
+     brightens on hover and drag. Vertical only: horizontal strips (tabs, chips,
+     carousels) stay clean. */
   *::-webkit-scrollbar {
-    display: none;
-    width: 0;
+    width: 12px;
     height: 0;
   }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.35);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.6);
+  }
+  *::-webkit-scrollbar-thumb:active {
+    background-color: hsl(var(--muted-foreground) / 0.8);
+  }
+  *::-webkit-scrollbar-button {
+    display: none;
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 
-  /* Harden the hide on the document scroller specifically. The universal rule
-     above is enough on modern engines, but some Android System WebView builds
-     draw a classic, space-reserving scrollbar on the root that neither
-     `scrollbar-width: none` (unsupported before Chromium 121) nor a universal
-     `::-webkit-scrollbar` reliably suppresses. Target the actual scrollers
-     explicitly — and force zero track size — so the long window-scrolled feed
-     never shows a gutter. */
-  html,
-  body {
+  /* Touch screens and the native app scroll by swiping, so hide scrollbars
+     there. The document scroller is targeted explicitly — with a zero-size
+     track — because some Android System WebView builds draw a classic,
+     space-reserving scrollbar on the root that neither `scrollbar-width: none`
+     (unsupported before Chromium 121) nor a universal `::-webkit-scrollbar`
+     reliably suppresses. */
+  @media (pointer: coarse) {
+    *,
+    html,
+    body {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    *::-webkit-scrollbar,
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+  }
+  /* :where() keeps these as weak as the rules above, so components that opt
+     into a visible bar (e.g. .blobbi-room-editor-scroll) still win. */
+  :where(html[data-native]) *,
+  :where(html[data-native]) {
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-
-  html::-webkit-scrollbar,
-  body::-webkit-scrollbar {
+  :where(html[data-native]) *::-webkit-scrollbar,
+  :where(html[data-native])::-webkit-scrollbar {
     display: none;
     width: 0;
     height: 0;
@@ -1127,7 +1169,17 @@
   100% { transform: translate(-50%, -100%) translate(var(--vomit-dx), var(--vomit-dy)) scale(1); opacity: 1; }
 }
 
-/* Override global scrollbar-hiding for elements that need a visible thin scrollbar */
+/* Hide the scrollbar on strips that scroll sideways by swipe or drag (tabs,
+   chips, carousels). WebKit already hides horizontal bars globally; this
+   covers Firefox, whose scrollbar-width applies to both axes. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* A thin horizontal scrollbar for elements that need one visible */
 .scrollbar-thin {
   scrollbar-width: thin;
 }

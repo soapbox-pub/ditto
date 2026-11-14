@@ -692,7 +692,7 @@ export function ArchivePage() {
 
       {/* Category filter pills */}
       <div className="sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
-        <div className="flex gap-2 px-4 py-2.5 overflow-x-auto">
+        <div className="flex gap-2 px-4 py-2.5 overflow-x-auto scrollbar-none">
           {CATEGORY_ORDER.map((cat) => (
             <CategoryPill
               key={cat}

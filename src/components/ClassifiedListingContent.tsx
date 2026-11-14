@@ -85,7 +85,7 @@ function ListingDetail({ listing, className }: { listing: ParsedClassifiedListin
               )}
             </div>
             {images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-1" role="listbox" aria-label={intl.formatMessage({ id: 'classifiedListing.photos', defaultMessage: 'Listing photos' })}>
+              <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1" role="listbox" aria-label={intl.formatMessage({ id: 'classifiedListing.photos', defaultMessage: 'Listing photos' })}>
                 {images.map((url) => {
                   const active = url === mainImage;
                   return (

@@ -35,6 +35,10 @@ import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { getBackgroundThemeMode } from '@/lib/colorUtils';
 
 if (Capacitor.isNativePlatform()) {
+  // Lets CSS tell the app from the web (e.g. hiding scrollbars). An attribute,
+  // not a class: AppProvider replaces <html>'s className with the theme.
+  document.documentElement.dataset.native = '';
+
   // Hide the iOS keyboard accessory bar (prev/next/done toolbar above the keyboard).
   // Only runs on iOS — setAccessoryBarVisible is unimplemented on Android.
   if (Capacitor.getPlatform() === 'ios') {

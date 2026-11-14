@@ -633,7 +633,7 @@ function LiveStreamsStrip({ tab }: { tab: FeedTab }) {
       {/* Horizontal scroll of stream cards */}
       <div
         ref={drag.ref}
-        className="flex gap-3 overflow-x-auto pb-1 cursor-grab"
+        className="flex gap-3 overflow-x-auto scrollbar-none pb-1 cursor-grab"
         style={{ scrollbarWidth: "none" }}
         onMouseDown={drag.onMouseDown}
         onMouseMove={drag.onMouseMove}
@@ -842,7 +842,7 @@ function ShortsSection({
       </h2>
       <div
         ref={drag.ref}
-        className="flex gap-2.5 overflow-x-auto px-4 pb-2 cursor-grab"
+        className="flex gap-2.5 overflow-x-auto scrollbar-none px-4 pb-2 cursor-grab"
         style={{ scrollbarWidth: "none" }}
         onMouseDown={drag.onMouseDown}
         onMouseMove={drag.onMouseMove}

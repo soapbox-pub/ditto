@@ -366,7 +366,7 @@ export function ThemeGrid({
             <div
               ref={scrollRef}
               onScroll={handleScroll}
-              className="flex flex-1 overflow-x-auto snap-x snap-mandatory"
+              className="flex flex-1 overflow-x-auto scrollbar-none snap-x snap-mandatory"
               style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
               {allItems.map((item) => (
