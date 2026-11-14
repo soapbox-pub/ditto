@@ -623,7 +623,7 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
   const sidebarRows = useMemo(() => sidebarJustifiedLayout(media), [media]);
 
   return (
-    <aside className={cn("w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto py-3 px-4", className)}>
+    <aside className={cn("w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto scrollbar-none py-3 px-4", className)}>
       {/* Top 8 Section — the ranked grid leads the sidebar, MySpace-style.
           Mirrored inline on the profile itself below `lg`, where the whole
           sidebar is hidden. */}
