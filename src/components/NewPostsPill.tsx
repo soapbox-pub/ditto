@@ -12,7 +12,11 @@ import { profileName } from '@/lib/getDisplayName';
 interface NewPostsPillProps {
   /** Number of new posts waiting. The pill is hidden when this is 0. */
   count: number;
-  /** Most recent distinct authors of the waiting posts, newest first. Up to three are shown. */
+  /**
+   * Most recent distinct authors of the waiting posts, newest first. Up to
+   * three are shown. Omit to show the count instead (e.g. search results,
+   * where the count is the more useful signal).
+   */
   authors?: string[];
   /** Called when the user taps the pill (typically flush/refresh + scroll to top). */
   onClick: () => void;

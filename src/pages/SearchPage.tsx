@@ -436,7 +436,7 @@ export function SearchPage() {
       ? authorPubkeys
       : undefined;
 
-  const { posts, isLoading: postsLoading, newPostCount, newPostAuthors, flushStreamBuffer, flushedIds, fetchNextPage, hasNextPage, isFetchingNextPage } = useStreamPosts(debouncedSearchQuery, {
+  const { posts, isLoading: postsLoading, newPostCount, flushStreamBuffer, flushedIds, fetchNextPage, hasNextPage, isFetchingNextPage } = useStreamPosts(debouncedSearchQuery, {
     includeReplies,
     mediaType,
     language,
@@ -889,7 +889,6 @@ export function SearchPage() {
             {/* New posts pill — live stream. */}
             <NewPostsPill
               count={newPostCount}
-              authors={newPostAuthors}
               onClick={() => {
                 flushStreamBuffer();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
