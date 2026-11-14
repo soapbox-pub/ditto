@@ -2308,8 +2308,11 @@ function ProfilePageInner() {
     ]);
     const anchor = tabsAnchorRef.current;
     if (!anchor || window.scrollY > 0) return;
+    // Scrolling down slides the top bar away, so the tabs stick just under the
+    // device's safe area (the top bar's top padding), not under the bar.
     const topBar = document.querySelector('.push-transition-top-bar');
-    const top = window.scrollY + anchor.getBoundingClientRect().top - (topBar?.getBoundingClientRect().bottom ?? 0);
+    const safeAreaTop = topBar ? parseFloat(getComputedStyle(topBar).paddingTop) || 0 : 0;
+    const top = window.scrollY + anchor.getBoundingClientRect().top - safeAreaTop;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [handleRefresh]);
