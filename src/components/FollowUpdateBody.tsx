@@ -178,7 +178,7 @@ function PersonRow({
           {name}
         </Link>
         {bio && (
-          <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted-foreground">{bio}</p>
+          <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted-foreground [overflow-wrap:anywhere]">{bio}</p>
         )}
       </div>
 
