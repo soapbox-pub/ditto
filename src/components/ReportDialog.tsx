@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type MessageDescriptor } from 'react-intl';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogDescription, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -99,22 +94,22 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85dvh] rounded-2xl flex flex-col overflow-hidden">
-        <DialogTitle>
+    <AdaptiveDialog open={open} onOpenChange={onOpenChange}>
+      <AdaptiveDialogContent className="max-w-md max-h-[85dvh] rounded-2xl flex flex-col overflow-hidden" sheetClassName="gap-4 px-6 pt-3 pb-4">
+        <AdaptiveDialogTitle>
           {isProfileReport ? (
             <FormattedMessage id="reportDialog.titleUser" defaultMessage="Report user" />
           ) : (
             <FormattedMessage id="reportDialog.titlePost" defaultMessage="Report post" />
           )}
-        </DialogTitle>
-        <DialogDescription className="text-sm text-muted-foreground">
+        </AdaptiveDialogTitle>
+        <AdaptiveDialogDescription className="text-sm text-muted-foreground">
           {isProfileReport ? (
             <FormattedMessage id="reportDialog.descriptionUser" defaultMessage="Select a reason for reporting this user." />
           ) : (
             <FormattedMessage id="reportDialog.descriptionPost" defaultMessage="Select a reason for reporting this post." />
           )}
-        </DialogDescription>
+        </AdaptiveDialogDescription>
 
         <div className="flex-1 overflow-y-auto min-h-0 -mx-6 px-6">
           <RadioGroup
@@ -176,7 +171,7 @@ export function ReportDialog({ event, pubkey, open, onOpenChange }: ReportDialog
             )}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </AdaptiveDialogContent>
+    </AdaptiveDialog>
   );
 }

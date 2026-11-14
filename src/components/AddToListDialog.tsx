@@ -8,12 +8,8 @@
 import { useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Plus, Loader2, List, Users, X, PartyPopper, Check } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { DialogHeader } from '@/components/ui/dialog';
+import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -107,16 +103,16 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
   if (!user) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm max-h-[80dvh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden flex flex-col">
+    <AdaptiveDialog open={open} onOpenChange={handleOpenChange}>
+      <AdaptiveDialogContent className="max-w-sm max-h-[80dvh] p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden flex flex-col" aria-describedby={undefined}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 shrink-0">
           <DialogHeader className="p-0 space-y-0">
-            <DialogTitle className="text-base font-bold">
+            <AdaptiveDialogTitle className="text-base font-bold">
               {displayName
                 ? <FormattedMessage id="addToList.titleWithName" defaultMessage="Add {name} to list" values={{ name: displayName }} />
                 : <FormattedMessage id="addToList.title" defaultMessage="Add to list" />}
-            </DialogTitle>
+            </AdaptiveDialogTitle>
           </DialogHeader>
           <Button variant="ghost" size="icon" className="rounded-full size-8 shrink-0" onClick={close} aria-label={intl.formatMessage({ id: 'addToList.close', defaultMessage: 'Close' })}>
             <X className="size-4" />
@@ -226,8 +222,8 @@ export function AddToListDialog({ pubkey, displayName, open, onOpenChange }: Add
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </AdaptiveDialogContent>
+    </AdaptiveDialog>
   );
 }
 

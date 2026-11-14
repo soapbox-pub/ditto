@@ -21,6 +21,7 @@ import { parseBadgeDefinition, pickBadgeImage } from '@/lib/parseBadgeDefinition
 import { getAvatarShape, isEmoji, emojiAvatarBorderStyle } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
@@ -328,11 +329,14 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
 
   return (
   <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-hidden [&>button]:hidden">
-        <DialogTitle className="sr-only">
+    <AdaptiveDialog open={open} onOpenChange={onOpenChange}>
+      <AdaptiveDialogContent
+        className="max-w-md p-0 gap-0 grid-cols-[minmax(0,1fr)] rounded-2xl overflow-hidden [&>button]:hidden"
+        aria-describedby={undefined}
+      >
+        <AdaptiveDialogTitle className="sr-only">
           <FormattedMessage id="profile.menu.title" defaultMessage="Profile options" />
-        </DialogTitle>
+        </AdaptiveDialogTitle>
 
         <div className="py-1">
           <MenuRow
@@ -468,8 +472,8 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             <FormattedMessage id="widgets.common.close" defaultMessage="Close" />
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </AdaptiveDialogContent>
+    </AdaptiveDialog>
 
     <ReportDialog pubkey={pubkey} open={reportOpen} onOpenChange={setReportOpen} />
 
@@ -1294,12 +1298,12 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <DialogTitle className="text-base font-bold">
+    <AdaptiveDialog open={open} onOpenChange={onOpenChange}>
+      <AdaptiveDialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden" aria-describedby={undefined}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <AdaptiveDialogTitle className="text-base font-bold">
             <FormattedMessage id="profile.followers.title" defaultMessage="{name}'s followers" values={{ name: displayName }} />
-          </DialogTitle>
+          </AdaptiveDialogTitle>
           <Button
             variant="ghost"
             size="icon"
@@ -1330,8 +1334,8 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
             </>
           )}
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </AdaptiveDialogContent>
+    </AdaptiveDialog>
   );
 }
 

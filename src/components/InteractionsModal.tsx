@@ -7,11 +7,7 @@ import { RepostIcon } from '@/components/icons/RepostIcon';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -107,13 +103,13 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
   ];
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-       <DialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+    <AdaptiveDialog open={open} onOpenChange={handleOpenChange}>
+       <AdaptiveDialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden" aria-describedby={undefined}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">
+        <div className="flex items-center justify-between px-4 h-12 shrink-0">
+          <AdaptiveDialogTitle className="text-base font-semibold">
             <FormattedMessage id="interactionsModal.title" defaultMessage="Post interactions" />
-          </DialogTitle>
+          </AdaptiveDialogTitle>
           <button
             onClick={() => onOpenChange(false)}
             aria-label={intl.formatMessage({ id: 'interactionsModal.close', defaultMessage: 'Close' })}
@@ -124,7 +120,7 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
         </div>
 
         {/* Tab bar */}
-        <div className="flex border-b border-border">
+        <div className="flex border-b border-border shrink-0">
           {tabConfig.map(({ key, label, count, icon }) => (
             <button
               key={key}
@@ -169,8 +165,8 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
             <ZapsTab zaps={unifiedZaps} />
           )}
         </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </AdaptiveDialogContent>
+    </AdaptiveDialog>
   );
 }
 
