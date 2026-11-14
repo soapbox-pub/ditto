@@ -25,6 +25,7 @@ import { useBackDismiss } from '@/hooks/useBackDismiss';
 import { useInView } from '@/hooks/useInView';
 import { growFromOrigin, takeLightboxOrigin } from '@/lib/lightboxOrigin';
 import { MediaGate } from '@/components/MediaGate';
+import { prefersReducedMotion } from '@/lib/motion';
 
 /** Minimal imeta fields needed for pre-load sizing and decryption. */
 interface ImetaDimensions {
@@ -450,7 +451,7 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, mediaT
   // as long as it loads quickly enough that the grow still answers the tap.
   // Otherwise the lightbox fades in as usual.
   const [heroOrigin] = useState(() =>
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches ? undefined : takeLightboxOrigin(),
+    prefersReducedMotion() ? undefined : takeLightboxOrigin(),
   );
   const heroPendingRef = useRef(!!heroOrigin);
   const openedAtRef = useRef(performance.now());

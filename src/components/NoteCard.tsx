@@ -210,6 +210,7 @@ import { isVineMuted, setVineMuted } from "@/lib/vineGlobalMute";
 import { parseProfileImeta } from "@/lib/profileImeta";
 import { isSlideRender } from "@/lib/pushTransition";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
+import { prefersReducedMotion } from "@/lib/motion";
 
 
 /** Profile card for use in feeds (kind 0). */
@@ -390,7 +391,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
   useEffect(() => {
     if (!celebration || !celebrationInView) return;
     if (!canCelebrate(event.id)) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     // Arm after a short dwell; scrolling away flips `celebrationInView` and
     // the cleanup cancels before anything plays.
     const arm = setTimeout(() => {

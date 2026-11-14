@@ -5,6 +5,11 @@
 @layer base {
   :root {
     --radius: 1rem;
+    /* Motion curves (also EASE_* in src/lib/motion.ts and ease-* in Tailwind):
+       spring overshoots and settles (pops, bounces, answers to a tap);
+       emphasized starts fast and lands softly (slides, settles, gestures). */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
     --success: 142 72% 29%;
     --success-foreground: 138 60% 94%;
     /* Mobile chrome dimensions — referenced by layout utility classes below */
@@ -378,7 +383,7 @@
   .ptr-follow {
     transition-property: height, transform, opacity, filter;
     transition-duration: 450ms;
-    transition-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1);
+    transition-timing-function: var(--ease-emphasized);
   }
   [data-ptr='pulling'] .ptr-follow {
     transition: none;
@@ -389,7 +394,7 @@
      it settles or comes back at the top. */
   @media (max-width: 899px) {
     .chrome-follow {
-      transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: transform 300ms var(--ease-emphasized);
     }
     [data-chrome-tracking] .chrome-follow {
       transition: none;
@@ -410,7 +415,7 @@
        transforming, so the bar only moves once it's stuck. */
     .chrome-follow-pinned {
       top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + (1 - var(--chrome-hide, 0)) * var(--top-bar-height));
-      transition: top 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      transition: top 300ms var(--ease-emphasized);
     }
     [data-chrome-tracking] .chrome-follow-pinned {
       transition: none;
@@ -649,7 +654,7 @@
 }
 
 .envelope-card {
-  animation: envelope-entrance 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: envelope-entrance 0.3s var(--ease-spring) both;
   animation-delay: var(--entrance-delay, 0ms);
   transform-origin: center bottom;
   cursor: pointer;
@@ -1502,28 +1507,28 @@ html[data-push-transition] .push-transition-bottom-nav {
 
 html[data-push-transition]::view-transition-group(*) {
   animation-duration: 280ms;
-  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-timing-function: var(--ease-emphasized);
 }
 
 html[data-push-transition="forward"]::view-transition-old(root) {
-  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both push-old;
+  animation: 280ms var(--ease-emphasized) both push-old;
 }
 
 html[data-push-transition="forward"]::view-transition-new(root) {
-  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both push-new;
+  animation: 280ms var(--ease-emphasized) both push-new;
   box-shadow: -8px 0 24px rgb(0 0 0 / 0.15);
 }
 
 /* Back: the page being left slides off on top, so it's raised over the one
    coming back. */
 html[data-push-transition="back"]::view-transition-old(root) {
-  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both pop-old;
+  animation: 280ms var(--ease-emphasized) both pop-old;
   box-shadow: -8px 0 24px rgb(0 0 0 / 0.15);
   z-index: 1;
 }
 
 html[data-push-transition="back"]::view-transition-new(root) {
-  animation: 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both pop-new;
+  animation: 280ms var(--ease-emphasized) both pop-new;
 }
 
 @keyframes push-old {

@@ -2,6 +2,7 @@ import { flushSync } from 'react-dom';
 import { UNSAFE_createBrowserHistory, parsePath, type To } from 'react-router-dom';
 
 import { recordHistoryEntry } from '@/lib/historyStack';
+import { prefersReducedMotion } from '@/lib/motion';
 
 /**
  * Browser history whose navigations slide like a native navigation stack.
@@ -99,7 +100,7 @@ function pathnameOf(to: To): string | undefined {
 function canSlide(fromPathname: string, toPathname: string | undefined): boolean {
   if (typeof document.startViewTransition !== 'function') return false;
   if (!window.matchMedia(PHONE_LAYOUT_QUERY).matches) return false;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  if (prefersReducedMotion()) return false;
   // Query or hash changes, and dialogs closing on back, stay on the same screen.
   return toPathname !== undefined && toPathname !== fromPathname;
 }

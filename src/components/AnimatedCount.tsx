@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { formatNumber } from '@/lib/formatNumber';
 import { cn } from '@/lib/utils';
+import { EASE_SPRING, prefersReducedMotion } from '@/lib/motion';
 
 interface AnimatedCountProps {
   value: number;
@@ -42,7 +43,7 @@ export function AnimatedCount({ value, format = formatNumber, hideZero = true, c
     if (!box || !current) return;
     // Loading in from nothing isn't a change to show.
     if (!prev.text && Math.abs(value - prev.value) !== 1) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
     // Offscreen (or in a skipped feed row) the animation wouldn't run.
     if (box.checkVisibility && !box.checkVisibility({ contentVisibilityAuto: true, opacityProperty: true })) return;
 
@@ -52,7 +53,7 @@ export function AnimatedCount({ value, format = formatNumber, hideZero = true, c
     const animations: Animation[] = [];
     animations.push(current.animate(
       [{ transform: shift(up ? 1 : -1), opacity: 0 }, { transform: 'none', opacity: 1 }],
-      { duration: ROLL_IN_MS, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.15)' },
+      { duration: ROLL_IN_MS, easing: EASE_SPRING },
     ));
 
     let old: HTMLSpanElement | undefined;

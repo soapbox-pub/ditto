@@ -8,6 +8,7 @@ import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { useAuthors } from '@/hooks/useAuthors';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { profileName } from '@/lib/getDisplayName';
+import { EASE_SPRING, prefersReducedMotion } from '@/lib/motion';
 
 interface NewPostsPillProps {
   /** Number of new posts waiting. The pill is hidden when this is 0. */
@@ -48,10 +49,10 @@ export function NewPostsPill({ count, authors = [], onClick }: NewPostsPillProps
     const prev = prevCountRef.current;
     prevCountRef.current = count;
     if (prev <= 0 || count <= prev) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
     buttonRef.current?.animate?.(
       [{ transform: 'scale(1)' }, { transform: 'scale(1.08)' }, { transform: 'scale(1)' }],
-      { duration: 350, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+      { duration: 350, easing: EASE_SPRING },
     );
   }, [count]);
 

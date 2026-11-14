@@ -265,6 +265,7 @@ import { getParentEventId, getParentEventHints, isReplyEvent, type ParentEventHi
 import { shareOrCopy } from "@/lib/share";
 import { parseProfileImeta } from "@/lib/profileImeta";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/lib/motion";
 
 interface PostDetailPageProps {
   eventId: string;
@@ -1329,7 +1330,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [celebrating, setCelebrating] = useState(false);
   useEffect(() => {
     if (!celebration) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     // Short delay so the page settles before the confetti drops.
     const arm = setTimeout(() => {
       markCelebrated(event.id);

@@ -141,6 +141,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 import { isWeatherFieldLabel } from '@/lib/weatherStation';
 import { WeatherStationCard } from '@/components/WeatherStationCard';
+import { prefersReducedMotion } from '@/lib/motion';
 
 /** Parse the custom "fields" array from kind 0 metadata content. */
 function parseProfileFields(content: string): Array<{ label: string; value: string }> {
@@ -1459,7 +1460,7 @@ function ProfilePageInner() {
   // prefers-reduced-motion callers skip it (the overlay is also hidden by CSS
   // as defense-in-depth).
   const handleLoved = useCallback(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
     setLovedCelebrating(true);
   }, []);
   useEffect(() => {
@@ -2313,7 +2314,7 @@ function ProfilePageInner() {
     const topBar = document.querySelector('.push-transition-top-bar');
     const safeAreaTop = topBar ? parseFloat(getComputedStyle(topBar).paddingTop) || 0 : 0;
     const top = window.scrollY + anchor.getBoundingClientRect().top - safeAreaTop;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduceMotion = prefersReducedMotion();
     window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [handleRefresh]);
 

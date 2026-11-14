@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { SubHeaderBarContext } from '@/components/SubHeaderBarContext';
+import { prefersReducedMotion } from '@/lib/motion';
 
 interface HoverSlice {
   left: number;
@@ -58,7 +59,7 @@ function ActiveTabLine({ a, b, switches }: { a: number; b: number; switches: num
     };
 
     const from = shown.current;
-    if (switched && from && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (switched && from && !prefersReducedMotion()) {
       if (slide.current) cancelAnimationFrame(slide.current.frame);
       const run = { from, start: performance.now(), frame: 0 };
       slide.current = run;

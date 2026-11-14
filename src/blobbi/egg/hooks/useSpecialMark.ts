@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { isSpecialMarkSupported } from '../lib/special-marks-utils';
+import { prefersReducedMotion } from '@/lib/motion';
 
 interface UseSpecialMarkOptions {
   /** Whether to enable animations */
@@ -47,7 +48,7 @@ export const useSpecialMark = (
     // Auto-detect low-power devices
     if (typeof navigator !== 'undefined') {
       // Check for reduced motion preference
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (prefersReducedMotion()) {
         return true;
       }
 

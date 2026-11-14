@@ -8,6 +8,7 @@ import { fetchDecryptedFile, type FileEncryption } from '@/lib/encryptedFile';
 import type { ModelFormat } from '@/lib/mediaUrls';
 import { parseModel, stageModel } from '@/lib/modelRenderer';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
+import { prefersReducedMotion } from '@/lib/motion';
 
 interface ModelViewerProps {
   url: string;
@@ -173,7 +174,7 @@ export function ModelScene({ load, format }: ModelSceneProps) {
           .normalize();
       };
 
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reduceMotion = prefersReducedMotion();
 
       // `spin`: the idle turntable it opens with. `free`: in the viewer's
       // hands, or coasting from a flick. `returning`: easing back home after

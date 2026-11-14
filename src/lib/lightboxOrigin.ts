@@ -1,3 +1,5 @@
+import { EASE_EMPHASIZED } from '@/lib/motion';
+
 /**
  * Where the image that opened the lightbox was on screen, so the lightbox
  * can grow its picture out of the tapped thumbnail instead of fading in.
@@ -83,7 +85,7 @@ export function growFromOrigin(img: HTMLElement, origin: LightboxOrigin): void {
       { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, clipPath: `inset(${insetY}px ${insetX}px round ${radius}px)` },
       { transform: 'none', clipPath: 'inset(0px 0px round 0px)' },
     ],
-    { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+    { duration: 320, easing: EASE_EMPHASIZED },
   );
   const restore = () => { img.style.transition = ''; };
   animation.finished.then(restore, restore);

@@ -406,7 +406,7 @@ export function SendAnimation({
                 style={{
                   backgroundColor: bgColor,
                   borderColor: C.stroke,
-                  animation: 'letter-send-avatar-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+                  animation: 'letter-send-avatar-in 0.7s var(--ease-spring) both',
                 }}
               >
                 {recipientPicture ? (

@@ -41,6 +41,7 @@ import type { RoomControl } from './BlobbiRoomShell';
 import { FrameImageControls } from './FrameImageControls';
 import { FurnitureThumbnail } from './FurnitureThumbnail';
 import { RoomSurfaceEditor } from './RoomSurfaceEditor';
+import { prefersReducedMotion } from '@/lib/motion';
 
 const SCALE_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -351,7 +352,7 @@ function ScrollRow({ className, innerClassName, children, ...props }: React.HTML
   const page = (dir: 1 | -1) => {
     const el = ref.current;
     if (!el) return;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = prefersReducedMotion();
     el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: reduce ? 'auto' : 'smooth' });
   };
 

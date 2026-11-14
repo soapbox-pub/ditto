@@ -30,6 +30,7 @@ import type { BlobbiCompanion } from '@blobbi-kit/core/blobbi';
 import { cn } from '@/lib/utils';
 import type { CompanionData, EyeOffset, CompanionDirection } from '../types/companion.types';
 import { calculateFloatAnimation, type FloatOffset } from '../utils/animation';
+import { prefersReducedMotion } from '@/lib/motion';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -263,7 +264,7 @@ export function BlobbiCompanionVisual({
       apply(ZERO_FLOAT);
       return;
     }
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (prefersReducedMotion()) {
       apply(calculateFloatAnimation(0, isWalking));
       return;
     }

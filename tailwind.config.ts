@@ -125,6 +125,11 @@ export default {
 				sm: 'calc(var(--radius) - 4px)',
 				xs: 'calc(var(--radius) - 8px)'
 			},
+			// Named motion curves, defined in index.css (see src/lib/motion.ts).
+			transitionTimingFunction: {
+				spring: 'var(--ease-spring)',
+				emphasized: 'var(--ease-emphasized)'
+			},
 			keyframes: {
 				'accordion-down': {
 					from: {
@@ -384,7 +389,7 @@ export default {
 				'collapsible-down': 'collapsible-down 0.2s ease-out',
 				'collapsible-up': 'collapsible-up 0.2s ease-out',
 				'equaliser-bar': 'equaliser-bar 0.9s ease-in-out infinite',
-				'success-pop': 'success-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				'success-pop': 'success-pop 0.55s var(--ease-spring) both',
 				'success-halo': 'success-halo 0.9s ease-out both',
 				'success-fade-up': 'success-fade-up 0.45s ease-out both',
 				'success-spark': 'success-spark 1.1s ease-out both',
@@ -399,7 +404,7 @@ export default {
 				'celebration-sun': 'celebration-sun 3.2s ease-out both',
 				'celebration-moon': 'celebration-moon 3.8s ease-out both',
 				'celebration-glow': 'celebration-glow 3.2s ease-out both',
-				'reaction-pop': 'reaction-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				'reaction-pop': 'reaction-pop 0.5s var(--ease-spring) both',
 				// The spark and halo hold for 90ms — they detonate at the moment
 				// the icon releases from its squash, not on the initial press.
 				'reaction-spark': 'reaction-spark 0.6s cubic-bezier(0.16, 1, 0.3, 1) 90ms both',
@@ -409,11 +414,11 @@ export default {
 				// 0.9s total — keep in sync with OPEN_DURATION_MS in PulpMagazineCard.
 				'magazine-open': 'magazine-open 0.75s cubic-bezier(0.45, 0, 0.2, 1) 0.15s both',
 				'magazine-open-shift': 'magazine-open-shift 0.9s cubic-bezier(0.45, 0, 0.2, 1) both',
-				'new-posts-pill-in': 'new-posts-pill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
-				'new-posts-avatar-in': 'success-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+				'new-posts-pill-in': 'new-posts-pill-in 0.5s var(--ease-spring) both',
+				'new-posts-avatar-in': 'success-pop 0.45s var(--ease-spring) both',
 				'new-posts-arrow': 'new-posts-arrow 3s ease-in-out 1s infinite',
-				'feed-row-in': 'feed-row-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both',
-				'nav-pop': 'nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
+				'feed-row-in': 'feed-row-in 0.45s var(--ease-emphasized) both',
+				'nav-pop': 'nav-pop 0.45s var(--ease-spring)',
 			}
 		}
 	},

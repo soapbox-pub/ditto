@@ -111,7 +111,7 @@
 }
 
 .animate-egg-tap-wiggle {
-  animation: egg-tap-wiggle 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: egg-tap-wiggle 0.6s var(--ease-spring) forwards;
 }
 
 /* ==========================================

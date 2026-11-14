@@ -16,6 +16,7 @@ import { AnimatedCount } from '@/components/AnimatedCount';
 import { impactLight, impactMedium } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { EASE_SPRING, prefersReducedMotion } from '@/lib/motion';
 
 interface ReactionButtonProps {
   /** The event ID being reacted to. */
@@ -105,7 +106,7 @@ export function ReactionButton({
   // images turn to mud at particle size.
   const [burst, setBurst] = useState<{ emoji?: string } | null>(null);
   const triggerBurst = useCallback((emoji?: string) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
     setBurst({ emoji: emoji && !isCustomEmoji(emoji) ? emoji : undefined });
   }, []);
   useEffect(() => {
@@ -123,10 +124,10 @@ export function ReactionButton({
     queryClient.setQueryData(['user-reaction', eventId], null);
     setCountDelta(-1);
     // A small shrink as the reaction comes off.
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!prefersReducedMotion()) {
       iconRef.current?.animate(
         [{ transform: 'scale(1)' }, { transform: 'scale(0.7)' }, { transform: 'scale(1)' }],
-        { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+        { duration: 280, easing: EASE_SPRING },
       );
     }
 

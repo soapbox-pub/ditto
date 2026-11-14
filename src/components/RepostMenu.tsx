@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { getRepostKind } from '@/lib/feedUtils';
 import { DITTO_RELAY } from '@/lib/appRelays';
+import { EASE_SPRING, prefersReducedMotion } from '@/lib/motion';
 
 interface RepostMenuProps {
   event: NostrEvent;
@@ -49,10 +50,10 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     }
     impactLight();
     // The arrows go round once. Half a turn lands the icon as it started.
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!prefersReducedMotion()) {
       triggerRef.current?.querySelector('svg')?.animate(
         [{ transform: 'rotate(0deg)' }, { transform: 'rotate(180deg)' }],
-        { duration: 500, easing: 'cubic-bezier(0.34, 1.4, 0.64, 1)' },
+        { duration: 500, easing: EASE_SPRING },
       );
     }
 
