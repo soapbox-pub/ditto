@@ -261,7 +261,7 @@ import { tryNeventEncode, tryNaddrEncode } from "@/lib/safeNip19";
 import { isNsiteKind } from "@/lib/nsiteSubdomain";
 import { getDisplayName } from "@/lib/getDisplayName";
 import { parseAddr } from "@/lib/parseAddr";
-import { getParentEventId, getParentEventHints, isReplyEvent, type ParentEventHints } from "@/lib/nostrEvents";
+import { COMMENT_KINDS, getParentEventId, getParentEventHints, isReplyEvent, type ParentEventHints } from "@/lib/nostrEvents";
 import { shareOrCopy } from "@/lib/share";
 import { parseProfileImeta } from "@/lib/profileImeta";
 import { cn } from "@/lib/utils";
@@ -1578,8 +1578,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   // Replies render once a push slide into this page is moving (see useAfterPushSlide).
   const afterPushSlide = useAfterPushSlide();
+  // Comments fetch their `#e` replies too: the root's comment tree misses
+  // NIP-10 kind 1 replies to a comment, which carry no uppercase root tags.
   const { data: rawReplies, isLoading: kind1RepliesLoading } = useReplies(
-    isKind1 ? event.id : undefined,
+    isKind1 || isComment ? event.id : undefined,
   );
   // Geocache listings thread their kind 7516 found logs (NIP-GC) alongside
   // NIP-22 comment logs — both reference the cache with a lowercase `a` tag.
@@ -1595,7 +1597,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { zaps: onchainZaps } = useOnchainZaps(event);
 
   // Hold replies up to 1s for zap comments, so they don't land mid-list.
-  const textRepliesLoading = isKind1 ? kind1RepliesLoading : commentsLoading;
+  const textRepliesLoading = isKind1
+    ? kind1RepliesLoading
+    : commentsLoading || (isComment && kind1RepliesLoading);
   const [zapWaitOverFor, setZapWaitOverFor] = useState<string>();
   useEffect(() => {
     if (textRepliesLoading || !zapRepliesLoading) return;
@@ -1629,10 +1633,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [lightningZapReplies, onchainZaps, isMuted]);
 
   const replies = useMemo(() => {
-    const source = isKind1 ? rawReplies : commentsData?.allComments;
+    let source = isKind1 ? rawReplies : commentsData?.allComments;
+    if (isComment && source && rawReplies) {
+      source = [...new Map([...source, ...rawReplies].map((r) => [r.id, r])).values()];
+    }
     if (!source) return source;
     return source.filter((r) => !isMuted(r));
-  }, [isKind1, rawReplies, commentsData?.allComments, isMuted]);
+  }, [isKind1, isComment, rawReplies, commentsData?.allComments, isMuted]);
 
   // Reply-flood detection over the whole (mute-filtered) reply batch: a
   // near-duplicate pitch echoed across a crowd of pubkeys, or hammered by one.
@@ -1682,7 +1689,43 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       return directReplies.map((r) => buildNode(r));
     }
 
-    // Kind 1111 or non-kind-1 root: use NIP-22 comment structure
+    if (isComment) {
+      // Replies to a comment mix NIP-22 comments (parent is the `e` tag) with
+      // NIP-10 notes (parent follows the e-tag markers), so thread each by its
+      // own convention.
+      const childrenMap = new Map<string, NostrEvent[]>();
+      for (const r of replies) {
+        const parentId = COMMENT_KINDS.has(r.kind)
+          ? r.tags.find(([n]) => n === "e")?.[1]
+          : getParentEventId(r);
+        if (!parentId) continue;
+        const siblings = childrenMap.get(parentId) || [];
+        siblings.push(r);
+        childrenMap.set(parentId, siblings);
+      }
+      for (const siblings of childrenMap.values()) {
+        siblings.sort((a, b) => a.created_at - b.created_at);
+      }
+
+      const buildNode = (ev: NostrEvent): ReplyNode => {
+        const allChildren = childrenMap.get(ev.id) ?? [];
+        if (allChildren.length <= 1) {
+          return {
+            event: ev,
+            children: allChildren.map((c) => buildNode(c)),
+          };
+        }
+        const [first, ...rest] = allChildren;
+        return {
+          event: ev,
+          children: [buildNode(first)],
+          hiddenChildren: rest.map((c) => buildNode(c)),
+        };
+      };
+      return (childrenMap.get(event.id) ?? []).map((r) => buildNode(r));
+    }
+
+    // Non-kind-1 root: use NIP-22 comment structure
     const buildNode = (ev: NostrEvent): ReplyNode => {
       const allChildren = commentsData?.getDirectReplies(ev.id) ?? [];
       if (allChildren.length <= 1) {
@@ -1699,13 +1742,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       };
     };
 
-    if (isComment) {
-      const directReplies = commentsData?.getDirectReplies(event.id) ?? [];
-      const filtered = directReplies.filter((r) => !isMuted(r));
-      return filtered.map((r) => buildNode(r));
-    }
-
-    // Non-kind-1 root
     const topLevel = commentsData?.topLevelComments ?? [];
     const filtered = topLevel.filter((r) => !isMuted(r));
     return [...filtered].sort((a, b) => a.created_at - b.created_at).map((r) => buildNode(r));
@@ -1749,7 +1785,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     for (const r of replies) {
       const parentId = isKind1
         ? getParentEventId(r) ?? event.id
-        : r.tags.find(([n]) => n === 'e')?.[1];
+        : COMMENT_KINDS.has(r.kind)
+          ? r.tags.find(([n]) => n === 'e')?.[1]
+          : getParentEventId(r);
       if (parentId) {
         replyCounts.set(parentId, (replyCounts.get(parentId) ?? 0) + 1);
       }
