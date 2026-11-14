@@ -354,6 +354,24 @@ export default {
 				'60%': { transform: 'translateY(6%) scale(1.04)', opacity: '1' },
 				'100%': { transform: 'none', opacity: '1' }
 			},
+			'count-in-up': {
+				// AnimatedCount: the new number rolls up from below...
+				'0%': { transform: 'translateY(90%)', opacity: '0' },
+				'100%': { transform: 'none', opacity: '1' }
+			},
+			'count-out-up': {
+				// ...as the old one rolls out the top.
+				'0%': { transform: 'none', opacity: '1' },
+				'100%': { transform: 'translateY(-90%)', opacity: '0' }
+			},
+			'count-in-down': {
+				'0%': { transform: 'translateY(-90%)', opacity: '0' },
+				'100%': { transform: 'none', opacity: '1' }
+			},
+			'count-out-down': {
+				'0%': { transform: 'none', opacity: '1' },
+				'100%': { transform: 'translateY(90%)', opacity: '0' }
+			},
 			'new-posts-arrow': {
 				// New posts pill arrow: a gentle upward nudge toward the top.
 				'0%, 70%, 100%': { transform: 'translateY(0)' },
@@ -398,7 +416,11 @@ export default {
 				'magazine-open-shift': 'magazine-open-shift 0.9s cubic-bezier(0.45, 0, 0.2, 1) both',
 				'new-posts-pill-in': 'new-posts-pill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				'new-posts-avatar-in': 'success-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both',
-				'new-posts-arrow': 'new-posts-arrow 3s ease-in-out 1s infinite'
+				'new-posts-arrow': 'new-posts-arrow 3s ease-in-out 1s infinite',
+				'count-in-up': 'count-in-up 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15) both',
+				'count-out-up': 'count-out-up 0.25s ease-in both',
+				'count-in-down': 'count-in-down 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15) both',
+				'count-out-down': 'count-out-down 0.25s ease-in both'
 			}
 		}
 	},

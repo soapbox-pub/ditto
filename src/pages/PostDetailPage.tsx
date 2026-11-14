@@ -156,6 +156,7 @@ import { useAncestorChain } from "@/hooks/useAncestorChain";
 import { useEventDeletion } from "@/hooks/useEventDeletion";
 import { usePollVoteLabel } from "@/hooks/usePollVoteLabel";
 import { formatNumber } from "@/lib/formatNumber";
+import { AnimatedCount } from "@/components/AnimatedCount";
 import { getKindLabel, KIND_LABELS } from "@/lib/kindLabels";
 
 /** Kinds that get the full people-list detail view (follow list / set / pack / love list). */
@@ -2500,9 +2501,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 onClick={() => setReplyOpen(true)}
               >
                 <MessageCircle className="size-5" />
-                {stats?.replies ? (
-                  <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-                ) : null}
+                <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />
               </button>
 
               <RepostMenu event={event}>
@@ -2512,9 +2511,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                     title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.repost', defaultMessage: 'Repost' })}
                   >
                     <RepostIcon className="size-5" />
-                    {repostTotal ? (
-                      <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                    ) : null}
+                    <AnimatedCount value={repostTotal ?? 0} className="text-sm" />
                   </button>
                 )}
               </RepostMenu>
@@ -2574,9 +2571,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               onClick={() => setReplyOpen(true)}
             >
               <MessageCircle className="size-5" />
-              {stats?.replies ? (
-                <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-              ) : null}
+              <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />
             </button>
 
             <RepostMenu event={event}>
@@ -2586,9 +2581,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.reposts', defaultMessage: 'Reposts' })}
                 >
                   <RepostIcon className="size-5" />
-                  {repostTotal ? (
-                    <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-                  ) : null}
+                  <AnimatedCount value={repostTotal ?? 0} className="text-sm" />
                 </button>
               )}
             </RepostMenu>

@@ -12,7 +12,7 @@ import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
 import { isCustomEmoji } from '@/lib/customEmoji';
-import { formatNumber } from '@/lib/formatNumber';
+import { AnimatedCount } from '@/components/AnimatedCount';
 import { impactLight, impactMedium } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -84,6 +84,18 @@ export function ReactionButton({
 
   const hasReacted = !!userReaction;
 
+  // The count moves on tap. Publishing then counts the reaction for real
+  // (see pendingStats), which changes `reactionCount` and retires the guess.
+  const [countDelta, setCountDelta] = useState(0);
+  const [countBase, setCountBase] = useState(reactionCount);
+  if (countBase !== reactionCount) {
+    setCountBase(reactionCount);
+    setCountDelta(0);
+  }
+  // A failed publish puts the heart back, and with it the count.
+  const delta = (countDelta > 0 && !hasReacted) || (countDelta < 0 && hasReacted) ? 0 : countDelta;
+  const shownCount = Math.max(0, reactionCount + delta);
+
   // Send-side burst feedback. Triggered explicitly from the two react paths
   // (double-click ❤️ and QuickReactMenu pick) rather than by watching
   // `hasReacted`, which also flips when the relay query resolves an old
@@ -108,6 +120,7 @@ export function ReactionButton({
     // Optimistic update first, so the heart empties on tap.
     const prevReaction = queryClient.getQueryData(['user-reaction', eventId]);
     queryClient.setQueryData(['user-reaction', eventId], null);
+    setCountDelta(-1);
 
     // Find the user's reactions to delete. The pool includes ones published
     // from this device that relays haven't indexed yet (see reconcileOwnEvents).
@@ -199,6 +212,7 @@ export function ReactionButton({
           if (hasReacted) return;
           impactMedium();
           triggerBurst('❤️');
+          setCountDelta(1);
           setMenuOpen(false);
           queryClient.setQueryData(['user-reaction', eventId], { content: '❤️' });
           publishEvent(
@@ -268,9 +282,7 @@ export function ReactionButton({
             </span>
           )}
         </span>
-        {reactionCount > 0 && (
-          <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{formatNumber(reactionCount)}</span>
-        )}
+        <AnimatedCount value={shownCount} className={cn('text-sm', hasReacted && 'text-pink-500')} />
       </button>
       <AnchoredPopover
         open={menuOpen}
@@ -293,7 +305,10 @@ export function ReactionButton({
           eventPubkey={eventPubkey}
           eventKind={eventKind}
           reactedEvent={reactedEvent}
-          onReacted={triggerBurst}
+          onReacted={(emoji) => {
+            setCountDelta(1);
+            triggerBurst(emoji);
+          }}
           onExpandChange={(expanded) => {
             pickerExpandedRef.current = expanded;
           }}

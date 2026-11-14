@@ -198,7 +198,7 @@ import { getParentEventHints, isReplyEvent } from "@/lib/nostrEvents";
 import { isNostrId } from "@/lib/nostrId";
 import { isMediaDominantPost } from "@/lib/noteContent";
 import { timeAgo } from "@/lib/timeAgo";
-import { formatNumber } from "@/lib/formatNumber";
+import { AnimatedCount } from "@/components/AnimatedCount";
 import { isAdoptedActiveTheme } from "@/lib/themeEvent";
 import { parseBadgeSet } from "@/lib/parseBadgeSet";
 import { getEffectiveStreamStatus, getStreamStatusConfig } from "@/lib/streamStatus";
@@ -1055,9 +1055,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           }}
         >
           <MessageCircle className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
-          {s?.replies ? (
-            <span className="text-sm tabular-nums">{formatNumber(s.replies)}</span>
-          ) : null}
+          <AnimatedCount value={s?.replies ?? 0} className="text-sm" />
         </button>
 
         <RepostMenu event={t}>
@@ -1068,11 +1066,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
               title={isReposted ? intl.formatMessage({ id: "noteCard.undoRepost", defaultMessage: "Undo repost" }) : intl.formatMessage({ id: "noteCard.repost", defaultMessage: "Repost" })}
             >
               <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
-              {s?.reposts || s?.quotes ? (
-                <span className="text-sm tabular-nums">
-                  {formatNumber((s?.reposts ?? 0) + (s?.quotes ?? 0))}
-                </span>
-              ) : null}
+              <AnimatedCount value={(s?.reposts ?? 0) + (s?.quotes ?? 0)} className="text-sm" />
             </button>
           )}
         </RepostMenu>
@@ -1106,11 +1100,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
                 className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"}
                 fill="none"
               />
-              {s?.zapAmount ? (
-                <span className="text-sm tabular-nums">
-                  {formatMoney(s.zapAmount, { layout: 'compact' })}
-                </span>
-              ) : null}
+              <AnimatedCount value={s?.zapAmount ?? 0} format={(n) => formatMoney(n, { layout: 'compact' })} className="text-sm" />
             </button>
           </ZapDialog>
         )}

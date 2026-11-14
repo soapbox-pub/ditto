@@ -25,7 +25,7 @@ import { useOpenPost } from '@/hooks/useOpenPost';
 import { useBookSummary } from '@/hooks/useBookSummary';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { timeAgo } from '@/lib/timeAgo';
-import { formatNumber } from '@/lib/formatNumber';
+import { AnimatedCount } from '@/components/AnimatedCount';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { cn } from '@/lib/utils';
 import { BOOKSTR_KINDS, extractISBNFromEvent, parseBookReview, ratingToStars } from '@/lib/bookstr';
@@ -231,7 +231,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-5" />
-              {stats?.replies ? <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span> : null}
+              <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />
             </button>
 
             <RepostMenu event={event}>
@@ -243,7 +243,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                     : intl.formatMessage({ id: 'bookFeedItem.repost', defaultMessage: 'Repost' })}
                 >
                   <RepostIcon className="size-5" />
-                  {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{formatNumber((stats?.reposts ?? 0) + (stats?.quotes ?? 0))}</span> : null}
+                  <AnimatedCount value={(stats?.reposts ?? 0) + (stats?.quotes ?? 0)} className="text-sm" />
                 </button>
               )}
             </RepostMenu>
@@ -266,7 +266,7 @@ export function BookFeedItem({ event, className }: BookFeedItemProps) {
                   title={intl.formatMessage({ id: 'bookFeedItem.zap', defaultMessage: 'Zap' })}
                 >
                   <Zap className="size-5" fill="none" />
-                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span> : null}
+                  <AnimatedCount value={stats?.zapAmount ?? 0} format={(n) => formatMoney(n, { layout: 'compact' })} className="text-sm" />
                 </button>
               </ZapDialog>
             )}

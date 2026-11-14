@@ -9,7 +9,7 @@ import { ZapMenu } from '@/components/ZapMenu';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
-import { formatNumber } from '@/lib/formatNumber';
+import { AnimatedCount } from '@/components/AnimatedCount';
 import { isPeopleListKind, parsePeopleList } from '@/lib/packUtils';
 import { cn } from '@/lib/utils';
 
@@ -62,9 +62,7 @@ export function PostActionBar({
         onClick={onReply}
       >
         <MessageCircle className={compact ? "size-[18px] sm:size-5" : "size-5"} />
-        {stats?.replies ? (
-          <span className="text-sm tabular-nums">{formatNumber(stats.replies)}</span>
-        ) : null}
+        <AnimatedCount value={stats?.replies ?? 0} className="text-sm" />
       </button>
 
       {/* Repost */}
@@ -78,9 +76,7 @@ export function PostActionBar({
               : intl.formatMessage({ id: 'postActionBar.repost', defaultMessage: 'Repost' })}
           >
             <RepostIcon className={compact ? "size-[18px] sm:size-5" : "size-5"} />
-            {repostTotal > 0 ? (
-              <span className="text-sm tabular-nums">{formatNumber(repostTotal)}</span>
-            ) : null}
+            <AnimatedCount value={repostTotal} className="text-sm" />
           </button>
         )}
       </RepostMenu>
@@ -112,9 +108,7 @@ export function PostActionBar({
               className={compact ? "size-[18px] sm:size-5" : "size-5"}
               fill="none"
             />
-            {stats?.zapAmount ? (
-              <span className="text-sm tabular-nums">{formatMoney(stats.zapAmount, { layout: 'compact' })}</span>
-            ) : null}
+            <AnimatedCount value={stats?.zapAmount ?? 0} format={(n) => formatMoney(n, { layout: 'compact' })} className="text-sm" />
           </button>
         </ZapMenu>
       )}
