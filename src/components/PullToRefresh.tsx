@@ -1,30 +1,49 @@
-import { useContext, useState, useRef, useEffect, type ReactNode } from 'react';
+import { useContext, useRef, useEffect, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { impactMedium } from '@/lib/haptics';
 
-const THRESHOLD = 80; // raw px before triggering
-const MAX_PULL = 120; // max visual distance (after damping)
-const RESISTANCE = 0.45; // rubber-band damping
+/** Visual pull (px, after damping) that arms a refresh. */
+const TRIGGER = 44;
+/** The pull approaches this distance but never reaches it. */
+const MAX_PULL = 140;
+/** How much of the finger's travel the pull follows at the start. */
+const RESISTANCE = 0.55;
+/** Where the indicator rests while the refresh runs. */
+const PARKED = 44;
+
+/**
+ * Rubber band: follows the finger at RESISTANCE at first, then gives less and
+ * less the further it's pulled, easing towards MAX_PULL (the iOS overscroll curve).
+ */
+function rubberBand(diff: number): number {
+  return MAX_PULL * (1 - 1 / ((diff * RESISTANCE) / MAX_PULL + 1));
+}
+
+/** Gesture state, on `data-ptr` of the container (CSS keys transitions and the spinner off it). */
+type PullState = 'idle' | 'pulling' | 'refreshing';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
   children: ReactNode;
   className?: string;
+  /**
+   * `row` (default) draws a spinner in a row that opens above the content.
+   * `none` draws nothing, for a page that shows the pull itself: the
+   * container exposes `--ptr-pull` (px), `--ptr-progress` (0–1, 1 = armed)
+   * and `data-ptr` (`idle` | `pulling` | `refreshing`) on a `group/ptr`.
+   * Elements with the `ptr-follow` class spring back when the pull is let go.
+   */
+  indicator?: 'row' | 'none';
 }
 
-export function PullToRefresh({ onRefresh, children, className }: PullToRefreshProps) {
-  const [pullDistance, setPullDistance] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const startY = useRef(0);
-  const pulling = useRef(false);
-  const busy = useRef(false);
-  const currentPull = useRef(0); // mirror of pullDistance for sync reads in handlers
+export function PullToRefresh({ onRefresh, children, className, indicator = 'row' }: PullToRefreshProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
+  const indicatorRef = useRef(indicator);
+  indicatorRef.current = indicator;
 
   // Disable native browser pull-to-refresh only while this component is mounted
   // (on screen: the hidden copy under a pushed page leaves the document alone).
@@ -38,109 +57,112 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
     };
   }, [inUnderlay]);
 
+  // The pull is written straight to CSS variables on the container, so
+  // following the finger doesn't re-render the page under it.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
+    let startY = 0;
+    let pull = 0;
+    let state: PullState = 'idle';
+    let armed = false;
+
     const atTop = () => window.scrollY <= 0;
 
+    function set(next: PullState, distance: number) {
+      state = next;
+      pull = distance;
+      el!.dataset.ptr = next;
+      el!.style.setProperty('--ptr-pull', `${distance}px`);
+      el!.style.setProperty('--ptr-progress', String(next === 'refreshing' ? 1 : Math.min(distance / TRIGGER, 1)));
+    }
+
     function onStart(e: TouchEvent) {
-      if (busy.current || !atTop()) return;
-      startY.current = e.touches[0].clientY;
-      pulling.current = false;
+      if (state === 'refreshing' || !atTop()) return;
+      startY = e.touches[0].clientY;
+      armed = false;
     }
 
     function onMove(e: TouchEvent) {
-      if (busy.current) return;
-      const diff = e.touches[0].clientY - startY.current;
+      if (state === 'refreshing') return;
+      const diff = e.touches[0].clientY - startY;
 
       if (diff > 0 && atTop()) {
         e.preventDefault(); // block native browser pull-to-refresh
-        pulling.current = true;
-        const d = Math.min(diff * RESISTANCE, MAX_PULL);
-        currentPull.current = d;
-        setPullDistance(d);
-      } else if (pulling.current) {
-        pulling.current = false;
-        currentPull.current = 0;
-        setPullDistance(0);
+        const d = rubberBand(diff);
+        set('pulling', d);
+        // Tick once as the pull arms, like iOS; letting go then refreshes.
+        const nowArmed = d >= TRIGGER;
+        if (nowArmed && !armed) impactMedium();
+        armed = nowArmed;
+      } else if (state === 'pulling') {
+        armed = false;
+        set('idle', 0);
       }
     }
 
     async function onEnd() {
-      if (busy.current || !pulling.current) {
-        pulling.current = false;
-        currentPull.current = 0;
-        setPullDistance(0);
+      if (state !== 'pulling') return;
+
+      if (pull < TRIGGER) {
+        armed = false;
+        set('idle', 0);
         return;
       }
 
-      pulling.current = false;
-      const reached = currentPull.current >= THRESHOLD * RESISTANCE;
-
-      if (reached) {
-        impactMedium();
-        busy.current = true;
-        currentPull.current = 40;
-        setPullDistance(40);
-        setRefreshing(true);
-
-        try {
-          await onRefreshRef.current();
-        } finally {
-          busy.current = false;
-          setRefreshing(false);
-          currentPull.current = 0;
-          setPullDistance(0);
-        }
-      } else {
-        currentPull.current = 0;
-        setPullDistance(0);
+      armed = false;
+      set('refreshing', indicatorRef.current === 'row' ? PARKED : 0);
+      try {
+        await onRefreshRef.current();
+      } finally {
+        set('idle', 0);
       }
+    }
+
+    function onCancel() {
+      if (state !== 'pulling') return;
+      armed = false;
+      set('idle', 0);
     }
 
     el.addEventListener('touchstart', onStart, { passive: true });
     el.addEventListener('touchmove', onMove, { passive: false });
     el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onCancel, { passive: true });
 
     return () => {
       el.removeEventListener('touchstart', onStart);
       el.removeEventListener('touchmove', onMove);
       el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onCancel);
     };
   }, []);
 
-  const progress = Math.min(pullDistance / (THRESHOLD * RESISTANCE), 1);
-  const visible = pullDistance > 4 || refreshing;
-
   return (
-    <div ref={containerRef} className={className}>
-      {/* Pull indicator — mobile only */}
-      <div
-        className="flex items-center justify-center overflow-hidden sidebar:hidden"
-        style={{
-          height: visible ? `${pullDistance}px` : '0px',
-          transition: pulling.current ? 'none' : 'height 150ms ease-out',
-        }}
-      >
+    <div
+      ref={containerRef}
+      data-ptr="idle"
+      className={cn('group/ptr', className)}
+      style={{ '--ptr-pull': '0px', '--ptr-progress': '0' } as React.CSSProperties}
+    >
+      {indicator === 'row' && (
+        // Pull indicator — mobile only
         <div
-          className="flex items-center justify-center size-8 rounded-full bg-secondary/80 border border-border shadow-sm"
-          style={{
-            opacity: progress,
-            transform: refreshing
-              ? 'scale(1)'
-              : `scale(${0.5 + progress * 0.5}) rotate(${progress * 360}deg)`,
-            transition: 'transform 150ms ease-out',
-          }}
+          className="ptr-follow flex items-center justify-center overflow-hidden sidebar:hidden"
+          style={{ height: 'var(--ptr-pull)' }}
         >
-          <Loader2
-            className={cn(
-              'size-4 text-primary',
-              refreshing && 'animate-spin',
-            )}
-          />
+          <div
+            className="ptr-follow flex items-center justify-center size-8 rounded-full bg-secondary/80 border border-border shadow-sm"
+            style={{
+              opacity: 'var(--ptr-progress)',
+              transform: 'scale(calc(0.5 + var(--ptr-progress) * 0.5)) rotate(calc(var(--ptr-progress) * 270deg))',
+            }}
+          >
+            <Loader2 className="size-4 text-primary group-data-[ptr=refreshing]/ptr:animate-spin" />
+          </div>
         </div>
-      </div>
+      )}
 
       {children}
     </div>

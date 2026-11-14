@@ -323,6 +323,17 @@
 
 
 
+  /* Pull to refresh: whatever follows the pull (see PullToRefresh) tracks the
+     finger exactly, then springs back when it's let go. */
+  .ptr-follow {
+    transition-property: height, transform, opacity, filter;
+    transition-duration: 450ms;
+    transition-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1);
+  }
+  [data-ptr='pulling'] .ptr-follow {
+    transition: none;
+  }
+
   /* Slide the sub-header bar out of view together with the mobile top bar.
      Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
   @media (max-width: 899px) {
