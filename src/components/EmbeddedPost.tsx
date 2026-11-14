@@ -12,6 +12,8 @@ interface EmbeddedPostProps {
   className?: string;
   /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
   disableHoverCards?: boolean;
+  /** Show a text note's whole body instead of clipping it behind "Read more". */
+  fullContent?: boolean;
 }
 
 /**
@@ -23,7 +25,7 @@ interface EmbeddedPostProps {
  * whether it's a text note, an addressable event (article, people list,
  * badge…), or a profile (kind 0).
  */
-export function EmbeddedPost({ event, className, disableHoverCards }: EmbeddedPostProps) {
+export function EmbeddedPost({ event, className, disableHoverCards, fullContent }: EmbeddedPostProps) {
   // Kind 0 (profile) — show a profile card instead of trying to render the raw JSON content
   if (event.kind === 0) {
     return (
@@ -52,6 +54,7 @@ export function EmbeddedPost({ event, className, disableHoverCards }: EmbeddedPo
       authorHint={event.pubkey}
       className={className}
       disableHoverCards={disableHoverCards}
+      fullContent={fullContent}
     />
   );
 }

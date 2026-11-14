@@ -55,6 +55,9 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
   const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined);
 
   const isProfileRoot = !isExternal && event instanceof Object && 'kind' in event && event.kind === 0;
+  // Replying to a Nostr event: on wide screens the original sits beside the
+  // composer at full height, so it can be read in full while writing.
+  const sideBySide = isReply && !isQuote && !isExternal;
   const title = titleOverride ?? (
     initialMode === 'poll'
       ? intl.formatMessage({ id: 'replyCompose.title.poll', defaultMessage: 'New poll' })
@@ -103,6 +106,7 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
           }
         }}
         onInteractOutside={handleInteractOutside}
+        className={cn(sideBySide && 'lg:max-w-[960px] lg:min-h-[min(28rem,85dvh)]')}
       >
         <PortalContainerProvider value={portalContainer}>
           {/* Header */}
@@ -150,51 +154,60 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
             </div>
           </div>
 
-          {/* Embedded original post (reply only, not for quotes)
-              Capped at 20% of the *visible* viewport (shrinks with the
-              keyboard) so it never squeezes out the composer. */}
-          {event && !isQuote && (
-            <div className="overflow-y-auto max-h-[calc(var(--visual-viewport-height,100dvh)*0.2)] shrink-0">
-              {isUrl ? (
-                <div className="mx-4 mb-2">
-                  <LinkEmbed url={event.href} showActions={false} hideImage />
-                </div>
-              ) : isExternalId ? (
-                /* NIP-73 identifier root — no rich preview; the page context already shows it. */
-                null
-              ) : (
-                <EmbeddedPost event={event} className="mx-4 mb-2" disableHoverCards />
-              )}
-            </div>
-          )}
+          <div className={cn('min-h-0 flex-1 flex flex-col', sideBySide && 'lg:flex-row')}>
+            {/* Embedded original post (reply only, not for quotes), in full and
+                scrollable. On phones it's capped at 20% of the *visible*
+                viewport (shrinks with the keyboard) so it never squeezes out
+                the composer; wider screens give it more room, and on large
+                ones it becomes a full-height column beside the composer. */}
+            {event && !isQuote && (
+              <div
+                className={cn(
+                  'overflow-y-auto max-h-[calc(var(--visual-viewport-height,100dvh)*0.2)] sm:max-h-[40dvh] shrink-0',
+                  sideBySide && 'lg:max-h-none lg:shrink lg:w-1/2 lg:pb-2',
+                )}
+              >
+                {isUrl ? (
+                  <div className="mx-4 mb-2">
+                    <LinkEmbed url={event.href} showActions={false} hideImage />
+                  </div>
+                ) : isExternalId ? (
+                  /* NIP-73 identifier root — no rich preview; the page context already shows it. */
+                  null
+                ) : (
+                  <EmbeddedPost event={event} className="mx-4 mb-2" disableHoverCards fullContent />
+                )}
+              </div>
+            )}
 
-          {/* Bluesky disclaimer */}
-          {isUrl && /bsky\.(app|social)/.test(event.href) && (
-            <div className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2 shrink-0">
-              <span className="text-sm leading-relaxed shrink-0" aria-hidden>&#x26A0;&#xFE0F;</span>
-              <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-                <FormattedMessage
-                  id="replyCompose.blueskyDisclaimer"
-                  defaultMessage="People on Bluesky can't see you because they're not actually decentralized."
-                />
-              </p>
-            </div>
-          )}
+            {/* Bluesky disclaimer */}
+            {isUrl && /bsky\.(app|social)/.test(event.href) && (
+              <div className="mx-4 mb-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2 shrink-0">
+                <span className="text-sm leading-relaxed shrink-0" aria-hidden>&#x26A0;&#xFE0F;</span>
+                <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                  <FormattedMessage
+                    id="replyCompose.blueskyDisclaimer"
+                    defaultMessage="People on Bluesky can't see you because they're not actually decentralized."
+                  />
+                </p>
+              </div>
+            )}
 
-          {/* Compose area — takes remaining space; ComposeBox handles its own scroll */}
-          <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
-            <ComposeBox
-              replyTo={isQuote ? undefined : (event ?? undefined)}
-              quotedEvent={quotedEvent ?? undefined}
-              onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
-              placeholder={placeholder}
-              forceExpanded
-              hideAvatar
-              previewMode={previewMode}
-              onHasPreviewableContentChange={setHasPreviewableContent}
-              initialContent={initialContent}
-              initialMode={initialMode}
-            />
+            {/* Compose area — takes remaining space; ComposeBox handles its own scroll */}
+            <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+              <ComposeBox
+                replyTo={isQuote ? undefined : (event ?? undefined)}
+                quotedEvent={quotedEvent ?? undefined}
+                onSuccess={() => { onOpenChange(false); onSuccess?.(); }}
+                placeholder={placeholder}
+                forceExpanded
+                hideAvatar
+                previewMode={previewMode}
+                onHasPreviewableContentChange={setHasPreviewableContent}
+                initialContent={initialContent}
+                initialMode={initialMode}
+              />
+            </div>
           </div>
         </PortalContainerProvider>
       </ComposeDialogContent>

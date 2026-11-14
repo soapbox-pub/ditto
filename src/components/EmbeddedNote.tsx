@@ -105,6 +105,8 @@ interface EmbeddedNoteProps {
   /** When set, this excerpt is wrapped in `<mark>` inside the note's rendered
    *  content (used to render a NIP-84 highlight as the marked source note). */
   highlightText?: string;
+  /** Show a text note's whole body instead of clipping it behind "Read more". */
+  fullContent?: boolean;
 }
 
 /** Inline embedded note card – similar to a link preview but for Nostr events. */
@@ -121,7 +123,7 @@ export function EmbeddedNote(props: EmbeddedNoteProps) {
   );
 }
 
-function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, className, disableHoverCards, highlightText }: EmbeddedNoteProps) {
+function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, className, disableHoverCards, highlightText, fullContent }: EmbeddedNoteProps) {
   const effectiveAuthorHint = authorHint ?? fallbackAuthorHint;
   const { data: event, isLoading, isError } = useEvent(eventId, relays, effectiveAuthorHint);
 
@@ -136,17 +138,18 @@ function EmbeddedNoteInner({ eventId, relays, authorHint, fallbackAuthorHint, cl
   // Gate the quoted event's media on its own author, not the quoting post's.
   return (
     <MediaGateProvider pubkey={event.pubkey} eventId={event.id}>
-      <EmbeddedEventBody event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />
+      <EmbeddedEventBody event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} fullContent={fullContent} />
     </MediaGateProvider>
   );
 }
 
 /** Route a fetched quoted event to its kind's compact card. */
-function EmbeddedEventBody({ event, className, disableHoverCards, highlightText }: {
+function EmbeddedEventBody({ event, className, disableHoverCards, highlightText, fullContent }: {
   event: NostrEvent;
   className?: string;
   disableHoverCards?: boolean;
   highlightText?: string;
+  fullContent?: boolean;
 }) {
   // NIP-62 vanish events get their own dramatic inline card
   if (event.kind === VANISH_KIND) {
@@ -328,7 +331,7 @@ function EmbeddedEventBody({ event, className, disableHoverCards, highlightText 
     return <EmbeddedPublicationCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
-  return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} />;
+  return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} highlightText={highlightText} fullContent={fullContent} />;
 }
 
 /** Compact inline card for kind 1311 NIP-53 live chat messages. */
@@ -980,11 +983,13 @@ function EmbeddedNoteCard({
   className,
   disableHoverCards,
   highlightText,
+  fullContent,
 }: {
   event: NostrEvent;
   className?: string;
   disableHoverCards?: boolean;
   highlightText?: string;
+  fullContent?: boolean;
 }) {
   const intl = useIntl();
   const { config } = useAppContext();
@@ -1149,7 +1154,11 @@ function EmbeddedNoteCard({
           })()}
           {/* Text body (media URLs are stripped here and rendered as a
               gallery/player below). Empty content renders nothing. */}
-          <EmbedTruncatedContent event={event} highlightText={highlightText} />
+          {fullContent ? (
+            <NoteContent event={event} className="text-sm leading-relaxed" disableMediaEmbeds disableNoteEmbeds highlightText={highlightText} />
+          ) : (
+            <EmbedTruncatedContent event={event} highlightText={highlightText} />
+          )}
           {showMediaPreview && (
             <MediaGate className="mt-1.5">
             <div onClick={(e) => e.stopPropagation()}>
