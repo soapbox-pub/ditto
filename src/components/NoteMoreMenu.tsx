@@ -22,6 +22,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
+import { usePresence } from '@/hooks/usePresence';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +64,9 @@ import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+/** The sheet's close (vaul's 0.5s), which outlasts the dialog's. */
+const MENU_EXIT_MS = 500;
 
 interface NoteMoreMenuProps {
   event: NostrEvent;
@@ -142,12 +146,16 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   // passed to mutate() at the call site are dropped when the calling component
   // unmounts, so if these lived in the (unmounting) Content the success/error
   // toasts would silently never fire. See NoteMoreMenuContent unmount at
-  // `{open && (...)}` below.
+  // `{menuMounted && (...)}` below.
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
 
   const bookmarked = isBookmarked(event.id);
+
+  // Mounted only while open (a feed holds hundreds of these), and for the
+  // length of the close after, so the sheet or dialog animates away.
+  const { mounted: menuMounted } = usePresence(open, MENU_EXIT_MS);
   const pinned = isPinned(event.id);
   const userMuted = isMuted('pubkey', event.pubkey);
   // Conversation = the thread root: a NIP-22 comment names it with the
@@ -295,7 +303,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   return (
     <>
-      {open && (
+      {menuMounted && (
         <NoteMoreMenuContent
           event={event}
           open={open}
