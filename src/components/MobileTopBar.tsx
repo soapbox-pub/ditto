@@ -5,7 +5,6 @@ import { DittoLogo } from '@/components/DittoLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BarsStaggeredIcon } from '@/components/icons/BarsStaggeredIcon';
-import { useNavHidden } from '@/contexts/LayoutContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { profileName } from '@/lib/getDisplayName';
@@ -24,7 +23,6 @@ interface MobileTopBarProps {
 
 export function MobileTopBar({ onAvatarClick, hasSubHeader, titlePubkey, titleVisible }: MobileTopBarProps) {
   const location = useLocation();
-  const navHidden = useNavHidden();
   const arc = topBarArcPaths(hasSubHeader ? 1 : 0);
   const showTitle = !!titlePubkey && !!titleVisible;
 
@@ -36,10 +34,7 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader, titlePubkey, titleVi
   }, [location.pathname]);
 
   return (
-    <header
-      className="push-transition-top-bar sticky top-0 z-20 sidebar:hidden safe-area-top transition-transform duration-300 ease-in-out"
-      style={navHidden ? { transform: 'translateY(calc(-100% - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))))' } : undefined}
-    >
+    <header className="push-transition-top-bar sticky top-0 z-20 sidebar:hidden safe-area-top chrome-follow chrome-follow-top-bar">
       {/* Safe-area fill — only covers the padding zone above the content with a single layer of bg. */}
       <div
         className="absolute top-0 left-0 right-0 bg-background/85"

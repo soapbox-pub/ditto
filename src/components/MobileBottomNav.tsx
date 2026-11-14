@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { selectionChanged } from '@/lib/haptics';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
-import { useScrollDirection } from '@/hooks/useScrollDirection';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useLayoutSnapshot } from '@/contexts/LayoutContext';
@@ -18,7 +17,12 @@ import { formatItemLabel, getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
 
-/** Transform style applied when the bottom nav is hidden (scrolled away). */
+/** Slides with the scroll (see useScrollDirection), all the way out at `--chrome-hide: 1`. */
+const followStyle: React.CSSProperties = {
+  transform: `translateY(calc(var(--chrome-hide, 0) * (100% + ${ARC_UP_OVERHANG_PX}px)))`,
+};
+
+/** All the way out, while the search sheet has the bottom of the screen. */
 const hiddenStyle: React.CSSProperties = {
   transform: `translateY(calc(100% + ${ARC_UP_OVERHANG_PX}px))`,
 };
@@ -28,8 +32,7 @@ export function MobileBottomNav() {
   const queryClient = useQueryClient();
   const { user, metadata, imeta } = useCurrentUserProfile();
   const hasUnread = useHasUnreadNotifications();
-  const { scrollContainer, noArcs } = useLayoutSnapshot();
-  const { hidden } = useScrollDirection(scrollContainer);
+  const { noArcs } = useLayoutSnapshot();
   const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
 
   const { config } = useAppContext();
@@ -47,8 +50,6 @@ export function MobileBottomNav() {
     setSearchOpen((v) => !v);
   }, []);
 
-  // Hide the nav when search sheet is open so it doesn't compete for space
-  const isHidden = hidden || searchOpen;
 
   const displayName = profileName(metadata);
   const isOnProfile = user && location.pathname === profileUrl;
@@ -59,10 +60,10 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'push-transition-bottom-nav fixed bottom-0 left-0 right-0 z-40 sidebar:hidden will-change-transform',
-          'transition-transform duration-300 ease-in-out',
+          'push-transition-bottom-nav fixed bottom-0 left-0 right-0 z-40 sidebar:hidden will-change-transform chrome-follow',
         )}
-        style={isHidden ? hiddenStyle : undefined}
+        // Hide the nav when search sheet is open so it doesn't compete for space
+        style={searchOpen ? hiddenStyle : followStyle}
       >
         {/* Arc + items wrapper */}
         <div className="relative">

@@ -364,11 +364,36 @@
     transition: none;
   }
 
-  /* Slide the sub-header bar out of view together with the mobile top bar.
-     Must clear its own height (100%) + top bar + safe area + arc overhang (20px). */
+  /* Mobile chrome that slides with the scroll (see useScrollDirection):
+     it tracks --chrome-hide exactly while the user scrolls, and eases when
+     it settles or comes back at the top. */
   @media (max-width: 899px) {
-    .nav-hidden-slide {
-      transform: translateY(calc(-100% - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px))));
+    .chrome-follow {
+      transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    [data-chrome-tracking] .chrome-follow {
+      transition: none;
+    }
+
+    .chrome-follow-top-bar {
+      transform: translateY(calc(var(--chrome-hide, 0) * (-100% - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))));
+    }
+
+    /* The sub-header bar slides out together with the top bar. Must clear its
+       own height (100%) + top bar + safe area + arc overhang (20px). */
+    .chrome-follow-sub-header {
+      transform: translateY(calc(var(--chrome-hide, 0) * (-100% - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))));
+    }
+
+    /* A pinned sub-header bar stays, moving up into the top bar's place,
+       just under the device's safe area. Moves its sticky `top` rather than
+       transforming, so the bar only moves once it's stuck. */
+    .chrome-follow-pinned {
+      top: calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + (1 - var(--chrome-hide, 0)) * var(--top-bar-height));
+      transition: top 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    [data-chrome-tracking] .chrome-follow-pinned {
+      transition: none;
     }
   }
 

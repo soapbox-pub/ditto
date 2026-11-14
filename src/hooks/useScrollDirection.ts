@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /** Input that means the user is scrolling the page themselves. */
 const USER_SCROLL_EVENTS = ['touchstart', 'wheel', 'keydown'] as const;
+
+/** Scroll distance (px) over which the chrome slides all the way out or back. */
+const TRACK_PX = 64;
+/** Px from the top where the chrome always shows. */
+const NEAR_TOP = 60;
+/** Quiet time (ms) after which a scroll counts as stopped and a half-hidden chrome settles. */
+const SETTLE_MS = 120;
 
 /** Set by {@link holdChromeUntilUserScroll}, cleared by the user's next scroll input. */
 let chromeHeld = false;
@@ -19,85 +26,101 @@ export function holdChromeUntilUserScroll(): void {
 }
 
 /**
- * Tracks the user's scroll direction and returns whether the mobile chrome
- * (bottom nav) should be hidden.
+ * Slides the mobile chrome (top bar, tab bar, bottom nav, compose button) out
+ * of the way as the user scrolls down and back as they scroll up, following
+ * the scroll rather than toggling: a short scroll moves the bars part of the
+ * way, and when the scroll stops they settle the rest of the way in the
+ * direction it was going.
  *
- * Rules:
- *  - Hidden when the user scrolls DOWN past a small threshold.
- *  - Revealed when the user scrolls UP by the same threshold.
- *  - Always revealed when the page is scrolled near the very top.
+ * How far they're out is written to `--chrome-hide` on `<html>` (0 shown,
+ * 1 hidden), for the bars to transform by. Elements with the `chrome-follow`
+ * class track it exactly while `data-chrome-tracking` is set and animate
+ * otherwise (settling, revealing near the top).
+ *
+ * Always revealed near the top of the page.
  *
  * @param scrollContainer - Optional element whose scroll events should be
  *   tracked instead of `window`. Useful for pages that scroll an internal
  *   container (e.g. the Vines snap-scroll feed).
+ * @returns `hidden`: whether the chrome is (mostly) out, for what toggles
+ *   rather than follows.
  */
 export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidden: boolean } {
   const [hidden, setHidden] = useState(false);
-  const lastScrollY = useRef(0);
-  const accumulated = useRef(0);
 
   useEffect(() => {
-    const THRESHOLD = 8; // px of continuous movement before toggling
-    const NEAR_TOP = 60; // px from top where chrome is always visible
-
+    const root = document.documentElement;
     const target: HTMLElement | Window = scrollContainer ?? window;
+    const readY = () => (scrollContainer ? scrollContainer.scrollTop : window.scrollY);
 
-    // Reset state when the scroll target changes
-    lastScrollY.current = 0;
-    accumulated.current = 0;
-    setHidden(false);
+    let lastY = readY();
+    let progress = 0;
+    let direction = 0;
+    let frame = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function apply(next: number, follow: boolean) {
+      if (follow) root.setAttribute('data-chrome-tracking', '');
+      else root.removeAttribute('data-chrome-tracking');
+      if (next === progress && !follow) return;
+      progress = next;
+      root.style.setProperty('--chrome-hide', String(next));
+      setHidden(next >= 0.5);
+    }
+
+    function settle() {
+      apply(progress <= 0 || progress >= 1 ? progress : direction > 0 ? 1 : 0, false);
+    }
+
+    function update() {
+      frame = 0;
+      const y = readY();
+      const delta = y - lastY;
+      lastY = y;
+      clearTimeout(settleTimer);
+
+      if (chromeHeld) return;
+
+      if (y <= NEAR_TOP) {
+        apply(0, false);
+        return;
+      }
+
+      if (delta !== 0) direction = Math.sign(delta);
+      apply(Math.min(Math.max(progress + delta / TRACK_PX, 0), 1), true);
+      settleTimer = setTimeout(settle, SETTLE_MS);
+    }
 
     const onScroll = () => {
-      const currentY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
-
-      if (chromeHeld) {
-        accumulated.current = 0;
-        lastScrollY.current = currentY;
-        return;
-      }
-
-      if (currentY <= NEAR_TOP) {
-        // Always show chrome near the top of the page
-        accumulated.current = 0;
-        setHidden(false);
-        lastScrollY.current = currentY;
-        return;
-      }
-
-      const delta = currentY - lastScrollY.current;
-      lastScrollY.current = currentY;
-
-      if (Math.sign(delta) !== Math.sign(accumulated.current)) {
-        // Direction changed — reset accumulator
-        accumulated.current = delta;
-      } else {
-        accumulated.current += delta;
-      }
-
-      if (accumulated.current > THRESHOLD) {
-        setHidden(true);
-        accumulated.current = 0;
-      } else if (accumulated.current < -THRESHOLD) {
-        setHidden(false);
-        accumulated.current = 0;
-      }
+      if (!frame) frame = requestAnimationFrame(update);
     };
 
     const reveal = () => {
-      accumulated.current = 0;
-      setHidden(false);
+      clearTimeout(settleTimer);
+      lastY = readY();
+      apply(0, false);
     };
     const release = () => {
       chromeHeld = false;
     };
+
+    // Start shown when the scroll target changes.
+    root.style.setProperty('--chrome-hide', '0');
+    root.removeAttribute('data-chrome-tracking');
+    setHidden(false);
+
     revealListeners.add(reveal);
     for (const type of USER_SCROLL_EVENTS) window.addEventListener(type, release, { capture: true, passive: true });
-
     target.addEventListener('scroll', onScroll, { passive: true });
+
     return () => {
       target.removeEventListener('scroll', onScroll);
       revealListeners.delete(reveal);
       for (const type of USER_SCROLL_EVENTS) window.removeEventListener(type, release, true);
+      cancelAnimationFrame(frame);
+      clearTimeout(settleTimer);
+      root.style.removeProperty('--chrome-hide');
+      root.removeAttribute('data-chrome-tracking');
     };
   }, [scrollContainer]);
 

@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
 import { ArcBackground, ARC_OVERHANG_PX } from '@/components/ArcBackground';
-import { useNavHidden } from '@/contexts/LayoutContext';
 import { PageUnderlayContext } from '@/contexts/PageUnderlayContext';
 import { SubHeaderBarContext } from '@/components/SubHeaderBarContext';
 
@@ -57,16 +56,13 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   const intl = useIntl();
   const [hover, setHover] = useState<HoverSlice | null>(null);
   const [active, setActive] = useState<HoverSlice | null>(null);
-  const navHidden = useNavHidden();
   const inUnderlay = useContext(PageUnderlayContext);
 
-  // Track whether the sticky bar has actually reached the top of the viewport
-  // by watching getBoundingClientRect().top on scroll. We show the safe-area
-  // padding only once the bar's top edge is at or above the safe-area boundary,
-  // preventing the spacer from appearing while the bar is still mid-page.
+  // Whether the sticky bar has reached its sticky offset, watched through
+  // getBoundingClientRect().top on scroll (only tracked for `pinned` and `soft`).
+  // A pinned bar fills the safe area above it only then, so the fill never
+  // shows while the bar is still mid-page.
   const barRef = useRef<HTMLDivElement>(null);
-  const [atTop, setAtTop] = useState(false);
-  // Whether the sticky bar has reached its sticky offset (only tracked for `soft`).
   const [stuck, setStuck] = useState(false);
 
   // Width of the arc area, to turn the active tab's pixel slice into a
@@ -129,19 +125,11 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   useEffect(() => {
     if (!pinned && !soft) return;
 
-    // Measure safe-area-inset-top once by reading it via a throw-away element.
-    const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;top:var(--safe-area-inset-top,env(safe-area-inset-top,0px));left:0;width:0;height:0;visibility:hidden;pointer-events:none';
-    document.body.appendChild(probe);
-    const safeAreaTop = probe.getBoundingClientRect().top;
-    document.body.removeChild(probe);
-
     const check = () => {
       const bar = barRef.current;
       if (!bar) return;
       const top = bar.getBoundingClientRect().top;
-      if (pinned) setAtTop(top <= safeAreaTop);
-      if (soft) setStuck(top <= (parseFloat(getComputedStyle(bar).top) || 0) + 1);
+      setStuck(top <= (parseFloat(getComputedStyle(bar).top) || 0) + 1);
     };
 
     // The copy of a page under a pushed one (BackSwipe) scrolls in a box of
@@ -151,7 +139,8 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
     return () => window.removeEventListener('scroll', check, inUnderlay);
   }, [pinned, soft, inUnderlay]);
 
-  const showSafeAreaPadding = pinned && navHidden && atTop;
+  // Underneath a pushed page (BackSwipe) the bars rest where they are.
+  const follow = !inUnderlay;
 
   // Stable, and skips identical slices: tabs re-report their position on
   // every scroll/resize, and a fresh object would re-render the bar each time.
@@ -168,20 +157,16 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
         ref={barRef}
         className={cn(
           'relative sticky top-mobile-bar sidebar:top-0 z-10',
-          pinned
-            ? 'max-sidebar:transition-[top,padding-top] max-sidebar:duration-300 max-sidebar:ease-in-out'
-            : 'max-sidebar:transition-transform max-sidebar:duration-300 max-sidebar:ease-in-out',
-          navHidden && (pinned ? 'max-sidebar:!top-0' : 'nav-hidden-slide'),
-          showSafeAreaPadding && 'max-sidebar:safe-area-top',
+          follow && (pinned ? 'chrome-follow-pinned' : 'chrome-follow chrome-follow-sub-header'),
           className,
         )}
       >
-        {/* Safe-area fill — visible only when pinned and bar is at the top, covers the
-            padding zone above the tabs with the same translucent bg as the MobileTopBar. */}
-        {showSafeAreaPadding && (
+        {/* Safe-area fill — a stuck pinned bar covers the zone above it with the
+            same translucent bg as the MobileTopBar, coming in as the top bar goes. */}
+        {pinned && follow && stuck && (
           <div
-            className="absolute top-0 left-0 right-0 bg-background/85 sidebar:hidden"
-            style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))' }}
+            className="absolute bottom-full left-0 right-0 bg-background/85 sidebar:hidden"
+            style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))', opacity: 'var(--chrome-hide, 0)' }}
           />
         )}
         {/* Inner wrapper so ArcBackground covers only the tab area, not the safe-area padding above.

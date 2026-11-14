@@ -185,8 +185,8 @@ function MainLayoutInner() {
           hide/show transition on scroll. */}
       {showFAB && (
         <div
-          className="fixed bottom-fab right-6 z-30 pointer-events-none transition-transform duration-300 ease-in-out sidebar:hidden"
-          style={navHidden ? { transform: `translateY(calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))))` } : undefined}
+          className="fixed bottom-fab right-6 z-30 pointer-events-none chrome-follow sidebar:hidden"
+          style={{ transform: `translateY(calc(var(--chrome-hide, 0) * (var(--bottom-nav-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)))))` }}
         >
           <div className="pointer-events-auto">
             <FloatingComposeButton kind={fabKind} href={fabHref} onFabClick={onFabClick} icon={fabIcon} />
