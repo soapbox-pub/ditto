@@ -71,6 +71,14 @@ const LAUNCH_RESTORE_WINDOW_MS = 3000;
 /** How close to the top (px) a restored feed must get before it refreshes. */
 const RESTORED_REFRESH_Y = 200;
 
+/** How long (ms) after a refresh lands to keep watching for posts it brought in. */
+const ARRIVAL_WATCH_MS = 1000;
+/** How long (ms) newly arrived rows stay marked (their grow-in and glow). */
+const ARRIVAL_HIGHLIGHT_MS = 1600;
+/** More new rows than this is a different feed, not an update to animate. */
+const MAX_ARRIVALS = 20;
+const NO_ARRIVALS: ReadonlySet<string> = new Set();
+
 /**
  * Where the user is in the feed under `container`: the first row still on
  * screen, its offset, and every row's height. Measured rather than read from
@@ -325,10 +333,24 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // Refresh it once they make it back to the top (or tap the pill).
   const restoredStaleRef = useRef(!!launchScroll);
 
+  // Posts a refresh brings in at the top grow into place and glow briefly. A
+  // refresh notes which rows were there; the rows new above them arrived.
+  const rowsBeforeRefreshRef = useRef<Set<string> | null>(null);
+  const feedKeysRef = useRef<string[]>([]);
+  const refreshWithArrivals = async () => {
+    rowsBeforeRefreshRef.current = new Set(feedKeysRef.current);
+    try {
+      await handleRefresh();
+    } finally {
+      // Nothing new came back: stop watching once the refetch has landed.
+      setTimeout(() => { rowsBeforeRefreshRef.current = null; }, ARRIVAL_WATCH_MS);
+    }
+  };
+
   const handleShowNewPosts = () => {
     restoredStaleRef.current = false;
     resetNewPosts();
-    handleRefresh();
+    void refreshWithArrivals();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -414,6 +436,28 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     `${user?.pubkey ?? ''}:${useDittoQuery ? 'ditto' : activeTab}`,
   );
   usePrefetchFeedCards(feedItems);
+
+  const [arrivals, setArrivals] = useState<ReadonlySet<string>>(NO_ARRIVALS);
+  const arrivalsTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => {
+    const keys = feedItems.map((item) => feedItemKey(item) ?? '');
+    feedKeysRef.current = keys;
+    const before = rowsBeforeRefreshRef.current;
+    if (!before || before.size === 0) return;
+    const fresh: string[] = [];
+    for (const key of keys) {
+      if (before.has(key)) break;
+      fresh.push(key);
+    }
+    // Nothing above the old top yet, or a whole new feed rather than an update.
+    if (fresh.length === 0 || fresh.length === keys.length || fresh.length > MAX_ARRIVALS) return;
+    rowsBeforeRefreshRef.current = null;
+    setArrivals(new Set(fresh));
+    // Not the effect's cleanup: the feed changing again mustn't keep them marked.
+    clearTimeout(arrivalsTimerRef.current);
+    arrivalsTimerRef.current = setTimeout(() => setArrivals(NO_ARRIVALS), ARRIVAL_HIGHLIGHT_MS);
+  }, [feedItems]);
+  useEffect(() => () => clearTimeout(arrivalsTimerRef.current), []);
 
   // Put the user back where they were when the app last closed. The rows come
   // from the snapshot, so they're there on the first render; if the row the
@@ -624,7 +668,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       ) : activeSavedFeed ? (
         <SavedFeedContent feed={activeSavedFeed} />
       ) : (
-        <PullToRefresh onRefresh={handleRefresh}>
+        <PullToRefresh onRefresh={refreshWithArrivals}>
           {/* New posts pill — live auto-refresh. Never re-sorts the feed:
               tapping it refreshes and scrolls to top. */}
           <NewPostsPill count={newPostCount} authors={newPostAuthors} onClick={handleShowNewPosts} />
@@ -635,6 +679,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
                   key={feedItemKey(item)}
                   cacheKey={feedItemKey(item)}
                   initialInView={index < 10}
+                  arrived={arrivals.has(feedItemKey(item) ?? '')}
                   event={item.event}
                   repostedBy={item.repostedBy}
                   repostEvent={item.repostEvent}
@@ -975,11 +1020,18 @@ function NoteCardSkeleton() {
 const FeedRow = memo(function FeedRow({
   cacheKey,
   initialInView,
+  arrived,
   ...noteCard
-}: { cacheKey: string; initialInView: boolean } & ComponentProps<typeof NoteCard>) {
+}: { cacheKey: string; initialInView: boolean; arrived?: boolean } & ComponentProps<typeof NoteCard>) {
+  // A row a refresh just brought in grows open from nothing (grid rows
+  // 0fr → 1fr), pushing the feed down rather than jumping it.
   return (
-    <LazyFeedItem cacheKey={cacheKey} className="cv-feed-item" initialInView={initialInView}>
-      <NoteCard {...noteCard} />
-    </LazyFeedItem>
+    <div className={cn('grid', arrived && 'motion-safe:animate-feed-row-in')}>
+      <div className={cn('min-h-0', arrived && 'overflow-hidden')}>
+        <LazyFeedItem cacheKey={cacheKey} className="cv-feed-item" initialInView={initialInView}>
+          <NoteCard {...noteCard} highlight={arrived} />
+        </LazyFeedItem>
+      </div>
+    </div>
   );
 });

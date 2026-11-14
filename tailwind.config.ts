@@ -354,6 +354,12 @@ export default {
 				'60%': { transform: 'translateY(6%) scale(1.04)', opacity: '1' },
 				'100%': { transform: 'none', opacity: '1' }
 			},
+			'feed-row-in': {
+				// A post a refresh brought in opens up from nothing at the top
+				// of the feed, pushing the rest down, and fades in as it does.
+				'0%': { gridTemplateRows: '0fr', opacity: '0' },
+				'100%': { gridTemplateRows: '1fr', opacity: '1' }
+			},
 			'nav-pop': {
 				// Bottom nav: the icon of the tab you land on dips and springs up.
 				'0%': { transform: 'scale(1)' },
@@ -424,6 +430,7 @@ export default {
 				'new-posts-pill-in': 'new-posts-pill-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				'new-posts-avatar-in': 'success-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both',
 				'new-posts-arrow': 'new-posts-arrow 3s ease-in-out 1s infinite',
+				'feed-row-in': 'feed-row-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both',
 				'nav-pop': 'nav-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
 				'count-in-up': 'count-in-up 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.15) both',
 				'count-out-up': 'count-out-up 0.25s ease-in both',
