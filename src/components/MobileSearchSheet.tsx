@@ -2,6 +2,7 @@ import { profileName } from '@/lib/getDisplayName';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, X, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
+import { useCloseOnBack } from '@/hooks/useCloseOnBack';
 import { nip19 } from 'nostr-tools';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -205,6 +206,8 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
     handleClose();
     navigate(q ? `/search?q=${encodeURIComponent(q)}` : '/search');
   }, [query, navigate, handleClose]);
+
+  useCloseOnBack(open, handleClose);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {

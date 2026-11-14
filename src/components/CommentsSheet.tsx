@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { useCloseOnBack } from '@/hooks/useCloseOnBack';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
@@ -127,6 +128,7 @@ interface CommentsModalProps {
 
 export function CommentsSheet({ event, open, onClose }: CommentsModalProps) {
   const { data: rawComments = [], isLoading, dataUpdatedAt, isStale, refetch } = useEventComments(event, open);
+  useCloseOnBack(open, onClose);
 
   // Polling is paused while closed, so catch up when the sheet opens.
   useEffect(() => {

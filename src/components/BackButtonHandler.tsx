@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 
+import { closeTopOverlay } from '@/hooks/useCloseOnBack';
 import { slideNextBack } from '@/lib/pushTransition';
 
 /** A dialog, sheet, popover or menu that's open over the page. */
@@ -43,6 +44,7 @@ export function BackButtonHandler() {
           document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
           return;
         }
+        if (closeTopOverlay()) return;
         if (canGoBack) {
           slideNextBack();
           window.history.back();
