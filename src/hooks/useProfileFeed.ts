@@ -8,6 +8,9 @@ import {
   shouldHideFeedEvent,
   buildFeedItems,
   dedupeFeedItems,
+  isReactionKind,
+  isRepostKind,
+  isZapKind,
   type FeedItem,
 } from '@/lib/feedUtils';
 import { COMMENT_KINDS, isReplyEvent } from '@/lib/nostrEvents';
@@ -107,7 +110,9 @@ export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
 /**
  * Return the subset of enabled kinds appropriate for the active profile tab.
  * For "posts" we exclude kind 1111 (always filtered out as comments).
- * For "replies" we include everything.
+ * For "replies" we exclude reactions, reposts, and zaps: the tab is what the
+ * person wrote, and those are someone else's post under an activity header.
+ * Reactions have their own Likes tab.
  */
 function getKindsForTab(allKinds: number[], tab: ProfileTab): number[] {
   switch (tab) {
@@ -115,6 +120,7 @@ function getKindsForTab(allKinds: number[], tab: ProfileTab): number[] {
       // Exclude kind 1111 — comments are always hidden on the posts tab
       return allKinds.filter((k) => k !== 1111);
     case 'replies':
+      return allKinds.filter((k) => !isReactionKind(k) && !isRepostKind(k) && !isZapKind(k));
     default:
       return allKinds;
   }
