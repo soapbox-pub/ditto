@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 
 import { closeTopOverlay } from '@/hooks/useCloseOnBack';
+import { exitFullscreen, fullscreenElement } from '@/lib/fullscreen';
 import { slideNextBack } from '@/lib/pushTransition';
 
 /** A dialog, sheet, popover or menu that's open over the page. */
@@ -37,6 +38,11 @@ export function BackButtonHandler() {
       const { App } = await import('@capacitor/app');
 
       const listener = await App.addListener('backButton', ({ canGoBack }) => {
+        // A fullscreen video comes out of fullscreen first.
+        if (fullscreenElement()) {
+          exitFullscreen();
+          return;
+        }
         // An open sheet, dialog or menu closes first, like a native one: back
         // dismisses what's on top before it leaves the page. Radix layers
         // (and vaul's sheets, built on them) all close on Escape.
