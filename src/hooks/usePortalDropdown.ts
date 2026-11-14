@@ -79,20 +79,47 @@ export function usePortalDropdown({
     // A Radix Dialog's scroll lock cancels every touchmove/wheel outside the
     // dialog content, and the dropdown is portaled out of it, so the list
     // couldn't scroll and a drag became a tap on whichever item was under the
-    // finger. Keep those events inside the dropdown away from the lock.
-    const isolateScroll = (e: Event) => {
+    // finger. Keep those events inside the dropdown away from the lock, and do
+    // its job ourselves: a gesture the list can't absorb (pushing past its top
+    // or bottom) is cancelled so it doesn't scroll the page behind instead.
+    let lastTouchY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      lastTouchY = e.touches[0]?.clientY ?? 0;
+    };
+    const isolateScroll = (e: TouchEvent | WheelEvent) => {
       const target = e.target as Node | null;
-      if (target instanceof Element && target.closest('[data-autocomplete-dropdown]')) {
-        e.stopPropagation();
+      const dropdown = target instanceof Element ? target.closest('[data-autocomplete-dropdown]') : null;
+      if (!dropdown) return;
+      e.stopPropagation();
+
+      let deltaY: number;
+      if (e instanceof WheelEvent) {
+        deltaY = e.deltaY;
+      } else {
+        if (e.touches.length !== 1) return;
+        const y = e.touches[0].clientY;
+        deltaY = lastTouchY - y;
+        lastTouchY = y;
+      }
+      if (!deltaY) return;
+
+      let list: Element | null = target as Element;
+      while (list && list !== dropdown && list.scrollHeight <= list.clientHeight) list = list.parentElement;
+      const atTop = !list || list.scrollTop <= 0;
+      const atBottom = !list || list.scrollTop + list.clientHeight >= list.scrollHeight - 1;
+      if (e.cancelable && ((deltaY < 0 && atTop) || (deltaY > 0 && atBottom))) {
+        e.preventDefault();
       }
     };
     window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleResize);
-    window.addEventListener('touchmove', isolateScroll, { capture: true, passive: true });
-    window.addEventListener('wheel', isolateScroll, { capture: true, passive: true });
+    window.addEventListener('touchstart', handleTouchStart, { capture: true, passive: true });
+    window.addEventListener('touchmove', isolateScroll, { capture: true, passive: false });
+    window.addEventListener('wheel', isolateScroll, { capture: true, passive: false });
     return () => {
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('touchstart', handleTouchStart, true);
       window.removeEventListener('touchmove', isolateScroll, true);
       window.removeEventListener('wheel', isolateScroll, true);
     };
