@@ -1,6 +1,7 @@
 import { useRef, useLayoutEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { scrollWithoutMovingChrome } from '@/hooks/useScrollDirection';
+import { selectionChanged } from '@/lib/haptics';
 import { useSubHeaderBarHover, useActiveTabIndicator } from '@/components/SubHeaderBarContext';
 
 interface TabButtonProps {
@@ -64,6 +65,7 @@ export function TabButton({ label, active, onClick, disabled, className, childre
       // The new tab starts at its top, with the bar where it is: still stuck
       // if it was (not back up at the top of the page, above a profile's
       // header), and left alone if the page above it is in view.
+      selectionChanged();
       const stuckY = getStuckScrollY();
       if (stuckY !== null) scrollWithoutMovingChrome(stuckY);
       onClick();

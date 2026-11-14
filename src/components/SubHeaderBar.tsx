@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useContext, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useContext, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useIntl } from 'react-intl';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,90 @@ function arcEdgeSegment(a: number, b: number): string {
   const cx = 50 * (a + b);
   const cy = 44 + 20 * (a + b) - 40 * a * b;
   return `M${100 * a},${y(a)} Q${cx},${cy} ${100 * b},${y(b)}`;
+}
+
+/** How long the active line takes to slide to a newly selected tab. */
+const LINE_SLIDE_MS = 320;
+
+const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
+
+/**
+ * The active tab's line along the arc, from fraction `a` to `b` of its width.
+ * When `switches` changes (a different tab was picked) it slides over, its
+ * leading end running ahead and the trailing end catching up so it stretches
+ * in the direction of travel. Any other move (the tabs scroll or resize)
+ * follows at once, or re-aims a slide already under way.
+ */
+function ActiveTabLine({ a, b, switches }: { a: number; b: number; switches: number }) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const shown = useRef<{ a: number; b: number } | null>(null);
+  const target = useRef({ a, b });
+  const slide = useRef<{ from: { a: number; b: number }; start: number; frame: number } | null>(null);
+  const seenSwitches = useRef(switches);
+
+  useLayoutEffect(() => {
+    const path = pathRef.current;
+    if (!path) return;
+    target.current = { a, b };
+    const switched = switches !== seenSwitches.current;
+    seenSwitches.current = switches;
+
+    const draw = (next: { a: number; b: number }) => {
+      shown.current = next;
+      path.setAttribute('d', arcEdgeSegment(next.a, next.b));
+    };
+
+    const from = shown.current;
+    if (switched && from && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (slide.current) cancelAnimationFrame(slide.current.frame);
+      const run = { from, start: performance.now(), frame: 0 };
+      slide.current = run;
+      const step = (now: number) => {
+        const t = Math.min((now - run.start) / LINE_SLIDE_MS, 1);
+        const lead = easeOutCubic(Math.min(t * 1.5, 1));
+        const trail = easeOutCubic(t);
+        const to = target.current;
+        const right = to.a > run.from.a;
+        draw({
+          a: run.from.a + (to.a - run.from.a) * (right ? trail : lead),
+          b: run.from.b + (to.b - run.from.b) * (right ? lead : trail),
+        });
+        if (t < 1) run.frame = requestAnimationFrame(step);
+        else slide.current = null;
+      };
+      draw(from);
+      run.frame = requestAnimationFrame(step);
+    } else if (slide.current) {
+      // Re-aimed mid-slide: keep the frame the slide is on, not the new end React just set.
+      if (from) draw(from);
+    } else {
+      draw({ a, b });
+    }
+  }, [a, b, switches]);
+
+  useEffect(() => () => {
+    if (slide.current) cancelAnimationFrame(slide.current.frame);
+  }, []);
+
+  return (
+    <svg
+      aria-hidden
+      className="absolute top-0 left-0 w-full overflow-visible pointer-events-none"
+      style={{ height: `calc(100% + ${ARC_OVERHANG_PX}px)` }}
+      viewBox="0 0 100 64"
+      preserveAspectRatio="none"
+    >
+      <path
+        ref={pathRef}
+        d={arcEdgeSegment(a, b)}
+        fill="none"
+        className="stroke-primary"
+        strokeWidth="4"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
 }
 
 interface SubHeaderBarProps {
@@ -56,6 +140,8 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
   const intl = useIntl();
   const [hover, setHover] = useState<HoverSlice | null>(null);
   const [active, setActive] = useState<HoverSlice | null>(null);
+  // Bumped on each switch between tabs, to slide the line rather than move it.
+  const [activeSwitches, setActiveSwitches] = useState(0);
   const inUnderlay = useContext(PageUnderlayContext);
 
   // Whether the sticky bar has reached its sticky offset, watched through
@@ -160,7 +246,30 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
       if (restTop >= barTop - 1) return null;
       return Math.max(0, window.scrollY + restTop - barTop);
     };
-    return { onHover: keep(setHover), onActive: keep(setActive), scrollContainerRef: scrollRef, getStuckScrollY };
+    // Switching tabs, the old tab reports null and the new one its slice in
+    // the same commit. Hold the null a frame: if a slice follows, it's a
+    // switch, and the line slides over instead of blinking out and back.
+    let clearFrame = 0;
+    let switching = false;
+    const keepActive = keep(setActive);
+    const onActive = (next: HoverSlice | null) => {
+      if (!next) {
+        switching = true;
+        cancelAnimationFrame(clearFrame);
+        clearFrame = requestAnimationFrame(() => {
+          switching = false;
+          keepActive(null);
+        });
+        return;
+      }
+      cancelAnimationFrame(clearFrame);
+      if (switching) {
+        switching = false;
+        setActiveSwitches((n) => n + 1);
+      }
+      keepActive(next);
+    };
+    return { onHover: keep(setHover), onActive, scrollContainerRef: scrollRef, getStuckScrollY };
   }, []);
 
   return (
@@ -210,24 +319,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
             const a = Math.max(0, (active.left + ACTIVE_LINE_INSET_PX) / arcWidth);
             const b = Math.min(1, (active.left + active.width - ACTIVE_LINE_INSET_PX) / arcWidth);
             if (b <= a) return null;
-            return (
-              <svg
-                aria-hidden
-                className="absolute top-0 left-0 w-full overflow-visible pointer-events-none"
-                style={{ height: `calc(100% + ${ARC_OVERHANG_PX}px)` }}
-                viewBox="0 0 100 64"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d={arcEdgeSegment(a, b)}
-                  fill="none"
-                  className="stroke-primary"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              </svg>
-            );
+            return <ActiveTabLine a={a} b={b} switches={activeSwitches} />;
           })()}
           {/* Tab content sits above the SVG background */}
           <div className="relative">
