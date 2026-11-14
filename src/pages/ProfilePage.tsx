@@ -1139,6 +1139,9 @@ export function ProfileImageLightbox({ imageUrl, imeta, onClose }: { imageUrl: s
 
 const FOLLOWERS_PAGE_SIZE = 20;
 
+/** Scroll distance (px) over which the profile header settles into its scrolled state. */
+const PROFILE_SCROLL_RANGE_PX = 120;
+
 interface FollowersPage {
   pubkeys: string[];
   oldestTimestamp: number | undefined;
@@ -1399,12 +1402,14 @@ export function ProfilePage() {
   if (!bodyMounted) {
     return (
       <main className="flex-1 min-w-0 relative">
-        <div className="h-36 md:h-48 bg-secondary relative">
-          <Skeleton className="w-full h-full rounded-none" />
+        <div className="planet-horizon-banner profile-banner relative">
+          <div className="planet-horizon bg-secondary">
+            <Skeleton className="w-full h-full rounded-none" />
+          </div>
         </div>
         <div className="px-4 pb-4">
-          <div className="relative -mt-12 mb-3">
-            <Skeleton className="size-24 rounded-full border-4 border-background" />
+          <div className="relative -mt-12 md:-mt-16 mb-3">
+            <Skeleton className="size-24 md:size-32 rounded-full border-4 border-background" />
           </div>
           <div className="space-y-2">
             <Skeleton className="h-6 w-40" />
@@ -2293,11 +2298,55 @@ function ProfilePageInner() {
     setSidebarMediaUrl(url);
   }, [selectTab]);
 
+  // Scroll-linked header: the banner drifts and blurs and the avatar shrinks
+  // as the page scrolls (CSS reads --profile-scroll, 0–1; see index.css),
+  // written per frame without re-rendering the page.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (inUnderlay) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const progress = Math.min(Math.max(window.scrollY / PROFILE_SCROLL_RANGE_PX, 0), 1);
+      mainRef.current?.style.setProperty('--profile-scroll', progress.toFixed(3));
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [inUnderlay]);
+
+  // Once the name scrolls up under the top bar, the top bar shows it instead.
+  const [nameEl, setNameEl] = useState<HTMLElement | null>(null);
+  const [nameScrolledAway, setNameScrolledAway] = useState(false);
+  useEffect(() => {
+    if (!nameEl || typeof IntersectionObserver === 'undefined') return;
+    // Measured, not assumed: the bar's height includes the device's safe area.
+    const topBar = document.querySelector('.push-transition-top-bar');
+    const clearance = Math.round(topBar?.getBoundingClientRect().bottom ?? 0);
+    const observer = new IntersectionObserver(
+      ([entry]) => setNameScrolledAway(!entry.isIntersecting && entry.boundingClientRect.top < clearance),
+      { rootMargin: `${-clearance}px 0px 0px 0px` },
+    );
+    observer.observe(nameEl);
+    return () => {
+      observer.disconnect();
+      setNameScrolledAway(false);
+    };
+  }, [nameEl]);
+
   useLayoutOptions(pubkey && !profileBlocked ? {
     rightSidebar: <ProfileRightSidebar fields={fields} pubkey={pubkey} onMediaClick={handleSidebarMediaClick} />,
     showFAB: !(activeTab === 'wall' && !profileFollowsMe),
     onFabClick: activeTab === 'wall' ? openWallCompose : undefined,
     hasSubHeader: true,
+    topBarPubkey: pubkey,
+    topBarTitleVisible: nameScrolledAway,
   } : {});
 
   if (!pubkey) {
@@ -2305,7 +2354,9 @@ function ProfilePageInner() {
     if (isNip05Param && nip05Loading) {
       return (
         <main className="flex-1 min-w-0">
-          <div className="h-36 md:h-48 bg-secondary animate-pulse" />
+          <div className="planet-horizon-banner profile-banner relative">
+            <div className="planet-horizon bg-secondary animate-pulse" />
+          </div>
           <div className="px-4 pb-4">
             <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
               <Skeleton className="size-24 md:size-32 rounded-full border-4 border-background" />
@@ -2355,7 +2406,7 @@ function ProfilePageInner() {
   }
 
   return (
-    <main className="flex-1 min-w-0 relative">
+    <main ref={mainRef} className="flex-1 min-w-0 relative">
       {/* Love List celebration — hearts rain down over the top of the profile
           when this profile is added to the Love List. Anchored to the top
           third of the page so the sprinkle covers the header. */}
@@ -2373,32 +2424,49 @@ function ProfilePageInner() {
           <BirthdayRain />
         </div>
       )}
-      <PullToRefresh onRefresh={handleRefresh}>
-        {/* Banner — the sky above the profile's planet horizon */}
-          <div className="planet-horizon-banner h-36 md:h-48 relative">
+      <PullToRefresh onRefresh={handleRefresh} indicator="none">
+        {/* Banner — the sky above the profile's planet horizon. Pulling down
+            to refresh stretches it and blurs it; it clears as the refresh lands. */}
+          <div className="planet-horizon-banner profile-banner ptr-follow relative">
             <div className="planet-horizon bg-secondary">
-              {author.isLoading ? (
-                <Skeleton className="w-full h-full rounded-none" />
-              ) : (
-                <>
-                {isValidBlurhash(bannerImeta?.blurhash) && (
-                  <BlurhashPlaceholder hash={bannerImeta.blurhash} className="absolute inset-0" />
-                )}
-                <FallbackImage
-                  src={metadata?.banner}
-                  imeta={bannerImeta}
-                  placeholder={null}
-                  className="relative w-full h-full object-cover cursor-pointer"
-                  onClick={() => setLightboxImage(metadata!.banner!)}
-                  decoding="async"
-                  fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
-                />
-                </>
-              )}
+              <div className="profile-banner-scroll absolute inset-0">
+                <div className="profile-banner-pull ptr-follow absolute inset-0">
+                  {author.isLoading ? (
+                    <Skeleton className="w-full h-full rounded-none" />
+                  ) : (
+                    <>
+                    {isValidBlurhash(bannerImeta?.blurhash) && (
+                      <BlurhashPlaceholder hash={bannerImeta.blurhash} className="absolute inset-0" />
+                    )}
+                    <FallbackImage
+                      src={metadata?.banner}
+                      imeta={bannerImeta}
+                      placeholder={null}
+                      className="relative w-full h-full object-cover cursor-pointer"
+                      onClick={() => setLightboxImage(metadata!.banner!)}
+                      decoding="async"
+                      fallback={<div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />}
+                    />
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
             <svg className="planet-horizon-rim pointer-events-none" viewBox="0 0 100 1" preserveAspectRatio="none" aria-hidden="true">
               <path d="M0 0Q50 2 100 0" fill="none" className="stroke-primary/45" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
             </svg>
+            {/* Pull-to-refresh spinner, over the stretched banner */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 top-mobile-bar flex items-center justify-center sidebar:hidden" aria-hidden="true">
+              <div
+                className="ptr-follow flex items-center justify-center size-9 rounded-full bg-background/70 backdrop-blur-sm shadow-sm"
+                style={{
+                  opacity: 'var(--ptr-progress)',
+                  transform: 'scale(calc(0.5 + var(--ptr-progress) * 0.5)) rotate(calc(var(--ptr-progress) * 270deg))',
+                }}
+              >
+                <Loader2 className="size-4 text-primary group-data-[ptr=refreshing]/ptr:animate-spin" />
+              </div>
+            </div>
 
             {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
             {profileHasTheme && !isOwnProfile && (
@@ -2609,28 +2677,31 @@ function ProfilePageInner() {
             <>
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
                 <div className="relative">
-                  <button
-                    className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
-                    onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
-                    disabled={!metadata?.picture}
-                  >
-                    <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
-                      <Avatar shape={avatarShape} className={cn(isEmojiShape ? 'size-[88px] md:size-[120px]' : 'size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
-                          {displayName[0].toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </button>
+                  {/* Shrinks towards its bottom-left corner as the page scrolls */}
+                  <div className="profile-avatar-shrink relative">
+                    <button
+                      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+                      onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
+                      disabled={!metadata?.picture}
+                    >
+                      <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
+                        <Avatar shape={avatarShape} className={cn(isEmojiShape ? 'size-[88px] md:size-[120px]' : 'size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
+                          <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
+                            {displayName[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </button>
 
-                  {/* Birthday party hat — perched on the avatar's head,
-                      tilted like it was pulled on in a hurry. */}
-                  {isBirthday && (
-                    <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-[18deg]">
-                      <PartyHat className="size-12 md:size-16 drop-shadow-md" />
-                    </div>
-                  )}
+                    {/* Birthday party hat — perched on the avatar's head,
+                        tilted like it was pulled on in a hurry. */}
+                    {isBirthday && (
+                      <div className="pointer-events-none absolute -top-5 right-0 md:-top-7 md:right-1 z-10 rotate-[18deg]">
+                        <PartyHat className="size-12 md:size-16 drop-shadow-md" />
+                      </div>
+                    )}
+                  </div>
 
                   {/* NIP-38 status pill — floats beside the avatar over the banner.
                       `w-max` is load-bearing: `left` puts this past the right edge of its
@@ -2697,18 +2768,22 @@ function ProfilePageInner() {
                   ) : (
                     <Button
                       className={cn(
-                        'rounded-full font-bold',
+                        'relative rounded-full font-bold motion-safe:active:scale-95',
                         isFollowing && 'bg-transparent border border-border text-foreground can-hover:bg-destructive/10 can-hover:text-destructive can-hover:border-destructive/50',
                       )}
                       variant={isFollowing ? 'outline' : 'default'}
                       onClick={handleToggleFollow}
                       disabled={followPending || !user}
                     >
-                      {followPending ? '...' : isFollowing ? (
-                        <FormattedMessage id="profile.unfollow" defaultMessage="Unfollow" />
-                      ) : (
-                        <FormattedMessage id="profile.follow" defaultMessage="Follow" />
-                      )}
+                      {/* The label holds the button's width while the spinner shows */}
+                      <span className={cn(followPending && 'invisible')}>
+                        {isFollowing ? (
+                          <FormattedMessage id="profile.unfollow" defaultMessage="Unfollow" />
+                        ) : (
+                          <FormattedMessage id="profile.follow" defaultMessage="Follow" />
+                        )}
+                      </span>
+                      {followPending && <Loader2 className="absolute size-4 animate-spin" aria-hidden="true" />}
                     </Button>
                   )}
                 </div>
@@ -2716,6 +2791,7 @@ function ProfilePageInner() {
 
               <div className="flex items-center gap-2 min-w-0">
                 <h2
+                  ref={setNameEl}
                   className="text-xl font-bold truncate"
                   style={effectiveProfileTitleFont ? { fontFamily: 'var(--title-font-family)' } : undefined}
                 >

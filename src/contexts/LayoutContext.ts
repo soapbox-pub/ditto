@@ -58,6 +58,14 @@ export interface LayoutOptions {
    * Use for full-screen media pages like vines/reels.
    */
   hideBottomNav?: boolean;
+  /**
+   * Pubkey of the profile the page shows. With `topBarTitleVisible`, the
+   * mobile top bar swaps its logo for this profile's avatar and name (once
+   * the page's own header has scrolled away).
+   */
+  topBarPubkey?: string;
+  /** Whether the mobile top bar shows the `topBarPubkey` profile instead of the logo. */
+  topBarTitleVisible?: boolean;
 }
 
 /** All own-property keys of LayoutOptions used for shallow comparison. */
@@ -65,7 +73,7 @@ const LAYOUT_KEYS: (keyof LayoutOptions)[] = [
   'showFAB', 'fabKind', 'fabHref', 'onFabClick', 'fabIcon',
   'wrapperClassName', 'rightSidebar', 'scrollContainer',
   'noOverscroll', 'noMaxWidth', 'hasSubHeader', 'noArcs',
-  'hideTopBar', 'hideBottomNav',
+  'hideTopBar', 'hideBottomNav', 'topBarPubkey', 'topBarTitleVisible',
 ];
 
 /** Shallow-compare two LayoutOptions objects. */

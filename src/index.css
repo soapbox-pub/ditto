@@ -200,6 +200,36 @@
       var(--horizon-curve) bottom / 100% var(--horizon-depth) no-repeat;
   }
 
+  /* Profile banner. Pull to refresh (--ptr-*, see PullToRefresh) stretches
+     it and blurs it; scrolling (--profile-scroll, 0–1, set by ProfilePage)
+     lets it drift, blur and dim while the avatar shrinks, as on phones. */
+  .profile-banner {
+    height: calc(9rem + var(--ptr-pull, 0px));
+  }
+
+  @media (min-width: 768px) {
+    .profile-banner {
+      height: calc(12rem + var(--ptr-pull, 0px));
+    }
+  }
+
+  .profile-banner-pull {
+    filter: blur(calc(var(--ptr-progress, 0) * 8px));
+    transform: scale(calc(1 + var(--ptr-progress, 0) * 0.08));
+  }
+
+  @media (max-width: 899px) and (prefers-reduced-motion: no-preference) {
+    .profile-banner-scroll {
+      transform: translateY(calc(var(--profile-scroll, 0) * 2.5rem)) scale(calc(1 + var(--profile-scroll, 0) * 0.06));
+      filter: blur(calc(var(--profile-scroll, 0) * 6px)) brightness(calc(1 - var(--profile-scroll, 0) * 0.3));
+    }
+
+    .profile-avatar-shrink {
+      transform: scale(calc(1 - var(--profile-scroll, 0) * 0.4));
+      transform-origin: bottom left;
+    }
+  }
+
   .planet-horizon-rim {
     position: absolute;
     inset: 100% 0 auto 0;

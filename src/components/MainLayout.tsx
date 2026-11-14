@@ -38,7 +38,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, onFabClick, fabIcon, wrapperClassName, noOverscroll, noMaxWidth, scrollContainer, hasSubHeader, hideTopBar, hideBottomNav, topBarPubkey, topBarTitleVisible } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const openDrawer = useCallback(() => setDrawerOpen(true), []);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -113,7 +113,7 @@ function MainLayoutInner() {
       {config.magicMouse && <CursorFireEffect />}
 
       {/* Mobile top bar - only on small screens, hidden when page requests immersive mode */}
-      {!hideTopBar && <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} />}
+      {!hideTopBar && <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} hasSubHeader={hasSubHeader} titlePubkey={topBarPubkey} titleVisible={topBarTitleVisible} />}
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />

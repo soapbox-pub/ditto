@@ -1,20 +1,32 @@
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useIntl } from 'react-intl';
 import { DittoLogo } from '@/components/DittoLogo';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { BarsStaggeredIcon } from '@/components/icons/BarsStaggeredIcon';
 import { useNavHidden } from '@/contexts/LayoutContext';
+import { useAuthor } from '@/hooks/useAuthor';
+import { getAvatarShape } from '@/lib/avatarShape';
+import { profileName } from '@/lib/getDisplayName';
 import { TOP_BAR_ARC_OVERHANG_PX, topBarArcPaths } from '@/lib/topBarArc';
+import { cn } from '@/lib/utils';
 
 interface MobileTopBarProps {
   onAvatarClick: () => void;
   /** When true, a SubHeaderBar with an arc follows immediately below — the bar is flat here to avoid doubling up. */
   hasSubHeader?: boolean;
+  /** Profile whose avatar and name can stand in for the logo (see `titleVisible`). */
+  titlePubkey?: string;
+  /** Show the `titlePubkey` profile in place of the logo. */
+  titleVisible?: boolean;
 }
 
-export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps) {
+export function MobileTopBar({ onAvatarClick, hasSubHeader, titlePubkey, titleVisible }: MobileTopBarProps) {
   const location = useLocation();
   const navHidden = useNavHidden();
   const arc = topBarArcPaths(hasSubHeader ? 1 : 0);
+  const showTitle = !!titlePubkey && !!titleVisible;
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
     if (location.pathname === '/') {
@@ -54,11 +66,21 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
             </button>
           </div>
 
-          {/* Center: Ditto logo */}
-          <div className="flex-1 flex items-center justify-center">
-            <Link to="/" onClick={handleLogoClick}>
+          {/* Center: Ditto logo, or the profile the page shows once its header scrolls away */}
+          <div className="relative flex-1 min-w-0 flex items-center justify-center overflow-hidden h-full">
+            <Link
+              to="/"
+              onClick={handleLogoClick}
+              tabIndex={showTitle ? -1 : undefined}
+              aria-hidden={showTitle || undefined}
+              className={cn(
+                'transition-[opacity,transform] duration-300 ease-out',
+                showTitle && 'opacity-0 -translate-y-3 pointer-events-none',
+              )}
+            >
               <DittoLogo size={28} />
             </Link>
+            {titlePubkey && <TopBarTitle pubkey={titlePubkey} visible={showTitle} />}
           </div>
 
           {/* Right: spacer for symmetry */}
@@ -66,5 +88,37 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader }: MobileTopBarProps)
         </div>
       </div>
     </header>
+  );
+}
+
+/** A profile's avatar and name, rising into the top bar; tapping it scrolls back to the top. */
+function TopBarTitle({ pubkey, visible }: { pubkey: string; visible: boolean }) {
+  const intl = useIntl();
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const name = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
+
+  return (
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      tabIndex={visible ? undefined : -1}
+      aria-hidden={!visible || undefined}
+      className={cn(
+        'absolute inset-0 flex items-center justify-center gap-2 px-2 min-w-0',
+        'transition-[opacity,transform] duration-300 ease-out',
+        !visible && 'opacity-0 translate-y-3 pointer-events-none',
+      )}
+    >
+      <Avatar shape={getAvatarShape(metadata)} className="size-6 shrink-0">
+        <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt="" />
+        <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+          {name[0]?.toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <span className="text-sm font-bold truncate">
+        {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+      </span>
+    </button>
   );
 }
