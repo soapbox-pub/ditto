@@ -1142,6 +1142,9 @@ const FOLLOWERS_PAGE_SIZE = 20;
 /** Scroll distance (px) over which the profile header settles into its scrolled state. */
 const PROFILE_SCROLL_RANGE_PX = 120;
 
+/** How long the banner takes to spring back after a pull (the `.ptr-follow` transition). */
+const PULL_SPRING_BACK_MS = 450;
+
 interface FollowersPage {
   pubkeys: string[];
   oldestTimestamp: number | undefined;
@@ -2291,6 +2294,23 @@ function ProfilePageInner() {
     });
   }, [queryClient, pubkey]);
 
+  // A pull to refresh lands on the feed: once the refresh is in (and the
+  // banner has sprung back), the page glides down to the tabs. Unless the
+  // user has scrolled off in the meantime.
+  const tabsAnchorRef = useRef<HTMLDivElement>(null);
+  const handlePullRefresh = useCallback(async () => {
+    await Promise.all([
+      handleRefresh(),
+      new Promise((resolve) => setTimeout(resolve, PULL_SPRING_BACK_MS)),
+    ]);
+    const anchor = tabsAnchorRef.current;
+    if (!anchor || window.scrollY > 0) return;
+    const topBar = document.querySelector('.push-transition-top-bar');
+    const top = window.scrollY + anchor.getBoundingClientRect().top - (topBar?.getBoundingClientRect().bottom ?? 0);
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [handleRefresh]);
+
   const openWallCompose = useCallback(() => setWallComposeOpen(true), []);
 
   const handleSidebarMediaClick = useCallback((url: string) => {
@@ -2424,7 +2444,7 @@ function ProfilePageInner() {
           <BirthdayRain />
         </div>
       )}
-      <PullToRefresh onRefresh={handleRefresh} indicator="none">
+      <PullToRefresh onRefresh={handlePullRefresh} indicator="none">
         {/* Banner — the sky above the profile's planet horizon. Pulling down
             to refresh stretches it and blurs it; it clears as the refresh lands. */}
           <div className="planet-horizon-banner profile-banner ptr-follow relative">
@@ -2980,6 +3000,7 @@ function ProfilePageInner() {
         )}
 
         {/* Tabs */}
+        <div ref={tabsAnchorRef} aria-hidden="true" />
         <SubHeaderBar pinned soft>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
