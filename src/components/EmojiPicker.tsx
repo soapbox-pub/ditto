@@ -1,4 +1,4 @@
-import data from "@emoji-mart/data";
+import data, { type EmojiMartData } from "@emoji-mart/data";
 import { Picker } from "emoji-mart";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CustomEmoji } from "@/hooks/useCustomEmojis";
@@ -8,7 +8,12 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 import { getBackgroundThemeMode } from "@/lib/colorUtils";
 import { isLoadableEmojiUrl } from "@/lib/customEmoji";
-import { syncEmojiMartCategories, type EmojiMartCustomCategory } from "@/lib/emojiMartCategories";
+import {
+	customPickerId,
+	pruneFrequentlyUsed,
+	syncEmojiMartCategories,
+	type EmojiMartCustomCategory,
+} from "@/lib/emojiMartCategories";
 
 /** A native Unicode emoji selection. */
 export interface NativeEmojiSelection {
@@ -42,24 +47,6 @@ interface EmojiMartEmoji {
 	unified?: string;
 	/** Present for custom emojis — the image URL from `skins[0].src`. */
 	src?: string;
-}
-
-/**
- * The emoji-mart id for a custom emoji. emoji-mart keeps one module-global
- * table of every emoji by id, built-ins included, and a custom emoji written
- * under a built-in's id (a pack's `heart`, `+1`, `fire`) replaces it — its
- * image then shows, and gets sent, wherever the user picks that built-in. The
- * prefix keeps custom ids apart from built-in ones, and the URL hash keeps
- * two packs' same-named emojis apart. Stable across sessions and devices, so
- * "Frequently used" keeps its counts.
- */
-function customPickerId(shortcode: string, url: string): string {
-	let hash = 0x811c9dc5;
-	for (let i = 0; i < url.length; i++) {
-		hash ^= url.charCodeAt(i);
-		hash = Math.imul(hash, 0x01000193);
-	}
-	return `nip30-${shortcode}-${(hash >>> 0).toString(36)}`;
 }
 
 /**
@@ -186,11 +173,12 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280, recordUsage 
 			autoFocus: !isMobile,
 		};
 
+		// Must run before the Picker constructor: they reconcile emoji-mart's
+		// module-global tables, which the `categories` ordering below is filtered
+		// from — with no custom emojis too, so a removed palette leaves search.
+		pruneFrequentlyUsed((data as unknown as EmojiMartData).emojis);
+		syncEmojiMartCategories(customCategories ?? []);
 		if (customCategories) {
-			// Must run before the Picker constructor: it reconciles emoji-mart's
-			// module-global category table, which the `categories` ordering below
-			// is filtered from (see syncEmojiMartCategories).
-			syncEmojiMartCategories(customCategories);
 			pickerOptions.custom = customCategories;
 			// Order: Recent, one section per pack, then standard categories
 			pickerOptions.categories = [
