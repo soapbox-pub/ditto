@@ -26,7 +26,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
@@ -1314,7 +1313,7 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
             <X className="size-4" />
           </Button>
         </div>
-        <ScrollArea className="max-h-[60vh]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain sidebar:max-h-[60vh]">
           {isLoading ? (
             <div className="py-12 flex justify-center">
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -1333,7 +1332,7 @@ function FollowersListModal({ pubkey, open, onOpenChange, displayName }: Followe
               )}
             </>
           )}
-        </ScrollArea>
+        </div>
       </AdaptiveDialogContent>
     </AdaptiveDialog>
   );

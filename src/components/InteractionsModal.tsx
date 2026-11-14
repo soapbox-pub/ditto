@@ -10,7 +10,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, EmojifiedText, SenderEmojiImg } from '@/components/CustomEmoji';
 import { EmojiSourceFooter } from '@/components/EmojiSourceFooter';
@@ -148,7 +147,7 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
         </div>
 
         {/* Content */}
-        <ScrollArea className="max-h-[60vh]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain sidebar:max-h-[60vh]">
           {isLoading || (activeTab === 'zaps' && isLoadingOnchain && unifiedZaps.length === 0) ? (
             <div className="divide-y divide-border">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -164,7 +163,7 @@ export function InteractionsModal({ target, open, onOpenChange, initialTab = 're
           ) : (
             <ZapsTab zaps={unifiedZaps} />
           )}
-        </ScrollArea>
+        </div>
       </AdaptiveDialogContent>
     </AdaptiveDialog>
   );
