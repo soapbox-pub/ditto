@@ -1047,7 +1047,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
       <div className={cn("flex items-center mt-3 -ml-2", showBlobbiInteract ? "gap-4 sm:gap-5" : "gap-5")}>
         <button
           type="button"
-          className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+          className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
           title={intl.formatMessage({ id: "noteCard.reply", defaultMessage: "Reply" })}
           onClick={(e) => {
             e.stopPropagation();
@@ -1062,7 +1062,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
           {(isReposted: boolean) => (
             <button
               type="button"
-              className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+              className={cn(`flex items-center gap-1.5 rounded-full action-press ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`, showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
               title={isReposted ? intl.formatMessage({ id: "noteCard.undoRepost", defaultMessage: "Undo repost" }) : intl.formatMessage({ id: "noteCard.repost", defaultMessage: "Repost" })}
             >
               <RepostIcon className={showBlobbiInteract ? "size-[18px] sm:size-5" : "size-5"} />
@@ -1090,7 +1090,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
             <button
               type="button"
               className={cn(
-                "flex items-center gap-1.5 rounded-full transition-colors",
+                "flex items-center gap-1.5 rounded-full action-press",
                 "text-muted-foreground can-hover:text-amber-500 can-hover:bg-amber-500/10",
                 showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2",
               )}
@@ -1107,7 +1107,7 @@ const NoteCardImpl = memo(function NoteCardImpl({
 
         <button
           type="button"
-          className={cn("rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
+          className={cn("rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press", showBlobbiInteract ? "p-1.5 sm:p-2" : "p-2")}
           title={intl.formatMessage({ id: "noteCard.more", defaultMessage: "More" })}
           onClick={(e) => {
             e.stopPropagation();

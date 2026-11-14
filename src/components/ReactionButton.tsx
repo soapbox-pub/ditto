@@ -77,6 +77,7 @@ export function ReactionButton({
   const intl = useIntl();
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const iconRef = useRef<HTMLSpanElement>(null);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
   const pickerExpandedRef = useRef(false);
@@ -121,6 +122,13 @@ export function ReactionButton({
     const prevReaction = queryClient.getQueryData(['user-reaction', eventId]);
     queryClient.setQueryData(['user-reaction', eventId], null);
     setCountDelta(-1);
+    // A small shrink as the reaction comes off.
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      iconRef.current?.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(0.7)' }, { transform: 'scale(1)' }],
+        { duration: 280, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' },
+      );
+    }
 
     // Find the user's reactions to delete. The pool includes ones published
     // from this device that relays haven't indexed yet (see reconcileOwnEvents).
@@ -189,7 +197,7 @@ export function ReactionButton({
         aria-haspopup="dialog"
         aria-expanded={menuOpen}
         className={cn(
-          'flex items-center gap-1.5 p-2 rounded-full transition-colors focus:outline-none',
+          'flex items-center gap-1.5 p-2 rounded-full action-press focus:outline-none',
           'text-muted-foreground can-hover:text-pink-500 can-hover:bg-pink-500/10',
           className,
           hasReacted && 'text-pink-500',
@@ -241,6 +249,7 @@ export function ReactionButton({
       >
         <span className="relative flex items-center justify-center">
           <span
+            ref={iconRef}
             className={cn(
               'flex items-center justify-center',
               burst && 'motion-safe:animate-reaction-pop',

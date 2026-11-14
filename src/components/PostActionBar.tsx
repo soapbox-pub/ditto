@@ -57,7 +57,7 @@ export function PostActionBar({
       {/* Reply / Comments */}
       <button
         type="button"
-        className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
+        className={cn("flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 action-press", compact ? "p-1.5 sm:p-2" : "p-2")}
         title={replyLabel ?? intl.formatMessage({ id: 'postActionBar.reply', defaultMessage: 'Reply' })}
         onClick={onReply}
       >
@@ -70,7 +70,7 @@ export function PostActionBar({
         {(isReposted: boolean) => (
           <button
             type="button"
-            className={cn(`flex items-center gap-1.5 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`, compact ? "p-1.5 sm:p-2" : "p-2")}
+            className={cn(`flex items-center gap-1.5 rounded-full action-press ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`, compact ? "p-1.5 sm:p-2" : "p-2")}
             title={isReposted
               ? intl.formatMessage({ id: 'postActionBar.undoRepost', defaultMessage: 'Undo repost' })
               : intl.formatMessage({ id: 'postActionBar.repost', defaultMessage: 'Repost' })}
@@ -98,7 +98,7 @@ export function PostActionBar({
           <button
             type="button"
             className={cn(
-              'flex items-center gap-1.5 rounded-full transition-colors',
+              'flex items-center gap-1.5 rounded-full action-press',
               'text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10',
               compact ? "p-1.5 sm:p-2" : "p-2",
             )}
@@ -116,7 +116,7 @@ export function PostActionBar({
       {/* More */}
       <button
         type="button"
-        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors", compact ? "p-1.5 sm:p-2" : "p-2")}
+        className={cn("rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 action-press", compact ? "p-1.5 sm:p-2" : "p-2")}
         title={intl.formatMessage({ id: 'postActionBar.more', defaultMessage: 'More' })}
         onClick={onMore}
       >

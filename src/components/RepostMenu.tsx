@@ -48,6 +48,13 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       return;
     }
     impactLight();
+    // The arrows go round once. Half a turn lands the icon as it started.
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      triggerRef.current?.querySelector('svg')?.animate(
+        [{ transform: 'rotate(0deg)' }, { transform: 'rotate(180deg)' }],
+        { duration: 500, easing: 'cubic-bezier(0.34, 1.4, 0.64, 1)' },
+      );
+    }
 
     // Optimistically mark as reposted
     queryClient.setQueryData(['user-repost', event.id], 'optimistic');

@@ -2496,7 +2496,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             {/* Action buttons */}
             <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
               <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
                 title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
                 onClick={() => setReplyOpen(true)}
               >
@@ -2507,7 +2507,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <RepostMenu event={event}>
                 {(isReposted: boolean) => (
                   <button
-                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`}
+                    className={`flex items-center gap-1.5 p-2 rounded-full action-press ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`}
                     title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.repost', defaultMessage: 'Repost' })}
                   >
                     <RepostIcon className="size-5" />
@@ -2525,7 +2525,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               />
 
               <button
-                className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors sidebar:hidden"
+                className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press sidebar:hidden"
                 title={intl.formatMessage({ id: 'postDetail.action.share', defaultMessage: 'Share' })}
                 onClick={handleShare}
               >
@@ -2533,7 +2533,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </button>
 
               <button
-                className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
+                className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
                 title={intl.formatMessage({ id: 'postDetail.action.more', defaultMessage: 'More' })}
                 onClick={() => setMoreMenuOpen(true)}
               >
@@ -2566,7 +2566,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {/* Action buttons — same as standard post detail */}
           <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
             <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
               title={intl.formatMessage({ id: 'postDetail.action.reply', defaultMessage: 'Reply' })}
               onClick={() => setReplyOpen(true)}
             >
@@ -2577,7 +2577,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
                 <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`}
+                  className={`flex items-center gap-1.5 p-2 rounded-full action-press ${isReposted ? "text-accent can-hover:text-accent/80 can-hover:bg-accent/10" : "text-muted-foreground can-hover:text-accent can-hover:bg-accent/10"}`}
                   title={isReposted ? intl.formatMessage({ id: 'postDetail.action.undoRepost', defaultMessage: 'Undo repost' }) : intl.formatMessage({ id: 'postDetail.action.reposts', defaultMessage: 'Reposts' })}
                 >
                   <RepostIcon className="size-5" />
@@ -2595,7 +2595,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             />
 
             <button
-              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors sidebar:hidden"
+              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press sidebar:hidden"
               title={intl.formatMessage({ id: 'postDetail.action.share', defaultMessage: 'Share' })}
               onClick={handleShare}
             >
@@ -2603,7 +2603,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </button>
 
             <button
-              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 transition-colors"
+              className="p-2 rounded-full text-muted-foreground can-hover:text-primary can-hover:bg-primary/10 action-press"
               title={intl.formatMessage({ id: 'postDetail.action.more', defaultMessage: 'More' })}
               onClick={() => setMoreMenuOpen(true)}
             >

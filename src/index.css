@@ -353,6 +353,19 @@
 
 
 
+  /* A post's action buttons: color changes fade, and the button gives a
+     little under the finger. */
+  .action-press {
+    transition-property: color, background-color, border-color, fill, stroke, transform;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .action-press:active {
+      transform: scale(0.88);
+    }
+  }
+
   /* Pull to refresh: whatever follows the pull (see PullToRefresh) tracks the
      finger exactly, then springs back when it's let go. */
   .ptr-follow {
