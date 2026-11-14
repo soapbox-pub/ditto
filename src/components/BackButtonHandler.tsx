@@ -3,6 +3,9 @@ import { Capacitor } from '@capacitor/core';
 
 import { slideNextBack } from '@/lib/pushTransition';
 
+/** A dialog, sheet, popover or menu that's open over the page. */
+const OPEN_LAYER = '[data-state="open"]:is([role="dialog"], [role="alertdialog"], [role="menu"])';
+
 /**
  * Handles the Android hardware/gesture back button.
  *
@@ -33,6 +36,13 @@ export function BackButtonHandler() {
       const { App } = await import('@capacitor/app');
 
       const listener = await App.addListener('backButton', ({ canGoBack }) => {
+        // An open sheet, dialog or menu closes first, like a native one: back
+        // dismisses what's on top before it leaves the page. Radix layers
+        // (and vaul's sheets, built on them) all close on Escape.
+        if (document.querySelector(OPEN_LAYER)) {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+          return;
+        }
         if (canGoBack) {
           slideNextBack();
           window.history.back();
