@@ -9,6 +9,7 @@ import { useAuthors } from '@/hooks/useAuthors';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { profileName } from '@/lib/getDisplayName';
 import { EASE_SPRING, prefersReducedMotion } from '@/lib/motion';
+import { usePresence } from '@/hooks/usePresence';
 
 interface NewPostsPillProps {
   /** Number of new posts waiting. The pill is hidden when this is 0. */
@@ -32,12 +33,18 @@ interface NewPostsPillProps {
  * Used by the main feed ({@link Feed}) and the Search page to surface new
  * posts without re-sorting the list under the user's scroll position.
  */
-export function NewPostsPill({ count, authors = [], onClick }: NewPostsPillProps) {
+export function NewPostsPill({ count: liveCount, authors: liveAuthors = [], onClick }: NewPostsPillProps) {
   const intl = useIntl();
   const navHidden = useNavHidden();
   // The copy of a page under a pushed one (BackSwipe) counts arrivals of its
   // own, which the page a swipe back lands on starts without.
   const inUnderlay = useContext(PageUnderlayContext);
+
+  // Animates out when the posts are shown, still saying what it said.
+  const { mounted, leaving } = usePresence(liveCount > 0 && !inUnderlay, 200);
+  const lastRef = useRef({ count: liveCount, authors: liveAuthors });
+  if (liveCount > 0) lastRef.current = { count: liveCount, authors: liveAuthors };
+  const { count, authors } = leaving ? lastRef.current : { count: liveCount, authors: liveAuthors };
 
   const shown = authors.slice(0, 3);
   const { data: authorsMap } = useAuthors(shown);
@@ -56,14 +63,14 @@ export function NewPostsPill({ count, authors = [], onClick }: NewPostsPillProps
     );
   }, [count]);
 
-  if (count <= 0 || inUnderlay) return null;
+  if (!mounted) return null;
 
   return (
     <div
       className={cn(
-        'sticky new-posts-pill z-10 flex justify-center pointer-events-none',
-        'max-sidebar:transition-opacity max-sidebar:duration-300 max-sidebar:ease-in-out',
-        navHidden && 'max-sidebar:opacity-0 max-sidebar:pointer-events-none',
+        // Fades with the bars as they slide (see useScrollDirection).
+        'sticky new-posts-pill chrome-follow-fade z-10 flex justify-center pointer-events-none',
+        navHidden && 'max-sidebar:[&>*]:pointer-events-none',
       )}
       style={{ marginBottom: '-3rem' }}
     >
@@ -78,7 +85,9 @@ export function NewPostsPill({ count, authors = [], onClick }: NewPostsPillProps
           'pointer-events-auto flex items-center gap-2 h-10 pl-3 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg',
           'hover:bg-primary/90 transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-          'motion-safe:animate-new-posts-pill-in motion-reduce:animate-in motion-reduce:fade-in',
+          leaving
+            ? 'pointer-events-none animate-out fade-out-0 zoom-out-90 slide-out-to-top-2 duration-200 fill-mode-forwards'
+            : 'motion-safe:animate-new-posts-pill-in motion-reduce:animate-in motion-reduce:fade-in',
           shown.length > 0 ? 'pr-1.5' : 'pr-4',
         )}
       >

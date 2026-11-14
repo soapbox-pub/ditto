@@ -16,6 +16,7 @@ import { useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { formatItemLabel, getSidebarItem } from '@/lib/sidebarItems';
 import { ArcBackground, ARC_UP_OVERHANG_PX } from '@/components/ArcBackground';
 import { MobileSearchSheet } from '@/components/MobileSearchSheet';
+import { UnreadDot } from '@/components/UnreadDot';
 
 /** Slides with the scroll (see useScrollDirection), all the way out at `--chrome-hide: 1`. */
 const followStyle: React.CSSProperties = {
@@ -135,9 +136,7 @@ export function MobileBottomNav() {
             >
               <span className={cn('relative flex', isOnNotifications && 'motion-safe:animate-nav-pop')}>
                 <Bell className="size-5" />
-                {hasUnread && (
-                  <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full motion-safe:animate-in motion-safe:zoom-in-0 motion-safe:duration-300" />
-                )}
+                <UnreadDot show={hasUnread} className="-top-1 right-0 size-2" />
               </span>
               <span className="text-[10px] font-medium"><FormattedMessage id="nav.notifications" defaultMessage={"Notifications"} /></span>
             </Link>

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserRoundCheck, X, MessageSquare, FileText, Hash, Archive } from 'lucide-react';
 import { useCloseOnBack } from '@/hooks/useCloseOnBack';
+import { usePresence } from '@/hooks/usePresence';
 import { nip19 } from 'nostr-tools';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -259,18 +260,30 @@ export function MobileSearchSheet({ open, onClose }: MobileSearchSheetProps) {
 
   const hasResults = !queryBlocked && query.trim().length > 0 && (navItemCount > 0 || hasIdentifier || hasUrlComment || hasCountry || hasWikipedia || hasArchive || resultCount > 0);
 
-  if (!open) return null;
+  // Slides back down when closed rather than vanishing.
+  const { mounted, leaving } = usePresence(open, 180);
+  if (!mounted) return null;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/60 sidebar:hidden animate-in fade-in-0 duration-150"
+        className={cn(
+          'fixed inset-0 z-40 bg-black/60 sidebar:hidden',
+          leaving ? 'pointer-events-none animate-out fade-out-0 duration-150 fill-mode-forwards' : 'animate-in fade-in-0 duration-150',
+        )}
         onClick={handleClose}
       />
 
       {/* Bottom sheet — sits at the bottom of the screen with safe area clearance */}
-      <div className="fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden animate-in slide-in-from-bottom-4 duration-200 pb-6">
+      <div
+        className={cn(
+          'fixed left-0 right-0 bottom-0 z-[49] sidebar:hidden pb-6',
+          leaving
+            ? 'pointer-events-none animate-out fade-out-0 slide-out-to-bottom-4 duration-150 fill-mode-forwards'
+            : 'animate-in slide-in-from-bottom-4 duration-200',
+        )}
+      >
 
         {queryBlocked && (
           <div className="bg-popover/95 rounded-2xl mx-6 mb-0.5 overflow-hidden shadow-lg">

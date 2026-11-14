@@ -427,6 +427,15 @@
       transform: translateY(calc(var(--chrome-hide, 0) * (-100% - var(--top-bar-height) - 20px - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)))));
     }
 
+    /* Floating things over the feed (the new posts pill) fade as the bars go. */
+    .chrome-follow-fade {
+      opacity: calc(1 - var(--chrome-hide, 0));
+      transition: opacity 300ms var(--ease-emphasized);
+    }
+    [data-chrome-tracking] .chrome-follow-fade {
+      transition: none;
+    }
+
     /* A pinned sub-header bar stays, moving up into the top bar's place,
        just under the device's safe area. Moves its sticky `top` rather than
        transforming, so the bar only moves once it's stuck. */

@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
 import { NsiteSidebarItem } from '@/components/NsiteSidebarItem';
 import { ExternalContentSidebarItem } from '@/components/ExternalContentSidebarItem';
+import { UnreadDot } from '@/components/UnreadDot';
 
 // ── Sortable item ─────────────────────────────────────────────────────────────
 
@@ -63,9 +64,7 @@ export function SidebarNavItem({
       >
         <span className="shrink-0 relative">
           {icon}
-          {showIndicator && (
-            <span className="absolute -top-1 right-0 size-2.5 bg-primary rounded-full" />
-          )}
+          <UnreadDot show={!!showIndicator} className="-top-1 right-0 size-2.5" />
         </span>
         <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{label}</span>
       </Link>

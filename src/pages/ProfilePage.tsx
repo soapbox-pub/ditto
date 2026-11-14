@@ -1732,6 +1732,9 @@ function ProfilePageInner() {
       queryClient.refetchQueries({ queryKey: ['author', pubkey] });
     }
   }, [pubkey, queryClient]);
+  // The header fades in over its placeholder, when there was one to replace.
+  const [sawProfileSkeleton, setSawProfileSkeleton] = useState(false);
+  if (author.isLoading && !sawProfileSkeleton) setSawProfileSkeleton(true);
   const metadataEvent = author.data?.event;
   const bannerImeta = author.data?.imeta?.banner;
   const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
@@ -2702,7 +2705,7 @@ function ProfilePageInner() {
               </div>
             </>
           ) : (
-            <>
+            <div className={cn(sawProfileSkeleton && 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300')}>
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
                 <div className="relative">
                   {/* Shrinks towards its bottom-left corner as the page scrolls */}
@@ -2963,7 +2966,7 @@ function ProfilePageInner() {
               )}
 
 
-            </>
+            </div>
           )}
         </div>
 

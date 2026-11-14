@@ -523,6 +523,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // Show skeletons while loading, but not if the curator list query errored
   // (that would leave logged-out users staring at infinite skeletons).
   const showSkeleton = (isPending || (isLoading && !rawData)) && !(useDittoQuery && isCuratorError);
+  // The feed fades in over its placeholders, when there were any to replace.
+  const [sawSkeleton, setSawSkeleton] = useState(false);
+  if (showSkeleton && !sawSkeleton) setSawSkeleton(true);
 
   // Kind-specific pages (e.g. Development, WebXDC) only show Follows + Global tabs.
   // Extra tabs (Ditto, Community, saved feeds, hashtags) are only for the home feed.
@@ -673,7 +676,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               tapping it refreshes and scrolls to top. */}
           <NewPostsPill count={newPostCount} authors={newPostAuthors} onClick={handleShowNewPosts} />
           {feedItems.length > 0 ? (
-            <div>
+            <div className={cn(sawSkeleton && 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300')}>
               {feedItems.map((item: FeedItem, index: number) => (
                 <FeedRow
                   key={feedItemKey(item)}
