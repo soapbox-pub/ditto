@@ -62,6 +62,17 @@
     background: transparent;
   }
 
+  /* Reserve the page scrollbar's gutter so the layout doesn't jump sideways
+     when a page grows long enough to scroll. Radix's scroll lock still adds a
+     margin to make room for a bar that would vanish; the gutter already does
+     that, so cancel it. */
+  html {
+    scrollbar-gutter: stable;
+  }
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+  }
+
   /* Touch screens and the native app scroll by swiping, so hide scrollbars
      there. The document scroller is targeted explicitly — with a zero-size
      track — because some Android System WebView builds draw a classic,
