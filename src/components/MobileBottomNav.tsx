@@ -27,6 +27,9 @@ const hiddenStyle: React.CSSProperties = {
   transform: `translateY(calc(100% + ${ARC_UP_OVERHANG_PX}px))`,
 };
 
+/** Sidebar items that always have their own tab in the bottom bar. */
+const FIXED_TABS = ['search', 'notifications', 'profile'];
+
 export function MobileBottomNav() {
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -37,10 +40,17 @@ export function MobileBottomNav() {
 
   const { config } = useAppContext();
   const intl = useIntl();
-  const homeItem = getSidebarItem(config.homePage);
+  // When the homepage is already one of the fixed tabs, the first slot falls back to the feed
+  const homeIsTab = FIXED_TABS.includes(config.homePage);
+  const homeItem = getSidebarItem(homeIsTab ? 'feed' : config.homePage);
   const HomeIcon = homeItem?.icon ?? Home;
   const homeLabel = formatItemLabel(intl, homeItem?.id ?? 'feed');
   const homePath = homeItem?.path;
+  const homeTo = homeIsTab ? (homePath ?? '/feed') : '/';
+  const isOnHome = homeIsTab
+    ? location.pathname === homePath
+    : location.pathname === '/' || location.pathname === homePath;
+  const isOnRootAs = (id: string) => location.pathname === '/' && config.homePage === id;
 
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -52,7 +62,7 @@ export function MobileBottomNav() {
 
 
   const displayName = profileName(metadata);
-  const isOnProfile = user && location.pathname === profileUrl;
+  const isOnProfile = user && (location.pathname === profileUrl || isOnRootAs('profile'));
 
   return (
     <>
@@ -72,12 +82,12 @@ export function MobileBottomNav() {
 
           {/* Home */}
           <Link
-            to="/"
+            to={homeTo}
             onClick={() => {
               selectionChanged();
               setSearchOpen(false);
               // When already on the home page, scroll to top and refresh the feed
-              if (location.pathname === '/' || location.pathname === homePath) {
+              if (isOnHome) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 void queryClient.invalidateQueries({ queryKey: ['feed'] });
                 void queryClient.invalidateQueries({ queryKey: ['ditto-curated-feed'] });
@@ -85,7 +95,7 @@ export function MobileBottomNav() {
             }}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              (location.pathname === '/' || location.pathname === homePath) ? 'text-primary' : 'text-muted-foreground',
+              isOnHome ? 'text-primary' : 'text-muted-foreground',
             )}
           >
             <HomeIcon className="size-5" />
@@ -111,7 +121,7 @@ export function MobileBottomNav() {
               onClick={() => { selectionChanged(); setSearchOpen(false); }}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-                location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
+                location.pathname === '/notifications' || isOnRootAs('notifications') ? 'text-primary' : 'text-muted-foreground',
               )}
             >
               <span className="relative">
