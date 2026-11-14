@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sticker, Info } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { CustomEmojiImg } from '@/components/CustomEmoji';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { useCustomEmojis, type CustomEmoji } from '@/hooks/useCustomEmojis';
-import { useDragOut } from '@/hooks/useDragOut';
+import { useDragOut, type DragOut } from '@/hooks/useDragOut';
+import { paletteSections, type CustomEmojiSection } from '@/lib/customEmoji';
 import { cn } from '@/lib/utils';
 
 interface StickerPickerProps {
@@ -82,22 +83,9 @@ export function StickerPicker({ onSelect, onSelectEmoji, onDrop }: StickerPicker
 
       {tab === 'stickers' && !isLoading && emojis.length > 0 && (
         <ScrollArea className="h-[200px]">
-          <div className="grid grid-cols-4 gap-1.5 p-1">
-            {emojis.map((emoji) => (
-              <button
-                key={emoji.shortcode}
-                type="button"
-                title={emoji.shortcode}
-                onPointerDown={(e) => drag.start(e, emoji, { url: emoji.url })}
-                onClick={() => { if (!drag.justDropped()) onSelect(emoji); }}
-                className="aspect-square rounded-xl overflow-hidden hover:bg-muted/80 transition-all p-1.5 group active:scale-90 touch-manipulation select-none [-webkit-touch-callout:none]"
-              >
-                <CustomEmojiImg
-                  name={emoji.shortcode}
-                  url={emoji.url}
-                  className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
-                />
-              </button>
+          <div className="flex flex-col gap-3 p-1">
+            {paletteSections(emojis).map((section) => (
+              <StickerSection key={section.key} section={section} drag={drag} onSelect={onSelect} />
             ))}
           </div>
         </ScrollArea>
@@ -136,6 +124,42 @@ export function StickerPicker({ onSelect, onSelectEmoji, onDrop }: StickerPicker
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+interface StickerSectionProps {
+  section: CustomEmojiSection;
+  drag: DragOut<CustomEmoji>;
+  onSelect: (emoji: CustomEmoji) => void;
+}
+
+function StickerSection({ section, drag, onSelect }: StickerSectionProps) {
+  const intl = useIntl();
+  const headingId = useId();
+  return (
+    <div role="group" aria-labelledby={headingId}>
+      <div id={headingId} className="px-1 pb-1 text-[11px] font-medium text-muted-foreground truncate">
+        {section.name ?? intl.formatMessage({ id: 'stickerPicker.custom', defaultMessage: 'Custom' })}
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {section.emojis.map((emoji) => (
+          <button
+            key={emoji.shortcode}
+            type="button"
+            title={emoji.shortcode}
+            onPointerDown={(e) => drag.start(e, emoji, { url: emoji.url })}
+            onClick={() => { if (!drag.justDropped()) onSelect(emoji); }}
+            className="aspect-square rounded-xl overflow-hidden hover:bg-muted/80 transition-all p-1.5 group active:scale-90 touch-manipulation select-none [-webkit-touch-callout:none]"
+          >
+            <CustomEmojiImg
+              name={emoji.shortcode}
+              url={emoji.url}
+              className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-150"
+            />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

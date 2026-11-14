@@ -1,13 +1,14 @@
 import data, { type EmojiMartData } from "@emoji-mart/data";
 import { Picker } from "emoji-mart";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useIntl } from "react-intl";
 import type { CustomEmoji } from "@/hooks/useCustomEmojis";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { recordEmojiUsage } from "@/hooks/useEmojiUsage";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useTheme } from "@/hooks/useTheme";
 import { getBackgroundThemeMode } from "@/lib/colorUtils";
-import { isLoadableEmojiUrl } from "@/lib/customEmoji";
+import { isLoadableEmojiUrl, paletteSections } from "@/lib/customEmoji";
 import {
 	customPickerId,
 	pruneFrequentlyUsed,
@@ -63,6 +64,7 @@ interface EmojiMartEmoji {
  */
 export function EmojiPicker({ onSelect, customEmojis, height = 280, recordUsage = true }: EmojiPickerProps) {
 	useTheme(); // subscribe to theme changes so resolvedTheme stays fresh
+	const intl = useIntl();
 	const isMobile = useIsMobile();
 	const { user } = useCurrentUser();
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -105,41 +107,28 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280, recordUsage 
 	const customCategories = useMemo((): EmojiMartCustomCategory[] | undefined => {
 		if (!customEmojis || customEmojis.length === 0) return undefined;
 
-		const groups = new Map<string, EmojiMartCustomCategory>();
-		const usedIds = new Set<string>();
 		const shortcodes = new Map<string, string>();
-		for (const e of customEmojis) {
-			// emoji-mart renders these as plain <img>s, so the same load rules as
-			// CustomEmojiImg apply: an unloadable URL never reaches the picker.
-			// A shortcode outside NIP-30's charset couldn't be written as
-			// `:shortcode:` in a post anyway.
-			if (!isLoadableEmojiUrl(e.url) || !/^[a-zA-Z0-9_-]+$/.test(e.shortcode)) continue;
-			const key = e.packCoord ?? "";
-			let group = groups.get(key);
-			if (!group) {
-				// emoji-mart keys DOM ids and its category index off this, so keep
-				// it to a safe charset rather than passing a raw `kind:pubkey:d`.
-				// The `custom-` prefix is what syncEmojiMartCategories keys on.
-				// Coordinates differing only in punctuation collapse to the same
-				// slug, so suffix any repeat to keep ids unique.
-				const base = key ? `custom-${key.replace(/[^a-zA-Z0-9]+/g, "-")}` : "custom-nostr";
-				let id = base;
-				for (let n = 2; usedIds.has(id); n++) id = `${base}-${n}`;
-				usedIds.add(id);
-				group = {
-					id,
-					name: (key && e.packName) || "Custom",
-					emojis: [],
-				};
-				groups.set(key, group);
+		const categories: EmojiMartCustomCategory[] = [];
+		for (const section of paletteSections(customEmojis)) {
+			const emojis: EmojiMartCustomCategory["emojis"] = [];
+			for (const e of section.emojis) {
+				// emoji-mart renders these as plain <img>s, so the same load rules as
+				// CustomEmojiImg apply: an unloadable URL never reaches the picker.
+				// A shortcode outside NIP-30's charset couldn't be written as
+				// `:shortcode:` in a post anyway.
+				if (!isLoadableEmojiUrl(e.url) || !/^[a-zA-Z0-9_-]+$/.test(e.shortcode)) continue;
+				const id = customPickerId(e.shortcode, e.url);
+				shortcodes.set(id, e.shortcode);
+				emojis.push({ id, name: e.shortcode, keywords: [e.shortcode], skins: [{ src: e.url }] });
 			}
-			const id = customPickerId(e.shortcode, e.url);
-			shortcodes.set(id, e.shortcode);
-			group.emojis.push({
-				id,
-				name: e.shortcode,
-				keywords: [e.shortcode],
-				skins: [{ src: e.url }],
+			if (emojis.length === 0) continue;
+			categories.push({
+				// Positional, so two packs can never share one (emoji-mart keys DOM
+				// ids and its category index off it). The `custom-` prefix is what
+				// syncEmojiMartCategories keys on.
+				id: `custom-${categories.length}`,
+				name: section.name ?? intl.formatMessage({ id: "emojiPicker.custom", defaultMessage: "Custom" }),
+				emojis,
 			});
 		}
 
@@ -149,8 +138,8 @@ export function EmojiPicker({ onSelect, customEmojis, height = 280, recordUsage 
 		// chains each pack onto the first one's button, so the packs share one
 		// nav entry while keeping their own labelled sections in the scroll area.
 		shortcodesRef.current = shortcodes;
-		return groups.size > 0 ? [...groups.values()] : undefined;
-	}, [customEmojis]);
+		return categories.length > 0 ? categories : undefined;
+	}, [customEmojis, intl]);
 
 	useEffect(() => {
 		const container = containerRef.current;

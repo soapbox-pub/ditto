@@ -1,5 +1,7 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import type { CustomEmoji } from '@/hooks/useCustomEmojis';
+import { parseAddr } from '@/lib/parseAddr';
 import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 
 /**
@@ -103,4 +105,28 @@ export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji | undefin
   }
 
   return { content: emoji };
+}
+
+/** One picker section of a custom emoji palette. */
+export interface CustomEmojiSection {
+  /** The pack's `30030:pubkey:dtag` coordinate, or `''` for emojis inlined on the kind-10030 list. */
+  key: string;
+  /** The pack's name (its `d` tag if it has none); absent for the inlined emojis. */
+  name?: string;
+  emojis: CustomEmoji[];
+}
+
+/** A palette split into one section per source pack, in palette order. */
+export function paletteSections(emojis: CustomEmoji[]): CustomEmojiSection[] {
+  const sections = new Map<string, CustomEmojiSection>();
+  for (const e of emojis) {
+    const key = e.packCoord ?? '';
+    let section = sections.get(key);
+    if (!section) {
+      const name = key ? e.packName || parseAddr(key)?.identifier || undefined : undefined;
+      sections.set(key, (section = { key, name, emojis: [] }));
+    }
+    section.emojis.push(e);
+  }
+  return [...sections.values()];
 }
