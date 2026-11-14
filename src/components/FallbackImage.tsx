@@ -2,7 +2,9 @@ import type { ImgHTMLAttributes, ReactNode } from 'react';
 
 import { HeldImage, useMediaGate } from '@/components/MediaGate';
 import { useProfileImageSource } from '@/hooks/useProfileImageSource';
+import { markIfAlreadyLoaded, markImageLoaded } from '@/lib/fadeOnLoad';
 import type { ImetaEntry } from '@/lib/imeta';
+import { cn } from '@/lib/utils';
 
 interface FallbackImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onError'> {
   /** The image URL. Nothing renders without one. */
@@ -23,6 +25,8 @@ interface FallbackImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, '
    * sit inside a post's gate without belonging to its author.
    */
   gated?: boolean;
+  /** Fade the image in as it loads, over whatever sits behind it. */
+  fadeIn?: boolean;
 }
 
 /**
@@ -34,11 +38,28 @@ interface FallbackImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, '
  * pack and community icons — which were plain `<img>` elements, each one blank
  * the moment the single server named in its URL went down.
  */
-export function FallbackImage({ src, imeta, fallback = null, placeholder, gated, alt, ...props }: FallbackImageProps) {
+export function FallbackImage({ src, imeta, fallback = null, placeholder, gated, fadeIn, alt, ...props }: FallbackImageProps) {
   const held = useMediaGate().active && gated;
   const source = useProfileImageSource(held ? undefined : src, held ? undefined : imeta);
   if (held) return src ? <HeldImage className={props.className} style={props.style} /> : <>{fallback}</>;
   if (source.pending) return <>{placeholder ?? fallback}</>;
   if (!source.src || source.failed) return <>{fallback}</>;
-  return <img {...props} src={source.src} alt={alt ?? source.imeta?.alt ?? ''} onError={source.onError} />;
+  if (!fadeIn) return <img {...props} src={source.src} alt={alt ?? source.imeta?.alt ?? ''} onError={source.onError} />;
+  return (
+    <img
+      {...props}
+      ref={markIfAlreadyLoaded}
+      src={source.src}
+      alt={alt ?? source.imeta?.alt ?? ''}
+      className={cn('fade-on-load', props.className)}
+      onLoad={(e) => {
+        markImageLoaded(e.currentTarget);
+        props.onLoad?.(e);
+      }}
+      onError={(e) => {
+        markImageLoaded(e.currentTarget);
+        source.onError();
+      }}
+    />
+  );
 }

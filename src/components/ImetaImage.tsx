@@ -4,6 +4,7 @@ import { HeldImage, useMediaGate } from '@/components/MediaGate';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { decodeBlurhash, isValidBlurhash } from '@/lib/blurhash';
 import type { ImetaEntry } from '@/lib/imeta';
+import { EASE_EMPHASIZED, prefersReducedMotion } from '@/lib/motion';
 
 /** Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`. */
 function parseDim(dim: string | undefined): { width: number; height: number } | undefined {
@@ -42,9 +43,14 @@ export function ImetaImage({ src, imeta, style, onLoad, onError, ...rest }: Imet
     [imeta?.blurhash],
   );
 
-  // A cached image may finish before React attaches onLoad.
+  // A cached image may finish before React attaches onLoad. It's there at
+  // once, so it doesn't animate in either.
+  const arrivedCached = useRef(false);
   useEffect(() => {
-    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setLoaded(true);
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      arrivedCached.current = true;
+      setLoaded(true);
+    }
   }, [fallback.src]);
 
   if (gated) {
@@ -78,6 +84,13 @@ export function ImetaImage({ src, imeta, style, onLoad, onError, ...rest }: Imet
       }}
       onLoad={(e) => {
         setLoaded(true);
+        // The blurhash resolves into the picture; with none, it fades in.
+        if (!arrivedCached.current && !prefersReducedMotion()) {
+          e.currentTarget.animate?.(
+            placeholder ? [{ filter: 'blur(12px)' }, { filter: 'blur(0)' }] : [{ opacity: 0 }, { opacity: 1 }],
+            { duration: 350, easing: EASE_EMPHASIZED },
+          );
+        }
         onLoad?.(e);
       }}
       onError={(e) => {

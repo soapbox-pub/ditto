@@ -3,6 +3,7 @@ import * as React from "react"
 import { useImageThumbnail } from "@/hooks/useImageThumbnail"
 import { useProfileImageSource } from "@/hooks/useProfileImageSource"
 import type { ImetaEntry } from "@/lib/imeta"
+import { markIfAlreadyLoaded, markImageLoaded } from "@/lib/fadeOnLoad"
 import { cn } from "@/lib/utils"
 import { type AvatarShape, isEmoji, getAvatarMaskUrl, isValidAvatarShape } from "@/lib/avatarShape"
 
@@ -91,7 +92,7 @@ export interface AvatarImageProps extends React.ImgHTMLAttributes<HTMLImageEleme
  * the image progressively as it downloads.
  */
 const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
-  ({ className, onError, src: rawSrc, imeta, ...props }, ref) => {
+  ({ className, onError, onLoad, src: rawSrc, imeta, ...props }, ref) => {
   const hasSrcRef = React.useContext(AvatarHasSrcContext)
   // A picture uploaded through the app is a content-addressed Blossom URL
   // naming whichever server won the upload race, and the same bytes were
@@ -112,6 +113,7 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
   // an img without a src: Firefox and WebKit draw that as a broken image.
   const { src: displaySrc, ref: thumbnailRef } = useImageThumbnail(showImage ? src : undefined)
   const setRefs = React.useCallback((node: HTMLImageElement | null) => {
+    markIfAlreadyLoaded(node)
     thumbnailRef(node)
     if (typeof ref === "function") ref(node)
     else if (ref) ref.current = node
@@ -136,8 +138,13 @@ const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
       src={displaySrc}
       ref={setRefs}
       alt=""
-      className={cn("absolute inset-0 h-full w-full object-cover", className)}
+      className={cn("fade-on-load absolute inset-0 h-full w-full object-cover", className)}
+      onLoad={(e) => {
+        markImageLoaded(e.currentTarget)
+        onLoad?.(e)
+      }}
       onError={(e) => {
+        markImageLoaded(e.currentTarget)
         advance()
         onError?.(e)
       }}

@@ -365,6 +365,16 @@
 
 
 
+  /* Images that fade in as they load (see src/lib/fadeOnLoad.ts). */
+  @media (prefers-reduced-motion: no-preference) {
+    .fade-on-load {
+      transition: opacity 250ms var(--ease-emphasized);
+    }
+    .fade-on-load:not([data-loaded]) {
+      opacity: 0;
+    }
+  }
+
   /* Loading placeholders hold still for anyone who asked for less motion. */
   @media (prefers-reduced-motion: reduce) {
     .animate-pulse {

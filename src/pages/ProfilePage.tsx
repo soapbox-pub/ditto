@@ -2469,6 +2469,7 @@ function ProfilePageInner() {
                       src={metadata?.banner}
                       imeta={bannerImeta}
                       placeholder={null}
+                      fadeIn
                       className="relative w-full h-full object-cover cursor-pointer"
                       onClick={() => setLightboxImage(metadata!.banner!)}
                       decoding="async"
@@ -2713,7 +2714,7 @@ function ProfilePageInner() {
                     >
                       <div style={isEmojiShape ? emojiAvatarBorderStyle : undefined}>
                         <Avatar shape={avatarShape} className={cn(isEmojiShape ? 'size-[88px] md:size-[120px]' : 'size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} />
+                          <AvatarImage src={metadata?.picture} imeta={author.data?.imeta?.picture} alt={displayName} loading="eager" />
                           <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
                             {displayName[0].toUpperCase()}
                           </AvatarFallback>
