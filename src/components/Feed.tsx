@@ -1029,8 +1029,9 @@ const FeedRow = memo(function FeedRow({
   // A row a refresh just brought in grows open from nothing (grid rows
   // 0fr → 1fr), pushing the feed down rather than jumping it.
   return (
-    <div className={cn('grid', arrived && 'motion-safe:animate-feed-row-in')}>
-      <div className={cn('min-h-0', arrived && 'overflow-hidden')}>
+    // The column is the feed's width (minmax(0, 1fr)), not its widest content.
+    <div className={cn('grid grid-cols-[minmax(0,1fr)]', arrived && 'motion-safe:animate-feed-row-in')}>
+      <div className={cn('min-h-0 min-w-0', arrived && 'overflow-hidden')}>
         <LazyFeedItem cacheKey={cacheKey} className="cv-feed-item" initialInView={initialInView}>
           <NoteCard {...noteCard} highlight={arrived} />
         </LazyFeedItem>
