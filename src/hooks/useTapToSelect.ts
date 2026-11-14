@@ -1,8 +1,14 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { PointerEvent } from 'react';
 
 /** How far a touch may move and still count as a tap rather than a scroll. */
 const TAP_SLOP_PX = 10;
+
+/**
+ * A touch that lands this soon after the list scrolled is catching a fling to
+ * stop it, not choosing an item.
+ */
+const FLING_CATCH_MS = 150;
 
 /**
  * After a tap selects an item, the browser still fires the compatibility
@@ -33,13 +39,21 @@ function suppressGhostClick(): void {
  *   focus (a mousedown-preventDefault can otherwise swallow the click).
  * - Touch/pen: defer to pointer-up and require the finger to have stayed put,
  *   so dragging to scroll the list isn't mistaken for a tap. Touch pointer-down
- *   must NOT preventDefault, or native scrolling is killed.
+ *   must NOT preventDefault, or native scrolling is killed. A touch that stops
+ *   a still-coasting list doesn't count either.
  *
  * Returns a function that builds the handlers for one item.
  */
 export function useTapToSelect() {
   // Where the current touch/pen gesture started. One gesture at a time.
   const start = useRef<{ x: number; y: number } | null>(null);
+  const lastScrollAt = useRef(0);
+
+  useEffect(() => {
+    const onScroll = () => { lastScrollAt.current = performance.now(); };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    return () => document.removeEventListener('scroll', onScroll, true);
+  }, []);
 
   return useCallback((onSelect: () => void) => ({
     onPointerDown: (e: PointerEvent) => {
@@ -48,7 +62,9 @@ export function useTapToSelect() {
         onSelect();
         return;
       }
-      start.current = { x: e.clientX, y: e.clientY };
+      start.current = performance.now() - lastScrollAt.current < FLING_CATCH_MS
+        ? null
+        : { x: e.clientX, y: e.clientY };
     },
     onPointerUp: (e: PointerEvent) => {
       if (e.pointerType === 'mouse') return;

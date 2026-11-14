@@ -417,7 +417,7 @@ export function EmojiShortcodeAutocomplete({
       className="fixed z-[300] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 pointer-events-auto"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
-      <div ref={listRef} className="max-h-[280px] overflow-y-auto py-1">
+      <div ref={listRef} className="max-h-[280px] overflow-y-auto overscroll-contain py-1">
         {results.map((emoji, index) => (
           <button
             key={emoji.id}

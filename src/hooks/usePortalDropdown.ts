@@ -76,11 +76,25 @@ export function usePortalDropdown({
       onClose();
     };
     const handleResize = () => onClose();
+    // A Radix Dialog's scroll lock cancels every touchmove/wheel outside the
+    // dialog content, and the dropdown is portaled out of it, so the list
+    // couldn't scroll and a drag became a tap on whichever item was under the
+    // finger. Keep those events inside the dropdown away from the lock.
+    const isolateScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target instanceof Element && target.closest('[data-autocomplete-dropdown]')) {
+        e.stopPropagation();
+      }
+    };
     window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleResize);
+    window.addEventListener('touchmove', isolateScroll, { capture: true, passive: true });
+    window.addEventListener('wheel', isolateScroll, { capture: true, passive: true });
     return () => {
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('touchmove', isolateScroll, true);
+      window.removeEventListener('wheel', isolateScroll, true);
     };
   }, [isOpen, onClose]);
 
