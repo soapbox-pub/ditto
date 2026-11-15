@@ -86,7 +86,7 @@ function MainLayoutInner() {
   if (inUnderlay) {
     return (
       <div
-        className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}
+        className={cn("page-frame flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}
         // The top bar this page would have, for a swipe back to draw the bar towards.
         data-underlay-top-bar={hideTopBar ? 'none' : hasSubHeader ? 'flat' : 'arc'}
       >
@@ -119,7 +119,7 @@ function MainLayoutInner() {
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
       {/* Main layout - three column on desktop */}
-      <div className={cn("flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
+      <div className={cn("page-frame flex justify-center mx-auto max-w-[1200px]", wrapperClassName)}>
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <LeftSidebar />
 

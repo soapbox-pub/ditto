@@ -81,6 +81,15 @@
     margin-right: 0 !important;
   }
 
+  /* The gutter makes the page narrower than the window, so centered content
+     sits half a scrollbar left of the window's center. Nudge the layout back
+     by that half (100vw - 100% is the gutter's width), but only into spare
+     side margin, so narrow windows never push it under the scrollbar. */
+  .page-frame {
+    position: relative;
+    left: clamp(0px, (100% - 1200px) / 2, (100vw - 100%) / 2);
+  }
+
   /* Touch screens and the native app scroll by swiping, so hide scrollbars
      there. The document scroller is targeted explicitly — with a zero-size
      track — because some Android System WebView builds draw a classic,
