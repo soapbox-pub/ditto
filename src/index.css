@@ -26,9 +26,16 @@
 @layer base {
   * {
     @apply border-border;
-    /* Firefox: a visible, grabbable thumb. WebKit/Chromium styling below. */
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+  }
+
+  /* Firefox: a visible, grabbable thumb. Only where ::-webkit-scrollbar isn't
+     supported: Chromium 121+ lets scrollbar-width and scrollbar-color replace
+     the ::-webkit-scrollbar styling below, drawing its plain bar with arrows. */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+    }
   }
 
   /* Mouse and stylus users get a scrollbar they can see and grab. The thumb is
@@ -63,12 +70,12 @@
   }
 
   /* Reserve the page scrollbar's gutter so the layout doesn't jump sideways
-     when a page grows long enough to scroll. `both-edges` mirrors it on the
-     left so centered content stays centered. Radix's scroll lock still adds a
-     margin to make room for a bar that would vanish; the gutter already does
-     that, so cancel it. */
+     when a page grows long enough to scroll. Only on the right: `both-edges`
+     leaves an empty strip down the left edge, outside the fixed backgrounds.
+     Radix's scroll lock still adds a margin to make room for a bar that would
+     vanish; the gutter already does that, so cancel it. */
   html {
-    scrollbar-gutter: stable both-edges;
+    scrollbar-gutter: stable;
   }
   html body[data-scroll-locked] {
     margin-right: 0 !important;
