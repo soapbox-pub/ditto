@@ -352,6 +352,60 @@ export function useEventStats(eventId: string | undefined, event?: NostrEvent) {
   return { data, isLoading: source.isLoading };
 }
 
+/** A count a view took from the events it fetched itself. */
+export interface LiveCount {
+  count: number;
+  /** The fetch hit its limit, so `count` is only a lower bound. */
+  truncated: boolean;
+}
+
+/** Counts for {@link useLiveEventStats}. Each one left out falls back to the provider's. */
+export interface LiveEventCounts {
+  replies?: LiveCount;
+  reposts?: LiveCount;
+  reactions?: LiveCount;
+  /** When the reposts and reactions were fetched, in ms. */
+  fetchedAt: number;
+}
+
+/**
+ * {@link useEventStats} for a view that has fetched the events behind the
+ * counts anyway, like a post's detail page. It shows what it found instead
+ * of the provider's counts, which lag and can count things that aren't there
+ * (quotes as replies, say). A truncated count is a lower bound, so the
+ * provider's wins where it's higher. The user's own reposts and reactions
+ * newer than the fetch are added, as `useEventStats` adds them to the
+ * provider's; their replies are put straight into the thread.
+ */
+export function useLiveEventStats(event: NostrEvent, live: LiveEventCounts | undefined) {
+  const { data: stats, isLoading } = useEventStats(event.id, event);
+  const addr = getAddrString(event);
+  const pendingVersion = useSyncExternalStore(subscribePendingStats, getPendingStatsVersion);
+
+  const data = useMemo<EventStats>(() => {
+    if (!live) return stats;
+    const fetchedAt = Math.floor(live.fetchedAt / 1000);
+    const pick = (provider: number, counted: LiveCount | undefined, field?: StatField) => {
+      if (!counted) return provider;
+      const pending = field
+        ? getPendingDelta(event.id, field, fetchedAt) + getPendingDelta(addr, field, fetchedAt)
+        : 0;
+      const count = Math.max(0, counted.count + pending);
+      return counted.truncated ? Math.max(count, provider) : count;
+    };
+    return {
+      ...stats,
+      replies: pick(stats.replies, live.replies),
+      reposts: pick(stats.reposts, live.reposts, 'repostCount'),
+      reactions: pick(stats.reactions, live.reactions, 'reactionCount'),
+    };
+    // pendingVersion: recompute when the pending stats change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats, live, event.id, addr, pendingVersion]);
+
+  return { data, isLoading };
+}
+
 /** Number of days of history for sparkline charts. */
 const SPARKLINE_DAYS = 7;
 

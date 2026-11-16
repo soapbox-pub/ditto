@@ -7,7 +7,7 @@ import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { ZapMenu } from '@/components/ZapMenu';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useEventStats } from '@/hooks/useTrending';
+import { useEventStats, type EventStats } from '@/hooks/useTrending';
 import { useFormatMoney } from '@/hooks/useFormatMoney';
 import { AnimatedCount } from '@/components/AnimatedCount';
 import { isPeopleListKind, parsePeopleList } from '@/lib/packUtils';
@@ -26,6 +26,8 @@ interface PostActionBarProps {
   extraButtons?: React.ReactNode;
   /** Use compact sizing (smaller icons/padding on mobile). */
   compact?: boolean;
+  /** Counts to show instead of the provider's (see `useLiveEventStats`). */
+  stats?: EventStats;
 }
 
 export function PostActionBar({
@@ -36,6 +38,7 @@ export function PostActionBar({
   className,
   extraButtons,
   compact,
+  stats: statsOverride,
 }: PostActionBarProps) {
   const intl = useIntl();
   const { user } = useCurrentUser();
@@ -49,7 +52,8 @@ export function PostActionBar({
     && parsePeopleList(event).pubkeys.some((pk) => pk !== user?.pubkey);
   const canZapAuthor = !!user && (!isOwnEvent || hasOtherMembers);
 
-  const { data: stats } = useEventStats(event.id, event);
+  const { data: providerStats } = useEventStats(event.id, event);
+  const stats = statsOverride ?? providerStats;
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
   const { format: formatMoney } = useFormatMoney();
 

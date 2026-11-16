@@ -47,7 +47,20 @@ export interface EventInteractions {
   quotes: QuoteEntry[];
   reactions: ReactionEntry[];
   zaps: ZapEntry[];
+  /** Lists whose fetch hit {@link INTERACTIONS_LIMIT}, so they may be missing entries. */
+  truncated: { reposts: boolean; quotes: boolean; reactions: boolean; zaps: boolean };
 }
+
+/** Per-filter limit. Interactions are only fetched for a post being viewed, so it's generous. */
+export const INTERACTIONS_LIMIT = 500;
+
+const EMPTY_INTERACTIONS: EventInteractions = {
+  reposts: [],
+  quotes: [],
+  reactions: [],
+  zaps: [],
+  truncated: { reposts: false, quotes: false, reactions: false, zaps: false },
+};
 
 /**
  * Extracts the zap amount in millisatoshis from a kind 9735 zap receipt: the
@@ -115,22 +128,37 @@ export function useEventInteractions(eventId: string | undefined, author: string
   const query = useQuery<EventInteractions>({
     queryKey: ['event-interactions', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return { reposts: [], quotes: [], reactions: [], zaps: [] };
+      if (!eventId) return EMPTY_INTERACTIONS;
 
       const timeout = AbortSignal.timeout(5000);
       const combined = AbortSignal.any([signal, timeout]);
 
-      // Single query with two filter objects — relay handles as OR
+      // One filter per list, so a busy list can't crowd out the others.
+      // Quotes are NIP-18 `q` tags, or the older NIP-10 `mention` e-tags,
+      // which only a `#e` query for kind 1 (replies included) can find.
       const allEvents = await nostr.query(
         [
-          { kinds: [6, 16, 7, 9735], '#e': [eventId], limit: 50 },
-          { kinds: [1], '#q': [eventId], limit: 20 },
+          { kinds: [6, 16], '#e': [eventId], limit: INTERACTIONS_LIMIT },
+          { kinds: [7], '#e': [eventId], limit: INTERACTIONS_LIMIT },
+          { kinds: [9735], '#e': [eventId], limit: INTERACTIONS_LIMIT },
+          { kinds: [1], '#q': [eventId], limit: INTERACTIONS_LIMIT },
+          { kinds: [1], '#e': [eventId], limit: INTERACTIONS_LIMIT },
         ],
         { signal: combined },
       );
 
-      const eTagEvents = allEvents.filter(e => e.kind !== 1 || e.tags.some(([n, v]) => n === 'e' && v === eventId));
-      const qTagEvents = allEvents.filter(e => e.kind === 1 && e.tags.some(([n, v]) => n === 'q' && v === eventId));
+      const eTagEvents = allEvents.filter(e => e.kind !== 1 && e.tags.some(([n, v]) => n === 'e' && v === eventId));
+      const qTagEvents = allEvents.filter(e => e.kind === 1 && e.tags.some(([n, v, , marker]) =>
+        v === eventId && (n === 'q' || (n === 'e' && marker === 'mention')),
+      ));
+      const fetched = (test: (e: NostrEvent) => boolean) => allEvents.filter(test).length >= INTERACTIONS_LIMIT;
+      const truncated = {
+        reposts: fetched((e) => e.kind === 6 || e.kind === 16),
+        quotes: fetched((e) => e.kind === 1 && e.tags.some(([n, v]) => n === 'q' && v === eventId)) ||
+          fetched((e) => e.kind === 1 && e.tags.some(([n, v]) => n === 'e' && v === eventId)),
+        reactions: fetched((e) => e.kind === 7),
+        zaps: fetched((e) => e.kind === 9735),
+      };
 
       const reposts: RepostEntry[] = [];
       const quotes: QuoteEntry[] = [];
@@ -197,7 +225,7 @@ export function useEventInteractions(eventId: string | undefined, author: string
       reactions.sort((a, b) => b.createdAt - a.createdAt);
       zaps.sort((a, b) => b.amountSats - a.amountSats); // Sort zaps by amount (largest first)
 
-      return { reposts, quotes, reactions, zaps };
+      return { reposts, quotes, reactions, zaps, truncated };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,

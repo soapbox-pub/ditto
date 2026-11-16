@@ -7,6 +7,9 @@ import { useNostrStorage } from '@/hooks/useNostrStorage';
 /** Max rounds of recursive fetching to avoid runaway loops. */
 const MAX_FETCH_DEPTH = 5;
 
+/** Per-filter limit of each round. */
+export const REPLIES_LIMIT = 200;
+
 /**
  * Fetches the full reply tree for a given event ID.
  *
@@ -31,8 +34,8 @@ export function useReplies(eventId: string | undefined) {
       for (let depth = 0; depth < MAX_FETCH_DEPTH && idsToQuery.length > 0; depth++) {
         const filters: NostrFilter[] = [
           // Kind 2004 is a NIP-35 torrent comment — NIP-10 threaded like kind 1.
-          { kinds: [1, 1111, 2004], '#e': idsToQuery, limit: 200 },
-          { kinds: [1111], '#E': idsToQuery, limit: 200 },
+          { kinds: [1, 1111, 2004], '#e': idsToQuery, limit: REPLIES_LIMIT },
+          { kinds: [1111], '#E': idsToQuery, limit: REPLIES_LIMIT },
         ];
 
         // Read the local store alongside the relays and merge. The store only

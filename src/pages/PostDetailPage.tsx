@@ -190,6 +190,17 @@ const VANISH_KIND = 62;
 /** How far down the screen (0–1) a reply's focused post sits at most, with its thread above. */
 const THREAD_FOCUS_RATIO = 0.4;
 
+/** How many NIP-22 comments a non-text root's thread loads. */
+const COMMENTS_LIMIT = 500;
+
+/** Every reply in a thread, collapsed siblings included. */
+function countReplyNodes(nodes: ReplyNode[]): number {
+  return nodes.reduce(
+    (sum, node) => sum + 1 + countReplyNodes(node.children) + countReplyNodes(node.hiddenChildren ?? []),
+    0,
+  );
+}
+
 /**
  * Map a kind number to a human-readable shell title for the loading state.
  *
@@ -244,12 +255,12 @@ import { useEventInteractions, extractZapAmount, extractZapSender, extractZapMes
 import { extractOnchainZapClaimedAmount, extractOnchainZapRecipients, useOnchainZaps, useVerifiedOnchainZap } from "@/hooks/useOnchainZaps";
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
-import { useReplies } from "@/hooks/useReplies";
+import { REPLIES_LIMIT, useReplies } from "@/hooks/useReplies";
 import { useReplyFlood } from "@/hooks/useReplyFlood";
 import { useZapReplies } from "@/hooks/useZapReplies";
 import { useShareOrigin } from "@/hooks/useShareOrigin";
 import { toast } from "@/hooks/useToast";
-import { useEventStats } from "@/hooks/useTrending";
+import { useLiveEventStats, type LiveEventCounts } from "@/hooks/useTrending";
 import { useFormatMoney } from "@/hooks/useFormatMoney";
 import type { Nip85EventStats } from "@/hooks/useNip85Stats";
 import { extractISBNFromEvent } from "@/lib/bookstr";
@@ -1476,10 +1487,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isUnknownKind =
     isTextNote && event.kind !== 1 && event.kind !== 11 && event.kind !== 1111 && event.kind !== 1311 && event.kind !== TORRENT_COMMENT_KIND;
 
-  const { data: stats } = useEventStats(event.id, event);
-  // Only reactions and quotes are read here. Passing no author skips zap
-  // verification, which would fetch the author's LNURL on every view.
-  const { data: interactions } = useEventInteractions(event.id, undefined);
+  // Zaps aren't read here. Passing no author skips zap verification, which
+  // would fetch the author's LNURL on every view.
+  const { data: interactions, dataUpdatedAt: interactionsUpdatedAt } = useEventInteractions(event.id, undefined);
   const { format: formatMoney } = useFormatMoney();
 
   // Derive top 3 reaction emojis from actual interaction events (NIP-85 doesn't provide these)
@@ -1587,7 +1597,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   // NIP-22 comment logs — both reference the cache with a lowercase `a` tag.
   const { data: commentsData, isLoading: commentsLoading } = useComments(
     commentRoot,
-    500,
+    COMMENTS_LIMIT,
     event.kind === 37516 ? [7516] : undefined,
   );
 
@@ -1749,13 +1759,32 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   // Weave zaps that carry a comment in among the text replies, ordered
   // oldest-first alongside everything else.
+  const textReplyRoots = useMemo(buildTextReplyRoots, [buildTextReplyRoots]);
   const replyTree = useMemo((): ReplyNode[] => {
-    const textRoots = buildTextReplyRoots();
-    if (zapReplyNodes.length === 0) return textRoots;
-    return [...textRoots, ...zapReplyNodes].sort(
+    if (zapReplyNodes.length === 0) return textReplyRoots;
+    return [...textReplyRoots, ...zapReplyNodes].sort(
       (a, b) => a.event.created_at - b.event.created_at,
     );
-  }, [buildTextReplyRoots, zapReplyNodes]);
+  }, [textReplyRoots, zapReplyNodes]);
+
+  // Count the thread and interactions loaded here rather than trust the
+  // provider's tallies (see useLiveEventStats).
+  const liveCounts = useMemo((): LiveEventCounts | undefined => {
+    const counts: LiveEventCounts = { fetchedAt: interactionsUpdatedAt };
+    if (!textRepliesLoading) {
+      counts.replies = {
+        count: countReplyNodes(textReplyRoots),
+        truncated: (rawReplies?.length ?? 0) >= REPLIES_LIMIT ||
+          (commentsData?.allComments.length ?? 0) >= COMMENTS_LIMIT,
+      };
+    }
+    if (interactions) {
+      counts.reposts = { count: interactions.reposts.length, truncated: interactions.truncated.reposts };
+      counts.reactions = { count: interactions.reactions.length, truncated: interactions.truncated.reactions };
+    }
+    return counts.replies || counts.reposts ? counts : undefined;
+  }, [textRepliesLoading, rawReplies, commentsData?.allComments, textReplyRoots, interactions, interactionsUpdatedAt]);
+  const { data: stats } = useLiveEventStats(event, liveCounts);
 
   // Split off the flood-flagged top-level replies so they render as one
   // collapsed, expandable row beneath the clean thread instead of filling it.
@@ -1783,6 +1812,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     // Count direct replies for each event in the thread
     const replyCounts = new Map<string, number>();
     for (const r of replies) {
+      if (isKind1 && !isReplyEvent(r)) continue;
       const parentId = isKind1
         ? getParentEventId(r) ?? event.id
         : COMMENT_KINDS.has(r.kind)
@@ -2240,6 +2270,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           <PostActionBar
             event={event}
+            stats={stats}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
             className="-mx-4 px-4"
@@ -2323,6 +2354,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           <PostActionBar
             event={event}
+            stats={stats}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
             className="-mx-4 px-4"
@@ -2411,6 +2443,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             <PostActionBar
               event={event}
+              stats={stats}
               onReply={() => setReplyOpen(true)}
               onMore={() => setMoreMenuOpen(true)}
               className="-mx-4 px-4"
@@ -2508,6 +2541,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
             <PostActionBar
               event={event}
+              stats={stats}
               onReply={() => setReplyOpen(true)}
               onMore={() => setMoreMenuOpen(true)}
               className="-mx-4 px-4"
@@ -2706,6 +2740,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </div>
           <PostActionBar
             event={event}
+            stats={stats}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
             className="mx-4"
@@ -3041,6 +3076,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           <PostActionBar
             event={event}
+            stats={stats}
             onReply={() => setReplyOpen(true)}
             onMore={() => setMoreMenuOpen(true)}
             className="-mx-4 px-4"
