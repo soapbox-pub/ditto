@@ -47,6 +47,7 @@ const ArticleEditorPage = lazy(() => import("./pages/ArticleEditorPage").then(m 
 const BadgesPage = lazy(() => import("./pages/BadgesPage").then(m => ({ default: m.BadgesPage })));
 const BlobbiPage = lazy(() => import("./pages/BlobbiPage").then(m => ({ default: m.BlobbiPage })));
 const BlueskyPage = lazy(() => import("./pages/BlueskyPage").then(m => ({ default: m.BlueskyPage })));
+const PeopleListsPage = lazy(() => import("./pages/PeopleListsPage").then(m => ({ default: m.PeopleListsPage })));
 const BookmarksPage = lazy(() => import("./pages/BookmarksPage").then(m => ({ default: m.BookmarksPage })));
 const BooksPage = lazy(() => import("./pages/BooksPage").then(m => ({ default: m.BooksPage })));
 const ChangelogPage = lazy(() => import("./pages/ChangelogPage").then(m => ({ default: m.ChangelogPage })));
@@ -108,7 +109,6 @@ const ROUTE_PRELOADS = [NIP19Page.preload, NotificationsPage.preload, SearchPage
 
 const pollsDef = getExtraKindDef("polls")!;
 const colorsDef = getExtraKindDef("colors")!;
-const packsDef = getExtraKindDef("packs")!;
 const decksDef = getExtraKindDef("decks")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 const torrentsDef = getExtraKindDef("torrents")!;
@@ -213,16 +213,7 @@ export function AppRouter() {
             />
           }
         />
-        <Route
-          path="/packs"
-          element={
-            <KindFeedPage
-              kind={packsDef.kind}
-              title={packsDef.label}
-              icon={sidebarItemIcon("packs", "size-5")}
-            />
-          }
-        />
+        <Route path="/packs" element={<PeopleListsPage />} />
         <Route path="/webxdc" element={<WebxdcFeedPage />} />
         <Route path="/articles/new" element={<ArticleEditorPage />} />
         <Route path="/articles/edit/:slug" element={<ArticleEditorPage />} />
