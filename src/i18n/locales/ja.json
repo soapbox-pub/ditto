@@ -1353,7 +1353,7 @@
   "editMembers.remove": "削除",
   "editMembers.removeFailed": "メンバーを削除できませんでした",
   "editMembers.removed": "{name}を{listType, select, pack {パック} other {リスト}}から削除しました",
-  "editMembers.searchPlaceholder": "検索して追加…",
+  "editMembers.searchPlaceholder": "検索、またはnpubを貼り付けて追加…",
   "editMembers.title": "メンバーを編集",
   "editPeopleList.coverImage": "カバー画像",
   "editPeopleList.coverPreview": "カバー画像のプレビュー",

@@ -5,7 +5,9 @@
  * follow pack (kind 39089). With an empty search box it lists the current
  * members with remove buttons; typing searches profiles via NIP-50 to add
  * new people. Search results that are already members can be removed in
- * place, so the whole membership is editable from one dialog.
+ * place, so the whole membership is editable from one dialog. Pasting an
+ * npub, nprofile, hex pubkey or NIP-05 address resolves straight to that
+ * account, like the wallet's recipient picker.
  */
 import { profileName } from '@/lib/getDisplayName';
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
@@ -16,8 +18,11 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Button } from '@/components/ui/button';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
+import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
+import { detectIdentifier } from '@/lib/nostrIdentifier';
 import { useUserLists } from '@/hooks/useUserLists';
 import { useFollowPackActions } from '@/hooks/useFollowPacks';
 import { toast } from '@/hooks/useToast';
@@ -42,7 +47,29 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { data: searchResults, isLoading, isFetching } = useSearchProfiles(query);
+  // A pasted npub / nprofile / hex pubkey / NIP-05 address names one account
+  // directly. Other identifier types (notes, events, addresses) aren't people.
+  const identifier = useMemo(() => {
+    const m = detectIdentifier(query);
+    switch (m?.type) {
+      case 'npub':
+      case 'nprofile':
+        return { pubkey: m.pubkey };
+      case 'hex':
+        return { pubkey: m.hex };
+      case 'nip05':
+        return { nip05: m.identifier };
+      default:
+        return undefined;
+    }
+  }, [query]);
+  const { data: nip05Pubkey, isLoading: nip05Loading } = useNip05Resolve(identifier?.nip05);
+  const resolvedPubkey = identifier?.pubkey ?? nip05Pubkey ?? undefined;
+  const { data: resolvedAuthor } = useAuthor(resolvedPubkey);
+
+  // A key can't match anything in a NIP-50 name search, so don't send it to
+  // the relay. A NIP-05 address still can (it's matched against nip05 fields).
+  const { data: searchResults, isLoading, isFetching } = useSearchProfiles(identifier?.pubkey ? '' : query);
   const { addToList, removeFromList } = useUserLists();
   const { addToPack, removeFromPack } = useFollowPackActions();
   const isPack = listKind === 39089;
@@ -57,6 +84,26 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
 
   const isSearching = !!query.trim();
 
+  // Search rows: the resolved identifier first (if any), then NIP-50 results
+  // without that same account repeated.
+  const results = useMemo<ResultRow[]>(() => {
+    const rows: ResultRow[] = [];
+    if (resolvedPubkey) {
+      rows.push({ pubkey: resolvedPubkey, metadata: resolvedAuthor?.metadata, pictureImeta: resolvedAuthor?.imeta?.picture });
+    }
+    for (const profile of searchResults ?? []) {
+      if (profile.pubkey === resolvedPubkey) continue;
+      rows.push({
+        pubkey: profile.pubkey,
+        metadata: profile.metadata,
+        pictureImeta: parseProfileImeta(profile.event.tags, profile.metadata)?.picture,
+      });
+    }
+    return rows;
+  }, [resolvedPubkey, resolvedAuthor, searchResults]);
+
+  const resultsLoading = (isLoading && !searchResults?.length) || (!!identifier?.nip05 && nip05Loading);
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (open) {
@@ -70,7 +117,7 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
   // Reset selection when results change
   useEffect(() => {
     setSelectedIdx(0);
-  }, [searchResults?.length]);
+  }, [results.length]);
 
   /** Add or remove a member depending on current membership. */
   const handleToggle = useCallback(async (pubkey: string, metadata: NostrMetadata | undefined) => {
@@ -121,19 +168,20 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
   }, [pendingPubkeys, existingMembers, isPack, listType, listId, intl, addToList, removeFromList, addToPack, removeFromPack]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isSearching || !searchResults) return;
+    if (!isSearching || results.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIdx((prev) => Math.min(prev + 1, searchResults.length - 1));
+      setSelectedIdx((prev) => Math.min(prev + 1, results.length - 1));
       scrollSelectedIntoView(selectedIdx + 1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIdx((prev) => Math.max(prev - 1, 0));
       scrollSelectedIntoView(selectedIdx - 1);
-    } else if (e.key === 'Enter' && searchResults[selectedIdx]) {
+    } else if (e.key === 'Enter' && results[selectedIdx]) {
       e.preventDefault();
-      const profile = searchResults[selectedIdx];
-      handleToggle(profile.pubkey, profile.metadata);
+      const row = results[selectedIdx];
+      // Enter only adds, like a row click; removing needs the explicit button.
+      if (!existingMembers.has(row.pubkey)) handleToggle(row.pubkey, row.metadata);
     }
   };
 
@@ -158,10 +206,10 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={intl.formatMessage({ id: 'editMembers.searchPlaceholder', defaultMessage: 'Search to add people…' })}
+              placeholder={intl.formatMessage({ id: 'editMembers.searchPlaceholder', defaultMessage: 'Search or paste an npub to add people…' })}
               className="pl-9 pr-8 rounded-full"
             />
-            {isFetching && (
+            {(isFetching || nip05Loading) && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground animate-spin" />
             )}
           </div>
@@ -194,24 +242,24 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
                 ))}
               </>
             )
-          ) : isLoading && !searchResults ? (
+          ) : results.length === 0 && resultsLoading ? (
             <div className="py-12 text-center">
               <Loader2 className="size-5 animate-spin mx-auto text-muted-foreground" />
             </div>
-          ) : !searchResults || searchResults.length === 0 ? (
+          ) : results.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">
               <FormattedMessage id="editMembers.noProfiles" defaultMessage="No profiles found." />
             </div>
           ) : (
             // ── Search results — add new people, remove existing ones ──────
-            searchResults.map((profile, idx) => (
+            results.map((row, idx) => (
               <MemberRow
-                key={profile.pubkey}
-                pubkey={profile.pubkey}
-                metadata={profile.metadata}
-                pictureImeta={parseProfileImeta(profile.event.tags, profile.metadata)?.picture}
-                isMember={existingMembers.has(profile.pubkey)}
-                isPending={pendingPubkeys.has(profile.pubkey)}
+                key={row.pubkey}
+                pubkey={row.pubkey}
+                metadata={row.metadata}
+                pictureImeta={row.pictureImeta}
+                isMember={existingMembers.has(row.pubkey)}
+                isPending={pendingPubkeys.has(row.pubkey)}
                 isSelected={idx === selectedIdx}
                 onMouseEnter={() => setSelectedIdx(idx)}
                 onToggle={handleToggle}
@@ -222,6 +270,12 @@ export function EditMembersDialog({ open, onOpenChange, listId, listKind = 30000
       </DialogContent>
     </Dialog>
   );
+}
+
+interface ResultRow {
+  pubkey: string;
+  metadata?: NostrMetadata;
+  pictureImeta?: ImetaEntry;
 }
 
 // ─── MemberRow ────────────────────────────────────────────────────────────────

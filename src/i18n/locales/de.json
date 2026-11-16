@@ -1353,7 +1353,7 @@
   "editMembers.remove": "Entfernen",
   "editMembers.removeFailed": "Mitglied konnte nicht entfernt werden",
   "editMembers.removed": "{name} aus {listType, select, pack {dem Pack} other {der Liste}} entfernt",
-  "editMembers.searchPlaceholder": "Suchen, um Leute hinzuzufügen …",
+  "editMembers.searchPlaceholder": "Suchen oder npub einfügen, um Leute hinzuzufügen …",
   "editMembers.title": "Mitglieder bearbeiten",
   "editPeopleList.coverImage": "Titelbild",
   "editPeopleList.coverPreview": "Titelbild-Vorschau",
