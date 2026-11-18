@@ -112,6 +112,8 @@ export interface ThemeTokens {
   borderSubtle: string;
   input: string;
   ring: string;
+  /** Greentext lines in notes: a green that keeps 4.5:1 contrast on the background. */
+  greentext: string;
 }
 
 /**

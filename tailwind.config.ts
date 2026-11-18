@@ -80,6 +80,7 @@ export default {
 				},
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
+				greentext: 'hsl(var(--greentext))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {

@@ -162,6 +162,19 @@ function contrastForeground(bgHsl: string): string {
   return getLuminance(r, g, b) > 0.5 ? '222.2 84% 4.9%' : '0 0% 100%';
 }
 
+/**
+ * Imageboard green for greentext, as near its usual shade as the background
+ * allows: lightened on dark backgrounds and darkened on light ones until it
+ * reads at WCAG AA (4.5:1). Falls back to the text color when no green does.
+ */
+function greentextColor(background: string, text: string, dark: boolean): string {
+  for (let l = dark ? 55 : 35; l >= 0 && l <= 100; l += dark ? 2 : -2) {
+    const green = formatHsl(90, 60, l);
+    if (getContrastRatioHsl(green, background) >= 4.5) return green;
+  }
+  return text;
+}
+
 // ─── Auto-Derive Full Token Set from Core Colors ──────────────────────
 
 /**
@@ -226,6 +239,7 @@ export function deriveTokensFromCore(
     borderSubtle: `${border} / ${dark ? 0.5 : 0.75}`,
     input,
     ring: primary,
+    greentext: greentextColor(background, text, dark),
   };
 }
 

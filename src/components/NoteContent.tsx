@@ -319,6 +319,71 @@ type ContentToken =
   | { type: 'payment-uri'; scheme: 'bitcoin' | 'lightning'; uri: string; address: string }
   | { type: 'blossom-uri'; uri: BlossomUri; raw: string };
 
+/**
+ * Whether a token renders as its own block rather than inline in the text.
+ * Tokens that fall back to inline links (note embeds in quotes, link previews
+ * and invoices with embeds off) stay inline.
+ */
+function isBlockToken(token: ContentToken, disableEmbeds: boolean, disableNoteEmbeds: boolean): boolean {
+  return token.type === 'image-embed' || token.type === 'image-gallery' || token.type === 'media-embed'
+    || token.type === 'file-embed' || token.type === 'blossom-uri'
+    || (token.type === 'link-embed' && !disableEmbeds)
+    || ((token.type === 'nevent-embed' || token.type === 'naddr-embed') && !disableNoteEmbeds)
+    || (token.type === 'lightning-invoice' && !disableEmbeds);
+}
+
+/**
+ * A greentext line: `>` then words, optionally after one space. Rules out
+ * `>>` replies, emoticons and kaomoji (`>_<`, `>:(`, `>w<`), emoji, and a bare `>`.
+ */
+const GREENTEXT_LINE_REGEX = /^>(?!\p{L}{1,2}<(?:\s|$)) ?[\p{L}\p{N}]/u;
+
+/** A run of note text, flagged when it belongs to a greentext line. */
+interface TextSegment {
+  text: string;
+  green: boolean;
+}
+
+/**
+ * Split the text tokens into greentext runs, keyed by token index. A
+ * greentext line stays green through to its end, including the text
+ * after any link or hashtag in the middle of it. A block embed starts a new
+ * line, since the whitespace around it was stripped during tokenization.
+ */
+function greentextSegments(
+  tokens: ContentToken[],
+  startsAtLineStart: boolean,
+  disableEmbeds: boolean,
+  disableNoteEmbeds: boolean,
+): Map<number, TextSegment[]> {
+  const result = new Map<number, TextSegment[]>();
+  let atLineStart = startsAtLineStart;
+  let green = false;
+
+  tokens.forEach((token, i) => {
+    if (token.type !== 'text') {
+      atLineStart = isBlockToken(token, disableEmbeds, disableNoteEmbeds);
+      if (atLineStart) green = false;
+      return;
+    }
+
+    const segments: TextSegment[] = [];
+    for (const line of token.value.match(/[^\n]*\n|[^\n]+/g) ?? []) {
+      if (atLineStart) green = GREENTEXT_LINE_REGEX.test(line);
+      const prev = segments[segments.length - 1];
+      if (prev && prev.green === green) {
+        prev.text += line;
+      } else {
+        segments.push({ text: line, green });
+      }
+      atLineStart = line.endsWith('\n');
+    }
+    result.set(i, segments);
+  });
+
+  return result;
+}
+
 /** Trailing punctuation that ends a sentence rather than a URI. */
 const TRAILING_PUNCT_REGEX = /[.,;:!?)\]]+$/;
 
@@ -765,12 +830,7 @@ export function NoteContent({
     // previews and invoices with embeds off) keep their surrounding spaces.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      const isBlock = token.type === 'image-embed' || token.type === 'media-embed' || token.type === 'file-embed'
-        || (token.type === 'link-embed' && !disableEmbeds)
-        || ((token.type === 'nevent-embed' || token.type === 'naddr-embed') && !disableNoteEmbeds)
-        || (token.type === 'lightning-invoice' && !disableEmbeds);
-
-      if (isBlock) {
+      if (isBlockToken(token, disableEmbeds, disableNoteEmbeds)) {
         // Strip all trailing whitespace from the preceding text token.
         // The block's own margin (my-2.5) handles spacing, so preserved
         // newlines just add redundant blank lines under whitespace-pre-wrap.
@@ -895,6 +955,12 @@ export function NoteContent({
   // Emoji-only notes render extra large; a lone single emoji larger still.
   const isSingleEmoji = isEmojiOnly && groupedTokens[0].type === 'text' && countEmojiUnits(groupedTokens[0].value) === 1;
 
+  // A fragment of a larger block (a markdown text leaf) doesn't start a line.
+  const greentext = useMemo(
+    () => greentextSegments(groupedTokens, !preserveEdgeWhitespace, disableEmbeds, disableNoteEmbeds),
+    [groupedTokens, preserveEdgeWhitespace, disableEmbeds, disableNoteEmbeds],
+  );
+
   // Build a map from grouped token index → starting image list index for lightbox positioning
   const tokenImageIndex = useMemo(() => {
     const map = new Map<number, number>();
@@ -914,8 +980,18 @@ export function NoteContent({
     <Wrapper dir="auto" {...highlightSourceAttrs(event)} className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && (isSingleEmoji ? 'text-5xl leading-normal' : 'text-4xl leading-tight'))}>
       {groupedTokens.map((token, i) => {
         switch (token.type) {
-          case 'text':
-            return <span key={i}>{linkifyFlags(maybeMark(emojify(token.value, emojiMap, isEmojiOnly ? cn('inline object-contain align-text-bottom', isSingleEmoji ? 'h-12 w-12' : 'h-10 w-10') : undefined, event.pubkey), highlightText))}</span>;
+          case 'text': {
+            const imgClassName = isEmojiOnly ? cn('inline object-contain align-text-bottom', isSingleEmoji ? 'h-12 w-12' : 'h-10 w-10') : undefined;
+            return (
+              <span key={i}>
+                {(greentext.get(i) ?? [{ text: token.value, green: false }]).map((segment, j) => (
+                  <span key={j} className={segment.green ? 'text-greentext' : undefined}>
+                    {linkifyFlags(maybeMark(emojify(segment.text, emojiMap, imgClassName, event.pubkey), highlightText))}
+                  </span>
+                ))}
+              </span>
+            );
+          }
           case 'image-embed': {
             if (disableEmbeds || disableMediaEmbeds) {
               // In preview contexts (triple-dot menu, quote cards) media is
