@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.46.4] - 2026-11-18
+
+Greentext has arrived: lines that start with > now glow green like the imageboards of old. Your own follow packs get a My Packs tab, you can add people to a list by pasting their key or address, and the Text size setting reaches every word, posts included. Plus steadier scrolling, touch-friendly mention suggestions, and reply counts that tell quotes apart from replies.
+
+### Added
+- Lines that start with > show as greentext
+- A My Packs tab in People Lists for finding and editing your own follow packs
+- Add people to a list by pasting their public key or address
+
+### Fixed
+- The Text size setting scales all text, including the text of posts
+- The page no longer shifts sideways when it grows long enough to scroll
+- The scrollbar keeps its rounded style in Chrome and other Chromium browsers
+- Mention and emoji suggestions in the compose dialog scroll on touch instead of picking whoever is under your finger
+- Quotes no longer count as replies on a post
+- Replies to a comment show up on the comment's page
+
 ## [2.46.3] - 2026-11-14
 
 Ditto moves with you now. Profiles shrink and blur as you scroll and stretch when you pull to refresh, the bars glide away under your thumb, counts roll as they change, and menus slide up as sheets you can swipe away. Magazines land in your feed as pulp issues you can flip open, text size is adjustable, Bitcoin and Lightning addresses become payment links, and a round of security hardening keeps your account safer.
