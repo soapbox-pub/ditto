@@ -22,7 +22,40 @@ const PRESS_TARGETS = [
 	'.cursor-pointer',
 ];
 
+type FontSizeOptions = string | { lineHeight?: string; letterSpacing?: string; fontWeight?: string };
+
+/** px and rem lengths times the Text size setting. em, %, and unitless values already follow the parent. */
+const scaleLength = (value: string) => (/^[\d.]+(px|rem)$/.test(value) ? scaled(value) : value);
+
+/**
+ * `text-*` font sizes that follow the Text size setting, theme and arbitrary
+ * values (`text-[15px]`) alike, so no size can opt out by accident. Otherwise
+ * the same as Tailwind's core `fontSize` plugin.
+ */
+const fontSizeUtilities = plugin(({ matchUtilities, theme }) => {
+	matchUtilities<string | [string, FontSizeOptions]>({
+		text: (value, { modifier }) => {
+			const [fontSize, options] = Array.isArray(value) ? value : [value];
+			if (modifier) return { 'font-size': scaleLength(fontSize), 'line-height': scaleLength(modifier) };
+			const { lineHeight, letterSpacing, fontWeight } = typeof options === 'object' ? options : { lineHeight: options };
+			return {
+				'font-size': scaleLength(fontSize),
+				...(lineHeight === undefined ? {} : { 'line-height': scaleLength(lineHeight) }),
+				...(letterSpacing === undefined ? {} : { 'letter-spacing': letterSpacing }),
+				...(fontWeight === undefined ? {} : { 'font-weight': fontWeight }),
+			};
+		},
+	}, {
+		values: theme('fontSize'),
+		modifiers: theme('lineHeight'),
+		type: ['absolute-size', 'relative-size', 'length', 'percentage'],
+	});
+});
+
 export default {
+	corePlugins: {
+		fontSize: false,
+	},
 	content: [
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",
@@ -51,22 +84,6 @@ export default {
 		extend: {
 			spacing: {
 				'22': '5.5rem',
-			},
-			// Tailwind's defaults (size, line height) scaled by the Text size setting.
-			fontSize: {
-				xs: [scaled('0.75rem'), scaled('1rem')],
-				sm: [scaled('0.875rem'), scaled('1.25rem')],
-				base: [scaled('1rem'), scaled('1.5rem')],
-				lg: [scaled('1.125rem'), scaled('1.75rem')],
-				xl: [scaled('1.25rem'), scaled('1.75rem')],
-				'2xl': [scaled('1.5rem'), scaled('2rem')],
-				'3xl': [scaled('1.875rem'), scaled('2.25rem')],
-				'4xl': [scaled('2.25rem'), scaled('2.5rem')],
-				'5xl': [scaled('3rem'), '1'],
-				'6xl': [scaled('3.75rem'), '1'],
-				'7xl': [scaled('4.5rem'), '1'],
-				'8xl': [scaled('6rem'), '1'],
-				'9xl': [scaled('8rem'), '1'],
 			},
 			fontFamily: {
 				sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
@@ -426,6 +443,7 @@ export default {
 	plugins: [
 		tailwindcssAnimate,
 		typography,
+		fontSizeUtilities,
 		// `fullscreen:` variant — targets an element while it is the fullscreen element.
 		plugin(({ addVariant }) => {
 			addVariant('fullscreen', '&:fullscreen');
