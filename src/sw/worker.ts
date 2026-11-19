@@ -2,7 +2,8 @@
  * Ditto Service Worker
  *
  * Handles incoming push notifications and opens the app when the user taps
- * one. Built into a single self-contained `/sw.js` by the `serviceWorker()`
+ * one, and receives files shared into the installed PWA (the Web Share
+ * Target's POST, `src/lib/webShareInbox.ts`). Built into a single self-contained `/sw.js` by the `serviceWorker()`
  * plugin in `vite.config.ts`, and registered as a classic worker by
  * `src/lib/push/serviceWorker.ts`.
  *
@@ -56,6 +57,7 @@ import { defineMessage, type IntlShape } from '@formatjs/intl';
 import { parseBadgeATag } from '@/lib/badgeUtils';
 import { isNostrId } from '@/lib/nostrId';
 import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
+import { receiveSharePost, SHARE_ACTION } from '@/lib/webShareInbox';
 import { isValidZapReceipt } from '@/lib/zapReceipt';
 
 import { notificationShape, recordAndCheckBurst } from './burst';
@@ -334,9 +336,36 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(openPath(clickPath(event.notification.data)));
 });
 
+// --- Web Share Target ---
+
+// A share carrying files arrives as a multipart POST to `/share` (see
+// `share_target` in manifest.webmanifest). Park the files and redirect to the
+// page; every other request goes to the network untouched.
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'POST') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin || url.pathname !== SHARE_ACTION) return;
+  event.respondWith(receiveSharePost(request, caches, self.location.origin));
+});
+
 // --- Activate immediately ---
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', (event) => {
+  void self.skipWaiting();
+  // Static routing: GETs go straight to the network without starting this
+  // worker, so the share target's fetch handler costs page loads nothing.
+  const routed = event as ExtendableEvent & {
+    addRoutes?: (rules: unknown) => Promise<void>;
+  };
+  if (typeof routed.addRoutes === 'function') {
+    try {
+      event.waitUntil(
+        routed.addRoutes({ condition: { requestMethod: 'GET' }, source: 'network' }).catch(() => undefined),
+      );
+    } catch { /* unsupported condition: the fetch handler passes GETs through */ }
+  }
+});
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });

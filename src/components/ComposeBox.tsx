@@ -260,6 +260,8 @@ interface ComposeBoxProps {
   onHasPreviewableContentChange?: (hasContent: boolean) => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
+  /** Files to upload as attachments once, as soon as there's a user to upload as. */
+  initialFiles?: File[];
   /** Open directly in poll mode. */
   initialMode?: 'post' | 'poll';
 }
@@ -314,6 +316,7 @@ export function ComposeBox({
   previewMode: controlledPreviewMode,
   onHasPreviewableContentChange,
   initialContent = '',
+  initialFiles,
   initialMode = 'post',
 }: ComposeBoxProps) {
   const { user, metadata, imeta: userImeta, event: userEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
@@ -848,6 +851,14 @@ export function ComposeBox({
       });
     }
   }, [uploadFile, expand, toast, imageQuality, intl]);
+
+  // Attach files handed in by the caller (e.g. a share into the PWA) once.
+  const uploadedInitialFilesRef = useRef<File[] | undefined>(undefined);
+  useEffect(() => {
+    if (!user || !initialFiles?.length || uploadedInitialFilesRef.current === initialFiles) return;
+    uploadedInitialFilesRef.current = initialFiles;
+    for (const file of initialFiles) void handleFileUpload(file);
+  }, [user, initialFiles, handleFileUpload]);
 
   const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData?.items;

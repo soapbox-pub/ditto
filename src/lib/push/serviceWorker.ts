@@ -2,6 +2,8 @@
  * Register `/sw.js` (built from `src/sw/`), which renders every push the napp and nostr-push
  * transports deliver. A site with no `push` listener gets nothing, on the web
  * and under Tenna alike, so this has to happen before any subscription does.
+ * `main.tsx` also calls it on every web boot, since the same worker receives
+ * files shared into the installed PWA. Registering again is a no-op.
  *
  * Resolves with the registration, or null when there is no service worker
  * support or registration fails.

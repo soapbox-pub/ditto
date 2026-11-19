@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { extractFirstUrl } from '@/lib/shareText';
+import { claimSharedFiles } from '@/lib/webShareInbox';
 
 /** Router state passed by `NativeNavHandler` for native (Android) shares. */
 interface ShareState {
@@ -19,9 +20,11 @@ interface ShareState {
  *     `share` event, which `NativeNavHandler` routes here with `{ mode, text }`
  *     in `location.state` — the shared text is never assembled into a URL.
  *   - Web Share Target (installed PWA) — see `share_target` in
- *     `public/manifest.webmanifest`. The browser delivers `title`, `text`,
- *     and `url` as separate query params (which of them are populated varies by
- *     source app) and no `mode`, so PWA shares default to `post`.
+ *     `public/manifest.webmanifest`. The browser POSTs the share to `/sw.js`,
+ *     which parks any files and redirects here with `title`, `text`, and `url`
+ *     as separate query params (which of them are populated varies by source
+ *     app) plus an `inbox` id naming the files (see `webShareInbox.ts`), and no
+ *     `mode`, so PWA shares default to `post`. The files attach to the post.
  *
  * Two modes, selected by `mode` (state or query param):
  *
@@ -54,6 +57,21 @@ export function SharePage() {
     if (url && !rawText.includes(url)) parts.push(url);
     return parts.join('\n');
   }, [title, rawText, url]);
+
+  // Files from a Web Share, parked by sw.js. They land after the composer
+  // opens, and ComposeBox uploads them when they do.
+  const inbox = params.get('inbox');
+  const [sharedFiles, setSharedFiles] = useState<File[] | undefined>(undefined);
+  useEffect(() => {
+    if (!inbox) return;
+    let live = true;
+    void claimSharedFiles(inbox).then((files) => {
+      if (live && files.length > 0) setSharedFiles(files);
+    });
+    return () => {
+      live = false;
+    };
+  }, [inbox]);
 
   // For `view` mode, try to extract a URL up front so we can decide whether to
   // redirect to the comment page or fall back to composing a post.
@@ -90,6 +108,7 @@ export function SharePage() {
         }
       }}
       initialContent={text}
+      initialFiles={sharedFiles}
     />
   );
 }

@@ -33,6 +33,7 @@ import '@fontsource-variable/inter';
 // (class changes for builtin themes, style-content changes for custom themes).
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { getBackgroundThemeMode } from '@/lib/colorUtils';
+import { registerPushWorker } from '@/lib/push/serviceWorker';
 
 if (Capacitor.isNativePlatform()) {
   // Lets CSS tell the app from the web (e.g. hiding scrollbars). An attribute,
@@ -93,6 +94,14 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </ErrorBoundary>
 );
+
+// Register /sw.js on the web up front, not only when push is turned on: it
+// also receives files shared into the installed PWA (see `share_target` in
+// manifest.webmanifest), and a share can't wait for a worker that isn't there.
+// The native apps take shares through Android intents instead.
+if (!Capacitor.isNativePlatform()) {
+  window.addEventListener('load', () => void registerPushWorker(), { once: true });
+}
 
 // Remove the HTML preloader, and the colors theme.js set for it, after React
 // has painted.

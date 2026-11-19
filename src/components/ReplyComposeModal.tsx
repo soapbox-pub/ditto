@@ -26,6 +26,8 @@ interface ReplyComposeModalProps {
   onSuccess?: () => void;
   /** Pre-filled content for the compose box. */
   initialContent?: string;
+  /** Files to upload as attachments as soon as the composer opens. */
+  initialFiles?: File[];
   /** Open directly in poll mode. */
   initialMode?: 'post' | 'poll';
   /** Override the modal title. */
@@ -43,7 +45,7 @@ export function ReplyComposeModal(props: ReplyComposeModalProps) {
   );
 }
 
-function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
+function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSuccess, initialContent, initialFiles, initialMode, title: titleOverride, placeholder: placeholderOverride }: ReplyComposeModalProps) {
   const intl = useIntl();
   const isUrl = event instanceof URL;
   const isExternalId = typeof event === 'string';
@@ -194,6 +196,7 @@ function ReplyComposeModalImpl({ event, quotedEvent, open, onOpenChange, onSucce
               previewMode={previewMode}
               onHasPreviewableContentChange={setHasPreviewableContent}
               initialContent={initialContent}
+              initialFiles={initialFiles}
               initialMode={initialMode}
             />
           </div>
