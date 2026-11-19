@@ -389,6 +389,11 @@ describe('previews', () => {
     expect(highlight.description).toBe('“The quoted part”');
     expect(highlight.body).toContain('<blockquote>\n<p>The quoted part</p>\n</blockquote>');
     expect(highlight.body).toContain('From <a href="https://example.com/a"');
+
+    const cited = card(9802, [['r', 'https://example.com/old'], ['i', 'https://example.com/new']], 'Quoted');
+    expect(cited.body).toContain('From <a href="https://example.com/new"');
+    expect(card(9802, [['i', 'isbn:9780765382030']], 'Quoted').body).toContain('From isbn:9780765382030');
+    expect(card(9802, [['i', '#not-a-uri'], ['r', 'The <Book>']], 'Quoted').body).toContain('From The &lt;Book&gt;');
   });
 
   it('particulars', () => {

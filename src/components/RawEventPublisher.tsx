@@ -39,7 +39,7 @@ const STARTERS: Record<number, () => StarterTemplate> = {
     content: 'Tabs or spaces?',
     tags: [['option', 'a', 'Tabs'], ['option', 'b', 'Spaces'], ['polltype', 'singlechoice'], ['endsAt', String(Math.floor(Date.now() / 1000) + 86_400)]],
   }),
-  9802: () => ({ kind: 9802, content: 'The quoted passage', tags: [['r', 'https://example.com/article', 'source']] }),
+  9802: () => ({ kind: 9802, content: 'The quoted passage', tags: [['i', 'https://example.com/article'], ['r', 'https://example.com/article', 'source']] }),
   30023: () => ({
     kind: 30023,
     content: '# My article\n\nWritten in **Markdown**.',

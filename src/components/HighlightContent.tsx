@@ -8,6 +8,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { GatedLinkEmbed } from '@/components/LinkEmbed';
+import { highlightExternalSource } from '@/lib/highlightSource';
 import { isNostrId } from '@/lib/nostrId';
 import { parseAddr, type ParsedAddr } from '@/lib/parseAddr';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
@@ -42,7 +43,8 @@ function hostnameOf(url: string): string | undefined {
  *   tag is treated as malformed and ignored.
  * - The source is shown as either an embedded Nostr event card (`a` tag for
  *   addressable events like wiki/articles, `e` tag for regular events) or, for
- *   non-Nostr sources, a rich link preview (`r` tag).
+ *   non-Nostr sources (an `i` tag's URI, else an `r` tag), a rich link preview
+ *   when it's a web URL and the plain text otherwise.
  */
 export function HighlightContent({ event, expanded = false, className, disableSourceEmbed = false }: HighlightContentProps) {
   const { highlight, context, source } = useMemo(() => {
@@ -56,21 +58,18 @@ export function HighlightContent({ event, expanded = false, className, disableSo
       ? contextTag
       : undefined;
 
-    // Source precedence: `a` (addressable event) > `e` (regular event) > `r` (URL).
-    // Skip tags marked `mention` (NIP-84 quote-highlight attribution).
-    //
-    // For `r` tags the spec uses a `source`/`mention` marker to distinguish the
-    // cited source from URLs that appear in a companion `comment`. If no marker
-    // is present, fall back to the first `r`.
+    // Source precedence: `a` (addressable event) > `e` (regular event) >
+    // external (`i` URI > `r`). Skip tags marked `mention` (NIP-84
+    // quote-highlight attribution).
     const aTag = event.tags.find(([n, , , marker]) => n === 'a' && marker !== 'mention')?.[1];
     const eTag = event.tags.find(([n, , , marker]) => n === 'e' && marker !== 'mention');
-    const rSourceTag = event.tags.find(([n, , , marker]) => n === 'r' && marker === 'source')?.[1]
-      ?? event.tags.find(([n, , , marker]) => n === 'r' && marker !== 'mention')?.[1];
+    const external = highlightExternalSource(event.tags);
 
     let src:
       | { kind: 'addr'; addr: ParsedAddr; relays?: string[] }
       | { kind: 'event'; id: string; relays?: string[]; authorHint?: string }
       | { kind: 'url'; url: string }
+      | { kind: 'text'; text: string }
       | undefined;
 
     if (aTag) {
@@ -93,9 +92,10 @@ export function HighlightContent({ event, expanded = false, className, disableSo
         };
       }
     }
-    if (!src && rSourceTag) {
-      const sanitized = sanitizeUrl(rSourceTag);
-      if (sanitized) src = { kind: 'url', url: sanitized };
+    if (!src && external) {
+      // A web URL gets a link preview; any other URI or text is shown as is.
+      const sanitized = sanitizeUrl(external);
+      src = sanitized ? { kind: 'url', url: sanitized } : { kind: 'text', text: external };
     }
 
     return { highlight: rawHighlight, context: contextText, source: src };
@@ -170,8 +170,10 @@ export function HighlightContent({ event, expanded = false, className, disableSo
               authorHint={source.authorHint}
               className="my-0"
             />
-          ) : (
+          ) : source.kind === 'url' ? (
             <GatedLinkEmbed url={source.url} showActions={false} />
+          ) : (
+            <p dir="auto" className="break-words text-sm text-muted-foreground">{source.text}</p>
           )}
         </div>
       )}
@@ -262,8 +264,18 @@ function SourceChipCompact({
   source:
     | { kind: 'addr'; addr: { kind: number; pubkey: string; identifier: string } }
     | { kind: 'event'; id: string }
-    | { kind: 'url'; url: string };
+    | { kind: 'url'; url: string }
+    | { kind: 'text'; text: string };
 }) {
+  if (source.kind === 'text') {
+    return (
+      <span dir="auto" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground break-all">
+        <Quote className="size-3 shrink-0" />
+        {source.text}
+      </span>
+    );
+  }
+
   if (source.kind === 'url') {
     const host = hostnameOf(source.url) ?? source.url;
     return (

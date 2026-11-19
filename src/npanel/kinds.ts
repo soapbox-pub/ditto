@@ -16,6 +16,8 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import * as nip19 from 'nostr-tools/nip19';
 import { verifyEvent } from 'nostr-tools/pure';
 
+import { highlightExternalSource } from '@/lib/highlightSource';
+
 import { audioType, escape, markdownText, mediaKind, mimeKind, safeUrl, urls, videoType } from './html';
 
 /** The most of an event's content that is read. A long article is cut here rather than left out. */
@@ -799,10 +801,11 @@ function highlight(p: Parts, e: NostrEvent, content: string): void {
   p.content = { kind: 'quote', source: content };
   const comment = tag(e, 'comment');
   if (comment) p.extra = paragraph(escape(comment));
-  // Where it is from: a URL, marked `source` by preference, then an event.
-  const sources = all(e, 'r').filter((t) => t[1] !== 'mention');
-  const url = safeUrl((sources.find((t) => t[1] === 'source') ?? sources[0])?.[0]);
-  const from = (url && webLink(url, url)) ?? coordinate(e) ?? target(e);
+  // Where it is from: an `i` URI or `r` (a link if it's a web URL, else its
+  // text), then an event.
+  const external = highlightExternalSource(e.tags);
+  const url = safeUrl(external);
+  const from = (url ? webLink(url, url) : external && escape(external)) || coordinate(e) || target(e);
   if (from) p.extra += paragraph(`From ${from}`);
   p.summary = mapOpt(contentText(p.content), (t) => `“${clamp(t, 180)}”`);
   p.fallback = comment;

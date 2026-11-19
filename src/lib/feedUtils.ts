@@ -5,6 +5,7 @@ import { normalizeInfoHash, TORRENT_KIND } from '@/lib/torrent';
 import { getGitRootRef } from '@/lib/gitActivity';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { isNostrId } from '@/lib/nostrId';
+import { highlightExternalSource } from '@/lib/highlightSource';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 import { parseCardsFromEvent } from '@/lib/tarot/cards';
@@ -250,7 +251,7 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
   // Either is required to have anything meaningful to render.
   if (event.kind === 9802) {
     const hasContent = event.content.trim().length > 0;
-    const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e' || n === 'r');
+    const hasSource = event.tags.some(([n]) => n === 'a' || n === 'e') || !!highlightExternalSource(event.tags);
     if (!hasContent && !hasSource) return true;
   }
   // NIP-TR tarot readings (kind 2256) whose `c` tags don't resolve to any
