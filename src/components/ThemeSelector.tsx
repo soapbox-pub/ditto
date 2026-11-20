@@ -119,6 +119,102 @@ function ThemePreviewCard({
   );
 }
 
+/** Simulated page content for a ThemeCard, drawn in a theme's own colors */
+function ThemeCardArt({ tokens, backgroundUrl, className }: { tokens: ThemeTokens; backgroundUrl?: string; className?: string }) {
+  return (
+    <div className={cn('relative overflow-hidden', className)} style={{ backgroundColor: hsl(tokens.background) }}>
+      {backgroundUrl && (
+        <ThumbnailImage
+          src={backgroundUrl}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-40"
+          decoding="async"
+        />
+      )}
+      <div className="p-3 pt-5 space-y-2 relative">
+        <div className="h-2 w-3/4 rounded-full" style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.6 }} />
+        <div className="h-2 w-1/2 rounded-full" style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.4 }} />
+        <div className="pt-1">
+          <div className="h-4 w-1/3 rounded-sm" style={{ backgroundColor: hsl(tokens.primary) }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A theme option on the Themes page, styled like the theme cards in the feed:
+ * a mockup in the theme's colors over a title bar in the theme's card color.
+ */
+function ThemeCard({
+  tokens,
+  darkTokens,
+  backgroundUrl,
+  label,
+  isActive,
+  onSelect,
+  onEdit,
+  editLabel,
+}: {
+  tokens: ThemeTokens;
+  /** When set, the mockup is split between `tokens` (left) and these (right), as for the System theme. */
+  darkTokens?: ThemeTokens;
+  backgroundUrl?: string;
+  label: string;
+  isActive: boolean;
+  onSelect: () => void;
+  onEdit?: () => void;
+  editLabel?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'relative rounded-xl overflow-hidden border transition-shadow',
+        isActive ? 'border-primary ring-1 ring-primary' : 'border-border-subtle',
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={isActive}
+        className="block w-full text-left transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <div className="aspect-[4/3] relative flex">
+          <ThemeCardArt tokens={tokens} backgroundUrl={backgroundUrl} className="flex-1" />
+          {darkTokens && <ThemeCardArt tokens={darkTokens} className="flex-1" />}
+          {isActive && (
+            <div
+              className="absolute top-2 left-2 size-5 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: hsl(tokens.primary) }}
+            >
+              <Check className="size-3" style={{ color: hsl(tokens.primaryForeground) }} />
+            </div>
+          )}
+        </div>
+        <div
+          className={cn('h-9 flex items-center px-2.5', onEdit && 'pr-10')}
+          style={{ backgroundColor: hsl(tokens.card) }}
+        >
+          <span className="text-xs font-semibold truncate" style={{ color: hsl(tokens.foreground) }}>
+            {label}
+          </span>
+        </div>
+      </button>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={editLabel}
+          className="absolute bottom-1 right-1 size-7 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          style={{ color: hsl(tokens.mutedForeground) }}
+        >
+          <Pencil className="size-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** A single theme button used inside ThemeGrid */
 function ThemeButton({
   isActive,
@@ -716,89 +812,76 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
   type SectionItem = {
     key: string;
     label: string;
-    truncate: boolean;
     onSelect: () => void;
-    preview: React.ReactNode;
+    tokens: ThemeTokens;
+    darkTokens?: ThemeTokens;
+    backgroundUrl?: string;
     isActive: boolean;
     onEdit?: () => void;
   };
 
   // Build items by category
-  const buildBuiltinItems = (): SectionItem[] => {
-    const items: SectionItem[] = [];
-    for (const option of builtinOptions) {
+  const buildBuiltinItems = (): SectionItem[] =>
+    builtinOptions.map((option) => {
       if (option.id === 'system') {
-        const isActive = theme === 'system';
-        const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
-        const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
-        items.push({
+        return {
           key: 'system',
           label: option.label,
-          truncate: false,
           onSelect: () => handleSelectBuiltin('system'),
-          isActive,
-          preview: (
-            <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
-              <SystemHalf tokens={lightTokens} side="left" />
-              <SystemHalf tokens={darkTokens} side="right" />
-              {isActive && (
-                <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: hsl(lightTokens.primary) }}
-                >
-                  <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
-                </div>
-              )}
-            </div>
-          ),
-        });
-      } else {
-        const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
-        const isActive = theme === option.id;
-        items.push({
-          key: option.id,
-          label: option.label,
-          truncate: false,
-          onSelect: () => handleSelectBuiltin(option.id),
-          isActive,
-          preview: <ThemePreviewCard colors={colors} isActive={isActive} />,
-        });
+          isActive: theme === 'system',
+          tokens: coreToTokens(resolveThemeConfig('light', themes).colors),
+          darkTokens: coreToTokens(resolveThemeConfig('dark', themes).colors),
+        };
       }
-    }
-    return items;
-  };
+      return {
+        key: option.id,
+        label: option.label,
+        onSelect: () => handleSelectBuiltin(option.id),
+        isActive: theme === option.id,
+        tokens: coreToTokens(resolveThemeConfig(option.id as 'light' | 'dark', themes).colors),
+      };
+    });
 
   const buildPresetItems = (): SectionItem[] =>
-    presetOptions.map((preset) => {
-      const isActive = isPresetActive(preset.colors);
-      return {
-        key: preset.id,
-        label: preset.label,
-        truncate: false,
-        onSelect: () => handleSelectPreset(preset),
-        isActive,
-        preview: <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />,
-      };
-    });
+    presetOptions.map((preset) => ({
+      key: preset.id,
+      label: preset.label,
+      onSelect: () => handleSelectPreset(preset),
+      isActive: isPresetActive(preset.colors),
+      tokens: coreToTokens(preset.colors),
+      backgroundUrl: preset.background?.url,
+    }));
 
   const buildUserThemeItems = (): SectionItem[] =>
-    (userThemes.data ?? []).map((def) => {
-      const isActive = isUserThemeActive(def);
-      return {
-        key: `user:${def.identifier}`,
-        label: def.title,
-        truncate: true,
-        onSelect: () => handleSelectUserTheme(def),
-        onEdit: () => handleEditUserTheme(def),
-        isActive,
-        preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
-      };
-    });
+    (userThemes.data ?? []).map((def) => ({
+      key: `user:${def.identifier}`,
+      label: def.title,
+      onSelect: () => handleSelectUserTheme(def),
+      onEdit: () => handleEditUserTheme(def),
+      isActive: isUserThemeActive(def),
+      tokens: coreToTokens(def.colors),
+      backgroundUrl: def.background?.url,
+    }));
 
   const builtinItems = buildBuiltinItems();
   const presetItems = buildPresetItems();
   const userThemeItems = buildUserThemeItems();
 
   const gridClass = 'grid grid-cols-2 sidebar:grid-cols-3 gap-3';
+
+  const renderCard = (item: SectionItem) => (
+    <ThemeCard
+      key={item.key}
+      tokens={item.tokens}
+      darkTokens={item.darkTokens}
+      backgroundUrl={item.backgroundUrl}
+      label={item.label}
+      isActive={item.isActive}
+      onSelect={item.onSelect}
+      onEdit={item.onEdit}
+      editLabel={intl.formatMessage({ id: 'themeSelector.editThemeNamed', defaultMessage: 'Edit "{title}"' }, { title: item.label })}
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -809,39 +892,18 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
         </h3>
         {userThemeItems.length > 0 ? (
           <div className={gridClass}>
-            {userThemeItems.map((item) => (
-              <div key={item.key} className="relative">
-                <ThemeButton
-                  isActive={item.isActive}
-                  label={item.label}
-                  truncate={item.truncate}
-                  onClick={item.onSelect}
-                >
-                  {item.preview}
-                </ThemeButton>
-                <button
-                  type="button"
-                  onClick={item.onEdit}
-                  aria-label={intl.formatMessage({ id: 'themeSelector.editThemeNamed', defaultMessage: 'Edit "{title}"' }, { title: item.label })}
-                  className="absolute top-2 right-2 size-7 rounded-full bg-background/90 shadow-sm flex items-center justify-center text-foreground hover:bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-              </div>
-            ))}
+            {userThemeItems.map(renderCard)}
             <button
               type="button"
               onClick={() => onBuilderOpenChange?.(true, 'new')}
-              className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-1 flex flex-col transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 flex flex-col items-center justify-center gap-2 min-h-32 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="aspect-[4/3] w-full rounded-lg flex items-center justify-center">
-                <div className="size-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                  <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
+              <div className="size-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
-              <p className="mt-1.5 w-full text-xs font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
+              <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                 <FormattedMessage id="themeSelector.newTheme" defaultMessage="New Theme" />
-              </p>
+              </span>
             </button>
           </div>
         ) : (
@@ -865,17 +927,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
           <FormattedMessage id="themeSelector.presets" defaultMessage="Presets" />
         </h3>
         <div className={gridClass}>
-          {[...builtinItems, ...presetItems].map((item) => (
-            <ThemeButton
-              key={item.key}
-              isActive={item.isActive}
-              label={item.label}
-              truncate={item.truncate}
-              onClick={item.onSelect}
-            >
-              {item.preview}
-            </ThemeButton>
-          ))}
+          {[...builtinItems, ...presetItems].map(renderCard)}
         </div>
       </div>
 
