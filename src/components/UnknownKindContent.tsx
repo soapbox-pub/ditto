@@ -248,34 +248,38 @@ export function UnknownKindContent({ event, expanded = false, className }: Unkno
             </CollapsibleTrigger>
           </div>
 
-          <CollapsibleContent
-            className="space-y-2 pt-2 text-left"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Event ID */}
-            <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.eventId" defaultMessage="Event ID" /></p>
-              <div className="flex items-center gap-1 rounded-lg bg-muted px-3 py-2">
-                <p className="min-w-0 flex-1 select-all break-all font-mono text-xs text-foreground/80">
-                  {nip19Id}
-                </p>
-                <CopyButton text={nip19Id} label={intl.formatMessage({ id: 'unknownKind.eventId', defaultMessage: 'Event ID' })} />
-              </div>
-            </div>
-
-            {/* Raw JSON */}
-            <div>
-              <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.rawJson" defaultMessage="Raw JSON" /></p>
-              <div className="relative max-h-64 overflow-auto rounded-lg border border-border-subtle bg-muted">
-                <div className="sticky right-2 top-2 float-right">
-                  <CopyButton text={jsonText} label={intl.formatMessage({ id: 'unknownKind.eventJson', defaultMessage: 'Event JSON' })} />
+          {/* Only while open: closed, Radix still mounts the content and
+              measures it in a layout effect, forcing a layout per feed card. */}
+          {showDetails && (
+            <CollapsibleContent
+              className="space-y-2 pt-2 text-left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Event ID */}
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.eventId" defaultMessage="Event ID" /></p>
+                <div className="flex items-center gap-1 rounded-lg bg-muted px-3 py-2">
+                  <p className="min-w-0 flex-1 select-all break-all font-mono text-xs text-foreground/80">
+                    {nip19Id}
+                  </p>
+                  <CopyButton text={nip19Id} label={intl.formatMessage({ id: 'unknownKind.eventId', defaultMessage: 'Event ID' })} />
                 </div>
-                <pre className="whitespace-pre p-3 font-mono text-xs leading-relaxed text-foreground/80">
-                  {jsonText}
-                </pre>
               </div>
-            </div>
-          </CollapsibleContent>
+
+              {/* Raw JSON */}
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground"><FormattedMessage id="unknownKind.rawJson" defaultMessage="Raw JSON" /></p>
+                <div className="relative max-h-64 overflow-auto rounded-lg border border-border-subtle bg-muted">
+                  <div className="sticky right-2 top-2 float-right">
+                    <CopyButton text={jsonText} label={intl.formatMessage({ id: 'unknownKind.eventJson', defaultMessage: 'Event JSON' })} />
+                  </div>
+                  <pre className="whitespace-pre p-3 font-mono text-xs leading-relaxed text-foreground/80">
+                    {jsonText}
+                  </pre>
+                </div>
+              </div>
+            </CollapsibleContent>
+          )}
         </Collapsible>
       </div>
     </div>

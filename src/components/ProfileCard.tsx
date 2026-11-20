@@ -418,42 +418,44 @@ export function ProfileCard({
                 </Button>
               </CollapsibleTrigger>
             </div>
-            <CollapsibleContent className="space-y-2 pt-2">
-              {/* Website always first */}
-              <div className="grid grid-cols-[1fr,2fr] gap-2 items-center">
-                <span className="text-sm text-muted-foreground px-1"><FormattedMessage id="editProfile.website.label" defaultMessage="Website" /></span>
-                <Input
-                  placeholder="https://yourwebsite.com"
-                  value={(metadata.website as string) ?? ''}
-                  onChange={(e) => patch('website')(e.target.value)}
-                   className="h-8 text-base md:text-sm"
-                 />
-               </div>
-
-               {extraFields.map((field, i) => (
-                 <div key={i} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
-                   <Input
-                     placeholder={intl.formatMessage({ id: 'editProfile.fields.labelPlaceholder', defaultMessage: 'Label' })}
-                     value={field.label}
-                     onChange={(e) => updateField(i, 'label', e.target.value)}
+            {fieldsOpen && (
+              <CollapsibleContent className="space-y-2 pt-2">
+                {/* Website always first */}
+                <div className="grid grid-cols-[1fr,2fr] gap-2 items-center">
+                  <span className="text-sm text-muted-foreground px-1"><FormattedMessage id="editProfile.website.label" defaultMessage="Website" /></span>
+                  <Input
+                    placeholder="https://yourwebsite.com"
+                    value={(metadata.website as string) ?? ''}
+                    onChange={(e) => patch('website')(e.target.value)}
                      className="h-8 text-base md:text-sm"
                    />
-                   <Input
-                     placeholder={intl.formatMessage({ id: 'editProfile.fields.valuePlaceholder', defaultMessage: 'Value or URL' })}
-                     value={field.value}
-                     onChange={(e) => updateField(i, 'value', e.target.value)}
-                     className="h-8 text-base md:text-sm"
-                  />
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeField(i)} aria-label={intl.formatMessage({ id: 'editProfile.fields.removeField', defaultMessage: 'Remove field' })} className="h-8 w-8 text-destructive can-hover:text-destructive">
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              ))}
+                 </div>
 
-              <Button type="button" variant="outline" size="sm" onClick={addField} className="w-full h-8 text-xs">
-                <Plus className="size-3 mr-1" strokeWidth={4} /> <FormattedMessage id="editProfile.fields.addField" defaultMessage="Add Field" />
-              </Button>
-            </CollapsibleContent>
+                 {extraFields.map((field, i) => (
+                   <div key={i} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                     <Input
+                       placeholder={intl.formatMessage({ id: 'editProfile.fields.labelPlaceholder', defaultMessage: 'Label' })}
+                       value={field.label}
+                       onChange={(e) => updateField(i, 'label', e.target.value)}
+                       className="h-8 text-base md:text-sm"
+                     />
+                     <Input
+                       placeholder={intl.formatMessage({ id: 'editProfile.fields.valuePlaceholder', defaultMessage: 'Value or URL' })}
+                       value={field.value}
+                       onChange={(e) => updateField(i, 'value', e.target.value)}
+                       className="h-8 text-base md:text-sm"
+                    />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeField(i)} aria-label={intl.formatMessage({ id: 'editProfile.fields.removeField', defaultMessage: 'Remove field' })} className="h-8 w-8 text-destructive can-hover:text-destructive">
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+
+                <Button type="button" variant="outline" size="sm" onClick={addField} className="w-full h-8 text-xs">
+                  <Plus className="size-3 mr-1" strokeWidth={4} /> <FormattedMessage id="editProfile.fields.addField" defaultMessage="Add Field" />
+                </Button>
+              </CollapsibleContent>
+            )}
           </Collapsible>
         )}
       </div>
