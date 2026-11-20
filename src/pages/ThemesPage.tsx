@@ -1,6 +1,6 @@
 import type { NostrEvent } from "@nostrify/nostrify";
 import { useSeoMeta } from "@/hooks/useSeoMeta";
-import { Loader2, Pencil, Sparkles } from "lucide-react";
+import { Loader2, Plus, Sparkles } from "lucide-react";
 import { useCallback, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { LazyFeedItem } from "@/components/LazyFeedItem";
@@ -44,6 +44,12 @@ export function ThemesPage() {
 
   // Builder dialog state
   const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderMode, setBuilderMode] = useState<"new" | "edit">("new");
+
+  const handleBuilderOpenChange = useCallback((open: boolean, mode?: "new" | "edit") => {
+    if (mode) setBuilderMode(mode);
+    setBuilderOpen(open);
+  }, []);
 
   useSeoMeta({
     title: intl.formatMessage({ id: "themesPage.seoTitle", defaultMessage: "Themes | {appName}" }, { appName: config.appName }),
@@ -52,13 +58,13 @@ export function ThemesPage() {
 
   // FAB opens builder in "new" mode (only on My Themes tab)
   const handleFabClick = useCallback(() => {
-    setBuilderOpen(true);
-  }, []);
+    handleBuilderOpenChange(true, "new");
+  }, [handleBuilderOpenChange]);
 
   useLayoutOptions({
     showFAB: activeTab === "my-themes",
     onFabClick: handleFabClick,
-    fabIcon: <Pencil strokeWidth={3} size={16} />,
+    fabIcon: <Plus strokeWidth={3} size={16} />,
     hasSubHeader: !!user,
   });
 
@@ -127,7 +133,8 @@ export function ThemesPage() {
         <div className="p-4 space-y-6">
           <ThemeSelector
             builderOpen={builderOpen}
-            onBuilderOpenChange={setBuilderOpen}
+            builderMode={builderMode}
+            onBuilderOpenChange={handleBuilderOpenChange}
           />
 
           {/* Sync theme toggle */}

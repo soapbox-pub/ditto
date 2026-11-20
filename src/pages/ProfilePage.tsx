@@ -1943,9 +1943,10 @@ function ProfilePageInner() {
   // so the profile doesn't appear with the user's custom colors.
   // Only apply this fallback once the query has settled (not while loading),
   // to avoid a jarring flash — especially on your own profile where the
-  // current custom theme is already correct.
+  // current custom theme is already correct. With profile themes turned off
+  // the visitor keeps their own theme everywhere, so there is nothing to fall back from.
   const profileThemeSettled = profileThemeQuery.isFetched;
-  const needsSystemFallback = profileThemeSettled && !profileThemeColors && ownTheme === 'custom';
+  const needsSystemFallback = applyProfileTheme && profileThemeSettled && !profileThemeColors && ownTheme === 'custom';
 
   // Detect whether the app custom theme differs from the published profile theme.
   // Colors are compared via hex to avoid HSL precision issues from the hex round-trip.

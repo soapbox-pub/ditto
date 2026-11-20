@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
-import { Check, Palette, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw } from 'lucide-react';
+import { Check, Palette, Pencil, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw } from 'lucide-react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -459,21 +459,23 @@ export function ThemeGrid({
 interface ThemeSelectorProps {
   /** Controls the builder dialog from the parent (e.g., FAB or header button). */
   builderOpen?: boolean;
-  /** Callback when the builder dialog open state changes. */
-  onBuilderOpenChange?: (open: boolean) => void;
-  /** Whether the builder should open in 'new' or 'edit' mode. */
+  /** Callback when the builder dialog open state changes. `mode` is set when the selector asks for a specific mode. */
+  onBuilderOpenChange?: (open: boolean, mode?: 'new' | 'edit') => void;
+  /** Whether the builder starts a new theme or edits the selected one. */
   builderMode?: 'new' | 'edit';
 }
 
-export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }: ThemeSelectorProps = {}) {
+export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 'new' }: ThemeSelectorProps = {}) {
   const intl = useIntl();
   const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
   const { user } = useCurrentUser();
   const { publishTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
   const { toast } = useToast();
 
-  // Editor mode: which user theme is being edited
+  // The user theme currently selected (and applied)
   const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
+  // The theme the builder dialog edits; null when building a new theme
+  const builderTheme = builderMode === 'edit' ? editingTheme : null;
 
   // Portal container for popovers inside the builder dialog (so scroll works)
   const [builderPortalContainer, setBuilderPortalContainer] = useState<HTMLElement | undefined>(undefined);
@@ -497,19 +499,12 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     // Defer so DOM has settled
     const raf = requestAnimationFrame(updateBuilderScroll);
     return () => cancelAnimationFrame(raf);
-  }, [builderOpen, updateBuilderScroll, editingTheme, user]);
+  }, [builderOpen, updateBuilderScroll, builderTheme, user]);
 
   // Publish dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishTitle, setPublishTitle] = useState('');
   const [publishDescription, setPublishDescription] = useState('');
-
-  // Clear editingTheme when builder opens in 'new' mode
-  useEffect(() => {
-    if (builderOpen && builderMode === 'new') {
-      setEditingTheme(null);
-    }
-  }, [builderOpen, builderMode]);
 
   /** The effective colors for the current theme (used in the color editor) */
   const effectiveColors = getEffectiveColors(theme, customTheme, themes);
@@ -567,24 +562,24 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
 
   /** Update the currently-editing theme */
   const handleUpdateTheme = useCallback(async () => {
-    if (!editingTheme) return;
+    if (!builderTheme) return;
     try {
       const themeConfig: ThemeConfig = { ...customTheme, colors: effectiveColors };
       await publishTheme({
         themeConfig,
-        title: editingTheme.title,
-        description: editingTheme.description,
-        identifier: editingTheme.identifier,
+        title: builderTheme.title,
+        description: builderTheme.description,
+        identifier: builderTheme.identifier,
       });
       setEditingTheme({
-        ...editingTheme,
+        ...builderTheme,
         colors: effectiveColors,
         font: customTheme?.font,
         titleFont: customTheme?.titleFont,
         background: customTheme?.background,
       });
       toast({
-        title: intl.formatMessage({ id: 'themeSelector.updated', defaultMessage: '"{title}" updated' }, { title: editingTheme.title }),
+        title: intl.formatMessage({ id: 'themeSelector.updated', defaultMessage: '"{title}" updated' }, { title: builderTheme.title }),
         description: intl.formatMessage({ id: 'themeSelector.updatedDescription', defaultMessage: 'Your theme has been saved and republished.' }),
       });
     } catch (error) {
@@ -595,7 +590,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         variant: 'destructive',
       });
     }
-  }, [editingTheme, customTheme, effectiveColors, publishTheme, toast, intl]);
+  }, [builderTheme, customTheme, effectiveColors, publishTheme, toast, intl]);
 
   /** Submit the publish dialog */
   const handlePublishSubmit = useCallback(async () => {
@@ -625,6 +620,8 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         background: customTheme?.background,
         event: {} as ThemeDefinition['event'],
       });
+      // Further changes in this session now update the theme just published
+      onBuilderOpenChange?.(true, 'edit');
       toast({
         title: intl.formatMessage({ id: 'themeSelector.published', defaultMessage: 'Theme published!' }),
         description: intl.formatMessage({ id: 'themeSelector.publishedDescription', defaultMessage: '"{title}" is now available on Nostr.' }, { title: publishTitle.trim() }),
@@ -637,16 +634,16 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         variant: 'destructive',
       });
     }
-  }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, toast, intl]);
+  }, [publishTitle, publishDescription, customTheme, effectiveColors, publishTheme, onBuilderOpenChange, toast, intl]);
 
   /** Delete the currently-editing theme */
   const handleDeleteTheme = useCallback(async () => {
-    if (!editingTheme) return;
+    if (!builderTheme) return;
     try {
-      await deleteTheme(editingTheme);
+      await deleteTheme(builderTheme);
       toast({
         title: intl.formatMessage({ id: 'themeSelector.deleted', defaultMessage: 'Theme deleted' }),
-        description: intl.formatMessage({ id: 'themeSelector.deletedDescription', defaultMessage: '"{title}" has been removed.' }, { title: editingTheme.title }),
+        description: intl.formatMessage({ id: 'themeSelector.deletedDescription', defaultMessage: '"{title}" has been removed.' }, { title: builderTheme.title }),
       });
       setEditingTheme(null);
       setTheme('system');
@@ -659,7 +656,15 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         variant: 'destructive',
       });
     }
-  }, [editingTheme, deleteTheme, toast, setTheme, onBuilderOpenChange, intl]);
+  }, [builderTheme, deleteTheme, toast, setTheme, onBuilderOpenChange, intl]);
+
+  /** Close the builder. A new theme left unpublished no longer matches the selected one. */
+  const handleBuilderOpenChange = useCallback((open: boolean) => {
+    if (!open && builderMode === 'new' && hasChanges) {
+      setEditingTheme(null);
+    }
+    onBuilderOpenChange?.(open);
+  }, [builderMode, hasChanges, onBuilderOpenChange]);
 
   // ── Build sectioned item lists ──
   const userThemes = useUserThemes(user?.pubkey);
@@ -703,6 +708,11 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     applyCustomTheme({ colors: def.colors, font: def.font, titleFont: def.titleFont, background: def.background, title: def.title });
   }, [applyCustomTheme]);
 
+  const handleEditUserTheme = useCallback((def: ThemeDefinition) => {
+    handleSelectUserTheme(def);
+    onBuilderOpenChange?.(true, 'edit');
+  }, [handleSelectUserTheme, onBuilderOpenChange]);
+
   type SectionItem = {
     key: string;
     label: string;
@@ -710,6 +720,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
     onSelect: () => void;
     preview: React.ReactNode;
     isActive: boolean;
+    onEdit?: () => void;
   };
 
   // Build items by category
@@ -777,6 +788,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         label: def.title,
         truncate: true,
         onSelect: () => handleSelectUserTheme(def),
+        onEdit: () => handleEditUserTheme(def),
         isActive,
         preview: <ThemePreviewCard colors={def.colors} isActive={isActive} backgroundUrl={def.background?.url} />,
       };
@@ -798,20 +810,43 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
         {userThemeItems.length > 0 ? (
           <div className={gridClass}>
             {userThemeItems.map((item) => (
-              <ThemeButton
-                key={item.key}
-                isActive={item.isActive}
-                label={item.label}
-                truncate={item.truncate}
-                onClick={item.onSelect}
-              >
-                {item.preview}
-              </ThemeButton>
+              <div key={item.key} className="relative">
+                <ThemeButton
+                  isActive={item.isActive}
+                  label={item.label}
+                  truncate={item.truncate}
+                  onClick={item.onSelect}
+                >
+                  {item.preview}
+                </ThemeButton>
+                <button
+                  type="button"
+                  onClick={item.onEdit}
+                  aria-label={intl.formatMessage({ id: 'themeSelector.editThemeNamed', defaultMessage: 'Edit "{title}"' }, { title: item.label })}
+                  className="absolute top-2 right-2 size-7 rounded-full bg-background/90 shadow-sm flex items-center justify-center text-foreground hover:bg-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              </div>
             ))}
+            <button
+              type="button"
+              onClick={() => onBuilderOpenChange?.(true, 'new')}
+              className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-1 flex flex-col transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <div className="aspect-[4/3] w-full rounded-lg flex items-center justify-center">
+                <div className="size-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <Plus className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+              </div>
+              <p className="mt-1.5 w-full text-xs font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
+                <FormattedMessage id="themeSelector.newTheme" defaultMessage="New Theme" />
+              </p>
+            </button>
           </div>
         ) : (
           <button
-            onClick={() => onBuilderOpenChange?.(true)}
+            onClick={() => onBuilderOpenChange?.(true, 'new')}
             className="w-full rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-6 flex flex-col items-center gap-3 text-center transition-colors group"
           >
             <div className="size-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
@@ -845,7 +880,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
       </div>
 
       {/* ── Builder Dialog ── */}
-      <Dialog open={builderOpen ?? false} onOpenChange={(open) => onBuilderOpenChange?.(open)}>
+      <Dialog open={builderOpen ?? false} onOpenChange={handleBuilderOpenChange}>
         <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
           <PortalContainerProvider value={builderPortalContainer}>
           {hasChanges && (
@@ -882,13 +917,13 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
             onScroll={updateBuilderScroll}
           >
           <DialogHeader className="text-center">
-            <DialogTitle className="text-center" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{editingTheme
+            <DialogTitle className="text-center" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{builderTheme
               ? <FormattedMessage id="themeSelector.editTheme" defaultMessage="Edit Theme" />
               : <FormattedMessage id="themeSelector.newTheme" defaultMessage="New Theme" />}</DialogTitle>
             <DialogDescription className="text-center">
-              {editingTheme
-                ? <FormattedMessage id="themeSelector.editing" defaultMessage='Editing "{title}"' values={{ title: editingTheme.title }} />
-                : <FormattedMessage id="themeSelector.customize" defaultMessage="Customize color, font and background" />}
+              {builderTheme
+                ? <FormattedMessage id="themeSelector.editing" defaultMessage='Editing "{title}"' values={{ title: builderTheme.title }} />
+                : <FormattedMessage id="themeSelector.newThemeHint" defaultMessage="Starts from your current look. Pick colors, fonts and a background, then publish it as your own." />}
             </DialogDescription>
           </DialogHeader>
 
@@ -954,7 +989,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
           {user && (
             <div className="space-y-3 pt-2">
               <div className="flex flex-col gap-2">
-                {editingTheme && (
+                {builderTheme && (
                   <Button
                     variant="secondary"
                     size="sm"
@@ -965,22 +1000,24 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode }:
                     <Palette className="size-3.5 mr-1.5" />
                     {isPublishing
                       ? <FormattedMessage id="themeSelector.updating" defaultMessage="Updating..." />
-                      : <FormattedMessage id="themeSelector.updateTheme" defaultMessage='Update "{title}"' values={{ title: editingTheme.title }} />}
+                      : <FormattedMessage id="themeSelector.updateTheme" defaultMessage='Update "{title}"' values={{ title: builderTheme.title }} />}
                   </Button>
                 )}
                 <Button
-                  variant="outline"
+                  variant={builderTheme ? 'outline' : 'default'}
                   size="sm"
                   className="w-full"
                   onClick={handlePublishNew}
                 >
                   <Palette className="size-3.5 mr-1.5" />
-                  <FormattedMessage id="themeSelector.publishNew" defaultMessage="Publish New Theme" />
+                  {builderTheme
+                    ? <FormattedMessage id="themeSelector.saveAsNew" defaultMessage="Save as New Theme" />
+                    : <FormattedMessage id="themeSelector.publishNew" defaultMessage="Publish New Theme" />}
                 </Button>
               </div>
 
               {/* Advanced section with delete */}
-              {editingTheme && (
+              {builderTheme && (
                 <Collapsible>
                   <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group">
                     <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
