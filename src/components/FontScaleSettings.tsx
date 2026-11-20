@@ -47,6 +47,15 @@ export function FontScaleSettings() {
           <FormattedMessage id="settings.personalize.textSizeReset" defaultMessage="Reset" />
         </Button>
       </div>
+      {/* Same sizes as a feed post (`NoteCard`), so what you set is what you read there. */}
+      <div className="object-card px-4 py-3" aria-hidden="true">
+        <p className="font-bold text-[15px] truncate">
+          <FormattedMessage id="settings.personalize.textSizePreviewName" defaultMessage="Preview" />
+        </p>
+        <p className="text-[15px] leading-relaxed break-words">
+          <FormattedMessage id="settings.personalize.textSizePreview" defaultMessage="This is how posts in your feed will look. Drag the slider until it feels just right." />
+        </p>
+      </div>
     </div>
   );
 }

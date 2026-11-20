@@ -4959,6 +4959,8 @@
   "settings.personalize.reactions": "リアクション",
   "settings.personalize.textSize": "文字サイズ",
   "settings.personalize.textSizeDescription": "このデバイスでアプリ全体の文字サイズを変更します",
+  "settings.personalize.textSizePreview": "フィードの投稿はこんなふうに表示されます。ちょうどいい大きさになるまでスライダーを動かしてみてください。",
+  "settings.personalize.textSizePreviewName": "プレビュー",
   "settings.personalize.textSizeReset": "リセット",
   "settings.personalize.theme": "テーマ",
   "settings.personalize.themes": "テーマ",

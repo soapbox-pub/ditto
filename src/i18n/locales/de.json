@@ -4959,6 +4959,8 @@
   "settings.personalize.reactions": "Reaktionen",
   "settings.personalize.textSize": "Textgröße",
   "settings.personalize.textSizeDescription": "Skaliert den Text in der ganzen App auf diesem Gerät",
+  "settings.personalize.textSizePreview": "So sehen Beiträge in deinem Feed aus. Zieh den Regler, bis es sich genau richtig anfühlt.",
+  "settings.personalize.textSizePreviewName": "Vorschau",
   "settings.personalize.textSizeReset": "Zurücksetzen",
   "settings.personalize.theme": "Theme",
   "settings.personalize.themes": "Themes",
