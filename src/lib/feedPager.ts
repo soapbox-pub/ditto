@@ -118,10 +118,14 @@ function startRun(key: string, relay: FeedRelay, filter: NostrFilter, timeout: n
 }
 
 /**
- * Resolve once every run has answered, or `grace` ms after the first EOSE,
- * or when `signal` aborts — the same race the pool uses for queries.
+ * Resolve once every run has answered, or `grace` ms after the first full
+ * page, or when `signal` aborts. A short page doesn't start the clock: the
+ * relay ran out, which says nothing about where the others are. A stale relay
+ * holding one year-old event would otherwise answer first and become the
+ * whole page, and everything newer the others send would land above it and
+ * be dropped.
  */
-function settle(list: Run[], grace: number, signal?: AbortSignal): Promise<void> {
+function settle(list: Run[], grace: number, limit: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     let pending = list.length;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -136,10 +140,18 @@ function settle(list: Run[], grace: number, signal?: AbortSignal): Promise<void>
       void run.promise.then((result) => {
         pending--;
         if (pending === 0) finish();
-        else if (result.status === 'eose' && !timer) timer = setTimeout(finish, grace);
+        else if (result.status === 'eose' && !timer && isFullPage(result, limit)) timer = setTimeout(finish, grace);
       });
     }
   });
+}
+
+/**
+ * Whether a relay filled its page. Events it sent that failed verification
+ * count too: they took up the page, so there may be more.
+ */
+function isFullPage(result: RelayResult, limit: number): boolean {
+  return result.events.length + (result.rejected?.count ?? 0) >= limit;
 }
 
 const byNewest = (a: NostrEvent, b: NostrEvent) => b.created_at - a.created_at;
@@ -176,8 +188,9 @@ const MAX_EMPTY_PAGES = 5;
  * again, and relays whose unread range is already covered by that buffer
  * aren't asked at all.
  *
- * The first page resolves on the same deadline as a pool query. Relays that
- * miss it keep running, and the next page continues from their answer. A
+ * A page resolves a short grace after the first relay fills its page (see
+ * {@link settle}), or once every relay has answered. Relays that miss it
+ * keep running, and the next page continues from their answer. A
  * relay that times out or fails is asked again on the next page, until it
  * has failed {@link MAX_FAILURES} times in a row. Later pages, which load
  * ahead of the scroll position, ask again while they're under half full.
@@ -276,7 +289,7 @@ async function fetchRound(
       return { url, key, run: startRun(key, opts.relay(url), relayFilter, timeout) };
     });
 
-  await settle(asked.map(({ run }) => run), grace, opts.signal);
+  await settle(asked.map(({ run }) => run), grace, limit, opts.signal);
 
   const incoming: NostrEvent[] = [];
   const lateUrls = new Set<string>();
@@ -304,10 +317,9 @@ async function fetchRound(
       failed.add(url);
       continue;
     }
-    // A relay sent a short page when it ran out. Events it sent that failed
-    // verification count too: they took up the page, so there may be more.
+    // A relay sent a short page when it ran out.
     const { rejected } = result;
-    if (result.events.length + (rejected?.count ?? 0) < limit) {
+    if (!isFullPage(result, limit)) {
       relays[url] = { done: true };
       continue;
     }

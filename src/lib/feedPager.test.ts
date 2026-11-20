@@ -152,6 +152,21 @@ describe('fetchFeedPage', () => {
     for (const ev of bEvents) expect(shown.has(ev.id)).toBe(ev.created_at <= boundary);
   });
 
+  it("doesn't let a fast relay that ran out years back decide the first page", async () => {
+    const current = series('new', 1000, 1, 40);
+    // A stale relay holding one old event answers long before the others.
+    const stale = fakeRelay([event('old', 100)]);
+    const empty = fakeRelay([]);
+    const a = fakeRelay(current, { delays: [50] });
+    const b = fakeRelay(current, { delays: [60] });
+
+    const pages = await pageAll({ stale, empty, a, b });
+
+    expect(ids(pages[0])).toEqual(ids(current.slice(0, 10)));
+    expectOrderedAndUnique(pages);
+    expect(ids(pages.flat())).toEqual([...ids(current), 'old']);
+  });
+
   it('steps past a full page at a single second instead of looping', async () => {
     const r = fakeRelay([...series('same', 500, 0, 25).map((ev, i) => ({ ...ev, id: `same${i}` })), ...series('older', 400, 1, 5)]);
 
