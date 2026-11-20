@@ -384,6 +384,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
           event={event}
           open={editJsonOpen}
           onOpenChange={setEditJsonOpen}
+          fromMenu
         />
       )}
 

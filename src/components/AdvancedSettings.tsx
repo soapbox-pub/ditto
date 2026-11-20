@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { RawEventEditLauncher } from '@/components/RawEventEditDialog';
 import { RawEventPublisher } from '@/components/RawEventPublisher';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -436,7 +437,7 @@ export function AdvancedSettings() {
               >
                 <span className="flex items-center gap-2 text-base font-semibold">
                   <Braces className="h-4 w-4" />
-                  <FormattedMessage id="settings.advanced.rawEvent" defaultMessage={"Publish Raw Event"} />
+                  <FormattedMessage id="settings.advanced.rawEvent" defaultMessage={"Raw Events"} />
                 </span>
                 {rawEventOpen ? (
                   <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -447,7 +448,8 @@ export function AdvancedSettings() {
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="px-3 pt-3 pb-4">
+              <div className="px-3 pt-3 pb-4 space-y-6">
+                <RawEventEditLauncher />
                 <RawEventPublisher />
               </div>
             </CollapsibleContent>

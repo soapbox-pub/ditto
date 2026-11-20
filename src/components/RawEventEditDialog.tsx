@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { useNostr } from '@nostrify/react';
-import { AlertTriangle, Loader2, Save } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, Loader2, Pencil, Save } from 'lucide-react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
@@ -9,8 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { RawEventPreview, RawEventWarnings } from '@/components/RawEventPublisher';
+import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { useToast } from '@/hooks/useToast';
 import { isAddressableKind } from '@/lib/eventKinds';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
@@ -23,6 +26,8 @@ interface RawEventEditDialogProps {
   event: NostrEvent;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Opened from the event's own menu, which also offers restoring an older version. */
+  fromMenu?: boolean;
 }
 
 /** Most added or removed tags listed in the preview, each way. */
@@ -35,7 +40,7 @@ const MAX_TAG_LINES = 50;
  * problem the event didn't already have. Before publishing it checks the
  * relays for a newer version, so it never overwrites a change made elsewhere.
  */
-export function RawEventEditDialog({ event, open, onOpenChange }: RawEventEditDialogProps) {
+export function RawEventEditDialog({ event, open, onOpenChange, fromMenu }: RawEventEditDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -48,15 +53,17 @@ export function RawEventEditDialog({ event, open, onOpenChange }: RawEventEditDi
             <FormattedMessage id="rawEvent.edit.title" defaultMessage="Edit Event JSON" />
           </DialogTitle>
         </DialogHeader>
-        {open && <EditorBody key={event.id} event={event} onClose={() => onOpenChange(false)} />}
+        {open && <EditorBody key={event.id} event={event} fromMenu={fromMenu} onClose={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function EditorBody({ event, onClose }: { event: NostrEvent; onClose: () => void }) {
+function EditorBody({ event, fromMenu, onClose }: { event: NostrEvent; fromMenu?: boolean; onClose: () => void }) {
   const intl = useIntl();
   const { nostr } = useNostr();
+  const { store } = useNostrStorage();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -88,12 +95,17 @@ function EditorBody({ event, onClose }: { event: NostrEvent; onClose: () => void
     try {
       const filter: NostrFilter = { kinds: [base.kind], authors: [base.pubkey] };
       if (isAddressableKind(base.kind)) filter['#d'] = [base.tags.find(([name]) => name === 'd')?.[1] ?? ''];
-      const prev = await fetchFreshEvent(nostr, filter);
+      const prev = await fetchFreshEvent(nostr, filter, { store });
       if (prev && prev.id !== base.id && prev.created_at >= base.created_at) {
         setNewer(prev);
         return;
       }
-      await publishEvent({ ...template, prev: prev ?? base });
+      const published = await publishEvent({ ...template, prev: prev ?? base });
+      // The app's own copies of these drive the session (relays, profile,
+      // follows), so they take the edit now instead of on their next refetch.
+      if (published.kind === 0) queryClient.setQueryData(['author', published.pubkey], parseAuthorEvent(published));
+      if (published.kind === 3) queryClient.invalidateQueries({ queryKey: ['follow-list', published.pubkey] });
+      if (published.kind === 10002) queryClient.setQueryData(['relayList', published.pubkey], published);
       toast({ title: intl.formatMessage({ id: 'rawEvent.edit.published', defaultMessage: 'Changes published' }) });
       onClose();
     } catch (err) {
@@ -123,11 +135,19 @@ function EditorBody({ event, onClose }: { event: NostrEvent; onClose: () => void
         <div className="flex gap-2 rounded-lg bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-400">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
           <p>
-            <FormattedMessage
-              id="rawEvent.edit.caution"
-              defaultMessage="You're editing the raw event. Ditto checks the basics, but an edit that passes can still break this {label} in other apps. If it goes wrong, use Restore previous version from the same menu."
-              values={{ label }}
-            />
+            {fromMenu ? (
+              <FormattedMessage
+                id="rawEvent.edit.caution"
+                defaultMessage="You're editing the raw event. Ditto checks the basics, but an edit that passes can still break this {label} in other apps. If it goes wrong, use Restore previous version from the same menu."
+                values={{ label }}
+              />
+            ) : (
+              <FormattedMessage
+                id="rawEvent.edit.cautionPlain"
+                defaultMessage="You're editing the raw event. Ditto checks the basics, but an edit that passes can still break this {label} in other apps."
+                values={{ label }}
+              />
+            )}
           </p>
         </div>
 
@@ -199,6 +219,61 @@ function EditorBody({ event, onClose }: { event: NostrEvent; onClose: () => void
         </Button>
       </div>
     </>
+  );
+}
+
+/** The user's own lists and profile, which never show up as posts with a menu to edit them from. */
+const OWN_KINDS = [0, 3, 10002];
+
+/** Buttons that load the user's current profile, follow list or relay list into the raw editor. */
+export function RawEventEditLauncher() {
+  const intl = useIntl();
+  const { nostr } = useNostr();
+  const { store } = useNostrStorage();
+  const { toast } = useToast();
+  const { user } = useCurrentUser();
+  const [loading, setLoading] = useState<number>();
+  const [target, setTarget] = useState<NostrEvent>();
+  const [open, setOpen] = useState(false);
+
+  if (!user) return null;
+
+  const load = async (kind: number) => {
+    setLoading(kind);
+    try {
+      const event = await fetchFreshEvent(nostr, { kinds: [kind], authors: [user.pubkey] }, { store });
+      if (event) {
+        setTarget(event);
+        setOpen(true);
+      } else {
+        toast({
+          title: intl.formatMessage(
+            { id: 'rawEvent.edit.notFound', defaultMessage: "Couldn't find your {label} on your relays." },
+            { label: getKindLabel(intl, kind) },
+          ),
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(undefined);
+    }
+  };
+
+  return (
+    <div>
+      <p className="text-sm font-medium">
+        <FormattedMessage id="rawEvent.edit.launcherLabel" defaultMessage="Edit yours" />
+      </p>
+      <div className="flex flex-wrap gap-2 mt-2">
+        {OWN_KINDS.map((kind) => (
+          <Button key={kind} size="sm" variant="secondary" onClick={() => load(kind)} disabled={loading !== undefined}>
+            {loading === kind ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
+            {getKindLabel(intl, kind)}
+          </Button>
+        ))}
+      </div>
+      {target && <RawEventEditDialog event={target} open={open} onOpenChange={setOpen} />}
+    </div>
   );
 }
 
