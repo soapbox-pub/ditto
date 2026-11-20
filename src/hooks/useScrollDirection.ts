@@ -10,6 +10,29 @@ const NEAR_TOP = 60;
 /** Quiet time (ms) after which a scroll counts as stopped and a half-hidden chrome settles. */
 const SETTLE_MS = 120;
 
+/** The chrome that reads `--chrome-hide` (see index.css). */
+const CHROME_SELECTOR = '.chrome-follow, .chrome-follow-fade, .chrome-follow-pinned';
+
+let chromeRule: CSSStyleRule | undefined;
+
+/**
+ * Set `--chrome-hide` through one stylesheet rule on the chrome, not on
+ * `<html>`: a custom property changed there restyles every element on the
+ * page, ~20ms a scroll frame on a feed. The rule also reaches bars that
+ * mount while the chrome is out. `undefined` removes it.
+ */
+function setChromeHide(value: string | undefined): void {
+  if (!chromeRule) {
+    const style = document.createElement('style');
+    style.textContent = `${CHROME_SELECTOR} {}`;
+    document.head.append(style);
+    chromeRule = style.sheet?.cssRules[0] as CSSStyleRule | undefined;
+    if (!chromeRule) return;
+  }
+  if (value === undefined) chromeRule.style.removeProperty('--chrome-hide');
+  else chromeRule.style.setProperty('--chrome-hide', value);
+}
+
 /** Set by {@link holdChromeUntilUserScroll}, cleared by the user's next scroll input. */
 let chromeHeld = false;
 const revealListeners = new Set<() => void>();
@@ -45,8 +68,8 @@ export function scrollWithoutMovingChrome(top: number): void {
  * way, and when the scroll stops they settle the rest of the way in the
  * direction it was going.
  *
- * How far they're out is written to `--chrome-hide` on `<html>` (0 shown,
- * 1 hidden), for the bars to transform by. Elements with the `chrome-follow`
+ * How far they're out is written to `--chrome-hide` (0 shown, 1 hidden) on
+ * the chrome itself, for the bars to transform by (see {@link setChromeHide}). Elements with the `chrome-follow`
  * class track it exactly while `data-chrome-tracking` is set and animate
  * otherwise (settling, revealing near the top).
  *
@@ -66,7 +89,9 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
     const target: HTMLElement | Window = scrollContainer ?? window;
     const readY = () => (scrollContainer ? scrollContainer.scrollTop : window.scrollY);
 
-    let lastY = readY();
+    // Read on the first scroll, not here: reading the position as the page
+    // mounts forces a layout of the page half-built.
+    let lastY: number | undefined;
     let progress = 0;
     let direction = 0;
     let frame = 0;
@@ -77,7 +102,7 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
       else root.removeAttribute('data-chrome-tracking');
       if (next === progress && !follow) return;
       progress = next;
-      root.style.setProperty('--chrome-hide', String(next));
+      setChromeHide(String(next));
       setHidden(next >= 0.5);
     }
 
@@ -88,7 +113,7 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
     function update() {
       frame = 0;
       const y = readY();
-      const delta = y - lastY;
+      const delta = lastY === undefined ? 0 : y - lastY;
       lastY = y;
       clearTimeout(settleTimer);
 
@@ -122,7 +147,7 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
     };
 
     // Start shown when the scroll target changes.
-    root.style.setProperty('--chrome-hide', '0');
+    setChromeHide('0');
     root.removeAttribute('data-chrome-tracking');
     setHidden(false);
 
@@ -136,7 +161,7 @@ export function useScrollDirection(scrollContainer?: HTMLElement | null): { hidd
       for (const type of USER_SCROLL_EVENTS) window.removeEventListener(type, release, true);
       cancelAnimationFrame(frame);
       clearTimeout(settleTimer);
-      root.style.removeProperty('--chrome-hide');
+      setChromeHide(undefined);
       root.removeAttribute('data-chrome-tracking');
     };
   }, [scrollContainer]);
