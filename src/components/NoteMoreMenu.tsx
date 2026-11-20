@@ -14,6 +14,7 @@ import {
   Flag,
   Pin,
   FileJson,
+  FilePenLine,
   Trash2,
   StickyNote,
   ListPlus,
@@ -44,6 +45,7 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
 import { EventJsonDialog } from '@/components/EventJsonDialog';
+import { RawEventEditDialog } from '@/components/RawEventEditDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -124,6 +126,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [mentionComposeOpen, setMentionComposeOpen] = useState(false);
   const [addToListOpen, setAddToListOpen] = useState(false);
   const [eventJsonOpen, setEventJsonOpen] = useState(false);
+  const [editJsonOpen, setEditJsonOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [hideConfirmOpen, setHideConfirmOpen] = useState(false);
@@ -333,6 +336,10 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setEventJsonOpen(true), 150);
           }}
+          onEditEventJson={() => {
+            onOpenChange(false);
+            setTimeout(() => setEditJsonOpen(true), 150);
+          }}
           onDelete={() => {
             onOpenChange(false);
             setDeleteMedia(false);
@@ -371,6 +378,14 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
         open={eventJsonOpen}
         onOpenChange={setEventJsonOpen}
       />
+
+      {isOwnPost && isReplaceableLikeKind(event.kind) && (
+        <RawEventEditDialog
+          event={event}
+          open={editJsonOpen}
+          onOpenChange={setEditJsonOpen}
+        />
+      )}
 
       <EventRecoveryDialog
         event={event}
@@ -487,6 +502,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onMention: () => void;
   onAddToList: () => void;
   onViewEventJson: () => void;
+  onEditEventJson: () => void;
   onDelete: () => void;
   onRestore: () => void;
   /** Label of the content type to hide, or undefined when hiding isn't applicable. */
@@ -494,7 +510,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onHideFromFeed: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onEditEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
   const intl = useIntl();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -615,6 +631,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
               icon={<Pin className={cn("size-5", pinned && "fill-current")} />}
               label={pinned ? intl.formatMessage({ id: 'note.moreMenu.unpin', defaultMessage: 'Unpin from profile' }) : intl.formatMessage({ id: 'note.moreMenu.pin', defaultMessage: 'Pin on profile' })}
               onClick={onTogglePin}
+            />
+          )}
+          {isRestorable && (
+            <MenuItem
+              icon={<FilePenLine className="size-5" />}
+              label={intl.formatMessage({ id: 'note.moreMenu.editJson', defaultMessage: 'Edit Event JSON' })}
+              onClick={onEditEventJson}
             />
           )}
           {isRestorable && (

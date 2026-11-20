@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { defineMessage, FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from 'react-intl';
+import { FormattedMessage, useIntl } from 'react-intl';
 import { AlertTriangle, Loader2, Send } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { getEventHash } from 'nostr-tools/pure';
 
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -11,13 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { NoteCard } from '@/components/NoteCard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish, type EventTemplate } from '@/hooks/useNostrPublish';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
-import { shouldHideFeedEvent } from '@/lib/feedUtils';
-import { getKindLabel, KIND_LABELS } from '@/lib/kindLabels';
-import { isNostrId } from '@/lib/nostrId';
+import { getKindLabel } from '@/lib/kindLabels';
 import { describePublishError } from '@/lib/publishError';
+import { buildPreviewEvent, getWarnings, parseEventJson, type Warning } from '@/lib/rawEvent';
 import { tryNeventEncode } from '@/lib/safeNip19';
+import { cn } from '@/lib/utils';
 
 interface StarterTemplate {
   kind: number;
@@ -66,124 +65,6 @@ function starterJson(kind: number): string {
   return JSON.stringify(STARTERS[kind](), null, 2);
 }
 
-const errors = {
-  json: defineMessage({ id: 'rawEvent.error.json', defaultMessage: 'Not valid JSON.' }),
-  object: defineMessage({ id: 'rawEvent.error.object', defaultMessage: 'The event must be a JSON object.' }),
-  kind: defineMessage({ id: 'rawEvent.error.kind', defaultMessage: '"kind" must be an integer between 0 and 65535.' }),
-  content: defineMessage({ id: 'rawEvent.error.content', defaultMessage: '"content" must be a string.' }),
-  tags: defineMessage({ id: 'rawEvent.error.tags', defaultMessage: '"tags" must be an array of arrays of strings.' }),
-  createdAt: defineMessage({ id: 'rawEvent.error.createdAt', defaultMessage: '"created_at" must be a non-negative integer (Unix seconds).' }),
-};
-
-type ParseResult = { template: EventTemplate } | { error: MessageDescriptor };
-
-interface Warning {
-  message: MessageDescriptor;
-  values?: Record<string, string>;
-}
-
-const warnings = {
-  unknownKind: defineMessage({ id: 'rawEvent.warning.unknownKind', defaultMessage: "Ditto doesn't recognize kind {kind}, so it won't display this event. Other apps might." }),
-  hidden: defineMessage({ id: 'rawEvent.warning.hidden', defaultMessage: "This {label} is missing tags or content Ditto requires, so it won't show up in feeds." }),
-  profileJson: defineMessage({ id: 'rawEvent.warning.profileJson', defaultMessage: 'Profile content should be a JSON object, like {example}. Anything else breaks your profile in most apps.' }),
-  badId: defineMessage({ id: 'rawEvent.warning.badId', defaultMessage: 'A "{tag}" tag doesn\'t hold a 64-character hex id. Did you leave a placeholder in?' }),
-  emptyFollows: defineMessage({ id: 'rawEvent.warning.emptyFollows', defaultMessage: 'This has no "p" tags, so it will empty your follow list.' }),
-  missingD: defineMessage({ id: 'rawEvent.warning.missingD', defaultMessage: 'Kind {kind} is addressable but has no "d" tag. It will be stored under an empty "d", replacing any other event of yours published that way.' }),
-  replaces: defineMessage({ id: 'rawEvent.warning.replaces', defaultMessage: 'This replaces your current {label}.' }),
-  replacesAddress: defineMessage({ id: 'rawEvent.warning.replacesAddress', defaultMessage: 'This replaces your {label} with "d" tag "{d}", if you have one.' }),
-};
-
-/** Tags whose first value is a hex event id or pubkey. */
-const ID_TAGS = new Set(['e', 'E', 'p', 'P']);
-
-/** Non-blocking problems with an otherwise valid template, from what Ditto knows about its kind. */
-function getWarnings(template: EventTemplate, intl: IntlShape): Warning[] {
-  const { kind, content, tags } = template;
-  const label = getKindLabel(intl, kind);
-  const result: Warning[] = [];
-
-  if (!KIND_LABELS[kind]) {
-    result.push({ message: warnings.unknownKind, values: { kind: String(kind) } });
-  }
-
-  if (kind === 0) {
-    let metadata: unknown;
-    try {
-      metadata = JSON.parse(content);
-    } catch {
-      // Reported below.
-    }
-    if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) {
-      result.push({ message: warnings.profileJson, values: { example: '{"name": "…"}' } });
-    }
-  } else if (KIND_LABELS[kind] && shouldHideFeedEvent({ ...template, id: '', pubkey: '', sig: '' })) {
-    result.push({ message: warnings.hidden, values: { label } });
-  }
-
-  const badRef = tags.find(([name, value]) => ID_TAGS.has(name) && !isNostrId(value));
-  if (badRef) {
-    result.push({ message: warnings.badId, values: { tag: badRef[0] } });
-  }
-
-  if (kind === 3 && !tags.some(([name, value]) => name === 'p' && value)) {
-    result.push({ message: warnings.emptyFollows });
-  }
-
-  if (kind >= 30000 && kind < 40000) {
-    const d = tags.find(([name]) => name === 'd')?.[1];
-    if (d === undefined) {
-      result.push({ message: warnings.missingD, values: { kind: String(kind) } });
-    } else {
-      result.push({ message: warnings.replacesAddress, values: { label, d } });
-    }
-  } else if (kind === 0 || kind === 3 || (kind >= 10000 && kind < 20000)) {
-    result.push({ message: warnings.replaces, values: { label } });
-  }
-
-  return result;
-}
-
-/**
- * Parse user-supplied JSON into an unsigned event template. `id`, `pubkey`
- * and `sig` are ignored since the event is re-signed by the current account.
- */
-function parseEventJson(text: string): ParseResult {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    return { error: errors.json };
-  }
-
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return { error: errors.object };
-  }
-
-  const { kind, content = '', tags = [], created_at } = value as Record<string, unknown>;
-
-  if (typeof kind !== 'number' || !Number.isInteger(kind) || kind < 0 || kind > 65535) {
-    return { error: errors.kind };
-  }
-  if (typeof content !== 'string') {
-    return { error: errors.content };
-  }
-  if (!Array.isArray(tags) || !tags.every((tag) => Array.isArray(tag) && tag.every((v) => typeof v === 'string'))) {
-    return { error: errors.tags };
-  }
-  if (created_at !== undefined && (typeof created_at !== 'number' || !Number.isInteger(created_at) || created_at < 0)) {
-    return { error: errors.createdAt };
-  }
-
-  return {
-    template: {
-      kind,
-      content,
-      tags: tags as string[][],
-      created_at: created_at ?? Math.floor(Date.now() / 1000),
-    },
-  };
-}
-
 /** Sign and publish an arbitrary event written as raw JSON. */
 export function RawEventPublisher() {
   const intl = useIntl();
@@ -200,15 +81,10 @@ export function RawEventPublisher() {
     [parsed, intl],
   );
 
-  // The event as the feed would get it, rendered with the feed's own card. Its
-  // id is the real hash of the unsigned event, so lookups keyed on it are valid.
-  const previewEvent = useMemo<NostrEvent | undefined>(() => {
-    if (!user || !parsed || !('template' in parsed)) return undefined;
-    const { kind, content, tags, created_at } = parsed.template;
-    const unsigned = { kind, content, tags, created_at: created_at ?? Math.floor(Date.now() / 1000), pubkey: user.pubkey };
-    const event = { ...unsigned, id: getEventHash(unsigned), sig: '' };
-    return KIND_LABELS[kind] && !shouldHideFeedEvent(event) ? event : undefined;
-  }, [user, parsed]);
+  const previewEvent = useMemo(
+    () => (user && parsed && 'template' in parsed ? buildPreviewEvent(parsed.template, user.pubkey) : undefined),
+    [user, parsed],
+  );
 
   const handlePublish = async () => {
     if (!parsed || 'error' in parsed) return;
@@ -291,26 +167,14 @@ export function RawEventPublisher() {
         )}
       </div>
 
-      {kindWarnings.length > 0 && (
-        <ul className="space-y-1.5 rounded-lg bg-amber-500/10 px-3 py-2.5" aria-live="polite">
-          {kindWarnings.map(({ message, values }) => (
-            <li key={message.id} className="flex gap-2 text-xs text-amber-700 dark:text-amber-400">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
-              <span><FormattedMessage {...message} values={values} /></span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <RawEventWarnings warnings={kindWarnings} />
 
       {previewEvent && (
         <div>
           <p className="text-sm font-medium mb-2">
             <FormattedMessage id="rawEvent.preview" defaultMessage="Feed preview" />
           </p>
-          {/* Inert: the preview's links and actions point at an event that doesn't exist yet. */}
-          <div inert className="rounded-2xl border border-border-subtle overflow-hidden">
-            <NoteCard event={previewEvent} compact />
-          </div>
+          <RawEventPreview event={previewEvent} />
         </div>
       )}
 
@@ -325,6 +189,37 @@ export function RawEventPublisher() {
           </Link>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Warnings about an event being written, in amber, or errors that block publishing, in red. */
+export function RawEventWarnings({ warnings, blocking }: { warnings: Warning[]; blocking?: boolean }) {
+  if (warnings.length === 0) return null;
+  return (
+    <ul
+      className={cn('space-y-1.5 rounded-lg px-3 py-2.5', blocking ? 'bg-destructive/10' : 'bg-amber-500/10')}
+      aria-live="polite"
+    >
+      {warnings.map(({ message, values }) => (
+        <li
+          key={message.id}
+          className={cn('flex gap-2 text-xs', blocking ? 'text-destructive' : 'text-amber-700 dark:text-amber-400')}
+        >
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
+          <span><FormattedMessage {...message} values={values} /></span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** An unpublished event drawn with the feed's own card. */
+export function RawEventPreview({ event }: { event: NostrEvent }) {
+  return (
+    // Inert: the preview's links and actions point at an event that doesn't exist yet.
+    <div inert className="rounded-2xl border border-border-subtle overflow-hidden">
+      <NoteCard event={event} compact />
     </div>
   );
 }
