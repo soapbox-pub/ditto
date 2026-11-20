@@ -5,9 +5,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Play } from 'lucide-react';
+import { Loader2, Play } from 'lucide-react';
 
-import { Skeleton } from '@/components/ui/skeleton';
 import { useBirdSong } from '@/hooks/useBirdSong';
 import { useWikidataEntity } from '@/hooks/useWikidataEntity';
 import { cn } from '@/lib/utils';
@@ -36,10 +35,13 @@ import { cn } from '@/lib/utils';
  * plays whatever subset has audio. If nothing at all has audio the
  * button hides itself rather than rendering a dead control.
  *
- * Note: every species' audio URL is fetched eagerly on mount. The
- * cost is bounded by the number of species the user already sees as
- * tiles, and every request is cached for 24h via TanStack Query, so
- * a second visit is free.
+ * Recordings are looked up on the first press, not on mount: a life
+ * list has dozens of species, and resolving all of them for every Birdex
+ * on screen cost a few hundred Wikipedia requests per profile, mostly
+ * for a button nobody pressed. Until then the button can't know whether
+ * any species has audio, so it shows; it spins while the first voices
+ * resolve and hides if none turns out to have any. Every request is
+ * cached for 24h via TanStack Query, so a second press is instant.
  */
 
 export interface BirdexChorusSpecies {
@@ -56,6 +58,8 @@ type VoiceState = 'loading' | 'ready' | 'missing';
 
 export function BirdexChorusButton({ species, className }: BirdexChorusButtonProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  /** Pressed at least once, so the voices are mounted and resolving. */
+  const [armed, setArmed] = useState(false);
 
   // Track each voice's readiness so we can disable the button while
   // anything is still resolving, and hide it entirely when no voice
@@ -97,35 +101,34 @@ export function BirdexChorusButton({ species, className }: BirdexChorusButtonPro
   );
 
   // Hide the button entirely once resolution settles and not a single
-  // species produced playable audio. While loading we still render
-  // (the skeleton indicates the chorus is being assembled).
+  // species produced playable audio. While the first voices resolve the
+  // button spins.
   //
-  // Crucially, the `BirdexChorusVoice` children must always render
-  // regardless of UI state — they're the hooks that drive the
-  // resolution we're waiting on. Returning early before rendering
-  // them would freeze the button in its initial "loading" state
-  // forever.
-  const hideButton = !anyLoading && readyCount === 0;
-  const showSkeleton = !hideButton && anyLoading && readyCount === 0;
+  // Crucially, once armed the `BirdexChorusVoice` children must always
+  // render regardless of UI state — they're the hooks that drive the
+  // resolution we're waiting on. Returning early before rendering them
+  // would freeze the button in its "loading" state forever.
+  const hideButton = armed && !anyLoading && readyCount === 0;
+  const resolving = armed && anyLoading && readyCount === 0;
+  const voiceCount = armed ? readyCount : species.length;
 
-  const toggle = () => setIsPlaying((p) => !p);
+  const toggle = () => {
+    setArmed(true);
+    setIsPlaying((p) => !p);
+  };
 
   return (
     <>
-      {hideButton ? null : showSkeleton ? (
-        <Skeleton
-          className={cn('size-10 shrink-0 rounded-full', className)}
-          aria-hidden
-        />
-      ) : (
+      {hideButton ? null : (
         <button
           type="button"
           onClick={toggle}
           aria-pressed={isPlaying}
+          aria-busy={resolving || undefined}
           aria-label={
             isPlaying
-              ? `Pause dawn chorus of ${readyCount} species`
-              : `Play dawn chorus of ${readyCount} species`
+              ? `Pause dawn chorus of ${voiceCount} species`
+              : `Play dawn chorus of ${voiceCount} species`
           }
           className={cn(
             'group inline-flex size-10 shrink-0 items-center justify-center rounded-full',
@@ -138,7 +141,9 @@ export function BirdexChorusButton({ species, className }: BirdexChorusButtonPro
             className,
           )}
         >
-          {isPlaying ? (
+          {isPlaying && resolving ? (
+            <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden />
+          ) : isPlaying ? (
             <EqualiserBars />
           ) : (
             // Nudge the play triangle right by 1px so its visual
@@ -149,7 +154,7 @@ export function BirdexChorusButton({ species, className }: BirdexChorusButtonPro
         </button>
       )}
 
-      {species.map((s) => (
+      {armed && species.map((s) => (
         <BirdexChorusVoice
           key={s.entityId}
           entityId={s.entityId}
