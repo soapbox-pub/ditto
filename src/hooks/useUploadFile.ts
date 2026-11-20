@@ -21,9 +21,10 @@ const fetchWithTimeout: typeof fetch = (input, init) =>
   });
 
 /**
- * Upload a file to the user's Blossom servers (BUD-02), racing every server
- * and taking the first success, then mirroring to the rest in the background
- * (BUD-04). Returns NIP-94-style tags describing the blob.
+ * Upload a file to the user's Blossom servers (BUD-02): to the first server
+ * that takes it, one at a time in configured order, then mirrored to the
+ * servers not yet tried in the background (BUD-04). Returns NIP-94-style tags
+ * describing the blob.
  */
 export function useUploadFile() {
   const { user } = useCurrentUser();
@@ -40,15 +41,6 @@ export function useUploadFile() {
         config.useAppBlossomServers,
       );
 
-      const uploader = new BlossomUploader({
-        servers,
-        signer: user.signer,
-        // Promise.any() resolves as soon as any server succeeds; the per-request
-        // timeout ensures every other promise still settles, so the
-        // AggregateError path fires promptly when every server is slow or down.
-        fetch: fetchWithTimeout,
-      });
-
       const ext = getFileExtension(file.name);
 
       // Browsers report an empty type for some files (`.avi`, `.flac`, `.xdc`,
@@ -61,7 +53,9 @@ export function useUploadFile() {
         ? new File([file], file.name, { type: mime, lastModified: file.lastModified })
         : file;
 
-      const tags = await uploader.upload(uploadable);
+      const placement = await writeToFirstServer(servers, user.signer, (uploader) => uploader.upload(uploadable));
+      if (!placement.tags) throw placement.error;
+      const { tags } = placement;
 
       // Servers type what they don't recognise as `octet-stream`; keep ours.
       const mTag = tags.find(([name]) => name === 'm');
@@ -77,19 +71,10 @@ export function useUploadFile() {
 
       const url = tags[0][1];
 
-      // Mirror to all other servers in the background (fire-and-forget).
-      // BlossomUploader uses Promise.any(), so only one server is known to have
-      // the blob. Matched by ORIGIN: a configured server may lack the trailing
-      // slash the returned URL has, and a prefix match would then re-mirror to
-      // the server that already holds the blob while missing none.
-      const uploadedOrigin = originOf(url);
-      const mirrorServers = servers.filter((s) => originOf(s) !== uploadedOrigin);
-
-      if (mirrorServers.length > 0) {
-        mirrorToServers(url, mirrorServers, user.signer).catch(() => {
-          // Mirroring is best-effort — don't fail the upload if it fails.
-        });
-      }
+      // Mirror to the untried servers in the background (fire-and-forget).
+      mirrorToServers(url, mirrorTargets(placement.untried, url), user.signer).catch(() => {
+        // Mirroring is best-effort — don't fail the upload if it fails.
+      });
 
       return tags;
     },
@@ -103,7 +88,9 @@ export function useUploadFile() {
  *
  * Tries a server-side BUD-04 mirror first, which only works for Blossom blob
  * URLs (it needs the sha256 in the path); otherwise downloads the file and
- * uploads it. Files already on one of the user's servers are returned as-is.
+ * uploads it. Either way servers are tried one at a time, like
+ * `useUploadFile`. Files already on one of the user's servers are returned
+ * as-is.
  */
 export function useRehostFile() {
   const { user } = useCurrentUser();
@@ -123,31 +110,99 @@ export function useRehostFile() {
       const sourceOrigin = originOf(sourceUrl);
       if (servers.some((s) => originOf(s) === sourceOrigin)) return sourceUrl;
 
-      const uploader = new BlossomUploader({ servers, signer: user.signer, fetch: fetchWithTimeout });
+      let placement: Placement = { untried: [], refused: servers };
+      // A mirror needs the blob's sha256 in the path; anything else can only be uploaded.
+      if (/[0-9a-f]{64}/.test(new URL(sourceUrl).pathname)) {
+        placement = await writeToFirstServer(servers, user.signer, (uploader) => uploader.mirror(sourceUrl));
+      }
 
-      let tags: string[][];
-      try {
-        tags = await uploader.mirror(sourceUrl);
-      } catch {
+      if (!placement.tags) {
+        // Only upload where the mirror was refused outright. A server whose
+        // mirror timed out may still be fetching the blob, and an upload
+        // there now would be a second write of it in flight.
+        const targets = placement.refused;
+        if (targets.length === 0) throw placement.error;
+
         const response = await fetchWithTimeout(sourceUrl);
         if (!response.ok) throw new Error(`Failed to download ${sourceUrl}: ${response.status}`);
         const blob = await response.blob();
         const name = new URL(sourceUrl).pathname.split('/').pop() || 'file';
-        tags = await uploader.upload(new File([blob], name, { type: blob.type }));
+        const file = new File([blob], name, { type: blob.type });
+        placement = await writeToFirstServer(targets, user.signer, (uploader) => uploader.upload(file));
+        if (!placement.tags) throw placement.error;
       }
 
-      const url = tags[0][1];
+      const url = placement.tags[0][1];
 
-      // Same as useUploadFile: the uploader stops at the first server, so copy to the rest in the background.
-      const uploadedOrigin = originOf(url);
-      const mirrorServers = servers.filter((s) => originOf(s) !== uploadedOrigin);
-      if (mirrorServers.length > 0) {
-        mirrorToServers(url, mirrorServers, user.signer).catch(() => {});
-      }
+      mirrorToServers(url, mirrorTargets(placement.untried, url), user.signer).catch(() => {});
 
       return url;
     },
   });
+}
+
+/** Where a blob landed after {@link writeToFirstServer}. */
+interface Placement {
+  /** NIP-94 tags from the server that took the blob, if one did. */
+  tags?: string[][];
+  /** Servers that were never sent a request, so are safe to mirror to. */
+  untried: string[];
+  /** Servers that answered with a refusal, so nothing of ours is still in flight there. */
+  refused: string[];
+  /** Why the last server failed, when none took the blob. */
+  error?: unknown;
+}
+
+/**
+ * Write a blob to the first server that takes it, one server at a time in
+ * configured order. Racing every server and then mirroring to the losers
+ * (what this replaced) left a mirror and a direct upload of the same blob in
+ * flight on one server at once, and servers stored it twice.
+ *
+ * A server whose request timed out or dropped is neither `untried` nor
+ * `refused`: it may still be processing the write, so it gets nothing more.
+ * Exported for testing.
+ */
+export async function writeToFirstServer(
+  servers: string[],
+  signer: NostrSigner,
+  write: (uploader: BlossomUploader) => Promise<string[][]>,
+): Promise<Placement> {
+  const refused: string[] = [];
+  let error: unknown = new Error('No Blossom servers configured');
+
+  for (const [i, server] of servers.entries()) {
+    let answered = false;
+    const uploader = new BlossomUploader({
+      servers: [server],
+      signer,
+      fetch: async (input, init) => {
+        const response = await fetchWithTimeout(input, init);
+        answered = true;
+        return response;
+      },
+    });
+
+    try {
+      const tags = await write(uploader);
+      const origin = originOf(server);
+      return { tags, untried: servers.slice(i + 1).filter((s) => originOf(s) !== origin), refused };
+    } catch (e) {
+      error = e;
+      if (answered) refused.push(server);
+    }
+  }
+
+  return { untried: [], refused, error };
+}
+
+/**
+ * Drop servers that already hold `url`. Matched by ORIGIN: a configured server
+ * may lack the trailing slash the returned URL has.
+ */
+function mirrorTargets(servers: string[], url: string): string[] {
+  const origin = originOf(url);
+  return servers.filter((s) => originOf(s) !== origin);
 }
 
 function originOf(url: string): string | undefined {
