@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { useTextHighlight, type HighlightSelection } from '@/hooks/useTextHighlight';
 import { useCreateHighlight } from '@/hooks/useCreateHighlight';
 import { useToast } from '@/hooks/useToast';
@@ -29,8 +30,6 @@ const BUTTON_OFFSET = 8;
 /** Approximate button dimensions, used to keep it on-screen. */
 const BUTTON_WIDTH = 92;
 const BUTTON_HEIGHT = 32;
-/** Mobile viewport threshold — matches MOBILE_BREAKPOINT in useIsMobile.tsx (Tailwind `md`). */
-const MOBILE_BREAKPOINT = 768;
 
 /** True when the device exposes a touch input (may also have a mouse/trackpad). */
 const hasTouch = (): boolean =>
@@ -71,26 +70,15 @@ export function HighlightSelectionButton() {
   const [touch] = useState(hasTouch);
   const [native] = useState(() => Capacitor.isNativePlatform());
 
-  // Track viewport width directly so placement re-evaluates on every resize.
-  // (useIsMobile only updates on matchMedia threshold-crossing events, which
-  // could lag a re-render and leave stale placement — the "needs refresh"
-  // symptom.) This single source of truth always reflects the current width.
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window === 'undefined' ? 0 : window.innerWidth,
-  );
-  useEffect(() => {
-    const onResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    // Sync once on mount in case the width changed before the listener attached.
-    onResize();
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+  // The media query, not `window.innerWidth`: this mounts with the first page,
+  // and reading the width there forced a layout of the page being built.
+  const isMobile = useIsMobile();
 
   // Dock at the bottom (clear of the OS selection menu) only for native
   // iOS/Android, or a touch device that's also at a mobile viewport width.
   // A touchscreen laptop (touch === true but wide viewport) gets the anchored
   // button, matching how its user actually selects text (mouse/trackpad).
-  const dockAtBottom = native || (touch && viewportWidth < MOBILE_BREAKPOINT);
+  const dockAtBottom = native || (touch && isMobile);
 
   // Snapshot of the selection captured when the user opens the dialog, so it
   // survives the selection being cleared by focus changes.
