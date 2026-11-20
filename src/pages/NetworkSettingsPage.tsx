@@ -18,6 +18,9 @@ const IMAGE_QUALITY_OPTIONS: { value: AppConfig['imageQuality']; label: MessageD
   { value: 'original', label: defineMessage({ id: 'settings.network.imageQuality.original', defaultMessage: 'Original' }) },
 ];
 
+/** Bits offered; at 20 a 1 KB post already takes seconds on a desktop. */
+const POW_CHOICES = [0, 4, 8, 12, 16, 20];
+
 export function NetworkSettingsPage() {
   const intl = useIntl();
   const { user } = useCurrentUser();
@@ -119,6 +122,41 @@ export function NetworkSettingsPage() {
                   )}
                 >
                   <FormattedMessage {...label} />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Proof of Work */}
+        <div>
+          <div className="relative px-3 py-3.5">
+            <h2 className="text-base font-semibold"><FormattedMessage id="settings.network.proofOfWork" defaultMessage="Proof of Work" /></h2>
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+          </div>
+          <div className="pt-4 pb-4 px-3 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium"><FormattedMessage id="settings.network.powDifficulty" defaultMessage="Difficulty" /></Label>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <FormattedMessage id="settings.network.powDifficultyDescription" defaultMessage="Work this device does before publishing anything, so relays that ask for it accept your posts (NIP-13). Each extra bit doubles how long that takes." />
+              </p>
+            </div>
+            <div className="inline-flex flex-wrap items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
+              {POW_CHOICES.map((bits) => (
+                <button
+                  key={bits}
+                  onClick={() => updateConfig((prev) => ({ ...prev, powDifficulty: bits === 0 ? undefined : bits }))}
+                  aria-pressed={(config.powDifficulty ?? 0) === bits}
+                  className={cn(
+                    'px-4 py-1.5 text-sm font-medium rounded-md transition-all',
+                    (config.powDifficulty ?? 0) === bits
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {bits === 0
+                    ? <FormattedMessage id="settings.network.powOff" defaultMessage="Off" />
+                    : <FormattedMessage id="settings.network.powBits" defaultMessage="{bits, plural, one {# bit} other {# bits}}" values={{ bits }} />}
                 </button>
               ))}
             </div>

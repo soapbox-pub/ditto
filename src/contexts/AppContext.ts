@@ -493,6 +493,11 @@ export interface AppConfig {
    * Default: 604800 (7 days).
    */
   maxCachedEventAge: number;
+  /**
+   * NIP-13 proof-of-work bits mined into every event this device publishes
+   * (`lib/pow.ts`), for relays that ask for it. Unset or 0 is off.
+   */
+  powDifficulty?: number;
 }
 
 /** Configuration for a single widget in the right sidebar. */

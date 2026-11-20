@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import type { Theme, ContentWarningPolicy, QuickReaction } from '@/contexts/AppContext';
 import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
+import { MAX_POW_DIFFICULTY } from './pow';
 
 // ─── Theme Schemas ───────────────────────────────────────────────────
 
@@ -341,6 +342,7 @@ export const AppConfigSchema = z.object({
     height: z.number().optional(),
   })).optional(),
   maxCachedEventAge: z.number().int().nonnegative().optional(),
+  powDifficulty: z.number().int().min(0).max(MAX_POW_DIFFICULTY).optional(),
 });
 
 // ─── DittoConfigSchema (build-time ditto.json) ───────────────────────

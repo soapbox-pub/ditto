@@ -10,6 +10,7 @@ import { NSecSignerBtc, NBrowserSignerBtc } from '@/lib/bitcoin-signers';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 import { NIP46_SIGN_TIMEOUT_MS, Nip46Signer } from '@/lib/nip46Signer';
 import { getNip46Transport } from '@/lib/nip46Transport';
+import { signerWithPow } from '@/lib/pow';
 
 /**
  * ONE NUser (and signer) per (nostr instance, login id), app-wide. Per-call-site
@@ -78,7 +79,9 @@ export function useCurrentUser() {
       default:
         throw new Error(`Unsupported login type: ${login.type}`);
     }
-    const wrapped = new NUser(user.method, user.pubkey, signerWithNudge(user.signer, isBunkerConnected, nudgeOpts));
+    // Mined outside the nudge, so the time spent mining never reads as a stalled signer.
+    const signer = signerWithPow(signerWithNudge(user.signer, isBunkerConnected, nudgeOpts), login.pubkey);
+    const wrapped = new NUser(user.method, user.pubkey, signer);
     byLogin.set(login.id, wrapped);
     return wrapped;
   }, [nostr]);

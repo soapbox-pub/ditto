@@ -12,6 +12,7 @@ import { AppConfigSchema } from '@/lib/schemas';
 import { migrateApiUrl } from '@/lib/apiUrls';
 import { loadAndApplyFont, loadAndApplyTitleFont } from '@/lib/fontLoader';
 import { useThemePreview } from '@/lib/themePreview';
+import { setPowDifficulty } from '@/lib/pow';
 import { hslStringToHex, hslToRgb, parseHsl, rgbToHex } from '@/lib/colorUtils';
 import { z } from 'zod';
 
@@ -139,6 +140,11 @@ export function AppProvider(props: AppProviderProps) {
     config,
     updateConfig,
   }), [config, updateConfig]);
+
+  // A layout effect runs ahead of every passive one, where publishes start.
+  useLayoutEffect(() => {
+    setPowDifficulty(config.powDifficulty);
+  }, [config.powDifficulty]);
 
   // Apply theme effects to document. A live theme preview paints over the
   // user's own theme without touching the stored config.
