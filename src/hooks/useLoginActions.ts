@@ -89,12 +89,12 @@ export function useLoginActions() {
       if (!relays.length) throw new Error('No relay provided');
       const clientSk = generateSecretKey();
       const transport = new Nip46Transport(relays);
+      const signer = new Nip46Signer({
+        transport,
+        bunkerPubkey,
+        clientSigner: new NSecSigner(clientSk),
+      });
       try {
-        const signer = new Nip46Signer({
-          transport,
-          bunkerPubkey,
-          clientSigner: new NSecSigner(clientSk),
-        });
         await signer.connect(secret);
         const pubkey = await signer.getPublicKey();
         const sessionRelays = await adoptBunkerRelays(signer, relays);
@@ -106,6 +106,7 @@ export function useLoginActions() {
           }),
         );
       } finally {
+        signer.close();
         transport.close();
       }
     },
@@ -139,6 +140,7 @@ export function useLoginActions() {
       const clientSigner = new NSecSigner(params.clientSecretKey);
       const transport = new Nip46Transport(params.relays);
       const effectiveSignal = signal ?? AbortSignal.timeout(120_000);
+      let signer: Nip46Signer | undefined;
       try {
         onStatus?.('awaiting-connect');
         const sub = transport.req([{ kinds: [24133], '#p': [params.clientPubkey] }], {
@@ -159,7 +161,7 @@ export function useLoginActions() {
           if (response?.result !== params.secret) continue;
 
           onStatus?.('getting-public-key');
-          const signer = new Nip46Signer({
+          signer = new Nip46Signer({
             transport,
             bunkerPubkey: event.pubkey,
             clientSigner,
@@ -183,6 +185,7 @@ export function useLoginActions() {
         }
         throw new Error('Timeout waiting for remote signer');
       } finally {
+        signer?.close();
         transport.close();
       }
     },

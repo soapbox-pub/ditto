@@ -28,12 +28,13 @@
  * off, in-flight RPCs are capped, and user-visible work goes ahead of decrypts.
  */
 
-import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
+import { type NostrEvent, type NostrSigner, NSecSigner } from '@nostrify/nostrify';
 import type { NostrConnectRequest, NostrConnectResponse } from '@nostrify/types';
+import { nip19 } from 'nostr-tools';
 import { verifyEvent } from 'nostr-tools/pure';
 
 import type { BtcSigner } from '@/lib/bitcoin-signers';
-import type { Nip46Transport } from '@/lib/nip46Transport';
+import { getNip46Transport, type Nip46Transport } from '@/lib/nip46Transport';
 import { minePow } from '@/lib/pow';
 
 export interface Nip46SignerOpts {
@@ -150,6 +151,19 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
     }, RESUME_REFRESH_MS);
   }
 
+  /**
+   * End the response subscription and fail every RPC still waiting. A signer
+   * left open keeps its subscription on the shared transport for the session.
+   */
+  close(): void {
+    if (this.abort.signal.aborted) return;
+    this.abort.abort();
+    clearTimeout(this.resumeTimer);
+    const pending = [...this.pending];
+    this.pending.clear();
+    for (const [id, rpc] of pending) rpc.resolve({ id, result: '', error: 'NIP-46 signer closed' });
+  }
+
   /** Re-publish every unanswered request now (same ids, so no duplicate prompts). */
   resendPending(relay?: string): void {
     for (const publish of this.republish.values()) void publish(relay).catch(() => undefined);
@@ -182,7 +196,7 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
       [{ kinds: [NIP46_KIND], authors: [this.bunkerPubkey], '#p': [this.clientPubkey] }],
       { signal: this.abort.signal },
     );
-    // Detached pump for the signer's lifetime; the transport only ends it on abort, which never fires.
+    // Detached pump for the signer's lifetime; the transport ends it when `close()` aborts.
     void (async () => {
       for await (const msg of iter) {
         if (msg[0] === 'EVENT') await this.dispatch(msg[2]);
@@ -232,6 +246,8 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
   }
 
   private async run(method: string, params: string[]): Promise<string> {
+    // Queued behind a slot when the signer was closed.
+    if (this.abort.signal.aborted) throw new Error('NIP-46 signer closed');
     const request: NostrConnectRequest = { id: crypto.randomUUID(), method, params };
     const budgetMs = method === 'sign_event' ? this.signTimeoutMs : this.attemptTimeoutMs * this.attempts;
     const t0 = Date.now();
@@ -374,5 +390,48 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
       }
       throw error;
     }
+  }
+}
+
+/** A bunker login's NIP-46 session. */
+export interface Nip46Session {
+  /** The login's id. */
+  id: string;
+  bunkerPubkey: string;
+  clientNsec: string;
+  relays: string[];
+}
+
+/** One signer per bunker login, by login id, with the transport it was made for. */
+const sessionSigners = new Map<string, { transportKey: string; signer: Nip46Signer }>();
+
+/**
+ * The app-wide signer for a bunker login. Every caller (the pool's AUTH
+ * signer, `useCurrentUser`) shares it: each signer is a response
+ * subscription, and each subscription decrypts every response.
+ */
+export function getNip46SessionSigner(session: Nip46Session): Nip46Signer {
+  const transportKey = `${session.bunkerPubkey}|${[...session.relays].sort().join(',')}`;
+  const cached = sessionSigners.get(session.id);
+  if (cached?.transportKey === transportKey) return cached.signer;
+  cached?.signer.close();
+
+  const clientSk = nip19.decode(session.clientNsec) as { type: 'nsec'; data: Uint8Array };
+  const signer = new Nip46Signer({
+    transport: getNip46Transport(session.bunkerPubkey, session.relays),
+    bunkerPubkey: session.bunkerPubkey,
+    clientSigner: new NSecSigner(clientSk.data),
+  });
+  sessionSigners.set(session.id, { transportKey, signer });
+  return signer;
+}
+
+/** Close and forget the signers of every login not in `loginIds`. */
+export function retainNip46SessionSigners(loginIds: Iterable<string>): void {
+  const keep = new Set(loginIds);
+  for (const [id, { signer }] of sessionSigners) {
+    if (keep.has(id)) continue;
+    signer.close();
+    sessionSigners.delete(id);
   }
 }

@@ -1,6 +1,5 @@
 import { useNostr } from '@nostrify/react';
 import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
-import { NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useMemo } from 'react';
 
@@ -8,17 +7,17 @@ import { useAuthor } from './useAuthor.ts';
 import { signerWithNudge } from '@/lib/signerWithNudge';
 import { NSecSignerBtc, NBrowserSignerBtc } from '@/lib/bitcoin-signers';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
-import { NIP46_SIGN_TIMEOUT_MS, Nip46Signer } from '@/lib/nip46Signer';
+import { getNip46SessionSigner, NIP46_SIGN_TIMEOUT_MS } from '@/lib/nip46Signer';
 import { getNip46Transport } from '@/lib/nip46Transport';
 import { signerWithPow } from '@/lib/pow';
 
 /**
- * ONE NUser (and signer) per (nostr instance, login id), app-wide. Per-call-site
- * construction would give NIP-46 logins N signers with duplicate bunker
- * subscriptions. Weakly keyed by the nostr instance so a provider remount
- * invalidates it.
+ * ONE NUser per (nostr instance, login id), app-wide, rebuilt when the login
+ * itself is replaced. Weakly keyed by the nostr instance so a provider remount
+ * invalidates it. A NIP-46 login's signer is shared beyond this too (see
+ * getNip46SessionSigner).
  */
-const userCache = new WeakMap<object, Map<string, NUser>>();
+const userCache = new WeakMap<object, Map<string, { login: NLoginType; user: NUser }>>();
 
 export function useCurrentUser() {
   const { nostr } = useNostr();
@@ -31,7 +30,7 @@ export function useCurrentUser() {
       userCache.set(nostr, byLogin);
     }
     const existing = byLogin.get(login.id);
-    if (existing) return existing;
+    if (existing?.login === login) return existing.user;
 
     let user: NUser;
     let isBunkerConnected: (() => boolean) | undefined;
@@ -44,20 +43,21 @@ export function useCurrentUser() {
         break;
       }
       case 'bunker': { // Nostr login with NIP-46 "bunker://" URI
-        const clientSk = nip19.decode(login.data.clientNsec) as { type: 'nsec'; data: Uint8Array };
-        const bunkerRelays = login.data.relays;
+        const bunkerRelays = login.data.relays ?? [];
 
         // A dedicated plain-WebSocket transport, never the relay pool (which
         // wedges NIP-46 on Android; see nip46Transport.ts).
         const transport = getNip46Transport(login.data.bunkerPubkey, bunkerRelays);
 
+        // The login's one signer, shared with NostrProvider's AUTH signer.
         user = new NUser(
           login.type,
           login.pubkey,
-          new Nip46Signer({
-            transport,
+          getNip46SessionSigner({
+            id: login.id,
             bunkerPubkey: login.data.bunkerPubkey,
-            clientSigner: new NSecSigner(clientSk.data),
+            clientNsec: login.data.clientNsec,
+            relays: bunkerRelays,
           }),
         );
 
@@ -82,12 +82,19 @@ export function useCurrentUser() {
     // Mined outside the nudge, so the time spent mining never reads as a stalled signer.
     const signer = signerWithPow(signerWithNudge(user.signer, isBunkerConnected, nudgeOpts), login.pubkey);
     const wrapped = new NUser(user.method, user.pubkey, signer);
-    byLogin.set(login.id, wrapped);
+    byLogin.set(login.id, { login, user: wrapped });
     return wrapped;
   }, [nostr]);
 
   const users = useMemo(() => {
     const users: NUser[] = [];
+
+    // A removed login's user would otherwise be kept, its signer closed, for the session.
+    const ids = new Set(logins.map((login) => login.id));
+    const byLogin = userCache.get(nostr);
+    for (const id of byLogin?.keys() ?? []) {
+      if (!ids.has(id)) byLogin!.delete(id);
+    }
 
     for (const login of logins) {
       try {
@@ -99,7 +106,7 @@ export function useCurrentUser() {
     }
 
     return users;
-  }, [logins, loginToUser]);
+  }, [logins, loginToUser, nostr]);
 
   const user = users[0] as NUser | undefined;
 

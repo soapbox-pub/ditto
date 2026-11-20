@@ -15,9 +15,16 @@ type RelayMsg = ['EVENT', string, NostrEvent] | ['EOSE', string] | ['CLOSED', st
 interface ActiveSub {
   filters: NostrFilter[];
   push: (msg: RelayMsg) => void;
-  /** Response ids already delivered (every relay carries every response). */
+  /** Recent response ids already delivered (every relay carries every response). */
   seen: Set<string>;
 }
+
+/**
+ * Response ids each subscription remembers. Copies of a response arrive
+ * together, one per relay, so only recent ids matter, and a late copy of a
+ * forgotten one is dropped by the signer as already settled.
+ */
+const MAX_SEEN = 256;
 
 interface PendingOk {
   resolve: () => void;
@@ -89,13 +96,28 @@ class RelayConn {
   }
 
   send(frame: string): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      try {
-        this.ws.send(frame);
-        return;
-      } catch { /* ignore */ }
-    }
+    if (this.stopped) return;
+    if (this.sendIfOpen(frame)) return;
     this.queue.push(frame);
+  }
+
+  /** Send `frame` only on an open socket; never queued. */
+  sendIfOpen(frame: string): boolean {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    try {
+      this.ws.send(frame);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Take one queued copy of `frame` back, unsent. Whether there was one. */
+  unqueue(frame: string): boolean {
+    const i = this.queue.indexOf(frame);
+    if (i === -1) return false;
+    this.queue.splice(i, 1);
+    return true;
   }
 
   recycle(): void {
@@ -108,6 +130,7 @@ class RelayConn {
 
   stop(): void {
     this.stopped = true;
+    this.queue = [];
     if (this.timer) clearTimeout(this.timer);
     try {
       this.ws?.close();
@@ -180,6 +203,7 @@ export class Nip46Transport {
         const sub = this.subs.get(subId);
         if (!sub || sub.seen.has(event.id)) return;
         sub.seen.add(event.id);
+        if (sub.seen.size > MAX_SEEN) sub.seen.delete(sub.seen.values().next().value!);
         sub.push(['EVENT', subId, event]);
         return;
       }
@@ -232,13 +256,21 @@ export class Nip46Transport {
   event(event: NostrEvent, opts?: { signal?: AbortSignal; relay?: string }): Promise<void> {
     const targets = opts?.relay ? this.conns.filter((c) => c.url === opts.relay) : this.conns;
     if (targets.length === 0) return Promise.reject(new Error(`unknown relay ${opts?.relay}`));
+    const frame = JSON.stringify(['EVENT', event]);
+    // A copy still queued for a relay that's down is settled now: it would
+    // only be sent, stale, when that relay comes back.
+    const unqueue = () => {
+      for (const c of targets) c.unqueue(frame);
+    };
     return new Promise<void>((resolve, reject) => {
       const done = (fn: () => void) => {
         opts?.signal?.removeEventListener('abort', onAbort);
+        unqueue();
         fn();
       };
       const onAbort = () => {
         this.pendingOks.delete(event.id);
+        unqueue();
         reject(new Error('publish aborted'));
       };
       this.pendingOks.set(event.id, {
@@ -251,7 +283,6 @@ export class Nip46Transport {
         if (opts.signal.aborted) return onAbort();
         opts.signal.addEventListener('abort', onAbort, { once: true });
       }
-      const frame = JSON.stringify(['EVENT', event]);
       for (const c of targets) c.send(frame);
     });
   }
@@ -285,8 +316,12 @@ export class Nip46Transport {
       if (ended) return;
       ended = true;
       subs.delete(subId);
+      // A REQ still queued was never sent, and a socket that dropped took its
+      // subscriptions with it: only an open socket has anything to CLOSE.
       const close = JSON.stringify(['CLOSE', subId]);
-      for (const c of conns) c.send(close);
+      for (const c of conns) {
+        if (!c.unqueue(frame)) c.sendIfOpen(close);
+      }
       wake?.();
     };
     opts?.signal?.addEventListener('abort', end, { once: true });
