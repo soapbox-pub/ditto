@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.46.5] - 2026-11-20
+
+Tinker deeper: power users can now edit their own profile, follow list, relay list, and other editable posts as raw data, with a preview of exactly what changes. The Themes page's + button starts a brand-new theme, your own themes get a pencil for quick edits, and a sample post shows your text size as you slide it. Plus share files straight into the installed web app, sturdier remote signer logins, and a feed that won't time-travel back a year.
+
+### Added
+- Edit your own profile, lists, and other editable posts as raw data from the post menu or Settings → Advanced, with a preview of what changes
+- Optional proof of work on everything you publish, set under Settings → Network
+- A sample post under the Text size slider shows the size you pick at feed size
+- Share photos and files into Ditto when it's installed as a web app
+- A pencil on each of your own themes on the Themes page for quick edits
+
+### Changed
+- The + button on the Themes page starts a fresh theme instead of reopening the one you're wearing
+- Themes page cards look like the theme cards in the feed, with the title on a bar in the theme's own colors
+- Remote signers are more reliable: requests retry after dropped connections and when you come back to the app
+- The swipe back gesture stays off pages opened from the bottom bar or the menu, and settles faster
+- The Nostr Clients chart shows each count as it arrives instead of waiting for all of them
+- Highlights show their source even when it's a book or other non-web reference
+- Uploads go to each media server only once, and pages like profiles and Discover load faster
+
+### Fixed
+- A slow-to-update server can no longer push the feed's first page back by months
+- Profile tabs no longer jump while the profile header loads
+
 ## [2.46.4] - 2026-11-18
 
 Greentext has arrived: lines that start with > now glow green like the imageboards of old. Your own follow packs get a My Packs tab, you can add people to a list by pasting their key or address, and the Text size setting reaches every word, posts included. Plus steadier scrolling, touch-friendly mention suggestions, and reply counts that tell quotes apart from replies.
