@@ -261,6 +261,43 @@
       transform: scale(calc(1 - var(--profile-scroll, 0) * 0.4));
       transform-origin: bottom left;
     }
+
+    /* Where the browser can, the scroll drives these itself. Setting
+       --profile-scroll from script read the scroll position every frame,
+       forcing a layout, and restyled the whole page it's set on. The range
+       is ProfilePage's PROFILE_SCROLL_RANGE_PX. */
+    @supports (animation-timeline: scroll()) {
+      .profile-scroll-linked .profile-banner-scroll {
+        animation: profile-banner-scroll linear both;
+        animation-range: 0 120px;
+      }
+
+      .profile-scroll-linked .profile-avatar-shrink {
+        animation: profile-avatar-shrink linear both;
+        animation-range: 0 120px;
+      }
+
+      /* A rule of its own, after the shorthands: the minifier folds a
+         timeline in the same block into `animation`, which may not carry one,
+         and browsers drop the whole declaration. */
+      .profile-scroll-linked .profile-banner-scroll,
+      .profile-scroll-linked .profile-avatar-shrink {
+        animation-timeline: scroll(root);
+      }
+    }
+  }
+
+  @keyframes profile-banner-scroll {
+    to {
+      transform: translateY(2.5rem) scale(1.06);
+      filter: blur(6px) brightness(0.7);
+    }
+  }
+
+  @keyframes profile-avatar-shrink {
+    to {
+      transform: scale(0.6);
+    }
   }
 
   .planet-horizon-rim {

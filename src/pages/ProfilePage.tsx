@@ -1146,6 +1146,9 @@ const FOLLOWERS_PAGE_SIZE = 20;
 /** Scroll distance (px) over which the profile header settles into its scrolled state. */
 const PROFILE_SCROLL_RANGE_PX = 120;
 
+/** Whether CSS can drive the scroll-linked header itself (see index.css). */
+const SCROLL_TIMELINES = typeof CSS !== 'undefined' && CSS.supports?.('animation-timeline: scroll()') === true;
+
 /** How long the banner takes to spring back after a pull (the `.ptr-follow` transition). */
 const PULL_SPRING_BACK_MS = 450;
 
@@ -2329,16 +2332,20 @@ function ProfilePageInner() {
   }, [selectTab]);
 
   // Scroll-linked header: the banner drifts and blurs and the avatar shrinks
-  // as the page scrolls (CSS reads --profile-scroll, 0–1; see index.css),
-  // written per frame without re-rendering the page.
+  // as the page scrolls. Browsers with scroll-driven animations do it in CSS
+  // (`.profile-scroll-linked`); elsewhere CSS reads --profile-scroll, 0–1
+  // (see index.css), written per frame without re-rendering the page.
   const mainRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (inUnderlay) return;
+    if (inUnderlay || SCROLL_TIMELINES) return;
     let frame = 0;
     const update = () => {
       frame = 0;
       const progress = Math.min(Math.max(window.scrollY / PROFILE_SCROLL_RANGE_PX, 0), 1);
-      mainRef.current?.style.setProperty('--profile-scroll', progress.toFixed(3));
+      // On the two elements that read it, not the page: a custom property
+      // changed on <main> restyles everything under it, every frame.
+      mainRef.current?.querySelectorAll<HTMLElement>('.profile-banner-scroll, .profile-avatar-shrink')
+        .forEach((el) => el.style.setProperty('--profile-scroll', progress.toFixed(3)));
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -2436,7 +2443,7 @@ function ProfilePageInner() {
   }
 
   return (
-    <main ref={mainRef} className="flex-1 min-w-0 relative">
+    <main ref={mainRef} className={cn('flex-1 min-w-0 relative', !inUnderlay && 'profile-scroll-linked')}>
       {/* Love List celebration — hearts rain down over the top of the profile
           when this profile is added to the Love List. Anchored to the top
           third of the page so the sprinkle covers the header. */}
@@ -3012,7 +3019,10 @@ function ProfilePageInner() {
 
         {/* Tabs */}
         <div ref={tabsAnchorRef} aria-hidden="true" />
-        <SubHeaderBar pinned soft>
+        {/* Hidden, not left out, until the header above it has its real
+            height: a profile's bio, fields and badges make it several times
+            the skeleton's, and everything painted below shifted down. */}
+        <SubHeaderBar pinned soft className={cn(author.isLoading && 'invisible')}>
           {/* Skeleton while kind 16769 is loading */}
           {!profileTabsQuery.isFetched && (
             <div className="flex gap-1 px-2 py-2">
@@ -3165,7 +3175,7 @@ function ProfilePageInner() {
 
         {/* At least a screen tall, so switching tabs while the bar is stuck
             can keep it stuck however short the new tab's content is. */}
-        <div className="min-h-[100dvh]">
+        <div className={cn('min-h-[100dvh]', author.isLoading && 'invisible')}>
 
         {/* Add/edit single tab modal */}
         {pubkey && tabModalOpen && (
