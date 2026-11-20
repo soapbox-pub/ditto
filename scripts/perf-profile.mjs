@@ -166,7 +166,9 @@ function instrument() {
     longTasks: [],
     loafs: [],
     lcp: 0,
+    lcpNode: '',
     cls: 0,
+    shifts: [],
     frames: [],
     framing: false,
   };
@@ -199,9 +201,26 @@ function instrument() {
   });
   observe('largest-contentful-paint', (e) => {
     perf.lcp = e.startTime;
+    perf.lcpNode = e.element ? `${e.element.tagName.toLowerCase()} ${(e.url || '').slice(0, 80)}` : '';
   });
+  const describe = (node) => {
+    if (!node || node.nodeType !== 1) return node ? node.nodeName : '?';
+    const cls = typeof node.className === 'string' ? node.className.split(/\s+/).slice(0, 4).join('.') : '';
+    const testid = node.getAttribute('data-testid') || node.getAttribute('aria-label') || '';
+    return `${node.tagName.toLowerCase()}${cls ? `.${cls}` : ''}${testid ? `[${testid}]` : ''}`;
+  };
   observe('layout-shift', (e) => {
-    if (!e.hadRecentInput) perf.cls += e.value;
+    if (e.hadRecentInput) return;
+    perf.cls += e.value;
+    perf.shifts.push({
+      at: Math.round(e.startTime),
+      value: Number(e.value.toFixed(4)),
+      sources: (e.sources ?? []).slice(0, 3).map((s) => ({
+        node: describe(s.node),
+        from: s.previousRect && Math.round(s.previousRect.y),
+        to: s.currentRect && Math.round(s.currentRect.y),
+      })),
+    });
   });
   let last = 0;
   const tick = (t) => {
@@ -233,10 +252,12 @@ async function metrics(cdp) {
 async function take(page) {
   return page.evaluate(() => {
     const p = window.__perf;
-    const out = { longTasks: p.longTasks, loafs: p.loafs, lcp: p.lcp, cls: p.cls, frames: p.frames };
+    const out = { longTasks: p.longTasks, loafs: p.loafs, lcp: p.lcp, lcpNode: p.lcpNode, cls: p.cls, shifts: p.shifts, frames: p.frames };
     p.longTasks = [];
     p.loafs = [];
     p.frames = [];
+    p.shifts = [];
+    p.cls = 0;
     return out;
   });
 }
@@ -314,7 +335,9 @@ async function measurePhase(page, cdp, name, fn) {
     slowFrames: slowFrames.length,
     worstFrameMs: Math.round(Math.max(0, ...seen.frames)),
     lcpMs: Math.round(seen.lcp),
+    lcpNode: seen.lcpNode,
     cls: Number(seen.cls.toFixed(3)),
+    shifts: seen.shifts.sort((a, b) => b.value - a.value).slice(0, 8),
     nodes: after.Nodes,
     heapMB: Math.round(after.JSHeapUsedSize / 1048576),
     listeners: after.JSEventListeners,
@@ -380,10 +403,14 @@ function printPhase(label, p) {
     `  ${label.padEnd(6)} busy ${p.busyMs}ms (${p.busyPct}%)  script ${p.scriptMs}  style ${p.styleMs} ×${p.styleCount}` +
       `  layout ${p.layoutMs} ×${p.layoutCount}  long tasks ${p.longTasks} (max ${p.longestTaskMs}, TBT ${p.blockingMs})` +
       (p.frames ? `  slow frames ${p.slowFrames}/${p.frames} (worst ${p.worstFrameMs})` : '') +
-      (label === 'load' ? `  LCP ${p.lcpMs}  CLS ${p.cls}` : '') +
+      (label === 'load' ? `  LCP ${p.lcpMs} (${p.lcpNode})  CLS ${p.cls}` : `  CLS ${p.cls}`) +
       `  nodes ${p.nodes}  heap ${p.heapMB}MB`,
   );
   for (const line of p.loafScripts.slice(0, 6)) console.log(`         loaf  ${line}`);
+  for (const shift of p.shifts.filter((s) => s.value >= 0.01).slice(0, 4)) {
+    const what = shift.sources.map((s) => `${s.node} ${s.from}→${s.to}`).join(', ');
+    console.log(`         shift ${shift.value} @${shift.at}ms ${what}`);
+  }
   for (const line of (p.hot ?? []).slice(0, 12)) console.log(`         hot   ${line}`);
 }
 
