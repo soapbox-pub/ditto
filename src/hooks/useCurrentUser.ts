@@ -1,21 +1,40 @@
 import { useNostr } from '@nostrify/react';
 import { type NLoginType, NUser, useNostrLogin } from '@nostrify/react/login';
-import { NRelay1, NSecSigner } from '@nostrify/nostrify';
+import { NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useMemo } from 'react';
 
 import { useAuthor } from './useAuthor.ts';
 import { signerWithNudge } from '@/lib/signerWithNudge';
-import { NSecSignerBtc, NBrowserSignerBtc, NConnectSignerBtc } from '@/lib/bitcoin-signers';
+import { NSecSignerBtc, NBrowserSignerBtc } from '@/lib/bitcoin-signers';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
+import { NIP46_SIGN_TIMEOUT_MS, Nip46Signer } from '@/lib/nip46Signer';
+import { getNip46Transport } from '@/lib/nip46Transport';
+
+/**
+ * ONE NUser (and signer) per (nostr instance, login id), app-wide. Per-call-site
+ * construction would give NIP-46 logins N signers with duplicate bunker
+ * subscriptions. Weakly keyed by the nostr instance so a provider remount
+ * invalidates it.
+ */
+const userCache = new WeakMap<object, Map<string, NUser>>();
 
 export function useCurrentUser() {
   const { nostr } = useNostr();
   const { logins } = useNostrLogin();
 
   const loginToUser = useCallback((login: NLoginType): NUser  => {
+    let byLogin = userCache.get(nostr);
+    if (!byLogin) {
+      byLogin = new Map();
+      userCache.set(nostr, byLogin);
+    }
+    const existing = byLogin.get(login.id);
+    if (existing) return existing;
+
     let user: NUser;
     let isBunkerConnected: (() => boolean) | undefined;
+    let nudgeOpts: Parameters<typeof signerWithNudge>[2];
 
     switch (login.type) {
       case 'nsec': { // Nostr login with secret key — use BTC-extended signer
@@ -23,29 +42,28 @@ export function useCurrentUser() {
         user = new NUser(login.type, login.pubkey, new NSecSignerBtc(sk.data));
         break;
       }
-      case 'bunker': { // Nostr login with NIP-46 "bunker://" URI — use BTC-extended signer
+      case 'bunker': { // Nostr login with NIP-46 "bunker://" URI
         const clientSk = nip19.decode(login.data.clientNsec) as { type: 'nsec'; data: Uint8Array };
-        const clientSigner = new NSecSigner(clientSk.data);
         const bunkerRelays = login.data.relays;
+
+        // A dedicated plain-WebSocket transport, never the relay pool (which
+        // wedges NIP-46 on Android; see nip46Transport.ts).
+        const transport = getNip46Transport(login.data.bunkerPubkey, bunkerRelays);
 
         user = new NUser(
           login.type,
           login.pubkey,
-          new NConnectSignerBtc({
-            relay: nostr.group(bunkerRelays),
-            pubkey: login.data.bunkerPubkey,
-            signer: clientSigner,
-            timeout: 60_000,
+          new Nip46Signer({
+            transport,
+            bunkerPubkey: login.data.bunkerPubkey,
+            clientSigner: new NSecSigner(clientSk.data),
           }),
         );
 
-        // Called at nudge time to check whether any of the bunker's relay
-        // WebSockets are OPEN. Relay instances are shared with the main pool
-        // so pool.relays will contain them once they have been opened.
-        isBunkerConnected = () => bunkerRelays.some((url) => {
-          const relay = nostr.relay(url);
-          return relay instanceof NRelay1 && relay.socket.readyState === WebSocket.OPEN;
-        });
+        // Lets the nudge say "signer relay unreachable" when all bunker sockets are down.
+        isBunkerConnected = () => transport.isConnected();
+        // A signature may wait on the user approving it in the signer app.
+        nudgeOpts = { remote: true, signerRelays: bunkerRelays, hardTimeoutMs: NIP46_SIGN_TIMEOUT_MS + 10_000 };
         break;
       }
       case 'extension': // Nostr login with NIP-07 browser extension — use BTC-extended signer
@@ -60,7 +78,9 @@ export function useCurrentUser() {
       default:
         throw new Error(`Unsupported login type: ${login.type}`);
     }
-    return new NUser(user.method, user.pubkey, signerWithNudge(user.signer, isBunkerConnected));
+    const wrapped = new NUser(user.method, user.pubkey, signerWithNudge(user.signer, isBunkerConnected, nudgeOpts));
+    byLogin.set(login.id, wrapped);
+    return wrapped;
   }, [nostr]);
 
   const users = useMemo(() => {

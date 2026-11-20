@@ -1,8 +1,9 @@
+import { Capacitor } from '@capacitor/core';
 import type { NostrEvent, NostrSigner } from '@nostrify/types';
 import { createElement, type ReactNode } from 'react';
 import { defineMessages, FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from 'react-intl';
 import { toast } from '@/hooks/useToast';
-import { NudgeToastContent } from '@/components/SignerToastContent';
+import { NudgeToastContent, type SignerAppLink } from '@/components/SignerToastContent';
 import { type BtcSigner, hasBtcSigning } from '@/lib/bitcoin-signers';
 import { getKindLabel } from '@/lib/kindLabels';
 
@@ -10,19 +11,36 @@ import { getKindLabel } from '@/lib/kindLabels';
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Show the nudge toast after this delay if a signer op is still pending. */
+/** Show the nudge once the signer has answered nothing for this long with work pending. */
 const NUDGE_DELAY_MS = 4_000;
 
-
-/** Hard timeout — reject the op entirely after this long with no response. */
+/**
+ * Reject the op after this long: the only fence for NIP-07 extensions. A
+ * remote signer passes its own (`hardTimeoutMs`) above Nip46Signer's budget,
+ * so a user still on their way to approve isn't cut off.
+ */
 const HARD_TIMEOUT_MS = 45_000;
 
+/** Minimum gap between nudge toasts. */
+const NUDGE_THROTTLE_MS = 8_000;
+
+/** How long a nudge shows its confirmation before it goes. */
+const CONFIRM_MS = 1_500;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+function isIos(): boolean {
+  if (Capacitor.getPlatform() === 'ios') return true;
+  if (typeof navigator === 'undefined') return false;
+  // iPadOS Safari reports itself as a Mac; only the touch points give it away.
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+
 function isAndroid(): boolean {
+  if (Capacitor.getPlatform() === 'android') return true;
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 }
 
@@ -64,7 +82,7 @@ const toastMessages = defineMessages({
   approve: { id: 'signerNudge.approveTitle', defaultMessage: 'Approve {subject}' },
   relayUnreachable: { id: 'signerNudge.relayUnreachable', defaultMessage: 'Signer relay unreachable' },
   relayUnreachableDescription: { id: 'signerNudge.relayUnreachableDescription', defaultMessage: 'Check your connection and try again.' },
-  autoApproveHint: { id: 'signerNudge.autoApproveHint', defaultMessage: 'Set to auto-approve for a smoother experience.' },
+  remoteWaiting: { id: 'signerNudge.remoteWaiting', defaultMessage: "Your signer hasn't answered yet. Open it to approve the request, or to wake it if it signs automatically." },
   approveInApp: { id: 'signerNudge.approveInApp', defaultMessage: 'Approve the request in your signer app.' },
 });
 
@@ -72,6 +90,12 @@ const successMessages = defineMessages({
   encrypt: { id: 'signerNudge.approved.encryption', defaultMessage: 'Encryption approved' },
   decrypt: { id: 'signerNudge.approved.decryption', defaultMessage: 'Decryption approved' },
   sign: { id: 'signerNudge.approved.signing', defaultMessage: 'Signing approved' },
+});
+
+const linkMessages = defineMessages({
+  openSigner: { id: 'signerToast.openSigner', defaultMessage: 'Open signer' },
+  openClave: { id: 'signerToast.openClave', defaultMessage: 'Open Clave' },
+  openAegis: { id: 'signerToast.openAegis', defaultMessage: 'Open Aegis' },
 });
 
 function labelForOp(intl: IntlShape, kind: number | undefined, opType: OpType): string {
@@ -94,6 +118,42 @@ function NudgeToastTitle({ kind, opType }: { kind: number | undefined; opType: O
   return intl.formatMessage(toastMessages.approve, { subject: labelForOp(intl, kind, opType) });
 }
 
+const CLAVE: SignerAppLink = {
+  href: 'clave://',
+  label: createElement(FormattedMessage, linkMessages.openClave),
+};
+const AEGIS: SignerAppLink = {
+  href: 'aegis://',
+  label: createElement(FormattedMessage, linkMessages.openAegis),
+};
+
+/** The iOS signer app, read off the session's relays: Aegis runs a local relay, Clave uses relay.powr.build. */
+function iosSignerApp(relays: string[]): SignerAppLink | undefined {
+  const hosts = relays.flatMap((url) => {
+    try {
+      return [new URL(url).hostname];
+    } catch {
+      return [];
+    }
+  });
+  if (hosts.some((h) => h === 'localrelay.link' || h === '127.0.0.1' || h === 'localhost')) return AEGIS;
+  if (hosts.includes('relay.powr.build')) return CLAVE;
+  return undefined;
+}
+
+/**
+ * Links that bring a NIP-46 signer app to the front. On iOS each app has its own
+ * scheme, so both are offered when the relays don't say which. None on desktop.
+ */
+function signerAppLinks(signerRelays: string[] = []): SignerAppLink[] {
+  if (isAndroid()) return [{ href: 'nostrsigner:', label: createElement(FormattedMessage, linkMessages.openSigner) }];
+  if (isIos()) {
+    const app = iosSignerApp(signerRelays);
+    return app ? [app] : [CLAVE, AEGIS];
+  }
+  return [];
+}
+
 // ---------------------------------------------------------------------------
 // Sentinel values used to signal control flow inside Promise.race
 // ---------------------------------------------------------------------------
@@ -104,42 +164,26 @@ const TIMEOUT = Symbol('timeout');
 type Signal = typeof CANCEL | typeof TIMEOUT;
 
 // ---------------------------------------------------------------------------
-// Toast deduplication — prevent a storm of identical nudge toasts
-// ---------------------------------------------------------------------------
-
-/** Timestamp of the last nudge toast shown. Used to throttle. */
-let lastNudgeShownAt = 0;
-/** Minimum gap between nudge toasts (ms). Prevents rapid-fire replacements. */
-const NUDGE_THROTTLE_MS = 8_000;
-
-// ---------------------------------------------------------------------------
 // Toast helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Shows the nudge toast with interactive buttons. Returns a dismiss handle.
- *
- * On Android the toast includes an "Approve in signer" link that opens the
- * signer via the `nostrsigner:` URI scheme (keeps the WebSocket alive), plus
- * a Skip/Cancel button. On desktop it shows a description with a Skip button.
- */
+interface ShownNudge {
+  dismiss: () => void;
+  confirm: (opType: OpType) => void;
+}
+
+/** Shows the nudge toast with interactive buttons. */
 function showNudgeToast(opts: {
   kind: number | undefined;
   opType: OpType;
   isBunkerConnected: (() => boolean) | undefined;
+  remote: boolean;
+  signerRelays: string[] | undefined;
+  durationMs: number;
   onCancel: () => void;
-}): { dismiss: () => void } {
-  const { kind, opType, isBunkerConnected, onCancel } = opts;
-  const android = isAndroid();
+}): ShownNudge {
+  const { kind, opType, isBunkerConnected, remote, signerRelays, durationMs, onCancel } = opts;
   const relayOk = isBunkerConnected ? isBunkerConnected() : true;
-
-  // Throttle: if a nudge was shown recently, return a no-op dismiss handle
-  // to avoid a storm of rapidly replacing toasts on unstable connections.
-  const now = Date.now();
-  if (now - lastNudgeShownAt < NUDGE_THROTTLE_MS) {
-    return { dismiss: () => {} };
-  }
-  lastNudgeShownAt = now;
 
   let title: ReactNode;
   let descriptionText: ReactNode;
@@ -147,47 +191,132 @@ function showNudgeToast(opts: {
   if (!relayOk) {
     title = createElement(FormattedMessage, toastMessages.relayUnreachable);
     descriptionText = createElement(FormattedMessage, toastMessages.relayUnreachableDescription);
-  } else if (android) {
+  } else if (remote) {
     title = createElement(NudgeToastTitle, { kind, opType });
-    descriptionText = createElement(FormattedMessage, toastMessages.autoApproveHint);
+    // An auto-approving push signer (Clave) still needs waking when it falls behind.
+    descriptionText = createElement(FormattedMessage, toastMessages.remoteWaiting);
   } else {
     title = createElement(NudgeToastTitle, { kind, opType });
     descriptionText = createElement(FormattedMessage, toastMessages.approveInApp);
   }
 
-  // We need to capture the dismiss function so the onCancel callback inside
-  // the component can dismiss the toast. We use a mutable ref pattern (object
-  // wrapper) so the closure captures the container rather than the value.
+  // Mutable ref so the component's onCancel can dismiss its own toast.
   const dismissRef: { fn: (() => void) | undefined } = { fn: undefined };
 
   const description = createElement(NudgeToastContent, {
     description: descriptionText,
-    android,
-    relayOk,
+    openSigner: remote && relayOk ? signerAppLinks(signerRelays) : [],
     onCancel: () => { dismissRef.fn?.(); onCancel(); },
   });
 
-  // Use a long but finite duration so Radix swipe-to-dismiss works on mobile.
-  // The toast is dismissed programmatically on operation completion anyway.
-  const { dismiss } = toast({ title, description, duration: 120_000 });
+  // Finite so Radix swipe-to-dismiss works on mobile; as long as the op may wait.
+  const { id, dismiss, update } = toast({ title, description, duration: durationMs });
   dismissRef.fn = dismiss;
 
-  return { dismiss };
+  return {
+    dismiss,
+    // The same toast turns into the confirmation, so it never stacks a second one.
+    confirm: (opType) => {
+      update({
+        id,
+        title: createElement(FormattedMessage, successMessages[opType]),
+        description: undefined,
+        variant: 'success',
+        duration: CONFIRM_MS,
+      });
+      setTimeout(dismiss, CONFIRM_MS);
+    },
+  };
 }
 
-function showSuccessToast(opType: OpType): void {
-  toast({ title: createElement(FormattedMessage, successMessages[opType]), duration: 3000, variant: 'success' });
-}
-
-
 // ---------------------------------------------------------------------------
-// Core: run a signer operation with nudge + retry logic
+// Core: run a signer operation with nudge + hard timeout
 // ---------------------------------------------------------------------------
 
-interface RunOpts {
+interface PendingOp {
   kind: number | undefined;
   opType: OpType;
-  isBunkerConnected: (() => boolean) | undefined;
+  cancel: () => void;
+}
+
+/**
+ * One nudge per STALL of a signer, shared by all its ops. Remote signers serve
+ * requests one at a time, so a per-op timer fires on queue wait alone; this
+ * clock restarts whenever any op settles, and only a signer that has stopped
+ * answering is nudged.
+ */
+class Nudger {
+  readonly #isBunkerConnected: (() => boolean) | undefined;
+  readonly #remote: boolean;
+  readonly #signerRelays: string[] | undefined;
+  readonly hardTimeoutMs: number;
+  readonly #pending = new Set<PendingOp>();
+  #timer: ReturnType<typeof setTimeout> | undefined;
+  #shown: ShownNudge | undefined;
+  #lastShownAt = -Infinity;
+
+  constructor(
+    isBunkerConnected: (() => boolean) | undefined,
+    remote: boolean,
+    signerRelays: string[] | undefined,
+    hardTimeoutMs: number,
+  ) {
+    this.#isBunkerConnected = isBunkerConnected;
+    this.#remote = remote;
+    this.#signerRelays = signerRelays;
+    this.hardTimeoutMs = hardTimeoutMs;
+  }
+
+  begin(op: PendingOp): void {
+    this.#pending.add(op);
+    if (this.#timer === undefined && !this.#shown) this.#arm(NUDGE_DELAY_MS);
+  }
+
+  /** `approved`: it resolved with a value, which confirms a nudge actually shown. */
+  end(op: PendingOp, approved: boolean): void {
+    this.#pending.delete(op);
+    this.#disarm();
+    if (this.#shown) {
+      if (approved) this.#shown.confirm(op.opType);
+      else this.#shown.dismiss();
+      this.#shown = undefined;
+    }
+    if (this.#pending.size > 0) this.#arm(NUDGE_DELAY_MS);
+  }
+
+  #arm(ms: number): void {
+    this.#timer = setTimeout(() => {
+      this.#timer = undefined;
+      this.#show();
+    }, ms);
+  }
+
+  #disarm(): void {
+    clearTimeout(this.#timer);
+    this.#timer = undefined;
+  }
+
+  #show(): void {
+    // The oldest pending op is the one the signer is stuck on.
+    const head = this.#pending.values().next().value;
+    if (!head) return;
+    // Throttled, not dropped: a stall inside the window is nudged when it ends.
+    const wait = this.#lastShownAt + NUDGE_THROTTLE_MS - Date.now();
+    if (wait > 0) return this.#arm(wait);
+    this.#lastShownAt = Date.now();
+    this.#shown = showNudgeToast({
+      kind: head.kind,
+      opType: head.opType,
+      isBunkerConnected: this.#isBunkerConnected,
+      remote: this.#remote,
+      signerRelays: this.#signerRelays,
+      durationMs: this.hardTimeoutMs,
+      // The rest are queued behind the stalled one, so skip them all.
+      onCancel: () => {
+        for (const op of [...this.#pending]) op.cancel();
+      },
+    });
+  }
 }
 
 /** Creates a deferred promise. Used to race against the actual signer op. */
@@ -197,51 +326,25 @@ function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
   return { promise, resolve };
 }
 
-/** Result of `runWithNudge` — value + whether the nudge toast was shown. */
-interface RunResult<T> {
-  value: T;
-  nudgeFired: boolean;
-}
-
-/**
- * Runs `op` with:
- * - A nudge toast after NUDGE_DELAY_MS if still pending.
- * - A hard timeout at HARD_TIMEOUT_MS.
- */
-async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<RunResult<T>> {
-  const { kind, opType, isBunkerConnected } = opts;
-
+/** Run `op` under `nudger`, with a cancel button and a hard timeout. */
+async function runWithNudge<T>(
+  op: () => Promise<T>,
+  nudger: Nudger,
+  kind: number | undefined,
+  opType: OpType,
+): Promise<T> {
   // Tagged outcome type used to distinguish op results from control signals.
   type Outcome =
     | { tag: 'value'; value: T }
     | { tag: 'error'; error: unknown }
     | { tag: 'signal'; signal: Signal };
 
-  let nudgeFired = false;
-
   // Signal channels — each resolves with a sentinel when its condition fires.
   const cancelSignal = deferred<typeof CANCEL>();
   const timeoutSignal = deferred<typeof TIMEOUT>();
-
-  // --- Nudge timer ---
-  let dismissNudge: (() => void) | undefined;
-  const nudgeTimer = setTimeout(() => {
-    nudgeFired = true;
-    const handle = showNudgeToast({
-      kind, opType, isBunkerConnected,
-      onCancel: () => cancelSignal.resolve(CANCEL),
-    });
-    dismissNudge = handle.dismiss;
-  }, NUDGE_DELAY_MS);
-
-  // --- Hard timeout ---
-  const hardTimer = setTimeout(() => timeoutSignal.resolve(TIMEOUT), HARD_TIMEOUT_MS);
-
-  function cleanup() {
-    clearTimeout(nudgeTimer);
-    clearTimeout(hardTimer);
-    dismissNudge?.();
-  }
+  const pending: PendingOp = { kind, opType, cancel: () => cancelSignal.resolve(CANCEL) };
+  const hardTimer = setTimeout(() => timeoutSignal.resolve(TIMEOUT), nudger.hardTimeoutMs);
+  nudger.begin(pending);
 
   const opOutcome: Promise<Outcome> = op().then(
     (value): Outcome => ({ tag: 'value', value }),
@@ -254,12 +357,10 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
   ]).then((signal): Outcome => ({ tag: 'signal', signal }));
 
   const outcome = await Promise.race([opOutcome, signalOutcome]);
-  cleanup();
+  clearTimeout(hardTimer);
+  nudger.end(pending, outcome.tag === 'value');
 
-  if (outcome.tag === 'value') {
-    if (nudgeFired) showSuccessToast(opType);
-    return { value: outcome.value, nudgeFired };
-  }
+  if (outcome.tag === 'value') return outcome.value;
 
   if (outcome.tag === 'error') {
     throw outcome.error;
@@ -281,32 +382,34 @@ async function runWithNudge<T>(op: () => Promise<T>, opts: RunOpts): Promise<Run
 
 /**
  * Wraps a `NostrSigner` to add UX improvements for remote/external signers:
- *
- * - Shows a nudge toast after 4s if a signing or encryption op is still
- *   pending, so the user knows to check their signer app.
- * - When a nip44 encrypt is immediately followed by a signEvent (e.g. saving
- *   encrypted settings), shows a phase-transition toast so the user knows to
- *   approve the second request.
+ * a nudge toast once it has answered nothing for 4s, a hard timeout, and one
+ * confirmation when a shown nudge's stall ends in a signature. nip04/nip44
+ * pass through un-nudged. `signPsbt` is forwarded.
  *
  * @param signer - The underlying NostrSigner to wrap.
- * @param isBunkerConnected - Optional callback checked at nudge time; when it
- *   returns false the toast warns about a relay connectivity problem instead.
+ * @param isBunkerConnected - Checked at nudge time; false shows a relay-unreachable warning.
+ * @param opts.remote - A NIP-46 signer: the nudge explains where to approve.
+ * @param opts.signerRelays - The bunker session's relays, which name its iOS signer app.
+ * @param opts.hardTimeoutMs - Overrides the 45s fence (a NIP-46 signer waits longer).
  */
 export function signerWithNudge(
   signer: NostrSigner,
   isBunkerConnected?: () => boolean,
+  opts?: { remote?: boolean; signerRelays?: string[]; hardTimeoutMs?: number },
 ): NostrSigner {
-  /** Run an op and return just the value (discarding nudge metadata). */
+  const nudger = new Nudger(
+    isBunkerConnected,
+    opts?.remote ?? false,
+    opts?.signerRelays,
+    opts?.hardTimeoutMs ?? HARD_TIMEOUT_MS,
+  );
   function run<T>(op: () => Promise<T>, kind: number | undefined, opType: OpType): Promise<T> {
-    return runWithNudge(op, { kind, opType, isBunkerConnected }).then((r) => r.value);
+    return runWithNudge(op, nudger, kind, opType);
   }
 
   const wrapped: NostrSigner = {
     getPublicKey: () => run(() => signer.getPublicKey(), undefined, 'sign'),
-
-    signEvent: (event: NostrEvent) => {
-      return run(() => signer.signEvent(event), event.kind, 'sign');
-    },
+    signEvent: (event: NostrEvent) => run(() => signer.signEvent(event), event.kind, 'sign'),
   };
 
   if (signer.getRelays) {
@@ -314,32 +417,17 @@ export function signerWithNudge(
     wrapped.getRelays = () => run(() => getRelays(), undefined, 'sign');
   }
 
-  // Shared wrapper for nip04/nip44 encrypt and decrypt methods.
-  function wrapCrypto(crypto: {
-    encrypt: (pubkey: string, plaintext: string) => Promise<string>;
-    decrypt: (pubkey: string, ciphertext: string) => Promise<string>;
-  }) {
-    return {
-      encrypt: (pubkey: string, plaintext: string) =>
-        crypto.encrypt(pubkey, plaintext),
-      decrypt: (pubkey: string, ciphertext: string) =>
-        crypto.decrypt(pubkey, ciphertext),
-    };
-  }
-
-  if (signer.nip04) {
-    wrapped.nip04 = wrapCrypto(signer.nip04);
-  }
-
-  if (signer.nip44) {
-    wrapped.nip44 = wrapCrypto(signer.nip44);
-  }
+  // Crypto passes through: per-ciphertext nudges would spam during bulk decrypts. Read
+  // through, not copied: a NIP-07 signer only learns what it lacks once the extension injects.
+  Object.defineProperties(wrapped, {
+    nip04: { get: () => signer.nip04, enumerable: true },
+    nip44: { get: () => signer.nip44, enumerable: true },
+  });
 
   // Forward signPsbt if the underlying signer supports Bitcoin signing.
   if (hasBtcSigning(signer)) {
-    const btcWrapped = wrapped as BtcSigner;
     const btcSigner = signer;
-    btcWrapped.signPsbt = (psbtHex: string) =>
+    (wrapped as BtcSigner).signPsbt = (psbtHex: string) =>
       run(() => btcSigner.signPsbt(psbtHex), undefined, 'sign');
   }
 

@@ -1,10 +1,13 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NPool, NRelay1, NSecSigner } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
+import { nip19 } from 'nostr-tools';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
+import { Nip46Signer } from '@/lib/nip46Signer';
+import { getNip46Transport, retainNip46Transports } from '@/lib/nip46Transport';
 import { getEffectiveRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
 import { recordRelayFailure, recordRelayOpen } from '@/lib/relayHealth';
 import { routeRequest } from '@/lib/reqRoutes';
@@ -100,11 +103,16 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       switch (currentLogin.type) {
         case 'nsec':
           return NUser.fromNsecLogin(currentLogin).signer;
-        case 'bunker':
-          // pool.current is guaranteed to exist here: the pool is created
-          // synchronously during the first render (below), and useMemo runs
-          // after the render body has executed.
-          return NUser.fromBunkerLogin(currentLogin, pool.current!).signer;
+        case 'bunker': {
+          // Dedicated plain-WebSocket NIP-46 transport, never the relay pool, whose
+          // sockets wedged remote signs on Android (see nip46Transport.ts).
+          const clientSk = nip19.decode(currentLogin.data.clientNsec) as { type: 'nsec'; data: Uint8Array };
+          return new Nip46Signer({
+            transport: getNip46Transport(currentLogin.data.bunkerPubkey, currentLogin.data.relays ?? []),
+            bunkerPubkey: currentLogin.data.bunkerPubkey,
+            clientSigner: new NSecSigner(clientSk.data),
+          });
+        }
         case 'extension':
           return NUser.fromExtensionLogin(currentLogin).signer;
         case 'x-android-signer': {
@@ -144,7 +152,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     resetRelayAuthSession();
   }, [activePubkey]);
 
-  // Bunker relays of every login, which the pool also connects to.
+  // Bunker relays of every login.
   const bunkerRelaysRef = useRef<string[]>([]);
   bunkerRelaysRef.current = logins.flatMap((login) => {
     const relays = login.type === 'bunker' ? (login.data as { relays?: unknown }).relays : undefined;
@@ -152,6 +160,13 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   });
   // Blocking a remote signer's relay would silently break signing.
   setUnblockableRelays(bunkerRelaysRef.current);
+
+  // A removed bunker login's NIP-46 sockets would otherwise stay open for the session.
+  useEffect(() => {
+    retainNip46Transports(logins.flatMap((login) =>
+      login.type === 'bunker' ? [{ bunkerPubkey: login.data.bunkerPubkey, relays: login.data.relays ?? [] }] : [],
+    ));
+  }, [logins]);
 
   // Update effective relays ref (read by the AUTH policy) when config changes.
   //

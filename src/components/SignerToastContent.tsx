@@ -2,29 +2,31 @@ import { useState, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { FormattedMessage } from 'react-intl';
 
+export interface SignerAppLink {
+  href: string;
+  label: ReactNode;
+}
+
 /**
- * Toast description content for the signer nudge toast.
+ * Toast description content for the signer nudge toast (see signerWithNudge).
  *
- * On Android, includes an "Approve in signer" link that opens the signer via
- * the `nostrsigner:` URI scheme (keeps the WebSocket alive), plus a
- * Skip/Cancel button. On desktop, shows a description with a Skip button.
+ * For a remote signer on mobile, includes links that bring the signer app to
+ * the front, plus a Skip/Cancel button. Otherwise shows a Skip button.
  */
 export function NudgeToastContent({
   description,
-  android,
-  relayOk,
+  openSigner,
   onCancel,
 }: {
   description: ReactNode;
-  android: boolean;
-  relayOk: boolean;
+  openSigner?: SignerAppLink[];
   onCancel: () => void;
 }): ReactNode {
   return (
     <span>
       <span className="block text-sm opacity-80">{description}</span>
-      {android && relayOk ? (
-        <AndroidApproveRow onCancel={onCancel} />
+      {openSigner && openSigner.length > 0 ? (
+        <OpenSignerRow links={openSigner} onCancel={onCancel} />
       ) : (
         <span className="block mt-1.5">
           <SkipButton onClick={onCancel} />
@@ -34,51 +36,33 @@ export function NudgeToastContent({
   );
 }
 
-/**
- * Toast description for the phase-transition toast (encrypt done, now sign).
- * On Android includes the "Approve in signer" link.
- */
-export function PhaseToastContent({
-  message,
-  android,
-}: {
-  message: string;
-  android: boolean;
-}): ReactNode {
-  return (
-    <span>
-      {message}
-      {android && (
-        <AndroidApproveRow onCancel={() => { /* phase toast auto-expires */ }} />
-      )}
-    </span>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Internal components
 // ---------------------------------------------------------------------------
 
-function AndroidApproveRow({ onCancel }: { onCancel: () => void }) {
+function OpenSignerRow({ links, onCancel }: { links: SignerAppLink[]; onCancel: () => void }) {
   const [waiting, setWaiting] = useState(false);
 
   return (
-    <span className="flex items-center gap-3 mt-2">
+    <span className="flex flex-wrap items-center gap-3 mt-2">
       {waiting ? (
         <span className="text-sm opacity-80 inline-flex items-center gap-1.5">
           <Loader2 className="size-4 animate-spin" />
           <FormattedMessage id="signerToast.waiting" defaultMessage="Waiting for signer..." />
         </span>
       ) : (
-        <a
-          href="nostrsigner:"
-          className="text-sm font-semibold border border-current rounded px-3 py-1.5 no-underline inline-flex items-center gap-1.5 min-h-[44px]"
-          onClick={() => {
-            setWaiting(true);
-          }}
-        >
-          <FormattedMessage id="signerToast.approve" defaultMessage="Approve in signer" />
-        </a>
+        links.map((link) => (
+          <a
+            key={link.href}
+            href={link.href}
+            className="text-sm font-semibold border border-current rounded px-3 py-1.5 no-underline inline-flex items-center gap-1.5 min-h-[44px]"
+            onClick={() => {
+              setWaiting(true);
+            }}
+          >
+            {link.label}
+          </a>
+        ))
       )}
       {waiting ? (
         <button

@@ -1,6 +1,5 @@
 import type { NostrSigner } from '@nostrify/types';
-import { NSecSigner, NBrowserSigner, NConnectSigner } from '@nostrify/nostrify';
-import type { NConnectSignerOpts } from '@nostrify/nostrify';
+import { NSecSigner, NBrowserSigner } from '@nostrify/nostrify';
 
 // ---------------------------------------------------------------------------
 // BtcSigner interface
@@ -90,63 +89,4 @@ export class NBrowserSignerBtc extends NBrowserSigner implements BtcSigner {
   }
 }
 
-// ---------------------------------------------------------------------------
-// NConnectSignerBtc — NIP-46 remote signer
-// ---------------------------------------------------------------------------
-
-/**
- * Heuristics for detecting whether a NIP-46 `sign_psbt` error reflects a
- * missing-capability rejection (e.g. "method not supported", "unknown
- * command") versus a transient operational failure (network, user rejection,
- * malformed input). We have to match on strings because NIP-46 errors are
- * plain strings without structured codes.
- */
-const CAPABILITY_ERROR_PATTERNS = [
-  /unknown\s+(method|command)/i,
-  /not\s+(implemented|supported|found)/i,
-  /unsupported\s+method/i,
-  /method\s+not\s+found/i,
-  /invalid\s+method/i,
-  /no\s+such\s+method/i,
-];
-
-function looksLikeCapabilityError(msg: string): boolean {
-  return CAPABILITY_ERROR_PATTERNS.some((re) => re.test(msg));
-}
-
-/**
- * Extends `NConnectSigner` with NIP-46 `sign_psbt` RPC support.
- *
- * Sends a `sign_psbt` command over the NIP-46 relay channel. The remote
- * signer handles the TapTweak and Schnorr signing internally.
- *
- * NIP-46 returns unstructured string errors, so we use pattern matching to
- * distinguish capability failures (the signer doesn't know the method) from
- * operational failures (network, user rejection, bad input). Only capability
- * failures are re-wrapped with the "doesn't support sending Bitcoin" message
- * that flips the UI into the unsupported state; everything else propagates
- * unchanged so the caller can surface the real error.
- */
-export class NConnectSignerBtc extends NConnectSigner implements BtcSigner {
-  constructor(opts: NConnectSignerOpts) {
-    super(opts);
-  }
-
-  async signPsbt(psbtHex: string): Promise<string> {
-    // `cmd` is TypeScript-private but JavaScript-public at runtime.
-    const cmd = (this as unknown as { cmd(method: string, params: string[]): Promise<string> }).cmd;
-    try {
-      return await cmd.call(this, 'sign_psbt', [psbtHex]);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      if (looksLikeCapabilityError(msg)) {
-        throw new Error(
-          `Your remote signer doesn't support sending Bitcoin. Update to a signer that supports Bitcoin (PSBT) signing. (${msg})`,
-        );
-      }
-      // Not a capability failure — propagate the original error so the user
-      // sees the actual reason (timeout, rejection, malformed PSBT, etc.).
-      throw error;
-    }
-  }
-}
+// The NIP-46 bunker signer is `Nip46Signer` in `@/lib/nip46Signer.ts`.
