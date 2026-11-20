@@ -6,6 +6,7 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { Bell, Home, Search, User } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { NAV_ROOT_STATE } from '@/lib/navRoot';
 import { cn } from '@/lib/utils';
 import { selectionChanged } from '@/lib/haptics';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
@@ -85,6 +86,7 @@ export function MobileBottomNav() {
           {/* Home */}
           <Link
             to={homeTo}
+            state={NAV_ROOT_STATE}
             onClick={() => {
               selectionChanged();
               setSearchOpen(false);
@@ -124,6 +126,7 @@ export function MobileBottomNav() {
           {user && (
             <Link
               to="/notifications"
+              state={NAV_ROOT_STATE}
               onClick={() => {
                 selectionChanged();
                 setSearchOpen(false);
@@ -146,6 +149,7 @@ export function MobileBottomNav() {
           {user ? (
             <Link
               to={profileUrl}
+              state={NAV_ROOT_STATE}
               onClick={() => {
                 selectionChanged();
                 setSearchOpen(false);
@@ -173,6 +177,7 @@ export function MobileBottomNav() {
           ) : (
             <Link
               to="/profile"
+              state={NAV_ROOT_STATE}
               className="flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors text-muted-foreground"
             >
               <User className="size-5" />

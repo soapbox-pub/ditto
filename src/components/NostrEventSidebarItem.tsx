@@ -7,6 +7,7 @@ import { nip19 } from 'nostr-tools';
 import type { NostrMetadata } from '@nostrify/nostrify';
 import type { ComponentType } from 'react';
 
+import { NAV_ROOT_STATE } from '@/lib/navRoot';
 import { cn } from '@/lib/utils';
 import { nostrUriToNip19 } from '@/lib/sidebarItems';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -134,6 +135,7 @@ export function NostrEventSidebarItem({
 
       <Link
         to={path}
+        state={NAV_ROOT_STATE}
         onClick={onClick}
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',

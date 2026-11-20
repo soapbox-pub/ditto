@@ -6,6 +6,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { sidebarItemIcon, itemPath, formatItemLabel, SIDEBAR_SECTION_ORDER, type SidebarSection } from '@/lib/sidebarItems';
+import { NAV_ROOT_STATE } from '@/lib/navRoot';
 import { cn } from '@/lib/utils';
 import type { HiddenSidebarItem } from '@/hooks/useFeedSettings';
 import { nip19 } from 'nostr-tools';
@@ -346,7 +347,7 @@ export function SidebarMoreMenu({
               <SectionHeader section={section} first={i === 0} />
               {items.map((item) => (
                 <div key={item.id} className="flex items-center">
-                  <Link to={itemPath(item.id, undefined, homePage)} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
+                  <Link to={itemPath(item.id, undefined, homePage)} state={NAV_ROOT_STATE} onClick={() => { onOpenChange(false); onNavigate?.(); }} className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors">
                     {sidebarItemIcon(item.id, 'size-5 shrink-0')}
                     <span className="truncate" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>{labelOf(item)}</span>
                   </Link>

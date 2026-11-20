@@ -4,6 +4,7 @@ import { useIntl } from 'react-intl';
 import { useReorderItem } from '@/hooks/useReorderItem';
 import { useMemo } from 'react';
 
+import { NAV_ROOT_STATE } from '@/lib/navRoot';
 import { cn } from '@/lib/utils';
 import { parseExternalUri, headerLabel } from '@/lib/externalContent';
 import { getCountryInfo } from '@/lib/countries';
@@ -91,6 +92,7 @@ export function ExternalContentSidebarItem({
 
       <Link
         to={path}
+        state={NAV_ROOT_STATE}
         onClick={onClick}
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',

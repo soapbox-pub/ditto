@@ -5,6 +5,7 @@ import { useReorderItem } from '@/hooks/useReorderItem';
 import { nip19 } from 'nostr-tools';
 import { useCallback, useMemo } from 'react';
 
+import { NAV_ROOT_STATE } from '@/lib/navRoot';
 import { cn } from '@/lib/utils';
 import { nsiteUriToSubdomain } from '@/lib/sidebarItems';
 import { NSITE_SNAPSHOT_KIND, type ParsedNsiteSubdomain, parseNsiteSubdomain } from '@/lib/nsiteSubdomain';
@@ -96,7 +97,7 @@ export function NsiteSidebarItem({
     onClick?.(e);
     if (e.defaultPrevented || !eventPath) return;
     e.preventDefault();
-    navigate(eventPath, { state: { nsiteAutoPlay: true, nsiteAutoPlayTs: Date.now() } });
+    navigate(eventPath, { state: { ...NAV_ROOT_STATE, nsiteAutoPlay: true, nsiteAutoPlayTs: Date.now() } });
   }, [eventPath, navigate, onClick]);
 
   if (!parsed || !eventPath) {

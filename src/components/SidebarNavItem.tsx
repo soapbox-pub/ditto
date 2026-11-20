@@ -5,6 +5,7 @@ import { ReorderList } from '@/components/ReorderList';
 import { useReorderItem } from '@/hooks/useReorderItem';
 import { arrayMove } from '@/lib/sortable';
 import { sidebarItemIcon, itemPath, useItemLabel, isSidebarDivider, isNostrUri, isExternalUri, isNsiteUri } from '@/lib/sidebarItems';
+import { NAV_ROOT_STATE } from '@/lib/navRoot';
 import { cn } from '@/lib/utils';
 import { useCallback } from 'react';
 import { NostrEventSidebarItem } from '@/components/NostrEventSidebarItem';
@@ -54,6 +55,7 @@ export function SidebarNavItem({
 
       <Link
         to={path}
+        state={NAV_ROOT_STATE}
         onClick={onClick}
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors hover:bg-secondary/60 flex-1 min-w-0',

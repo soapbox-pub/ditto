@@ -7,6 +7,7 @@ import { PageRoutesContext, PageUnderlayContext } from '@/contexts/PageUnderlayC
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { holdChromeUntilUserScroll } from '@/hooks/useScrollDirection';
 import { attachBackSwipe } from '@/lib/backSwipeGesture';
+import { isNavRoot } from '@/lib/navRoot';
 import { markReturnRender } from '@/lib/pushTransition';
 import { usePreviousHistoryEntry } from '@/lib/historyStack';
 import { getPageThemeCss } from '@/lib/pageTheme';
@@ -18,8 +19,8 @@ import { selectionChanged } from '@/lib/haptics';
 /** Parallax shift of the previous page at the start of a swipe, as a fraction of the width. */
 const UNDERLAY_SHIFT = 0.25;
 /** Settle duration bounds, scaled by the distance left to travel. */
-const SETTLE_MIN_MS = 90;
-const SETTLE_MAX_MS = 250;
+const SETTLE_MIN_MS = 70;
+const SETTLE_MAX_MS = 180;
 const EASING = 'cubic-bezier(0, 0, 0.2, 1)';
 /** Shadow on the leading edge of the page being swiped away. */
 const PAGE_SHADOW = '-8px 0 24px rgb(0 0 0 / 0.15)';
@@ -86,7 +87,7 @@ function copyTopBarFlatness(layer: HTMLElement | null): number | undefined {
 
 function settleMs(remaining: number, width: number, velocity: number): number {
   const base = SETTLE_MIN_MS + (SETTLE_MAX_MS - SETTLE_MIN_MS) * (remaining / width);
-  return Math.round(velocity > 0.2 ? Math.min(base, Math.max(SETTLE_MIN_MS, (2.5 * remaining) / velocity)) : base);
+  return Math.round(velocity > 0.2 ? Math.min(base, Math.max(SETTLE_MIN_MS, (2 * remaining) / velocity)) : base);
 }
 
 /**
@@ -107,6 +108,9 @@ function settleMs(remaining: number, width: number, velocity: number): number {
  * it was scrolled away, and draws it from the shape it has on this page
  * towards the one it has on the previous (see `topBarArc`).
  *
+ * Not on root pages (`isNavRoot`): a feed opened from the bottom nav or the
+ * drawer is a tab, not a step down from the page before it.
+ *
  * Phones only (touch, phone layout). A press may start anywhere on the page
  * except things with horizontal drags of their own; on iOS the left edge stays
  * with WKWebView's native swipe-back. Android's system back gesture takes edge
@@ -119,7 +123,7 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
   const navigate = useNavigate();
   const phone = useMediaQuery('(max-width: 899.98px)');
   const touch = useMediaQuery('(pointer: coarse)');
-  const enabled = phone && touch && !!previous && !!column && !!routes;
+  const enabled = phone && touch && !!previous && !!column && !!routes && !isNavRoot(location);
 
   // Which previous entry the copy is rendered for. Set a moment after arriving,
   // or right away when a press might start a swipe before then.
