@@ -3,6 +3,7 @@ import type { NIndexedDB } from '@nostrify/indexeddb';
 
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
+import { isNostrId } from '@/lib/nostrId';
 
 /** Most authors a Discover network holds. */
 export const DISCOVER_NETWORK_LIMIT = 5000;
@@ -45,17 +46,40 @@ export function rankDiscoverNetwork(
     if (!current || list.created_at > current.created_at) newest.set(list.pubkey, list);
   }
 
-  const counts = new Map<string, number>();
-  for (const list of [seedList, ...newest.values()]) {
-    for (const pubkey of new Set(contactListPubkeys(list))) {
-      if (pubkey === seed) continue;
-      if (excludeDirect && follows.has(pubkey)) continue;
-      counts.set(pubkey, (counts.get(pubkey) ?? 0) + 1);
+  // One pass over hundreds of thousands of p tags, with one map lookup each
+  // and no per-list arrays or sets: `list` dedupes a pubkey within a list,
+  // and ids are validated only for the few thousand that make the cut.
+  const counts = new Map<string, { count: number; list: number }>();
+  const lists = [seedList, ...newest.values()];
+  for (let i = 0; i < lists.length; i++) {
+    for (const tag of lists[i].tags) {
+      if (tag[0] !== 'p') continue;
+      const pubkey = tag[1];
+      if (typeof pubkey !== 'string' || pubkey === seed) continue;
+      const entry = counts.get(pubkey);
+      if (entry) {
+        if (entry.list === i) continue;
+        entry.list = i;
+        entry.count++;
+      } else if (!excludeDirect || !follows.has(pubkey)) {
+        counts.set(pubkey, { count: 1, list: i });
+      }
     }
   }
 
-  const ranked = [...counts].sort((a, b) => b[1] - a[1]).map(([pubkey]) => pubkey);
-  return (excludeDirect ? ranked : [seed, ...ranked]).slice(0, limit);
+  // Counting sort, highest count first; ties keep first-seen order, as a
+  // stable sort would.
+  const byCount: string[][] = [];
+  for (const [pubkey, { count }] of counts) (byCount[count] ??= []).push(pubkey);
+  const ranked = excludeDirect ? [] : [seed];
+  for (let count = byCount.length - 1; count > 0 && ranked.length < limit; count--) {
+    for (const pubkey of byCount[count] ?? []) {
+      if (!isNostrId(pubkey)) continue;
+      ranked.push(pubkey);
+      if (ranked.length >= limit) break;
+    }
+  }
+  return ranked;
 }
 
 /**
