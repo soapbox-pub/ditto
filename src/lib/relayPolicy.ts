@@ -3,6 +3,7 @@ import type { NostrRelayMsg } from '@nostrify/types';
 import { verifyEvent as defaultVerifyEvent } from 'nostr-tools';
 
 import type { RejectedEvents } from '@/lib/feedPager';
+import { relayMsgSchema } from '@/lib/relayMsgParse';
 
 /**
  * Which relays Ditto may connect to, and which may get a NIP-42 AUTH.
@@ -435,6 +436,9 @@ const MAX_REJECTED_SUBS = 64;
  * It also records which subscription each event failing `verifyEvent` was
  * for, which Nostrify drops without a trace (see {@link rejected}).
  */
+// Every relay frame is parsed with this instead of Nostrify's zod schema.
+(NRelay1 as unknown as { msgSchema: typeof relayMsgSchema }).msgSchema = relayMsgSchema;
+
 export class AuthAwareRelay extends NRelay1 {
   private needed = deferred();
   private refused = false;
