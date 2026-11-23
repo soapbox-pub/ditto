@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { Capacitor } from '@capacitor/core';
+import { useNostrLogin } from '@nostrify/react/login';
 import { ExternalLink, ShieldCheck } from 'lucide-react';
 
 import { useAppContext } from '@/hooks/useAppContext';
+import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
 import { openUrl } from '@/lib/downloadFile';
 
 interface Signer {
@@ -43,11 +46,49 @@ function signerForPlatform(): Signer | null {
   return null;
 }
 
-/** Nudges someone about to paste a secret key toward a signer that keeps it out of Ditto. */
+/** iOS signer apps, by URL scheme (each listed under LSApplicationQueriesSchemes in Info.plist). */
+const IOS_SIGNER_SCHEMES = ['clave://', 'aegis://'];
+
+/**
+ * Whether the native app can see a signer app installed: a NIP-55 signer on
+ * Android, or Clave or Aegis on iOS. On the web installed apps can't be seen.
+ */
+async function nativeSignerInstalled(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    if (Capacitor.getPlatform() === 'android') return (await AndroidNativeSigner.getSignerApps()).length > 0;
+    if (Capacitor.getPlatform() === 'ios') {
+      const { AppLauncher } = await import('@capacitor/app-launcher');
+      const results = await Promise.all(IOS_SIGNER_SCHEMES.map((url) => AppLauncher.canOpenUrl({ url })));
+      return results.some((r) => r.value);
+    }
+  } catch {
+    // The Android plugin throws when no signer is installed at all.
+  }
+  return false;
+}
+
+/**
+ * Nudges someone about to paste a secret key toward a signer that keeps it out
+ * of Ditto. Says nothing to someone who already has one: loaded in the browser,
+ * installed on the device, or logged in with on another account.
+ */
 export function SignerSuggestion() {
   const { config } = useAppContext();
+  const { logins } = useNostrLogin();
+  const [installed, setInstalled] = useState<boolean | undefined>(() => (Capacitor.isNativePlatform() ? undefined : false));
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    void nativeSignerInstalled().then((found) => { if (!cancelled) setInstalled(found); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const usesSigner = logins.some((login) => login.type !== 'nsec');
   const signer = signerForPlatform();
-  if (!signer) return null;
+  // Nothing while the device is checked, rather than a suggestion that blinks out.
+  if (!signer || usesSigner || installed !== false) return null;
 
   return (
     <button
