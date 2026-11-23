@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.46.6] - 2026-11-23
+
+Pick your flavor of Discover: tap the Discover tab to sort by Hot, Rising, or Latest on the home feed, Photos, Videos, and more. Spotted something broken? Report a bug right from a post's menu or the footer, screenshots and all. Plus message anyone on Armada from their profile, a mobile menu that stays above the keyboard, fewer giveaway scam replies, and smoother account switching with remote signers.
+
+### Added
+- Sort Discover by Hot, Rising, or Latest by tapping the selected Discover tab on the home feed, Photos, Videos, and other feeds
+- Report a bug from a post's menu or the footer, with the post quoted, screenshots, and device info attached
+- Message anyone on Armada from their profile menu
+- Help answers for sending direct messages and reporting bugs
+
+### Changed
+- Feed tabs show their icon only while selected
+- Giveaway and airdrop scam replies are folded away as spam
+
+### Fixed
+- The mobile menu's More list and its search stay above the keyboard
+- Switching between remote signer accounts no longer slows the app down over time
+
 ## [2.46.5] - 2026-11-20
 
 Tinker deeper: power users can now edit their own profile, follow list, relay list, and other editable posts as raw data, with a preview of exactly what changes. The Themes page's + button starts a brand-new theme, your own themes get a pencil for quick edits, and a sample post shows your text size as you slide it. Plus share files straight into the installed web app, sturdier remote signer logins, and a feed that won't time-travel back a year.
