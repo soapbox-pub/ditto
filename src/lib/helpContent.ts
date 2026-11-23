@@ -13,6 +13,8 @@
 
 import { defineMessage, type IntlShape, type MessageDescriptor } from 'react-intl';
 
+import { DITTO_REPO_PATH } from '@/lib/dittoRepo';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface FAQItem {
@@ -151,6 +153,22 @@ const FAQ_TEMPLATE: FAQTemplateCategory[] = [
         answer: [
           defineMessage({ id: 'help.faq.nostrAppStore.answer1', defaultMessage: 'Yes! [Zap Store](https://zapstore.dev/) is a community-driven app store built specifically for the Nostr ecosystem. You can discover and download Nostr apps, and the apps are verified by the community rather than a corporation. {appName} is listed there. [Get it on Zap Store](https://zapstore.dev/apps/pub.ditto.app).' }),
           defineMessage({ id: 'help.faq.nostrAppStore.answer2', defaultMessage: 'You can also browse a directory of Nostr apps at [nostrapps.com](https://nostrapps.com/).' }),
+        ],
+      },
+      {
+        id: 'direct-messages',
+        question: defineMessage({ id: 'help.faq.directMessages.question', defaultMessage: 'Can I send direct messages?' }),
+        answer: [
+          defineMessage({ id: 'help.faq.directMessages.answer1', defaultMessage: 'Not in {appName}. {appName} sticks to the public side of Nostr, so it doesn\'t send or show private messages.' }),
+          defineMessage({ id: 'help.faq.directMessages.answer2', defaultMessage: 'For chatting, use [Armada](https://armada.buzz). Log in with the same account and your conversations are all there. You can also jump straight into a chat from anyone\'s profile: tap the **...** menu and pick "Message on Armada."' }),
+        ],
+      },
+      {
+        id: 'report-bug',
+        question: defineMessage({ id: 'help.faq.reportBug.question', defaultMessage: 'Something\'s broken. How do I report a bug?' }),
+        answer: [
+          defineMessage({ id: 'help.faq.reportBug.answer1', defaultMessage: 'Sorry about that! Tap "Report a bug" in the links at the bottom of the menu or sidebar, or [open {appName}\'s repository]({repoPath}). From there you can file an issue on NostrHub or Gitworkshop with the same account you use here.' }),
+          defineMessage({ id: 'help.faq.reportBug.answer2', defaultMessage: 'Tell us what you did, what you expected, and what happened instead, plus your device and whether you\'re on the app or the website. Screenshots help a lot.' }),
         ],
       },
     ],
@@ -367,7 +385,7 @@ function formatItem(intl: IntlShape, item: FAQTemplateItem, appName: string): FA
   return {
     id: item.id,
     question: intl.formatMessage(item.question, { appName }),
-    answer: item.answer.map((p) => intl.formatMessage(p, { appName })),
+    answer: item.answer.map((p) => intl.formatMessage(p, { appName, repoPath: DITTO_REPO_PATH })),
   };
 }
 

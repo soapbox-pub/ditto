@@ -30,6 +30,7 @@ import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { ExternalIdentityLinks } from '@/components/ExternalIdentityLinks';
+import { ArmadaIcon } from '@/components/icons/ArmadaIcon';
 import { NoteCard } from '@/components/NoteCard';
 import { ComposeBox } from '@/components/ComposeBox';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -321,6 +322,10 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
     close();
     navigate(`/letters/compose?to=${npubEncoded}`);
   };
+  const handleMessageOnArmada = () => {
+    close();
+    openUrl(`https://armada.buzz/dm/${npubEncoded}`);
+  };
   const handleZap = () => {
     close();
     setZapMounted(true);
@@ -430,6 +435,11 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
                   onClick={handleWriteLetter}
                 />
               )}
+              <MenuRow
+                icon={<ArmadaIcon className="size-5" />}
+                label={intl.formatMessage({ id: 'profile.menu.messageOnArmada', defaultMessage: 'Message on Armada' })}
+                onClick={handleMessageOnArmada}
+              />
               <MenuRow
                 icon={<VolumeX className="size-5" />}
                 label={userMuted
