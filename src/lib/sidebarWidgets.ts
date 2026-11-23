@@ -201,7 +201,6 @@ export const DEFAULT_SIDEBAR_WIDGETS: WidgetConfig[] = [
   { id: 'blobbi' },
   { id: 'trends' },
   { id: 'hot-posts' },
-  { id: 'wikipedia' },
 ];
 
 /** Lookup a widget definition by ID. */
