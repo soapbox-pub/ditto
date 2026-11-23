@@ -240,6 +240,18 @@ export function SidebarMoreMenu({
   const main = useScrollCarets(true);
   const add = useScrollCarets();
 
+  // When the keyboard shrinks the viewport, the scrollable nav shrinks with it
+  // and can clip the trigger off its bottom edge, leaving the menu anchored
+  // under the keyboard. Scroll the trigger back into view so the menu follows.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!open || !vv) return;
+    const keepTriggerVisible = () => triggerRef.current?.scrollIntoView({ block: 'nearest' });
+    vv.addEventListener('resize', keepTriggerVisible);
+    return () => vv.removeEventListener('resize', keepTriggerVisible);
+  }, [open]);
+
   if (editing) {
     return (
       <div className="flex flex-col gap-0.5">
@@ -330,7 +342,7 @@ export function SidebarMoreMenu({
   return (
     <DropdownMenu open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setQuery(''); }}>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
+        <button ref={triggerRef} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           <span><FormattedMessage id="sidebar.more" defaultMessage={"More..."} /></span>
         </button>

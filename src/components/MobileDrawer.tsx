@@ -27,6 +27,7 @@ import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { isItemActive } from '@/lib/sidebarItems';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useVisualViewportVar } from '@/hooks/useVisualViewportVar';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { usePublishStatus } from '@/hooks/usePublishStatus';
 import { useToast } from '@/hooks/useToast';
@@ -39,6 +40,15 @@ const DRAWER_BG_WIDTH = 336;
 /** Build the shared clip-path style for the drawer arc background layers. */
 function drawerClipStyle(clipId: string): React.CSSProperties {
   return { width: DRAWER_BG_WIDTH, clipPath: `url(#${clipId})` };
+}
+
+/**
+ * Null-rendering child that keeps `--visual-viewport-height` up to date while
+ * the drawer is open (Radix unmounts the sheet's children on close).
+ */
+function VisualViewportVar() {
+  useVisualViewportVar();
+  return null;
 }
 
 interface MobileDrawerProps {
@@ -119,7 +129,11 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   return (
     <>
         <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
-        <SheetContent ref={sheetContentRef} side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible">
+        {/* Sized to the visual viewport so the drawer shrinks above the
+            keyboard where it overlays the page (iOS), keeping the More menu's
+            trigger, and the menu anchored to it, out from under the keyboard. */}
+        <SheetContent ref={sheetContentRef} side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col overflow-visible top-[var(--visual-viewport-offset-top,0px)] bottom-auto h-[var(--visual-viewport-height,100%)]">
+          <VisualViewportVar />
           <PortalContainerProvider value={portalContainer}>
           {/* SVG clip path definition for the drawer + arc shape.
               The clip path uses objectBoundingBox units so the arc scales with the
