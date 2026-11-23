@@ -42,6 +42,12 @@ export interface Nip46SignerOpts {
   bunkerPubkey: string;
   /** Local ephemeral client signer (the pairing's client key). */
   clientSigner: NostrSigner;
+  /**
+   * The account the bunker signs for. `sign_event` refuses an event signed by
+   * any other key. Pairing doesn't know it yet; there it's taken from the
+   * first `get_public_key` answer instead.
+   */
+  userPubkey?: string;
   /** First re-publish of an unanswered request; later gaps double. Default 30s. */
   attemptTimeoutMs?: number;
   /** How many publishes a non-signing RPC gets before it fails. Default 2. */
@@ -90,6 +96,16 @@ function looksLikeCapabilityError(msg: string): boolean {
   return CAPABILITY_ERROR_PATTERNS.some((re) => re.test(msg));
 }
 
+function sameTags(a: unknown, b: string[][]): boolean {
+  return (
+    Array.isArray(a) &&
+    a.length === b.length &&
+    a.every((tag, i) =>
+      Array.isArray(tag) && tag.length === b[i].length && tag.every((value, j) => value === b[i][j]),
+    )
+  );
+}
+
 interface PendingRpc {
   resolve: (response: NostrConnectResponse) => void;
   method: string;
@@ -113,6 +129,7 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
   private readonly abort = new AbortController();
   private resumeTimer: ReturnType<typeof setTimeout> | undefined;
   private clientPubkey: string | undefined;
+  private userPubkey: string | undefined;
 
   /** Resolves once the persistent response subscription is installed. */
   private readonly ready: Promise<void>;
@@ -121,6 +138,7 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
     this.transport = opts.transport;
     this.bunkerPubkey = opts.bunkerPubkey;
     this.clientSigner = opts.clientSigner;
+    this.userPubkey = opts.userPubkey;
     this.attemptTimeoutMs = opts.attemptTimeoutMs ?? 30_000;
     this.attempts = opts.attempts ?? 2;
     this.signTimeoutMs = opts.signTimeoutMs ?? NIP46_SIGN_TIMEOUT_MS;
@@ -323,8 +341,10 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
     }
   }
 
-  getPublicKey(): Promise<string> {
-    return this.cmd('get_public_key', []);
+  async getPublicKey(): Promise<string> {
+    const pubkey = await this.cmd('get_public_key', []);
+    this.userPubkey ??= pubkey;
+    return pubkey;
   }
 
   async signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent> {
@@ -337,8 +357,15 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
     ) {
       throw new Error('NIP-46 sign_event returned a malformed event');
     }
-    // What was asked for, validly signed: anything else would be published as-is.
-    if (signed.kind !== event.kind || signed.content !== event.content || !verifyEvent(signed)) {
+    // What was asked for, by this account, validly signed: anything else would be published as-is.
+    if (
+      signed.kind !== event.kind ||
+      signed.content !== event.content ||
+      signed.created_at !== event.created_at ||
+      !sameTags(signed.tags, event.tags) ||
+      (this.userPubkey !== undefined && signed.pubkey !== this.userPubkey) ||
+      !verifyEvent(signed)
+    ) {
       throw new Error('NIP-46 sign_event returned an event that is not the one requested');
     }
     return signed;
@@ -397,6 +424,8 @@ export class Nip46Signer implements NostrSigner, BtcSigner {
 export interface Nip46Session {
   /** The login's id. */
   id: string;
+  /** The account's pubkey. */
+  pubkey: string;
   bunkerPubkey: string;
   clientNsec: string;
   relays: string[];
@@ -421,6 +450,7 @@ export function getNip46SessionSigner(session: Nip46Session): Nip46Signer {
     transport: getNip46Transport(session.bunkerPubkey, session.relays),
     bunkerPubkey: session.bunkerPubkey,
     clientSigner: new NSecSigner(clientSk.data),
+    userPubkey: session.pubkey,
   });
   sessionSigners.set(session.id, { transportKey, signer });
   return signer;

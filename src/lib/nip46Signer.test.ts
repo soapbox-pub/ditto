@@ -178,6 +178,44 @@ describe("Nip46Signer", () => {
     await expect(signer.signEvent({ kind: 1, content: 'hi', tags: [], created_at: 1 })).rejects.toThrow(/not the one requested/);
   });
 
+  it("refuses a signed event with rewritten tags or created_at", async () => {
+    const template = { kind: 1, content: 'hi', tags: [['t', 'nostr']], created_at: 1_700_000_000 };
+    for (const tamper of [{ tags: [['p', 'aa'.repeat(32)]] }, { tags: [['t', 'nostr', 'extra']] }, { created_at: 1 }]) {
+      const transport = makeFakeTransport();
+      attachBunker(transport, async (req) => ({
+        result: JSON.stringify(finalizeEvent({ ...JSON.parse(req.params[0]), ...tamper }, bunkerSk)),
+      }));
+      await expect(makeSigner(transport).signEvent(template)).rejects.toThrow(/not the one requested/);
+    }
+  });
+
+  it("refuses an event signed by a key other than the account's", async () => {
+    const transport = makeFakeTransport();
+    attachBunker(transport, async (req) => ({
+      result: JSON.stringify(finalizeEvent(JSON.parse(req.params[0]), generateSecretKey())),
+    }));
+    const signer = new Nip46Signer({
+      transport: transport as unknown as Nip46Transport,
+      bunkerPubkey,
+      clientSigner: new NSecSigner(clientSk),
+      userPubkey: bunkerPubkey,
+      attemptTimeoutMs: 200,
+      attempts: 2,
+    });
+    await expect(signer.signEvent({ kind: 1, content: 'hi', tags: [], created_at: 1 })).rejects.toThrow(/not the one requested/);
+  });
+
+  it("takes the account from get_public_key when it wasn't given one", async () => {
+    const other = generateSecretKey();
+    const transport = makeFakeTransport();
+    attachBunker(transport, async (req) => req.method === 'get_public_key'
+      ? { result: bunkerPubkey }
+      : { result: JSON.stringify(finalizeEvent(JSON.parse(req.params[0]), other)) });
+    const signer = makeSigner(transport);
+    await signer.getPublicKey();
+    await expect(signer.signEvent({ kind: 1, content: 'hi', tags: [], created_at: 1 })).rejects.toThrow(/not the one requested/);
+  });
+
   it("round-trips sign_event through the bunker", async () => {
     const transport = makeFakeTransport();
     attachBunker(transport, async (req) => {

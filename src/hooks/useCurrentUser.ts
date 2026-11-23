@@ -55,6 +55,7 @@ export function useCurrentUser() {
           login.pubkey,
           getNip46SessionSigner({
             id: login.id,
+            pubkey: login.pubkey,
             bunkerPubkey: login.data.bunkerPubkey,
             clientNsec: login.data.clientNsec,
             relays: bunkerRelays,

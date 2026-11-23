@@ -108,6 +108,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
           // nip46Transport.ts).
           return getNip46SessionSigner({
             id: currentLogin.id,
+            pubkey: currentLogin.pubkey,
             bunkerPubkey: currentLogin.data.bunkerPubkey,
             clientNsec: currentLogin.data.clientNsec,
             relays: currentLogin.data.relays ?? [],
