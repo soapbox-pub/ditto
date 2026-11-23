@@ -77,7 +77,8 @@ export interface ExtraKindDef {
   sites?: ExtraKindSite[];
   /**
    * Hot-sort the Global tab (via `sort:hot`) instead of showing a raw
-   * chronological feed, to keep spam and low-quality events out of easy view.
+   * chronological feed, to keep spam and low-quality events out of easy view,
+   * and let the user switch it to Rising or Latest.
    * Only set this on kinds the relay actually ranks with enough hot data to
    * fill a page (e.g. articles, highlights, polls) — otherwise the tab ends up
    * empty or truncated. Applied by KindFeedPage via the `useFeed` global branch.

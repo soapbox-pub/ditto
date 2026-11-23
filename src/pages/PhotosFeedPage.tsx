@@ -2,8 +2,8 @@
  * PhotosFeedPage — Instagram-style grid feed for NIP-68 photo events (kind 20).
  *
  * - Follows tab: useFeed (relay pool, chronological)
- * - Discover tab: useDiscoverHotFeed (sort:hot via relay.ditto.pub), the only
- *   view for logged-out visitors, who see no tabs
+ * - Discover tab: useDiscoverSortedFeed (the user's Discover sort via
+ *   relay.ditto.pub), the only view for logged-out visitors, who see no tabs
  * - Infinite-scroll justified collage via the shared MediaCollage component
  */
 
@@ -12,6 +12,7 @@ import { useSeoMeta } from "@/hooks/useSeoMeta";
 import { Camera } from "lucide-react";
 import { useIntl } from "react-intl";
 import { lazy, Suspense, useMemo, useCallback, useState } from "react";
+import { DiscoverSortButton, DiscoverTabButton } from "@/components/DiscoverSortMenu";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { eventToMediaItem } from "@/lib/mediaUtils";
@@ -24,6 +25,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
+import { FOLLOWS_TAB_ICON } from "@/lib/tabIcons";
 import { useLayoutOptions } from "@/contexts/LayoutContext";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -32,7 +34,7 @@ import { useFeedTab } from "@/hooks/useFeedTab";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { useMuteFilter } from "@/hooks/useMuteFilter";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { useDiscoverHotFeed } from "@/hooks/useTrending";
+import { useDiscoverSortedFeed } from "@/hooks/useTrending";
 import { getEffectiveBlossomServers } from "@/lib/appBlossom";
 import { getExtraKindDef } from "@/lib/extraKinds";
 import type { FeedItem } from "@/lib/feedUtils";
@@ -73,8 +75,8 @@ export function PhotosFeedPage() {
   // ── Follows feed (chronological) ──
   const followsQuery = useFeed("follows", { kinds: [PHOTO_KIND] });
 
-  // ── Discover feed (sort:hot) ──
-  const globalQuery = useDiscoverHotFeed([PHOTO_KIND], activeTab === "global");
+  // ── Discover feed (user's sort) ──
+  const globalQuery = useDiscoverSortedFeed([PHOTO_KIND], activeTab === "global");
 
   const activeQuery = activeTab === "follows" ? followsQuery : globalQuery;
   const {
@@ -128,6 +130,7 @@ export function PhotosFeedPage() {
     <>
       <main className="">
         <PageHeader title={intl.formatMessage({ id: "photosFeed.title", defaultMessage: "Photos" })} icon={<Camera className="size-5" />}>
+          <DiscoverSortButton />
           <KindInfoButton
             kindDef={photosDef}
             icon={sidebarItemIcon("photos", "size-5")}
@@ -140,10 +143,11 @@ export function PhotosFeedPage() {
             <SubHeaderBar>
               <TabButton
                 label={intl.formatMessage({ id: "photosFeed.tab.follows", defaultMessage: "Follows" })}
+                icon={FOLLOWS_TAB_ICON}
                 active={activeTab === "follows"}
                 onClick={() => setActiveTab("follows")}
               />
-              <TabButton
+              <DiscoverTabButton
                 label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
                 active={activeTab === "global"}
                 onClick={() => setActiveTab("global")}

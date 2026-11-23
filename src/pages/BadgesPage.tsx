@@ -39,6 +39,7 @@ import { SortableList, SortableItem } from "@/components/SortableList";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
+import { FOLLOWS_TAB_ICON } from "@/lib/tabIcons";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -168,6 +169,7 @@ export function BadgesPage() {
         <SubHeaderBar>
           <TabButton
             label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
+            icon={FOLLOWS_TAB_ICON}
             active={activeTab === "follows"}
             onClick={() => setActiveTab("follows")}
           />

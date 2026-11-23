@@ -15,6 +15,20 @@ export const DISCOVER_NETWORK_LIMIT = 5000;
  */
 export const DISCOVER_RELAYS = DITTO_RELAYS;
 
+/**
+ * How a sortable Discover tab orders its posts: `hot` and `rising` are the
+ * Discover relays' NIP-50 `sort:` extensions, `latest` is newest-first.
+ */
+export type DiscoverSort = 'hot' | 'rising' | 'latest';
+
+/**
+ * NIP-50 search for a sorted Discover query. Every sort asks for
+ * `protocol:nostr`, which leaves out bridged posts.
+ */
+export function discoverSearch(sort: DiscoverSort): string {
+  return sort === 'latest' ? 'protocol:nostr' : `sort:${sort} protocol:nostr`;
+}
+
 /** Follow lists fetched per REQ while building the network. */
 const CONTACT_LIST_CHUNK = 1000;
 

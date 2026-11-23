@@ -11,9 +11,10 @@ import { parseAuthorEvent } from './useAuthor';
 import { useNostrStorage } from './useNostrStorage';
 import { useIsScrollRestore } from './useIsScrollRestore';
 import { useDiscoverAuthors } from './useDiscoverAuthors';
+import { useDiscoverSort } from './useDiscoverSort';
 import { feedSnapshotOptions, usePersistFeedSnapshot } from './useFeedSnapshot';
 import { getEffectiveRelays } from '@/lib/appRelays';
-import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
+import { DISCOVER_RELAYS, discoverSearch } from '@/lib/discoverNetwork';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { fetchFeedPage, type FeedCursor } from '@/lib/feedPager';
 import { getReadRelayUrls } from '@/lib/relayHealth';
@@ -68,7 +69,8 @@ interface UseFeedOptions {
   /**
    * Apply `sort:hot` to the Global tab even on kind-specific pages. Keeps spam
    * and low-quality events out of easy view on curated kind feeds (Articles,
-   * Highlights) the same way the homepage Global tab does.
+   * Highlights) the same way the homepage Global tab does, unless the user
+   * switched Discover to Rising or Latest.
    */
   hotGlobal?: boolean;
   /** Whether the query should run (default: true). */
@@ -113,6 +115,13 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
     (feedSettings.followsFeedShowReplies ? settingsKinds : settingsKinds.filter((k) => k !== 1111 && k !== 1244));
 
   const tagFilters = options?.tagFilters;
+  // The homepage Discover tab is hot-sorted for better content quality; kind
+  // pages are chronological unless they opt into `hotGlobal` (e.g. Articles,
+  // Highlights) to keep low-quality events out of easy view. Either follows
+  // the user's Discover sort.
+  const [discoverSort] = useDiscoverSort();
+  const sortable = tab === 'global' && (!options?.kinds || !!options?.hotGlobal);
+  const search = sortable ? discoverSearch(discoverSort) : undefined;
 
   // Stable key so queries re-run when settings change.
   const kindsKey = [...allKinds].sort().join(',');
@@ -181,7 +190,7 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
   }
 
   // publishedEventSync reads this layout; keep the two in sync.
-  const queryKey = ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false, tab === 'global' ? discover.key : ''];
+  const queryKey = ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length, feedSettings.followsFeedShowReplies, mutedKey, options?.hotGlobal ?? false, tab === 'global' ? discover.key : '', search ?? ''];
 
   const query = useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, QueryKey, FeedPageParam | undefined>({
     // NOTE: followList is intentionally excluded from the query key
@@ -368,12 +377,8 @@ export function useFeed(tab: 'follows' | 'loved' | 'global' | 'communities', opt
 
         const globalKinds = allKinds.filter((k) => !isRepostKind(k) && !isReactionKind(k) && !isZapKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, authors: discoverAuthors, limit: PAGE_SIZE, ...tagFilters };
-        // Use hot sorting on the homepage Discover tab for better content quality.
-        // Kind-specific pages normally show a chronological feed, but can opt
-        // into hot sorting (e.g. Articles, Highlights) to keep low-quality
-        // events out of easy view.
-        if (!options?.kinds || options?.hotGlobal) {
-          filter.search = 'sort:hot protocol:nostr';
+        if (search) {
+          filter.search = search;
         }
         if (typeof pageParam === 'number') {
           filter.until = pageParam;

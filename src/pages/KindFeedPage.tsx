@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useIntl, type MessageDescriptor } from 'react-intl';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { Feed, type FeedLeadingTab } from '@/components/Feed';
+import { DiscoverSortButton } from '@/components/DiscoverSortMenu';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { PageHeader } from '@/components/PageHeader';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -35,7 +36,7 @@ interface KindFeedPageProps {
   showFAB?: boolean;
   /**
    * Apply `sort:hot` to the Global tab to keep spam and low-quality events out
-   * of easy view (e.g. Articles, Highlights).
+   * of easy view (e.g. Articles, Highlights), and offer Rising and Latest.
    */
   hotGlobal?: boolean;
   /** Logged-in-only tab shown before Follows/Global with custom content (e.g. "My Articles"). */
@@ -85,6 +86,7 @@ export function KindFeedPage({ kind, title: titleProp, icon, emptyMessage, kindD
         emptyMessage={emptyMessage ?? intl.formatMessage({ id: 'kindFeed.empty', defaultMessage: 'No {title} yet. Check back soon!' }, { title: titleNoun })}
         header={
           <PageHeader title={title} icon={icon} backTo={backTo} alwaysShowBack={alwaysShowBack}>
+            {effectiveHotGlobal && <DiscoverSortButton />}
             {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} open={infoOpen} onOpenChange={setInfoOpen} />}
           </PageHeader>
         }

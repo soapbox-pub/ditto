@@ -12,6 +12,7 @@ import { KindInfoButton } from '@/components/KindInfoButton';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
+import { DISCOVER_TAB_ICON, FOLLOWS_TAB_ICON } from '@/lib/tabIcons';
 import { EmojiPackManager } from '@/components/EmojiPackManager';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
@@ -109,11 +110,13 @@ export function EmojiPacksPage() {
             />
             <TabButton
               label={intl.formatMessage({ id: 'settings.feed.follows', defaultMessage: 'Follows' })}
+              icon={FOLLOWS_TAB_ICON}
               active={activeTab === 'follows'}
               onClick={() => setActiveTab('follows')}
             />
             <TabButton
               label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })}
+              icon={DISCOVER_TAB_ICON}
               active={activeTab === 'global'}
               onClick={() => setActiveTab('global')}
             />

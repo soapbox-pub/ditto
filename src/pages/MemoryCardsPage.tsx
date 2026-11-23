@@ -12,6 +12,7 @@ import { KindInfoButton } from '@/components/KindInfoButton';
 import { MemoryCardIcon } from '@/components/MemoryCardIcon';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { TabButton } from '@/components/TabButton';
+import { DISCOVER_TAB_ICON, FOLLOWS_TAB_ICON } from '@/lib/tabIcons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -1073,11 +1074,13 @@ export function MemoryCardsPage() {
                 />
                 <TabButton
                   label={intl.formatMessage({ id: 'memoryCards.tab.follows', defaultMessage: 'Follows' })}
+                  icon={FOLLOWS_TAB_ICON}
                   active={activeTab === 'follows'}
                   onClick={() => setActiveTab('follows')}
                 />
                 <TabButton
                   label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })}
+                  icon={DISCOVER_TAB_ICON}
                   active={activeTab === 'global'}
                   onClick={() => setActiveTab('global')}
                 />

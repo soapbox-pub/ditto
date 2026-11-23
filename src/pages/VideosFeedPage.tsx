@@ -8,7 +8,7 @@
  *  │  (exactly like VinesFeedPage, within column) │
  *  └──────────────────────────────────────────────┘
  *
- * Discover: sort:hot from the Discover network (ditto relay, limit 8/page)
+ * Discover: the user's Discover sort from the Discover network (ditto relay, limit 8/page)
  * Follows: chronological (useFeed, limit 8/page via PAGE_SIZE override)
  * Streams: live-only query, limit 10
  */
@@ -27,12 +27,14 @@ import { Link } from "react-router-dom";
 import { isValidBlurhash } from "@/lib/blurhash";
 import { ARC_OVERHANG_PX } from "@/components/ArcBackground";
 import { ContentWarningGuard } from "@/components/ContentWarningGuard";
+import { DiscoverSortButton, DiscoverTabButton } from "@/components/DiscoverSortMenu";
 import { FeedEmptyState } from "@/components/FeedEmptyState";
 import { KindInfoButton } from "@/components/KindInfoButton";
 import { PageHeader } from "@/components/PageHeader";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { SubHeaderBar } from "@/components/SubHeaderBar";
 import { TabButton } from "@/components/TabButton";
+import { FOLLOWS_TAB_ICON } from "@/lib/tabIcons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useVideoThumbnail } from "@/hooks/useVideoThumbnail";
@@ -49,7 +51,7 @@ import { useMutedAuthorFilter } from "@/hooks/useMutedAuthorFilter";
 import { useOpenPost } from "@/hooks/useOpenPost";
 import { useProfileUrl } from "@/hooks/useProfileUrl";
 import { usePageRefresh } from "@/hooks/usePageRefresh";
-import { useDiscoverHotFeed } from "@/hooks/useTrending";
+import { useDiscoverSortedFeed } from "@/hooks/useTrending";
 import { getAvatarShape } from "@/lib/avatarShape";
 import { getContentWarning } from "@/lib/contentWarning";
 import { getExtraKindDef } from "@/lib/extraKinds";
@@ -894,8 +896,8 @@ export function VideosFeedPage() {
   // ── Follows: chronological, small page ──
   const followsQuery = useFeed("follows", { kinds: VIDEO_KINDS });
 
-  // ── Discover: sort:hot, limit 8/page ──
-  const globalQuery = useDiscoverHotFeed(
+  // ── Discover: user's sort, limit 8/page ──
+  const globalQuery = useDiscoverSortedFeed(
     VIDEO_KINDS,
     feedTab === "global",
     VIDEO_PAGE_SIZE,
@@ -964,6 +966,7 @@ export function VideosFeedPage() {
   return (
     <main className="">
       <PageHeader title={intl.formatMessage({ id: "videos.title", defaultMessage: "Videos" })} icon={<Film className="size-5" />}>
+        <DiscoverSortButton />
         <KindInfoButton
           kindDef={videosDef}
           icon={sidebarItemIcon("videos", "size-5")}
@@ -976,10 +979,11 @@ export function VideosFeedPage() {
           <SubHeaderBar>
             <TabButton
               label={intl.formatMessage({ id: "settings.feed.follows", defaultMessage: "Follows" })}
+              icon={FOLLOWS_TAB_ICON}
               active={feedTab === "follows"}
               onClick={() => setFeedTab("follows")}
             />
-            <TabButton
+            <DiscoverTabButton
               label={intl.formatMessage({ id: "feed.tabs.discover", defaultMessage: "Discover" })}
               active={feedTab === "global"}
               onClick={() => setFeedTab("global")}

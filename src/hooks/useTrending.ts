@@ -5,9 +5,10 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNip85EventStats, useNip85AddrStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji } from '@/lib/customEmoji';
 import { DITTO_RELAYS } from '@/lib/appRelays';
-import { DISCOVER_RELAYS } from '@/lib/discoverNetwork';
+import { DISCOVER_RELAYS, discoverSearch } from '@/lib/discoverNetwork';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
+import { useDiscoverSort } from '@/hooks/useDiscoverSort';
 import { parseAuthorEvent } from '@/hooks/useAuthor';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
@@ -202,14 +203,14 @@ export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
 }
 
 /**
- * Fetches hot-sorted events for specific kinds from the viewer's Discover
- * network (see {@link useDiscoverAuthors}) with infinite scroll.
- * Uses NIP-50 search extension `sort:hot` against the Discover relays.
+ * Fetches events for specific kinds from the viewer's Discover network (see
+ * {@link useDiscoverAuthors}) with infinite scroll, in the user's Discover
+ * sort (see {@link useDiscoverSort}), against the Discover relays.
  *
  * `extraFilters` allows appending additional filter objects to the REQ,
  * useful when some kinds need tag constraints (e.g. webxdc needs `#m`).
  */
-export function useDiscoverHotFeed(
+export function useDiscoverSortedFeed(
   kinds: number[],
   enabled = true,
   limit = SORTED_PAGE_SIZE,
@@ -217,16 +218,17 @@ export function useDiscoverHotFeed(
 ) {
   const { nostr } = useNostr();
   const { authors, key: authorsKey } = useDiscoverAuthors(enabled);
+  const [sort] = useDiscoverSort();
   const extraKey = extraFilters ? JSON.stringify(extraFilters) : '';
 
   return useInfiniteQuery<NostrEvent[], Error>({
-    queryKey: ['infinite-hot-feed', kinds.join(','), limit, extraKey, authorsKey],
+    queryKey: ['discover-sorted-feed', kinds.join(','), limit, extraKey, authorsKey, sort],
     queryFn: async ({ pageParam, signal }) => {
       if (!authors?.length) return [];
       const relay = nostr.group(DISCOVER_RELAYS);
 
       const base: Record<string, unknown> = {
-        search: 'sort:hot protocol:nostr',
+        search: discoverSearch(sort),
         authors,
         limit,
       };

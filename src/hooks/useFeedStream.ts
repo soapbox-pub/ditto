@@ -216,8 +216,10 @@ export function useFeedStream(options: UseFeedStreamOptions): {
       //   - user content filters
       //   - the reply toggle (feed excludes replies across all kinds when off)
       if (shouldHideFeedEvent(event)) return;
-      // useFeed hides these from Discover only.
+      // useFeed hides these from Discover only, and asks for `protocol:nostr`
+      // there, which leaves out bridged (`proxy`-tagged) posts.
       if (tab === 'global' && isHiddenFromPublicFeeds(event)) return;
+      if (tab === 'global' && event.tags.some(([name]) => name === 'proxy')) return;
       if (filterEvent(event)) return;
       if (!replies && isReplyEvent(event)) return;
 

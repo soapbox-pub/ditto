@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { useIntl } from 'react-intl';
 import { usePageRefresh } from '@/hooks/usePageRefresh';
 import { ComposeBox } from '@/components/ComposeBox';
 import { LandingHero } from '@/components/LandingHero';
@@ -23,6 +23,7 @@ import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
 import { useIsOnline } from '@/hooks/useIsOnline';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useDiscoverSort } from '@/hooks/useDiscoverSort';
 import { DITTO_RELAYS } from '@/lib/appRelays';
 import { getStorageKey } from '@/lib/storageKey';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -48,6 +49,9 @@ import { NewPostsPill } from '@/components/NewPostsPill';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
 import { ARC_OVERHANG_PX } from '@/components/ArcBackground';
 import { TabButton } from '@/components/TabButton';
+import { DiscoverTabButton } from '@/components/DiscoverSortMenu';
+import { PlanetIcon } from '@/components/icons/PlanetIcon';
+import { DISCOVER_TAB_ICON, FOLLOWS_TAB_ICON } from '@/lib/tabIcons';
 import type { FeedItem } from '@/lib/feedUtils';
 import { containsBlockedTerm } from '@/lib/blockedTerms';
 import { COMMENT_KINDS, isReplyEvent } from '@/lib/nostrEvents';
@@ -101,6 +105,10 @@ function captureFeedScroll(container: HTMLElement): FeedScrollPosition | undefin
 
 type FeedTab = CoreFeedTab | string; // string = saved feed id
 
+function LovedTabIcon({ className }: { className?: string }) {
+  return <Heart className={cn(className, 'fill-red-500 text-red-500')} />;
+}
+
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
   kinds?: number[];
@@ -121,7 +129,8 @@ interface FeedProps {
   globalFirst?: boolean;
   /**
    * Apply `sort:hot` to the Discover tab on kind-specific pages to keep
-   * low-quality events out of easy view (e.g. Articles, Highlights).
+   * low-quality events out of easy view (e.g. Articles, Highlights), with a
+   * menu on the tab to switch to Rising or Latest.
    */
   hotGlobal?: boolean;
   /**
@@ -235,6 +244,16 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
       ? (activeTab as UseFeedTab)
       : 'global';
   const useDittoQuery = useTopFeedForLoggedOut || useDittoTab;
+  // Discover is hot-sorted on the homepage and `hotGlobal` kind pages, unless
+  // the user switched it to rising or newest-first.
+  const [discoverSort] = useDiscoverSort();
+  const discoverSortable = !kinds || !!hotGlobal;
+  const canHotSortGlobal = feedTabForQuery === 'global' && discoverSortable;
+  const isRelaySortedGlobal = canHotSortGlobal && discoverSort !== 'latest';
+  // The home feed's snapshot and sticky list are kept per sort.
+  const feedName = useDittoQuery
+    ? 'ditto'
+    : canHotSortGlobal && discoverSort !== 'hot' ? `global-${discoverSort}` : activeTab;
   // Saved feeds, interests, and the leading tab render their own content.
   const feedQueryEnabled = isCoreFeedTab && !useDittoQuery;
 
@@ -247,9 +266,8 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const snapshotRef = useMemo<FeedSnapshotRef | undefined>(() => {
     if (inUnderlay || feedId !== 'home' || kinds || tagFilters || !isCoreFeedTab) return undefined;
     const kindsKey = [...getEnabledFeedKinds(feedSettings)].sort().join(',');
-    const feedName = useDittoQuery ? 'ditto' : activeTab;
     return { appId: config.appId, name: `${user?.pubkey ?? ''}:${feedName}:${kindsKey}:${feedSettings.followsFeedShowReplies}` };
-  }, [inUnderlay, feedId, kinds, tagFilters, isCoreFeedTab, feedSettings, useDittoQuery, activeTab, config.appId, user?.pubkey]);
+  }, [inUnderlay, feedId, kinds, tagFilters, isCoreFeedTab, feedSettings, feedName, config.appId, user?.pubkey]);
   // Read before the queries below, which offer the same snapshot as their
   // initial data: the first read in a session decides whether this launch
   // restores the user's position.
@@ -306,17 +324,14 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return undefined;
   }, [feedTabForQuery, followData?.pubkeys, lovedPubkeys, discoverAuthors, user, excludeMuted]);
 
-  // Hot-sorted Discover feeds (homepage Discover, `hotGlobal` kind pages) aren't
-  // chronological — refreshing wouldn't surface the streamed posts at the top,
-  // so a "new posts" pill there would be a lie. Mirrors the check in useFeed.
-  const isHotSortedGlobal = feedTabForQuery === 'global' && (!kinds || !!hotGlobal);
-
   // Stream only for the chronological core feed tabs, when not the curated Ditto query.
+  // Hot-sorted Discover isn't chronological — refreshing wouldn't surface the
+  // streamed posts at the top, so a "new posts" pill there would be a lie.
   const streamEnabled =
     !inUnderlay &&
     isCoreFeedTab &&
     !useDittoQuery &&
-    !isHotSortedGlobal &&
+    !isRelaySortedGlobal &&
     (feedTabForQuery === 'follows' || feedTabForQuery === 'loved' || feedTabForQuery === 'global');
 
   const { newPostCount, newPostAuthors, reset: resetNewPosts } = useFeedStream({
@@ -433,7 +448,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   // (account or tab) changes.
   const feedItems = useStickyFeedItems(
     derivedItems,
-    `${user?.pubkey ?? ''}:${useDittoQuery ? 'ditto' : activeTab}`,
+    `${user?.pubkey ?? ''}:${feedName}`,
   );
   usePrefetchFeedCards(feedItems);
 
@@ -587,6 +602,11 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     };
   })();
 
+  const discoverLabel = intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' });
+  const discoverTab = discoverSortable
+    ? <DiscoverTabButton label={discoverLabel} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
+    : <TabButton label={discoverLabel} icon={DISCOVER_TAB_ICON} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />;
+
   return (
     <main ref={mainRef} className="flex-1 min-w-0 min-h-dvh">
       {/* CTA (logged out, main feed only) */}
@@ -607,27 +627,18 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
           {leadingTab && (
             <TabButton label={leadingTab.label} active={activeTab === leadingTab.id} onClick={() => handleSetActiveTab(leadingTab.id)} />
           )}
-          {globalFirst && (
-            <TabButton label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
-          )}
+          {globalFirst && discoverTab}
           {!isKindSpecificPage && hasLovedPeople && (
-            <TabButton label={intl.formatMessage({ id: 'feed.tabs.loved', defaultMessage: 'Loved' })} active={activeTab === 'loved'} onClick={() => handleSetActiveTab('loved')}>
-              <span className="flex items-center justify-center gap-1">
-                <Heart className={cn('size-3.5', activeTab === 'loved' && 'fill-red-500 text-red-500')} />
-                <FormattedMessage id="feed.tabs.loved" defaultMessage="Loved" />
-              </span>
-            </TabButton>
+            <TabButton label={intl.formatMessage({ id: 'feed.tabs.loved', defaultMessage: 'Loved' })} icon={LovedTabIcon} active={activeTab === 'loved'} onClick={() => handleSetActiveTab('loved')} />
           )}
-          <TabButton label={intl.formatMessage({ id: 'feed.tabs.follows', defaultMessage: 'Follows' })} active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
+          <TabButton label={intl.formatMessage({ id: 'feed.tabs.follows', defaultMessage: 'Follows' })} icon={FOLLOWS_TAB_ICON} active={activeTab === 'follows'} onClick={() => handleSetActiveTab('follows')} />
           {!isKindSpecificPage && showDittoFeed && (
-            <TabButton label={config.appName} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
+            <TabButton label={config.appName} icon={PlanetIcon} active={activeTab === 'ditto'} onClick={() => handleSetActiveTab('ditto')} />
           )}
           {!isKindSpecificPage && showCommunityFeed && (
             <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => handleSetActiveTab('communities')} />
           )}
-          {!globalFirst && (isKindSpecificPage || showGlobalFeed) && (
-            <TabButton label={intl.formatMessage({ id: 'feed.tabs.discover', defaultMessage: 'Discover' })} active={activeTab === 'global'} onClick={() => handleSetActiveTab('global')} />
-          )}
+          {!globalFirst && (isKindSpecificPage || showGlobalFeed) && discoverTab}
           {showSavedFeedTabs && savedFeeds.map((feed) => (
             <TabButton
               key={feed.id}
@@ -648,14 +659,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
             <TabButton
               key={`geotag:${tag}`}
               label={tag}
+              icon={MapPin}
               active={activeTab === `geotag:${tag}`}
               onClick={() => handleSetActiveTab(`geotag:${tag}`)}
-            >
-              <span className="flex items-center justify-center gap-1">
-                <MapPin className="size-3.5" />
-                {tag}
-              </span>
-            </TabButton>
+            />
           ))}
         </SubHeaderBar>
       )}
