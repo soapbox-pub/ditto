@@ -426,6 +426,15 @@ function SetupQuestionnaire({
   // tuned feed settings if the encrypted-settings fetch returned empty). Defaults live in
   // `App.tsx`'s `defaultConfig` and cross-device sync handles the rest.
   const handleSaveAndContinue = useCallback(async () => {
+    // A key generated moments ago has no follow list. Asking relays anyway let
+    // a slow query (counted as "has follows") or a not-yet-switched `user` (the
+    // previously logged-in account, in the add-account flow) skip this step.
+    if (isSignup) {
+      setHasFollows(false);
+      goTo("follows");
+      return;
+    }
+
     setIsSaving(true);
 
     // Check if the user already has a follow list
@@ -453,7 +462,7 @@ function SetupQuestionnaire({
     } else {
       goTo("follows");
     }
-  }, [user, nostr, goTo]);
+  }, [isSignup, user, nostr, goTo]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
