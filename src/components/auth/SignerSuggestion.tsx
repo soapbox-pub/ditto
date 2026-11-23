@@ -24,8 +24,12 @@ const EXTENSION_FIREFOX: Signer = {
   kind: 'extension',
 };
 
-/** The signer to recommend on this device, or `null` where there's none to offer (desktop Safari). */
+/**
+ * The signer to recommend on this device, or `null` where there's none to
+ * offer (desktop Safari) or one is already loaded (a NIP-07 `window.nostr`).
+ */
 function signerForPlatform(): Signer | null {
+  if ('nostr' in window && (window as { nostr?: unknown }).nostr) return null;
   const platform = Capacitor.getPlatform();
   if (platform === 'android') return AMBER;
   if (platform === 'ios') return CLAVE;
