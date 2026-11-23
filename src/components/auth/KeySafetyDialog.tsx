@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { saveNsec } from '@/lib/credentialManager';
+import { downloadTextFile } from '@/lib/downloadFile';
 import { markKeyBackedUp, useKeySafetyMarker } from '@/lib/keyBackup';
 import { useRecordedNcryptsec } from '@/lib/keyLock';
 
@@ -52,7 +53,7 @@ export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: 
   // Logging out an account whose key is saved somewhere: just a last chance to copy it.
   const lastCopy = !!onLogout && !keyOnlyHere;
   // A password-protected key offers its ncryptsec, never the plain key behind the password.
-  const shownKey = lastCopy && ncryptsec ? ncryptsec : nsec;
+  const shownKey = ncryptsec ?? nsec;
   const encrypted = shownKey !== nsec;
   // The backup stays on screen once done here, ticked, rather than vanishing mid-read.
   const showBackup = lastCopy || !marker?.backedUp || backedUpHere;
@@ -81,8 +82,14 @@ export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: 
     if (saving) return;
     setSaving(true);
     try {
-      const result = await saveNsec(nip19.npubEncode(pubkey), nsec, config.appName);
-      if (result !== 'dismissed') done();
+      const npub = nip19.npubEncode(pubkey);
+      if (ncryptsec) {
+        await downloadTextFile(`${npub.slice(0, 16)}.ncryptsec.txt`, ncryptsec);
+        done();
+      } else {
+        const result = await saveNsec(npub, nsec, config.appName);
+        if (result !== 'dismissed') done();
+      }
     } catch {
       toast({
         title: intl.formatMessage({ id: 'keySafety.saveFailed', defaultMessage: "Couldn't save your key" }),

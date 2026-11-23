@@ -5,6 +5,7 @@
  * a second at log_n 16, and an imported key may name far more).
  */
 
+import { Capacitor } from '@capacitor/core';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { scryptAsync } from '@noble/hashes/scrypt.js';
 import { concatBytes, randomBytes } from '@noble/hashes/utils.js';
@@ -15,8 +16,12 @@ const VERSION = 0x02;
 const BECH32_LIMIT = 5000;
 /** NIP-49's suggested floor; ~64 MiB of scrypt memory. */
 export const DEFAULT_LOG_N = 16;
-/** A file or paste can name any log_n; past this it's ~16 GiB and would just crash the tab. */
-const MAX_LOG_N = 22;
+/**
+ * A file or paste can name any log_n, and scrypt needs 2^(log_n + 10) bytes for
+ * it. Past 20 (~1 GiB) it would just crash the tab, and past 18 (~256 MiB) a
+ * phone's WebView, on the unlock screen at launch.
+ */
+const MAX_LOG_N = Capacitor.isNativePlatform() ? 18 : 20;
 /** Key security byte: 0x02 = "client does not track this data". */
 const KSB_UNKNOWN = 0x02;
 

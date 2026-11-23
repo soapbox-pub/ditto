@@ -72,9 +72,14 @@ export function setKeyLock(pubkey: string, ncryptsec: string | null): void {
 }
 
 export function useKeyLocked(pubkey: string | undefined): boolean {
+  return useAnyKeyLocked(pubkey ? [pubkey] : []);
+}
+
+/** Whether any of these accounts is locked. */
+export function useAnyKeyLocked(pubkeys: string[]): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => (pubkey ? lockedNcryptsec(pubkey) !== null : false),
+    () => pubkeys.some((pubkey) => lockedNcryptsec(pubkey) !== null),
     () => false,
   );
 }
@@ -92,6 +97,15 @@ export function recordedNcryptsec(pubkey: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** Drop an account's lock and recorded ncryptsec, once it's gone from this device. */
+export function forgetKeyLock(pubkey: string): void {
+  try {
+    localStorage.removeItem(LOCK_PREFIX + pubkey);
+    localStorage.removeItem(NCRYPTSEC_PREFIX + pubkey);
+  } catch { /* ignore */ }
+  notify();
 }
 
 /** {@link recordedNcryptsec}, live. */
@@ -239,7 +253,7 @@ export async function openLoginList(value: string | null): Promise<string | null
               }
             },
             forget() {
-              setKeyLock(login.pubkey, null);
+              forgetKeyLock(login.pubkey);
               resolve(null);
             },
           });

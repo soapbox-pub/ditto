@@ -1310,7 +1310,7 @@ function BirthdaySection() {
 
 // ── Backup Key section ────────────────────────────────────────────────────────
 
-function BackupKeySection() {
+export function BackupKeySection() {
   const intl = useIntl();
   const { logins } = useNostrLogin();
   const { config } = useAppContext();
@@ -1321,8 +1321,10 @@ function BackupKeySection() {
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const ncryptsec = useRecordedNcryptsec(current?.type === 'nsec' ? current.pubkey : undefined);
-  // Given its password this visit: the plain key is shown.
-  const [unlocked, setUnlocked] = useState(false);
+  // Given its password this visit: the plain key is shown. Per account, so
+  // switching accounts doesn't carry it over.
+  const [unlockedFor, setUnlockedFor] = useState<string | null>(null);
+  const unlocked = !!current && unlockedFor === current.pubkey;
 
   const heading = (
     <div className="flex items-center gap-2 pb-1">
@@ -1409,7 +1411,7 @@ function BackupKeySection() {
 
       {/* With an ncryptsec, the plain key isn't even in the DOM until its password is given. */}
       {ncryptsec && !unlocked ? (
-        <RevealKeyWithPassword ncryptsec={ncryptsec} onUnlock={() => setUnlocked(true)} />
+        <RevealKeyWithPassword ncryptsec={ncryptsec} onUnlock={() => setUnlockedFor(current.pubkey)} />
       ) : (
         <>
         <div className="relative">
@@ -1482,7 +1484,7 @@ function BackupKeySection() {
         </>
       )}
 
-      <KeyPasswordSettings nsec={nsec} pubkey={current.pubkey} />
+      <KeyPasswordSettings key={current.pubkey} nsec={nsec} pubkey={current.pubkey} />
     </div>
   );
 }

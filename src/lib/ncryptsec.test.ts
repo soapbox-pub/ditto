@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import * as nip49 from 'nostr-tools/nip49';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { decryptNcryptsec, encryptNcryptsec, looksLikeNcryptsec, NcryptsecError } from '@/lib/ncryptsec';
 
@@ -41,6 +41,25 @@ describe('ncryptsec', () => {
     bytes[1] = 30;
     const forged = bech32.encode('ncryptsec', bech32.toWords(bytes), 5000);
     await expect(decryptNcryptsec(forged, 'pw')).rejects.toEqual(new NcryptsecError('malformed'));
+  });
+
+  it('refuses log_n 21 (2 GiB of scrypt), which a phone WebView can\'t hold', async () => {
+    const enc = nip49.encrypt(SK, 'pw', 4);
+    const { bech32 } = await import('@scure/base');
+    const bytes = bech32.fromWords(bech32.decode(enc as `${string}1${string}`, 5000).words);
+    bytes[1] = 21;
+    const forged = bech32.encode('ncryptsec', bech32.toWords(bytes), 5000);
+
+    vi.resetModules();
+    const scryptAsync = vi.fn(() => Promise.reject(new Error('ran scrypt')));
+    vi.doMock('@noble/hashes/scrypt.js', () => ({ scryptAsync }));
+    try {
+      const fresh = await import('@/lib/ncryptsec');
+      await expect(fresh.decryptNcryptsec(forged, 'pw')).rejects.toMatchObject({ reason: 'malformed' });
+      expect(scryptAsync).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock('@noble/hashes/scrypt.js');
+    }
   });
 
   it('recognizes the prefix', () => {

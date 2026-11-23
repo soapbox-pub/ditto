@@ -22,7 +22,7 @@ import {
   type NostrConnectStatus,
 } from '@/hooks/useLoginActions';
 import { getNsecCredential } from '@/lib/credentialManager';
-import { recordNcryptsec, setKeyLock } from '@/lib/keyLock';
+import { lockedNcryptsec, recordNcryptsec, setKeyLock } from '@/lib/keyLock';
 import { decryptNcryptsec, looksLikeNcryptsec, NcryptsecError } from '@/lib/ncryptsec';
 import { DialogTitle } from '@radix-ui/react-dialog';
 import { getPublicKey, nip19 } from 'nostr-tools';
@@ -226,7 +226,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   };
 
   // `sealedWith`: the ncryptsec it came from. The login is stored sealed under
-  // it, so no nsec is at rest (keyLock.ts); a plain nsec login is stored plain.
+  // it, so no nsec is at rest (keyLock.ts); a plain nsec login is stored plain
+  // unless that account is already locked.
   const executeLogin = (key: string, sealedWith?: string) => {
     setIsLoggingIn(true);
     setLoginError('');
@@ -235,7 +236,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     setTimeout(() => {
       try {
         const sk = nip19.decode(key).data as Uint8Array;
-        setKeyLock(getPublicKey(sk), sealedWith ?? null);
+        const pubkey = getPublicKey(sk);
+        setKeyLock(pubkey, sealedWith ?? lockedNcryptsec(pubkey));
         sk.fill(0);
         login.nsec(key);
         onLogin();

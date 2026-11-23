@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useNostrLogin } from '@nostrify/react/login';
 import { useEffect } from 'react';
 
-import { lockNow, useAutoLockMinutes, useKeyLocked } from '@/lib/keyLock';
+import { lockNow, useAnyKeyLocked, useAutoLockMinutes } from '@/lib/keyLock';
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
@@ -20,8 +20,8 @@ function mediaPlaying(): boolean {
  */
 export function AutoLock() {
   const { logins } = useNostrLogin();
-  const active = logins[0];
-  const locked = useKeyLocked(active?.type === 'nsec' ? active.pubkey : undefined);
+  // Any locked account's key is open in memory, not just the active one's.
+  const locked = useAnyKeyLocked(logins.filter((login) => login.type === 'nsec').map((login) => login.pubkey));
   const minutes = useAutoLockMinutes();
 
   useEffect(() => {

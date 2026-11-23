@@ -3,13 +3,15 @@ import { useEffect, useRef } from "react";
 
 import { useAppContext } from "@/hooks/useAppContext";
 import { clearCachedMuteItems } from "@/hooks/useMuteList";
+import { forgetKeyLock } from "@/lib/keyLock";
 import { clearAllNsitePermissionsForUser } from "@/lib/nsitePermissions";
 import { clearCachedBlockedRelays } from "@/lib/relayPolicy";
 import { secureStorage } from "@/lib/secureStorage";
 
 /**
  * Remove an account's wallet connections, nsite permissions, cached blocked
- * relays and cached mute list from this device when it logs out.
+ * relays, cached mute list and key lock (with its ncryptsec) from this device
+ * when it logs out.
  *
  * NWC connection strings authorize payments, and on web they sit in plaintext
  * localStorage, so they shouldn't outlive the login. This watches the login
@@ -33,6 +35,7 @@ export function LogoutCleanup() {
       clearAllNsitePermissionsForUser(pubkey);
       clearCachedBlockedRelays(pubkey);
       clearCachedMuteItems(config.appId, pubkey);
+      forgetKeyLock(pubkey);
     }
     previous.current = current;
   }, [logins, config.appId]);
