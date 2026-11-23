@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
-import { AlertTriangle, Check, Copy, Download, Eye, EyeOff, KeyRound, Loader2, Lock, LogOut } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Download, Eye, EyeOff, KeyRound, Loader2, LogOut } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
-import { SignerSuggestion } from '@/components/auth/SignerSuggestion';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,7 +10,7 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { saveNsec } from '@/lib/credentialManager';
 import { markKeyBackedUp, useKeySafetyMarker } from '@/lib/keyBackup';
-import { useKeyLocked, useRecordedNcryptsec } from '@/lib/keyLock';
+import { useRecordedNcryptsec } from '@/lib/keyLock';
 
 interface KeySafetyDialogProps {
   open: boolean;
@@ -29,16 +26,14 @@ interface KeySafetyDialogProps {
 }
 
 /**
- * Back up a key signup made, and on the web pitch protecting it (password lock
- * or a signer). Copying or saving counts as a backup ({@link markKeyBackedUp}).
+ * Back up a key signup made. Copying or saving counts as a backup
+ * ({@link markKeyBackedUp}).
  */
 export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: KeySafetyDialogProps) {
   const intl = useIntl();
-  const navigate = useNavigate();
   const { config } = useAppContext();
   const { toast } = useToast();
   const marker = useKeySafetyMarker(pubkey);
-  const locked = useKeyLocked(pubkey);
   const ncryptsec = useRecordedNcryptsec(pubkey);
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -61,7 +56,6 @@ export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: 
   const encrypted = shownKey !== nsec;
   // The backup stays on screen once done here, ticked, rather than vanishing mid-read.
   const showBackup = lastCopy || !marker?.backedUp || backedUpHere;
-  const showProtect = !onLogout && !Capacitor.isNativePlatform() && !locked;
 
   const done = () => {
     setBackedUpHere(true);
@@ -98,11 +92,6 @@ export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: 
     } finally {
       setSaving(false);
     }
-  };
-
-  const setPassword = () => {
-    onOpenChange(false);
-    navigate('/settings/profile#key');
   };
 
   return (
@@ -220,26 +209,6 @@ export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: 
               )}
             </section>
           )}
-
-          {showProtect && (
-            <section className="space-y-3">
-              <h3 className="text-sm font-semibold">
-                <FormattedMessage id="keySafety.protectTitle" defaultMessage="Protect it in this browser" />
-              </h3>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                <FormattedMessage
-                  id="keySafety.protectDescription"
-                  defaultMessage="Right now your key sits unencrypted in this browser. Lock it with a password, or move it into a signer so {appName} never holds it."
-                  values={{ appName: config.appName }}
-                />
-              </p>
-              <Button type="button" variant="secondary" className="w-full rounded-full gap-2" onClick={setPassword}>
-                <Lock className="size-4" />
-                <FormattedMessage id="keySafety.setPassword" defaultMessage="Lock it with a password" />
-              </Button>
-              <SignerSuggestion />
-            </section>
-          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
@@ -260,8 +229,6 @@ export function KeySafetyDialog({ open, onOpenChange, nsec, pubkey, onLogout }: 
             <Button type="button" variant="ghost" className="rounded-full" onClick={() => onOpenChange(false)}>
               {!backedUp ? (
                 <FormattedMessage id="keySafety.later" defaultMessage="Remind me tomorrow" />
-              ) : showProtect ? (
-                <FormattedMessage id="keySafety.notNow" defaultMessage="Not now" />
               ) : (
                 <FormattedMessage id="keySafety.done" defaultMessage="Done" />
               )}

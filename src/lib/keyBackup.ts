@@ -1,15 +1,11 @@
-import { Capacitor } from '@capacitor/core';
 import { useSyncExternalStore } from 'react';
 
 /**
  * Per-account marker for a key signup made on this device, ported from
- * Armada. It drives two things:
- *
- * - **Not backed up** (`backedUp: false`): the save prompt at signup was
- *   dismissed, so this device holds the only copy. Logout is guarded and the
- *   reminder keeps asking until the key leaves the screen (copy, file, keyring).
- * - **Not protected** (web only): a backed-up web key still sits unencrypted in
- *   localStorage, so the reminder pitches the password lock or a signer once.
+ * Armada. It's written only when the save prompt at signup was dismissed, so
+ * this device holds the only copy. Logout is guarded and the reminder keeps
+ * asking until the key leaves the screen (copy, file, keyring); after that the
+ * marker is `backedUp` until the reminder clears it.
  *
  * Device-local on purpose: an account signed in anywhere else was signed in
  * with a key the user already had.
@@ -81,29 +77,23 @@ export function keyBackupPending(pubkey: string): boolean {
   return marker !== null && !marker.backedUp;
 }
 
-/**
- * A key signup just made. Native apps keep it in the Keychain/KeyStore, so a
- * backed-up native key has nothing left to remind about.
- */
+/** A key signup just made. One that's already backed up has nothing to remind about. */
 export function markNewKey(pubkey: string, backedUp: boolean, now = Date.now()): void {
-  if (backedUp && Capacitor.isNativePlatform()) return;
+  if (backedUp) return;
   write(pubkey, { remindAt: now + KEY_REMINDER_FIRST_MS, backedUp });
 }
 
-/** The key has left the screen. On the web the protection pitch is still owed. */
+/**
+ * The key has left the screen: nothing left to remind about. The marker stays
+ * until the reminder lets it go, so a dialog open over it doesn't vanish.
+ */
 export function markKeyBackedUp(pubkey: string): void {
   const marker = keySafetyMarker(pubkey);
   if (!marker || marker.backedUp) return;
-  if (Capacitor.isNativePlatform()) clearKeyReminder(pubkey);
-  else write(pubkey, { ...marker, backedUp: true });
+  write(pubkey, { ...marker, backedUp: true });
 }
 
-/** The key is now password-locked on this device: once backed up, nothing is owed. */
-export function markKeyProtected(pubkey: string): void {
-  if (keySafetyMarker(pubkey)?.backedUp) clearKeyReminder(pubkey);
-}
-
-/** Dismissed: a missing backup is asked about again tomorrow; the protection pitch only once. */
+/** Dismissed: a missing backup is asked about again tomorrow. */
 export function snoozeKeyReminder(pubkey: string, now = Date.now()): void {
   const marker = keySafetyMarker(pubkey);
   if (!marker) return;

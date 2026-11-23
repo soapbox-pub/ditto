@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
 import { downloadTextFile } from '@/lib/downloadFile';
-import { markKeyBackedUp, markKeyProtected, useKeySafetyMarker } from '@/lib/keyBackup';
+import { markKeyBackedUp, useKeySafetyMarker } from '@/lib/keyBackup';
 import {
   AUTO_LOCK_CHOICES,
   lockedNcryptsec,
@@ -169,7 +169,6 @@ export function KeyPasswordSettings({ nsec, pubkey }: { nsec: string; pubkey: st
   // The lock applies when the login list is written, so write it now.
   const setLocked = async (sealWith: string | null) => {
     setKeyLock(pubkey, sealWith);
-    if (sealWith) markKeyProtected(pubkey);
     await loginStorage.setItem(LOGIN_STORAGE_KEY, JSON.stringify(logins));
   };
 

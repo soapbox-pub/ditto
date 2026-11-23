@@ -109,6 +109,14 @@ const FAQ_TEMPLATE: FAQTemplateCategory[] = [
         ],
       },
       {
+        id: 'protect-key-browser',
+        question: defineMessage({ id: 'help.faq.protectKeyBrowser.question', defaultMessage: 'Is my secret key safe in this browser?' }),
+        answer: [
+          defineMessage({ id: 'help.faq.protectKeyBrowser.answer1', defaultMessage: 'If you log in with your secret key on the web, {appName} keeps it in this browser unencrypted. To lock it, [set a password](/settings/profile#key) and {appName} will ask for it before using your key.' }),
+          defineMessage({ id: 'help.faq.protectKeyBrowser.answer2', defaultMessage: 'Even better, keep your key in a signer so {appName} never holds it at all: the [Ditto Extension](https://chromewebstore.google.com/detail/ditto-extension/fbiegkepanmjielbemkhieckmlckiagi) in your desktop browser, [Amber](https://zapstore.dev/apps/com.greenart7c3.nostrsigner) on Android, or [Clave](https://apps.apple.com/app/id6762104155) on iPhone.' }),
+        ],
+      },
+      {
         id: 'cost-to-use',
         question: defineMessage({ id: 'help.faq.costToUse.question', defaultMessage: 'Does {appName} cost anything?' }),
         answer: [

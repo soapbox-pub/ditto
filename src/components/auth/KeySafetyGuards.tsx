@@ -48,18 +48,33 @@ export function LogoutGuard() {
 }
 
 /**
- * Asks a signup-made account to back up its key, and on the web to protect it,
- * once the reminder is due (see `lib/keyBackup.ts`), never over onboarding. Any
- * dismissal snoozes it.
+ * Asks a signup-made account to back up its key once the reminder is due (see
+ * `lib/keyBackup.ts`), never over onboarding. Any dismissal snoozes it.
  */
 export function KeySafetyReminder() {
   const { logins } = useNostrLogin();
   const active = logins[0]?.type === 'nsec' ? logins[0] : undefined;
   const marker = useKeySafetyMarker(active?.pubkey);
   const remindAt = marker?.remindAt ?? null;
+  const backedUp = marker?.backedUp ?? false;
   const logoutRequest = useLogoutRequest();
   const { active: onboarding } = useOnboarding();
   const [due, setDue] = useState(false);
+  // Latched so backing up from inside the dialog doesn't snap it shut.
+  const [shown, setShown] = useState(false);
+  const pending = due && remindAt !== null && !backedUp && !logoutRequest && !onboarding;
+
+  const pubkey = active?.pubkey;
+  useEffect(() => setShown(false), [pubkey]);
+
+  useEffect(() => {
+    if (pending) setShown(true);
+  }, [pending]);
+
+  // Backed up elsewhere (settings, another tab): nothing left to remind about.
+  useEffect(() => {
+    if (pubkey && backedUp && !shown) clearKeyReminder(pubkey);
+  }, [pubkey, backedUp, shown]);
 
   useEffect(() => {
     setDue(false);
@@ -78,9 +93,11 @@ export function KeySafetyReminder() {
 
   return (
     <KeySafetyDialog
-      open={due && remindAt !== null && !logoutRequest && !onboarding}
+      open={shown && !logoutRequest}
       onOpenChange={(open) => {
-        if (!open) snoozeKeyReminder(active.pubkey);
+        if (open) return;
+        setShown(false);
+        snoozeKeyReminder(active.pubkey);
       }}
       nsec={active.data.nsec}
       pubkey={active.pubkey}

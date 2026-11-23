@@ -467,7 +467,7 @@ export function ProfileSettings() {
   const [cropState, setCropState] = useState<CropState | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const { hash } = useLocation();
-  // `#key` (from the key-safety reminder) opens Advanced at the key section.
+  // `#key` (from the help FAQ) opens Advanced at the key section.
   const keySectionRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (hash !== '#key') return;
