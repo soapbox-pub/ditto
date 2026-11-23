@@ -35,9 +35,9 @@ export function PrivacyPolicyPage() {
           <h2 className="text-base font-bold text-foreground">How Nostr Works</h2>
           <p>
             Nostr is a decentralized protocol. When you publish content, it is sent to one or more <strong>relays</strong> (independent
-            servers) that you choose. {config.appName} does not operate these relays and has no control over data
-            stored on them. We operate <strong>relay.ditto.pub</strong> and <strong>relay.dreamith.to</strong>, which {config.appName} uses by default and for
-            search and trending. Content published to Nostr relays is <strong>public by default</strong> and may be visible to anyone.
+            servers) that you choose. We operate <strong>relay.ditto.pub</strong> and <strong>relay.dreamith.to</strong>, which {config.appName} uses
+            by default and for search and trending. Other relays are run by third parties, and we have no control over data stored
+            on them. Content published to Nostr relays is <strong>public by default</strong> and may be visible to anyone.
           </p>
         </section>
 
