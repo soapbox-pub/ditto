@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
-import { Info, BookOpen, Shield, Code, ScrollText } from 'lucide-react';
+import { Info, BookOpen, Shield, Code, ScrollText, Bug } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
+
+import { DITTO_REPO_PATH } from '@/lib/dittoRepo';
 
 interface LinkFooterProps {
   /** Optional callback fired when an internal (React Router) link is clicked. */
@@ -56,6 +58,11 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
         <Link to="/changelog" className={chipClass} onClick={onNavigate}>
           <ScrollText className={iconClass} />
           <FormattedMessage id="linkFooter.changelog" defaultMessage="Changelog" />
+        </Link>
+
+        <Link to={DITTO_REPO_PATH} className={chipClass} onClick={onNavigate}>
+          <Bug className={iconClass} />
+          <FormattedMessage id="linkFooter.reportBug" defaultMessage="Report a bug" />
         </Link>
 
         <a

@@ -1,5 +1,6 @@
 import { useMemo, Fragment } from 'react';
 import { useIntl } from 'react-intl';
+import { Link } from 'react-router-dom';
 
 import {
   Accordion,
@@ -13,7 +14,8 @@ import { getFAQCategories, type FAQCategory, type FAQItem } from '@/lib/helpCont
 // ── Inline markup renderer ────────────────────────────────────────────────────
 
 /**
- * Very lightweight inline markup: **bold** and [text](url).
+ * Very lightweight inline markup: **bold** and [text](url). URLs starting
+ * with `/` stay in the app.
  * Returns an array of React nodes.
  */
 function renderInlineMarkup(text: string): React.ReactNode[] {
@@ -32,6 +34,17 @@ function renderInlineMarkup(text: string): React.ReactNode[] {
     if (match[1] !== undefined) {
       // **bold**
       nodes.push(<strong key={match.index} className="font-semibold text-foreground">{match[1]}</strong>);
+    } else if (match[2] !== undefined && match[3]?.startsWith('/')) {
+      // [text](/in-app/path)
+      nodes.push(
+        <Link
+          key={match.index}
+          to={match[3]}
+          className="text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
+        >
+          {match[2]}
+        </Link>,
+      );
     } else if (match[2] !== undefined && match[3] !== undefined) {
       // [text](url)
       nodes.push(
