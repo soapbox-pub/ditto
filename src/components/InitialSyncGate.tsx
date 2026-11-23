@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { useFollowList } from "@/hooks/useFollowActions";
 import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { useLoginActions } from "@/hooks/useLoginActions";
@@ -245,7 +246,6 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-/** Follow pack kind (addressable). */
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = "keygen" | "download" | "profile";
 type SettingsStep = "theme" | "follows" | "outro";
@@ -272,10 +272,12 @@ function SetupQuestionnaire({
 }) {
   const intl = useIntl();
   const { nostr } = useNostr();
-  // Ready the people step's suggestions while the earlier steps are filled in.
-  usePrefetchWelcomePeople();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
+  const { data: followData } = useFollowList();
+  // Ready the people step's suggestions while the earlier steps are filled in,
+  // for those who'll see it: an existing login that follows people skips it.
+  usePrefetchWelcomePeople(isSignup || followData?.pubkeys.length === 0);
   const login = useLoginActions();
   const { setTheme, applyCustomTheme } = useTheme();
 

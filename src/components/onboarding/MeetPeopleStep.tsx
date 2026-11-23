@@ -25,6 +25,7 @@ import { DittoLogo } from '@/components/DittoLogo';
 import { ThumbnailImage } from '@/components/ThumbnailImage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogDescription, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
@@ -42,6 +43,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { toast } from '@/hooks/useToast';
 import {
   isOffTopicProfile,
@@ -97,12 +99,21 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
+  const { store } = useNostrStorage();
   const { data, isPending } = useWelcomePeople();
+  // The theme to go back to on Reset theme: whatever was on when the step opened.
+  const { theme, customTheme } = useTheme();
+  const [initialTheme] = useState(() => ({ theme, customTheme }));
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [column, setColumn] = useState<HTMLElement | null>(null);
   const audio = useTrackPreview();
+  // People whose work didn't load. Their cards step aside, and they can't be followed from here.
+  const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
+  const markBroken = useCallback((pubkey: string) => {
+    setBroken((prev) => (prev.has(pubkey) ? prev : new Set(prev).add(pubkey)));
+  }, []);
 
   // Someone without a picture reads like a bot; drop them once profiles are in.
   const allPubkeys = useMemo(() => data?.flatMap((section) => section.people.map((p) => p.pubkey)) ?? [], [data]);
@@ -120,9 +131,17 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
           })
           : section.people).slice(0, PEOPLE),
       }))
-      .filter((section) => section.people.length >= MIN_PEOPLE),
-    [data, authors, isFetched, user?.pubkey],
+      .filter((section) => section.people.length >= MIN_PEOPLE)
+      .map((section) => ({ ...section, people: section.people.filter((p) => !broken.has(p.pubkey)) })),
+    [data, authors, isFetched, user?.pubkey, broken],
   );
+
+  // Only people still on the page get followed: a pick can drop out once
+  // profiles load or their work fails to.
+  const picks = useMemo(() => {
+    const shown = new Set(sections.flatMap((section) => section.people.map((p) => p.pubkey)));
+    return [...selected].filter((pk) => shown.has(pk));
+  }, [sections, selected]);
 
   /** Follow everyone shown in a section, or clear them if they're all picked already. */
   const toggleAll = useCallback((pubkeys: string[]) => {
@@ -148,7 +167,8 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
 
   const handleContinue = useCallback(async () => {
     audio.stop();
-    if (!user || selected.size === 0) {
+    clearThemePreview();
+    if (!user || picks.length === 0) {
       onNext(false);
       return;
     }
@@ -164,11 +184,11 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
 
     setSubmitting(true);
     try {
-      const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] });
+      const prev = await fetchFreshEvent(nostr, { kinds: [3], authors: [user.pubkey] }, { store });
       const existingPTags = prev?.tags.filter(([n]) => n === 'p') ?? [];
       const nonPTags = prev?.tags.filter(([n]) => n !== 'p') ?? [];
       const existing = new Set(existingPTags.map(([, pk]) => pk));
-      const newPTags = [...selected].filter((pk) => !existing.has(pk)).map((pk) => ['p', pk]);
+      const newPTags = picks.filter((pk) => !existing.has(pk)).map((pk) => ['p', pk]);
 
       await publishEvent({
         kind: 3,
@@ -188,7 +208,7 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
     } finally {
       setSubmitting(false);
     }
-  }, [audio, user, selected, expectedPubkey, nostr, publishEvent, onNext, intl]);
+  }, [audio, user, picks, expectedPubkey, nostr, store, publishEvent, onNext, intl]);
 
   return (
     <CenterColumnContext.Provider value={column}>
@@ -209,6 +229,19 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
         <div className="-mx-6 space-y-1">
           {isPending ? (
             <PeopleSkeleton />
+          ) : sections.length === 0 ? (
+            <div className="px-6">
+              <Card className="border-dashed">
+                <CardContent className="py-12 px-8 text-center">
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                    <FormattedMessage
+                      id="onboarding.people.empty"
+                      defaultMessage="No one to suggest right now. You can find people to follow on Discover later."
+                    />
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             sections.map((section) => (
               <PeopleSection
@@ -217,8 +250,9 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
                 selected={selected}
                 onToggle={toggle}
                 onToggleAll={toggleAll}
+                onBroken={markBroken}
                 audio={audio}
-                action={section.id === 'themes' ? <ResetThemeButton /> : undefined}
+                action={section.id === 'themes' ? <ResetThemeButton initial={initialTheme} /> : undefined}
               />
             ))
           )}
@@ -227,7 +261,7 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
         <StandaloneThemePreviewBar />
 
         <div className="sticky bottom-0 z-10 -mx-6 -mb-12 flex gap-3 bg-gradient-to-t from-background from-60% to-transparent px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          <Button variant="ghost" onClick={() => { audio.stop(); onBack(); }} disabled={submitting} className="flex-1 rounded-full h-11">
+          <Button variant="ghost" onClick={() => { audio.stop(); clearThemePreview(); onBack(); }} disabled={submitting} className="flex-1 rounded-full h-11">
             <FormattedMessage id="onboarding.back" defaultMessage="Back" />
           </Button>
           <Button onClick={handleContinue} disabled={submitting} className="flex-1 rounded-full h-11 gap-1.5">
@@ -238,8 +272,8 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
               </>
             ) : (
               <>
-                {selected.size > 0
-                  ? <FormattedMessage id="onboarding.people.follow" defaultMessage="Follow {count}" values={{ count: selected.size }} />
+                {picks.length > 0
+                  ? <FormattedMessage id="onboarding.people.follow" defaultMessage="Follow {count}" values={{ count: picks.length }} />
                   : <FormattedMessage id="onboarding.follows.skip" defaultMessage="Skip for now" />}
                 <ChevronRight className="w-4 h-4" />
               </>
@@ -315,11 +349,13 @@ const SECTION_LAYOUTS: Record<string, SectionLayout> = {
   podcasts: 'headlines',
 };
 
-function PeopleSection({ section, selected, onToggle, onToggleAll, audio, action }: {
+function PeopleSection({ section, selected, onToggle, onToggleAll, onBroken, audio, action }: {
   section: WelcomeSection;
   selected: Set<string>;
   onToggle: (pubkey: string) => void;
   onToggleAll: (pubkeys: string[]) => void;
+  /** Someone's work couldn't load. */
+  onBroken: (pubkey: string) => void;
   audio: TrackPreview;
   /** Extra control for the section header, before Follow all. */
   action?: ReactNode;
@@ -353,7 +389,7 @@ function PeopleSection({ section, selected, onToggle, onToggleAll, audio, action
       pubkey={person.pubkey}
       variant={variant}
       className={variant === 'card' ? cardWidth(styleFor(person.preview)) : undefined}
-      renderArt={(onBroken) => <PreviewArt preview={person.preview} audio={audio} onBroken={onBroken} />}
+      renderArt={() => <PreviewArt preview={person.preview} audio={audio} onBroken={() => onBroken(person.pubkey)} />}
       subtitle={previewSubtitle(person.preview)}
       selected={selected.has(person.pubkey)}
       onToggle={() => onToggle(person.pubkey)}
@@ -501,8 +537,8 @@ function PersonCard({ pubkey, variant = 'card', className, renderArt, subtitle, 
   pubkey: string;
   variant?: CardVariant;
   className?: string;
-  /** The preview; it calls `onBroken` if its media can't load, and the card steps aside. */
-  renderArt: (onBroken: () => void) => ReactNode;
+  /** The preview. If its media can't load, the section drops this person. */
+  renderArt: () => ReactNode;
   subtitle: ReactNode;
   selected: boolean;
   onToggle: () => void;
@@ -513,11 +549,6 @@ function PersonCard({ pubkey, variant = 'card', className, renderArt, subtitle, 
   const { data } = useAuthor(pubkey);
   const metadata = data?.metadata;
   const name = profileName(metadata) ?? intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
-  const [broken, setBroken] = useState(false);
-  const onBroken = useCallback(() => setBroken(true), []);
-
-  if (broken) return null;
-
   const compact = variant === 'compact';
   const lead = variant === 'lead';
   const about = lead ? metadata?.about?.split('\n').find((l) => l.trim()) : undefined;
@@ -525,7 +556,7 @@ function PersonCard({ pubkey, variant = 'card', className, renderArt, subtitle, 
   return (
     <div className={cn('shrink-0', className)}>
       <div className="relative cursor-pointer" onClick={onOpen}>
-        {renderArt(onBroken)}
+        {renderArt()}
         {compact && <FollowToggle selected={selected} onToggle={onToggle} iconOnly className="absolute right-1.5 top-1.5" />}
       </div>
       <button
@@ -778,18 +809,19 @@ function PersonSheetContent({ pubkey, selected, onToggle }: { pubkey: string; se
  * Put back the theme the user had when this step opened: ends any preview,
  * and undoes a theme they kept from here. Only shown once something changed.
  */
-function ResetThemeButton() {
+function ResetThemeButton({ initial }: { initial: Pick<ReturnType<typeof useTheme>, 'theme' | 'customTheme'> }) {
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const preview = useThemePreview();
-  const [initial] = useState(() => ({ theme, customTheme }));
-  const changed = !!preview || theme !== initial.theme || JSON.stringify(customTheme) !== JSON.stringify(initial.customTheme);
-  if (!changed) return null;
+  const kept = theme !== initial.theme || JSON.stringify(customTheme) !== JSON.stringify(initial.customTheme);
+  if (!preview && !kept) return null;
 
   return (
     <button
       type="button"
       onClick={() => {
         clearThemePreview();
+        // Re-applying saves and publishes the theme, so only when one was kept.
+        if (!kept) return;
         if (initial.theme === 'custom' && initial.customTheme) applyCustomTheme(initial.customTheme);
         else setTheme(initial.theme);
       }}

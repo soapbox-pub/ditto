@@ -564,22 +564,23 @@ const STALE = 10 * 60 * 1000;
  * Start fetching the people step's discovery early (say, when onboarding
  * opens), so it's ready by the time the step is reached.
  */
-export function usePrefetchWelcomePeople() {
+export function usePrefetchWelcomePeople(enabled = true) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   // The step only shows people from the Discover network; start building it too.
-  const { authors: network, key: networkKey } = useDiscoverAuthors();
+  const { authors: network, key: networkKey } = useDiscoverAuthors(enabled);
   useEffect(() => {
+    if (!enabled) return;
     queryClient.prefetchQuery({ queryKey: DISCOVERY_KEY, queryFn: ({ signal }) => discover(nostr, signal), staleTime: STALE });
-  }, [nostr, queryClient]);
+  }, [enabled, nostr, queryClient]);
   useEffect(() => {
-    if (!network?.length) return;
+    if (!enabled || !network?.length) return;
     queryClient.prefetchQuery({
       queryKey: ['welcome-people', 'vetted', networkKey],
       queryFn: ({ signal }) => discoverVetted(nostr, network, signal),
       staleTime: STALE,
     });
-  }, [nostr, queryClient, network, networkKey]);
+  }, [enabled, nostr, queryClient, network, networkKey]);
 }
 
 /**
@@ -627,7 +628,8 @@ export function useWelcomePeople() {
     return buildSections(events, { ...discovery.data.candidates, ...vetted.data?.candidates }, networkSet);
   }, [discovery.data, more.data, vetted.data, vetted.isError, network, networkSet]);
 
-  return { data, isPending: !data };
+  // Without discovery there's nothing to show; say so rather than load forever.
+  return { data, isPending: !data && !discovery.isError, isError: !data && discovery.isError };
 }
 
 /** Whether an event belongs to an archetype: right kind, and one of its hashtags when it has any. */

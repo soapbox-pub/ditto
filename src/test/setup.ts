@@ -59,6 +59,9 @@ Object.defineProperty(window, 'scrollTo', {
   value: vi.fn(),
 });
 
+// jsdom implements window.scrollTo (mocked above) but not Element#scrollTo.
+Element.prototype.scrollTo = vi.fn();
+
 // Mock IntersectionObserver and ResizeObserver.
 //
 // These are classes rather than `vi.fn().mockImplementation(() => ({...}))`:
