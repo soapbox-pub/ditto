@@ -116,12 +116,6 @@ export function EmbeddedNaddr(props: EmbeddedNaddrProps) {
   return (
     <ErrorBoundary
       fallback={<BrokenEventFallback compact className={props.className} />}
-      sentryLevel="error"
-      sentryTags={{
-        errorBoundary: 'embedded-naddr',
-        kind: addr.kind,
-        pubkey: addr.pubkey,
-      }}
       resetKeys={[addr.kind, addr.pubkey, addr.identifier]}
     >
       <EmbeddedNaddrInner {...props} />

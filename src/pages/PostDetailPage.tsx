@@ -2897,8 +2897,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
           <ErrorBoundary
             fallback={<BrokenEventFallback />}
-            sentryLevel="error"
-            sentryTags={{ errorBoundary: 'post-detail', kind: event.kind }}
             resetKeys={[event.id]}
           >
             <ContentWarningGuard event={event}>

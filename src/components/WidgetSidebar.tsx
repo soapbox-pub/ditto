@@ -141,7 +141,7 @@ const SortableWidget = memo(function SortableWidget({ config, definition, onRemo
         isDragging={isDragging}
         dragHandleProps={listeners}
       >
-        <ErrorBoundary fallback={<WidgetErrorFallback name={label} />} reportToSentry>
+        <ErrorBoundary fallback={<WidgetErrorFallback name={label} />}>
           <Suspense fallback={<WidgetSkeleton />}>
             <WidgetContent id={config.id} />
           </Suspense>

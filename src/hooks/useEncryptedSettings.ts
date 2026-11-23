@@ -119,8 +119,6 @@ export interface EncryptedSettings {
   stripTrackingParams?: boolean;
   /** Emojis pinned to the quick-react row (see AppConfig). Empty means fully learned. */
   quickReactions?: QuickReaction[];
-  /** Sentry DSN for error reporting (empty string = disabled) */
-  sentryDsn?: string;
   /** How to display monetary amounts ("usd" or "sats"). */
   currencyDisplay?: 'usd' | 'sats';
   /** Saved feed tabs created from the search page. */

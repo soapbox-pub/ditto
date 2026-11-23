@@ -157,8 +157,6 @@ export function TestApp({ children }: TestAppProps) {
     exemptFollowsFromFilters: false,
     muteWordsInProfiles: false,
     hideMediaFromStrangers: false,
-    sentryDsn: "",
-    sentryEnabled: false,
     savedFeeds: [],
     autoplayVideos: false,
     stripTrackingParams: true,

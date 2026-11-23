@@ -446,7 +446,7 @@ export function BackSwipe({ column }: { column: HTMLElement | null }) {
       <div ref={scrollerRef} className="absolute inset-0 overflow-hidden">
         <div ref={shiftRef}>
           <PageUnderlayContext.Provider value>
-            <ErrorBoundary fallback={null} sentryTags={{ errorBoundary: 'page-underlay' }}>
+            <ErrorBoundary fallback={null}>
               <NavigationContext.Provider value={inertNavigation}>
                 <Routes location={copyLocation}>{routes}</Routes>
               </NavigationContext.Provider>

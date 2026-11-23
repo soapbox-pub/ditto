@@ -137,7 +137,6 @@ function MainLayoutInner() {
             className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border-subtle bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
           >
             <ErrorBoundary
-              sentryTags={{ errorBoundary: 'center-column', path: location.pathname }}
               resetKeys={[location.pathname]}
             >
               <Outlet />

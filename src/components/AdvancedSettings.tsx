@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import { ChevronDown, ChevronUp, Bug, RotateCcw, AlertTriangle, Braces, Coins, Languages } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, Braces, Coins, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { RawEventEditLauncher } from '@/components/RawEventEditDialog';
 import { RawEventPublisher } from '@/components/RawEventPublisher';
 import { RequestToVanishDialog } from '@/components/RequestToVanishDialog';
@@ -20,9 +19,6 @@ import { LANGUAGE_OPTIONS } from '@/i18n/language';
 import type { CurrencyDisplay } from '@/contexts/AppContext';
 import { DEFAULT_FAVICON_URL, DEFAULT_LINK_PREVIEW_URL } from '@/lib/apiUrls';
 
-/** The build-time default DSN from the environment variable. */
-const DEFAULT_SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
-
 export function AdvancedSettings() {
   const intl = useIntl();
   const { config, updateConfig } = useAppContext();
@@ -33,7 +29,6 @@ export function AdvancedSettings() {
   const [systemOpen, setSystemOpen] = useState(true);
   const [languageOpen, setLanguageOpen] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
-  const [sentryOpen, setSentryOpen] = useState(false);
   const [rawEventOpen, setRawEventOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
   const [vanishDialogOpen, setVanishDialogOpen] = useState(false);
@@ -41,7 +36,6 @@ export function AdvancedSettings() {
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
-  const [sentryDsn, setSentryDsn] = useState(config.sentryDsn);
 
   const handleStatsPubkeyChange = (value: string) => {
     setStatsPubkey(value);
@@ -328,98 +322,6 @@ export function AdvancedSettings() {
                     </div>
                   </label>
                 </RadioGroup>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-
-      {/* Error Reporting Section */}
-      <div>
-        <Collapsible open={sentryOpen} onOpenChange={setSentryOpen}>
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              className="relative w-full justify-between px-3 py-3.5 h-auto can-hover:bg-muted/20 can-hover:text-foreground rounded-none"
-            >
-              <span className="flex items-center gap-2 text-base font-semibold">
-                <Bug className="h-4 w-4" />
-                <FormattedMessage id="settings.advanced.errorReporting" defaultMessage={"Error Reporting"} />
-              </span>
-              {sentryOpen ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="px-3 pt-3 pb-4 space-y-5">
-
-              {/* Share error reports toggle */}
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="sentry-enabled" className="text-sm font-medium">
-                    <FormattedMessage id="settings.advanced.shareErrorReports" defaultMessage={"Share error reports"} />
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    <FormattedMessage id="settings.advanced.shareErrorReportsDescription" defaultMessage={"Help improve this app by automatically sending crash and error reports."} />
-                  </p>
-                </div>
-                <Switch
-                  id="sentry-enabled"
-                  checked={config.sentryEnabled}
-                  onCheckedChange={(checked) => {
-                    updateConfig((current) => ({ ...current, sentryEnabled: checked }));
-                  }}
-                />
-              </div>
-
-              {/* Sentry DSN */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="sentry-dsn" className="text-sm font-medium">
-                    Sentry DSN
-                    {sentryDsn !== DEFAULT_SENTRY_DSN && (
-                      <span className="ml-2 inline-block w-2 h-2 rounded-full bg-yellow-400" title={intl.formatMessage({ id: 'settings.advanced.modifiedFromDefault', defaultMessage: "Modified from default" })} />
-                    )}
-                  </Label>
-                  {sentryDsn !== DEFAULT_SENTRY_DSN && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      title={intl.formatMessage({ id: 'settings.advanced.restoreToDefault', defaultMessage: "Restore to default" })}
-                      onClick={async () => {
-                        setSentryDsn(DEFAULT_SENTRY_DSN);
-                        updateConfig((current) => ({ ...current, sentryDsn: DEFAULT_SENTRY_DSN }));
-                        if (user) await updateSettings.mutateAsync({ sentryDsn: DEFAULT_SENTRY_DSN });
-                        toast({ title: intl.formatMessage({ id: 'settings.advanced.sentryDsnRestored', defaultMessage: "Sentry DSN restored to default" }) });
-                      }}
-                    >
-                      <RotateCcw className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  <FormattedMessage id="settings.advanced.sentryDsnDescription" defaultMessage={"Sentry Data Source Name (DSN) for error reporting. Leave empty to disable Sentry."} />
-                </p>
-                <Input
-                  id="sentry-dsn"
-                  value={sentryDsn}
-                  onChange={(e) => setSentryDsn(e.target.value)}
-                  onBlur={async () => {
-                    const trimmed = sentryDsn.trim();
-                    if (trimmed !== config.sentryDsn) {
-                      updateConfig((current) => ({ ...current, sentryDsn: trimmed }));
-                      if (user) await updateSettings.mutateAsync({ sentryDsn: trimmed });
-                      toast({ title: trimmed ? intl.formatMessage({ id: 'settings.advanced.sentryDsnUpdated', defaultMessage: "Sentry DSN updated" }) : intl.formatMessage({ id: 'settings.advanced.sentryDsnCleared', defaultMessage: "Sentry DSN cleared" }) });
-                    }
-                  }}
-                  placeholder="https://examplePublicKey@o0.ingest.sentry.io/0"
-                  className="font-mono text-base md:text-sm"
-                />
               </div>
             </div>
           </CollapsibleContent>

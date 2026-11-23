@@ -5,7 +5,6 @@ import {
   type FallbackProps,
 } from 'react-error-boundary';
 import { peekCatalog } from '@/i18n/language';
-import { getSentryInstance } from '@/lib/sentry';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -15,18 +14,6 @@ interface ErrorBoundaryProps {
    * that re-mounts the protected subtree.
    */
   fallback?: ReactNode | ((args: { error: Error; reset: () => void }) => ReactNode);
-  /** Whether to report errors to Sentry. Defaults to true. */
-  reportToSentry?: boolean;
-  /**
-   * Extra Sentry tags merged into the captured event. Useful for distinguishing
-   * different boundary placements (e.g. top-level vs. per-feed-item).
-   */
-  sentryTags?: Record<string, string | number | boolean>;
-  /**
-   * Sentry severity level. Defaults to `'fatal'` so the top-level boundary
-   * behaviour is preserved; inline boundaries should pass `'error'`.
-   */
-  sentryLevel?: 'fatal' | 'error' | 'warning' | 'info' | 'debug' | 'log';
   /** Keys that, when changed, reset the boundary back to the happy path. */
   resetKeys?: unknown[];
 }
@@ -35,7 +22,7 @@ interface ErrorBoundaryProps {
  * Error boundary that catches render-time exceptions in its subtree.
  *
  * Wraps `react-error-boundary` to preserve Ditto's existing public API
- * (`fallback?: ReactNode`, `reportToSentry?: boolean`) while gaining the
+ * (`fallback?: ReactNode`) while gaining the
  * render-prop fallback, `resetKeys`, and `onError` features that pure
  * class-based boundaries don't provide.
  *
@@ -48,31 +35,10 @@ interface ErrorBoundaryProps {
 export function ErrorBoundary({
   children,
   fallback,
-  reportToSentry = true,
-  sentryTags,
-  sentryLevel = 'fatal',
   resetKeys,
 }: ErrorBoundaryProps) {
   const handleError = (error: unknown, info: ErrorInfo) => {
     console.error('Error caught by ErrorBoundary:', error, info);
-
-    if (!reportToSentry) return;
-
-    const Sentry = getSentryInstance();
-    if (!Sentry) return;
-
-    Sentry.captureException(error, {
-      level: sentryLevel,
-      contexts: {
-        react: {
-          componentStack: info.componentStack ?? undefined,
-        },
-      },
-      tags: {
-        errorBoundary: 'true',
-        ...sentryTags,
-      },
-    });
   };
 
   const fallbackRender = (props: FallbackProps) => {
@@ -140,7 +106,7 @@ function DefaultErrorFallbackContent({ error, reset }: { error: Error; reset: ()
           <p className="text-muted-foreground">
             <FormattedMessage
               id="errorBoundary.description"
-              defaultMessage="An unexpected error occurred. The error has been reported."
+              defaultMessage="An unexpected error occurred."
             />
           </p>
         </div>

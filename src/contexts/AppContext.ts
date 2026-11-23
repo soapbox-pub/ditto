@@ -397,10 +397,6 @@ export interface AppConfig {
    * settings. Default: false.
    */
   hideMediaFromStrangers: boolean;
-  /** Sentry DSN for error reporting (empty string = disabled). */
-  sentryDsn: string;
-  /** Whether the user has enabled Sentry error reporting. */
-  sentryEnabled: boolean;
   /** Saved home feed tabs. Cached locally so they appear instantly on load. */
   savedFeeds: SavedFeed[];
   /** Autoplay videos in feeds and previews (muted). Default: false. */

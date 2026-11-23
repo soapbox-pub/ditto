@@ -744,8 +744,6 @@ const NoteCardImpl = memo(function NoteCardImpl({
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
       <ErrorBoundary
         fallback={<BrokenEventFallback />}
-        sentryLevel="error"
-        sentryTags={{ errorBoundary: 'note-card', kind: event.kind }}
         resetKeys={[event.id]}
       >
         <ContentWarningGuard event={event}>
@@ -1728,8 +1726,6 @@ export function NoteCard(props: NoteCardProps) {
   return (
     <ErrorBoundary
       fallback={<BrokenEventFallback className={props.className} />}
-      sentryLevel="error"
-      sentryTags={{ errorBoundary: 'note-card-outer', kind: props.event.kind }}
       resetKeys={[props.event.id]}
     >
       <NoteCardImpl {...props} />

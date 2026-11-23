@@ -114,8 +114,6 @@ export function EmbeddedNote(props: EmbeddedNoteProps) {
   return (
     <ErrorBoundary
       fallback={<BrokenEventFallback compact className={props.className} />}
-      sentryLevel="error"
-      sentryTags={{ errorBoundary: 'embedded-note', eventId: props.eventId }}
       resetKeys={[props.eventId]}
     >
       <EmbeddedNoteInner {...props} />
