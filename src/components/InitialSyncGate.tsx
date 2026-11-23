@@ -1,5 +1,4 @@
-import { profileName } from '@/lib/getDisplayName';
-import type { NostrEvent, NostrMetadata } from "@nostrify/nostrify";
+import type { NostrMetadata } from "@nostrify/nostrify";
 import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,7 +16,6 @@ import { saveNsec } from "@/lib/credentialManager";
 import { markNewKey } from "@/lib/keyBackup";
 import { openUrl } from "@/lib/downloadFile";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
-import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
 import {
   lazy,
   type ReactNode,
@@ -32,13 +30,13 @@ import {
 import { DittoLogo } from "@/components/DittoLogo";
 import { IntroImage } from "@/components/IntroImage";
 import { LoginSetup } from "@/components/LoginSetup";
+import { MeetPeopleStep } from "@/components/onboarding/MeetPeopleStep";
+import { ThemePicker } from "@/components/onboarding/ThemePicker";
+import { usePrefetchWelcomePeople } from "@/hooks/useWelcomePeople";
 import { ProfileCard } from "@/components/ProfileCard";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useAppContext } from "@/hooks/useAppContext";
-import { useAuthors } from "@/hooks/useAuthors";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
@@ -49,8 +47,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { toast } from "@/hooks/useToast";
 import { useUploadProfileImage } from "@/hooks/useUploadProfileImage";
 import { completeProfileImetaTags } from "@/lib/computeProfileImeta";
-import type { ImetaEntry } from "@/lib/imeta";
-import { getAvatarShape, isValidAvatarShape } from "@/lib/avatarShape";
+import { isValidAvatarShape } from "@/lib/avatarShape";
 import { isAnimatedImage, METADATA_SCAN_BYTES } from "@/lib/imageMetadata";
 import { isGifBytes } from "@/lib/runGifCrop";
 import { getActivePubkey, subscribeActivePubkey } from "@/lib/activeAccount";
@@ -67,9 +64,6 @@ import { cn } from "@/lib/utils";
 // for them on every startup — they only render inside the signup wizard.
 const ImageCropDialog = lazy(() =>
   import("@/components/ImageCropDialog").then((m) => ({ default: m.ImageCropDialog })),
-);
-const ThemeGrid = lazy(() =>
-  import("@/components/ThemeSelector").then((m) => ({ default: m.ThemeGrid })),
 );
 
 // ---------------------------------------------------------------------------
@@ -252,19 +246,6 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 /** Follow pack kind (addressable). */
-const FOLLOW_PACK_KIND = 39089;
-
-/**
- * Authors whose follow packs are suggested to new users with empty follow
- * lists. We pull *all* follow packs published by these accounts.
- */
-const SUGGESTED_PACK_AUTHORS: string[] = [
-  // Soapbox (npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj)
-  "781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5",
-  // Primal (npub12vkcxr0luzwp8e673v29eqjhrr7p9vqq8asav85swaepclllj09sylpugg)
-  "532d830dffe09c13e75e8b145c825718fc12b0003f61d61e9077721c7fff93cb",
-];
-
 // Steps for signup (includes keygen + profile) vs. settings-only (existing login)
 type SignupStep = "keygen" | "download" | "profile";
 type SettingsStep = "theme" | "follows" | "outro";
@@ -291,6 +272,8 @@ function SetupQuestionnaire({
 }) {
   const intl = useIntl();
   const { nostr } = useNostr();
+  // Ready the people step's suggestions while the earlier steps are filled in.
+  usePrefetchWelcomePeople();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const login = useLoginActions();
@@ -484,8 +467,10 @@ function SetupQuestionnaire({
       <div className="flex-1 flex flex-col overflow-y-auto">
         <div
           className={cn(
-            "w-full mx-auto my-auto px-6 py-12",
-            step === "follows" ? "max-w-2xl" : "max-w-md",
+            "w-full mx-auto px-6 py-12",
+            // The people step is a long page that fills in while you look;
+            // keep its header at the top instead of centering it.
+            step === "follows" ? "max-w-2xl" : "max-w-md my-auto",
           )}
         >
           {/* Signup steps */}
@@ -514,7 +499,7 @@ function SetupQuestionnaire({
           )}
 
           {step === "follows" && hasFollows === false && (
-            <FollowsStep
+            <MeetPeopleStep
               onNext={(didFollow) => {
                 if (didFollow) onPreload();
                 goTo("outro");
@@ -946,9 +931,7 @@ function ThemeStep({
           </p>
         </div>
 
-        <Suspense fallback={<Skeleton className="h-24 w-full rounded-xl" />}>
-          <ThemeGrid columns="scroll" limit={9} />
-        </Suspense>
+        <ThemePicker />
 
         {isFirst ? (
           <Button
@@ -995,377 +978,6 @@ function ThemeStep({
         )}
       </div>
     </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Follow Packs Step
-// ---------------------------------------------------------------------------
-
-/** Parse a follow pack event into structured data. */
-function parsePackEvent(event: NostrEvent) {
-  const getTag = (name: string) => event.tags.find(([n]) => n === name)?.[1];
-  const title = getTag("title") || getTag("name");
-  const description = getTag("description") || getTag("summary") || "";
-  const image = getTag("image") || getTag("thumb") || getTag("banner");
-  const pubkeys = event.tags.filter(([n]) => n === "p").map(([, pk]) => pk);
-
-  return { title, description, image, pubkeys };
-}
-
-function FollowsStep({
-  onNext,
-  onBack,
-  expectedPubkey,
-}: {
-  onNext: (didFollow: boolean) => void;
-  onBack: () => void;
-  /**
-   * Hex pubkey of the just-generated signup key. When set, the follow-all
-   * handler refuses to publish kind 3 unless the active signer matches —
-   * a defensive guard against merging a follow pack into a previously
-   * logged-in user's contact list.
-   */
-  expectedPubkey?: string;
-}) {
-  const intl = useIntl();
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-  const { mutateAsync: publishEvent } = useNostrPublish();
-
-  const [packs, setPacks] = useState<NostrEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPacks, setSelectedPacks] = useState<Set<string>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
-
-  // Fetch the suggested follow packs
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchPacks = async () => {
-      try {
-        const events = await nostr.query(
-          [
-            {
-              kinds: [FOLLOW_PACK_KIND],
-              authors: SUGGESTED_PACK_AUTHORS,
-              limit: 100,
-            },
-          ],
-          {
-            signal: AbortSignal.timeout(8000),
-          },
-        );
-
-        // Deduplicate addressable events: keep the newest per (author, d-tag).
-        const latest = new Map<string, NostrEvent>();
-        for (const event of events) {
-          const identifier =
-            event.tags.find(([n]) => n === "d")?.[1] ?? "";
-          const coord = `${event.pubkey}:${identifier}`;
-          const existing = latest.get(coord);
-          if (!existing || event.created_at > existing.created_at) {
-            latest.set(coord, event);
-          }
-        }
-
-        // Only show packs that actually contain people to follow, newest first.
-        const deduped = [...latest.values()]
-          .filter((event) => event.tags.some(([n]) => n === "p"))
-          .sort((a, b) => b.created_at - a.created_at);
-
-        if (!cancelled) {
-          setPacks(deduped);
-        }
-      } catch (error) {
-        console.warn("Failed to fetch suggested follow packs:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchPacks();
-    return () => {
-      cancelled = true;
-    };
-  }, [nostr]);
-
-  const togglePack = useCallback((packId: string) => {
-    setSelectedPacks((prev) => {
-      const next = new Set(prev);
-      if (next.has(packId)) {
-        next.delete(packId);
-      } else {
-        next.add(packId);
-      }
-      return next;
-    });
-  }, []);
-
-  /**
-   * Follow the members of every selected pack in a single kind-3 publish,
-   * then advance to the next step.
-   */
-  const handleContinue = useCallback(async () => {
-    if (!user) return;
-
-    // Nothing selected — just skip ahead without touching the contact list.
-    if (selectedPacks.size === 0) {
-      onNext(false);
-      return;
-    }
-
-    // Defensive guard: when this is the signup flow, only publish kind 3
-    // if the active signer matches the freshly generated key. Without
-    // this, a regression in the auto-switch would merge the follow packs
-    // into the *previously logged-in user's* contact list — silently
-    // adding follows to the wrong account.
-    if (expectedPubkey && user.pubkey !== expectedPubkey) {
-      toast({
-        title: intl.formatMessage({ id: 'onboarding.follows.notSaved', defaultMessage: 'Follows not saved' }),
-        description: intl.formatMessage({ id: 'onboarding.follows.notSavedDescription', defaultMessage: 'The new account is not active yet, so your follows were not saved (this prevents modifying another account). You can follow people later from the app.' }),
-        variant: "destructive",
-      });
-      onNext(false);
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      // Collect the unique members across every selected pack.
-      const selectedPubkeys = new Set<string>();
-      for (const pack of packs) {
-        if (!selectedPacks.has(pack.id)) continue;
-        for (const [name, pk] of pack.tags) {
-          if (name === "p" && pk) selectedPubkeys.add(pk);
-        }
-      }
-
-      // 1. Fetch freshest kind 3 from relays (not cache)
-      const prev = await fetchFreshEvent(nostr, {
-        kinds: [3],
-        authors: [user.pubkey],
-      });
-
-      // 2. Separate p-tags from non-p-tags to preserve relay hints, petnames, etc.
-      const existingPTags = prev?.tags.filter(([n]) => n === "p") ?? [];
-      const nonPTags = prev?.tags.filter(([n]) => n !== "p") ?? [];
-      const existingPubkeys = new Set(existingPTags.map(([, pk]) => pk));
-
-      // 3. Merge: add selected pubkeys that aren't already followed
-      const newPTags = [...selectedPubkeys]
-        .filter((pk) => !existingPubkeys.has(pk))
-        .map((pk) => ["p", pk]);
-
-      // 4. Publish once with prev for published_at preservation
-      await publishEvent({
-        kind: 3,
-        content: prev?.content ?? "",
-        tags: [...nonPTags, ...existingPTags, ...newPTags],
-        prev: prev ?? undefined,
-      });
-
-      onNext(true);
-    } catch (error) {
-      console.error("Failed to follow packs:", error);
-      toast({
-        title: intl.formatMessage({ id: 'onboarding.follows.failed', defaultMessage: "Couldn't save your follows" }),
-        description: intl.formatMessage({ id: 'onboarding.follows.failedDescription', defaultMessage: 'Something went wrong. You can follow people later from the app.' }),
-        variant: "destructive",
-      });
-      onNext(false);
-    } finally {
-      setSubmitting(false);
-    }
-  }, [user, nostr, publishEvent, expectedPubkey, packs, selectedPacks, onNext, intl]);
-
-  return (
-    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">
-          <FormattedMessage id="onboarding.follows.title" defaultMessage="Find your people" />
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          <FormattedMessage
-            id="onboarding.follows.description"
-            defaultMessage="Your feed is empty! Pick a few packs that look interesting. Tap to select, then continue to follow everyone in them at once."
-          />
-        </p>
-      </div>
-
-      {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <PackCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : packs.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">
-          <FormattedMessage
-            id="onboarding.follows.loadFailed"
-            defaultMessage="Couldn't load suggestions right now. You can find follow packs later in the app."
-          />
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {packs.map((pack) => (
-            <PackCard
-              key={pack.id}
-              event={pack}
-              selected={selectedPacks.has(pack.id)}
-              onToggle={() => togglePack(pack.id)}
-            />
-          ))}
-        </div>
-      )}
-
-      <div className="flex gap-3">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          disabled={submitting}
-          className="flex-1 rounded-full h-11"
-        >
-          <FormattedMessage id="onboarding.back" defaultMessage="Back" />
-        </Button>
-        <Button
-          onClick={handleContinue}
-          disabled={submitting}
-          className="flex-1 rounded-full h-11 gap-1.5"
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <FormattedMessage id="onboarding.follows.following" defaultMessage="Following..." />
-            </>
-          ) : (
-            <>
-              {selectedPacks.size > 0 ? (
-                <FormattedMessage
-                  id="onboarding.follows.followPacks"
-                  defaultMessage="Follow {count, plural, one {# pack} other {# packs}}"
-                  values={{ count: selectedPacks.size }}
-                />
-              ) : (
-                <FormattedMessage id="onboarding.follows.skip" defaultMessage="Skip for now" />
-              )}
-              <ChevronRight className="w-4 h-4" />
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/** Compact, selectable follow pack tile for the onboarding grid. */
-function PackCard({
-  event,
-  selected,
-  onToggle,
-}: {
-  event: NostrEvent;
-  selected: boolean;
-  onToggle: () => void;
-}) {
-  const intl = useIntl();
-  const { title, pubkeys } = useMemo(() => parsePackEvent(event), [event]);
-
-  // Show first 4 member avatars
-  const previewPubkeys = useMemo(() => pubkeys.slice(0, 4), [pubkeys]);
-  const { data: membersMap } = useAuthors(previewPubkeys);
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={selected}
-      className={cn(
-        "group relative text-left rounded-xl ring-1 overflow-hidden transition-all",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        "motion-safe:active:scale-[0.98]",
-        selected
-          ? "ring-2 ring-primary bg-primary/5"
-          : "ring-border hover:ring-foreground/20 hover:bg-muted/40",
-      )}
-    >
-      {/* Selection check */}
-      <div
-        className={cn(
-          "absolute top-2 right-2 z-10 size-5 rounded-full flex items-center justify-center transition-colors",
-          selected
-            ? "bg-primary text-primary-foreground"
-            : "bg-background/80 ring-1 ring-border text-transparent group-hover:text-muted-foreground",
-        )}
-      >
-        <Check className="w-3 h-3" strokeWidth={3} />
-      </div>
-
-      <div className="p-3 space-y-2.5">
-        {/* Title */}
-        <div className="pr-6">
-          <h3 className="font-semibold text-sm leading-snug line-clamp-2">
-            {title || <FormattedMessage id="onboarding.follows.untitledPack" defaultMessage="Untitled Pack" />}
-          </h3>
-        </div>
-
-        {/* Member avatar stack */}
-        <div className="flex items-center">
-          <div className="flex -space-x-2">
-            {previewPubkeys.map((pk) => {
-              const member = membersMap?.get(pk);
-              const name =
-                profileName(member?.metadata) ||
-                intl.formatMessage({ id: 'common.anonymous', defaultMessage: 'Anonymous' });
-              return (
-                <MiniAvatar
-                  key={pk}
-                  src={member?.metadata?.picture}
-                  imeta={member?.imeta?.picture}
-                  name={name}
-                />
-              );
-            })}
-          </div>
-          {pubkeys.length > previewPubkeys.length && (
-            <span className="text-xs text-muted-foreground ml-2">
-              +{pubkeys.length - previewPubkeys.length}
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-/** Tiny avatar used in pack member stacks. */
-function MiniAvatar({ src, imeta, name, metadata }: { src?: string; imeta?: ImetaEntry; name: string; metadata?: NostrMetadata }) {
-  return (
-    <Avatar className="size-7 ring-2 ring-background" shape={getAvatarShape(metadata)}>
-      <AvatarImage src={src} imeta={imeta} alt={name} />
-      <AvatarFallback className="bg-primary/15 text-primary text-[10px]">
-        {name[0]?.toUpperCase()}
-      </AvatarFallback>
-    </Avatar>
-  );
-}
-
-function PackCardSkeleton() {
-  return (
-    <div className="rounded-xl ring-1 ring-border overflow-hidden">
-      <div className="p-3 space-y-2.5">
-        <Skeleton className="h-4 w-24" />
-        <div className="flex -space-x-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton
-              key={i}
-              className="size-7 rounded-full ring-2 ring-background"
-            />
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }
 

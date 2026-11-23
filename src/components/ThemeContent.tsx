@@ -179,7 +179,7 @@ function CreatorLink({ pubkey }: { pubkey: string }) {
  * with sizes multiplied ~4x so it reads well in a feed card.
  * Includes title and optional description below the mockup.
  */
-function ThemeMockup({
+export function ThemeMockup({
   colors,
   title,
   creator,

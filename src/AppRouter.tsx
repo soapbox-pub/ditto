@@ -38,6 +38,7 @@ const ReplyComposeModal = lazy(() => import("@/components/ReplyComposeModal").th
 const EmojiPacksPage = lazy(() => import("./pages/EmojiPacksPage").then(m => ({ default: m.EmojiPacksPage })));
 
 // HomePage eagerly imported all page components; now lazy-loaded
+const WelcomeLabPage = lazy(() => import("./pages/WelcomeLabPage").then(m => ({ default: m.WelcomeLabPage })));
 const HomePage = lazy(() => import("./pages/HomePage").then(m => ({ default: m.HomePage })));
 
 // All other pages: code-split via React.lazy
@@ -152,6 +153,8 @@ export function AppRouter() {
   // pushed page so a swipe back can drag it into view (see BackSwipe).
   const routes = (
     <>
+      {import.meta.env.DEV && <Route path="/lab/welcome" element={<WelcomeLabPage />} />}
+
       {/* All routes share the persistent MainLayout (sidebar + nav) */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<HomePage />} />

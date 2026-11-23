@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
 import { Check, Palette, Pencil, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw } from 'lucide-react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
+import { builtinThemeLabels } from '@/lib/themeLabels';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -39,12 +40,6 @@ const COLOR_LABELS = defineMessages({
   background: { id: 'themeSelector.color.background', defaultMessage: 'Background' },
 });
 
-/** Labels for the built-in theme options */
-const builtinThemeLabels = defineMessages({
-  system: { id: 'themeSelector.builtin.system', defaultMessage: 'System' },
-  light: { id: 'themeSelector.builtin.light', defaultMessage: 'Light' },
-  dark: { id: 'themeSelector.builtin.dark', defaultMessage: 'Dark' },
-});
 
 /** Get the effective CoreThemeColors for the current theme */
 function getEffectiveColors(theme: Theme, customTheme?: ThemeConfig, themes?: ThemesConfig): CoreThemeColors {
