@@ -75,7 +75,7 @@ export function UnlockScreen() {
             <p className="text-sm text-destructive">
               <FormattedMessage
                 id="unlock.forgetWarning"
-                defaultMessage="This removes the account from this device. To log in again you'll need its nsec, or its ncryptsec and this password."
+                defaultMessage="A forgotten password can't be recovered or reset. Removing the account from this device leaves its nsec as the only way back in, so only remove it if you have that saved."
               />
             </p>
             <div className="flex gap-2">
@@ -115,7 +115,7 @@ export function UnlockScreen() {
               className="w-full text-center text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:underline"
               onClick={() => setConfirmForget(true)}
             >
-              <FormattedMessage id="unlock.forget" defaultMessage="Forgot the password?" />
+              <FormattedMessage id="unlock.forget" defaultMessage="Remove this account" />
             </button>
           </form>
         )}
