@@ -5168,7 +5168,7 @@
   "settings.profile.keyLock.createdAsk": "Wenn du {appName} das nächste Mal öffnest oder eine Weile inaktiv warst, wird nach diesem Passwort gefragt. Wann genau, kannst du unten ändern.",
   "settings.profile.keyLock.createdBackup": "Speichere den verschlüsselten Schlüssel unten. Damit und mit deinem Passwort kannst du dich überall bei {appName} oder den meisten Nostr-Apps anmelden.",
   "settings.profile.keyLock.createdNoRecovery": "Ein vergessenes Passwort lässt sich nicht zurücksetzen.",
-  "settings.profile.keyLock.createdStored": "Dieses Gerät bewahrt jetzt nur noch die gesperrte Kopie deines Schlüssels auf. Du bleibst angemeldet.",
+  "settings.profile.keyLock.createdStored": "{appName} bewahrt jetzt nur noch die gesperrte Kopie deines Schlüssels auf. Du bleibst angemeldet.",
   "settings.profile.keyLock.createdTitle": "Dein Schlüssel ist jetzt passwortgeschützt",
   "settings.profile.keyLock.createdToast": "Dein Schlüssel ist jetzt passwortgeschützt",
   "settings.profile.keyLock.done": "Fertig",

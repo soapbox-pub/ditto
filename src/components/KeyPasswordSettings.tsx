@@ -284,7 +284,8 @@ export function KeyPasswordSettings({ nsec, pubkey }: { nsec: string; pubkey: st
                   <li>
                     <FormattedMessage
                       id="settings.profile.keyLock.createdStored"
-                      defaultMessage="This device now keeps only the locked copy of your key. You're still logged in."
+                      defaultMessage="{appName} now keeps only the locked copy of your key. You're still logged in."
+                      values={{ appName: config.appName }}
                     />
                   </li>
                   <li>

@@ -5168,7 +5168,7 @@
   "settings.profile.keyLock.createdAsk": "次に{appName}を開いたとき、またはしばらく操作がなかったときに、このパスワードを確認します。タイミングは下で変更できます。",
   "settings.profile.keyLock.createdBackup": "下の暗号化された鍵を保存してください。これとパスワードがあれば、どこからでも{appName}やほとんどのNostrアプリにログインできます。",
   "settings.profile.keyLock.createdNoRecovery": "忘れたパスワードはリセットできません。",
-  "settings.profile.keyLock.createdStored": "この端末には、ロックされた鍵のコピーだけが保管されています。ログインしたままです。",
+  "settings.profile.keyLock.createdStored": "{appName}は、ロックされた鍵のコピーだけを保管しています。ログインしたままです。",
   "settings.profile.keyLock.createdTitle": "鍵がパスワードで保護されました",
   "settings.profile.keyLock.createdToast": "鍵がパスワードで保護されました",
   "settings.profile.keyLock.done": "完了",
