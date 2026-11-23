@@ -85,6 +85,16 @@ export default {
 			spacing: {
 				'22': '5.5rem',
 			},
+			// Each `prose-*` size sets its root font size in rem (everything inside
+			// is em), so scale those roots to follow the Text size setting too.
+			typography: {
+				DEFAULT: { css: { fontSize: scaled('1rem') } },
+				sm: { css: { fontSize: scaled('0.875rem') } },
+				base: { css: { fontSize: scaled('1rem') } },
+				lg: { css: { fontSize: scaled('1.125rem') } },
+				xl: { css: { fontSize: scaled('1.25rem') } },
+				'2xl': { css: { fontSize: scaled('1.5rem') } },
+			},
 			fontFamily: {
 				sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
 				emoji: ['Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', 'Android Emoji', 'EmojiSymbols', 'sans-serif'],
