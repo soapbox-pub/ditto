@@ -20,7 +20,7 @@ export function PrivacyPolicyPage() {
       <PageHeader title="Privacy Policy" icon={<Shield className="size-5" />} backTo="/" />
 
       <article className="px-4 pb-8 space-y-6 text-sm text-foreground/90 leading-relaxed">
-        <p className="text-xs text-muted-foreground">Last updated: March 18, 2026</p>
+        <p className="text-xs text-muted-foreground">Last updated: November 23, 2026</p>
 
         <section className="space-y-2">
           <h2 className="text-base font-bold text-foreground">Overview</h2>
@@ -36,7 +36,8 @@ export function PrivacyPolicyPage() {
           <p>
             Nostr is a decentralized protocol. When you publish content, it is sent to one or more <strong>relays</strong> (independent
             servers) that you choose. {config.appName} does not operate these relays and has no control over data
-            stored on them. Content published to Nostr relays is <strong>public by default</strong> and may be visible to anyone.
+            stored on them. We operate <strong>relay.ditto.pub</strong> and <strong>relay.dreamith.to</strong>, which {config.appName} uses by default and for
+            search and trending. Content published to Nostr relays is <strong>public by default</strong> and may be visible to anyone.
           </p>
         </section>
 
