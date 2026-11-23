@@ -191,7 +191,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     return intl.formatMessage({ id: 'feed.community', defaultMessage: 'Community' });
   })();
 
-  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId, undefined, globalFirst ? 'global' : undefined);
+  // The home feed falls back to Follows when the Ditto tab is hidden.
+  const defaultTab = globalFirst ? 'global' : !kinds && !showDittoFeed ? 'follows' : undefined;
+  const [rawActiveTab, handleSetActiveTab] = useFeedTab<FeedTab>(feedId, undefined, defaultTab);
+  const followsNobody = !!user && followData?.pubkeys.length === 0;
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
@@ -213,7 +216,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     if (rawActiveTab === 'follows' && user) return 'follows';
     // `globalFirst` pages default to Global even when logged in.
     if (globalFirst) return 'global';
-    return user ? 'follows' : 'global';
+    return user && !followsNobody ? 'follows' : 'global';
   })();
 
   // Is the active tab a saved feed?

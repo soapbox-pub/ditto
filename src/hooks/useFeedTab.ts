@@ -1,12 +1,17 @@
 import { useState, useCallback } from 'react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useFollowList } from '@/hooks/useFollowActions';
 import { getStorageKey } from '@/lib/storageKey';
 
 /**
  * Manages the active feed tab for a specific feed page, persisting
  * the selection in sessionStorage so it survives navigation within
  * the same browser session.
+ *
+ * Until a tab is picked, the default is Follows for logged-in users who
+ * follow someone, and the Ditto tab otherwise (falling back to the last valid
+ * tab, typically 'global', on pages without one).
  *
  * Each feed page should pass a unique `feedId` (e.g. 'home', 'vines', 'videos').
  *
@@ -21,30 +26,31 @@ export function useFeedTab<T extends string = string>(
 ): [T, (tab: T) => void] {
   const { user } = useCurrentUser();
   const { config } = useAppContext();
+  const { data: followData } = useFollowList();
   const key = getStorageKey(config.appId, `feed-tab:${feedId}`);
 
-  const [activeTab, setActiveTab] = useState<T>(() => {
-    const defaultTab = (defaultTabOverride ?? (user ? 'follows' : 'ditto')) as T;
+  const [chosenTab, setChosenTab] = useState<T | null>(() => {
     try {
       const stored = sessionStorage.getItem(key);
-      if (stored) {
-        if (!validTabs || validTabs.includes(stored as T)) {
-          return stored as T;
-        }
+      if (stored && (!validTabs || validTabs.includes(stored as T))) {
+        return stored as T;
       }
     } catch { /* sessionStorage unavailable */ }
-    // Validate the default tab against validTabs. If it's not in the list,
-    // fall back to the last valid tab (typically 'global').
-    if (validTabs && !validTabs.includes(defaultTab)) {
-      return validTabs[validTabs.length - 1];
-    }
-    return defaultTab;
+    return null;
   });
 
   const setTab = useCallback((tab: T) => {
-    setActiveTab(tab);
+    setChosenTab(tab);
     try { sessionStorage.setItem(key, tab); } catch { /* ignore */ }
   }, [key]);
 
-  return [activeTab, setTab];
+  if (chosenTab) return [chosenTab, setTab];
+
+  // Computed each render so it settles once the follow list loads.
+  const followsNobody = !!user && followData?.pubkeys.length === 0;
+  const defaultTab = (defaultTabOverride ?? (user && !followsNobody ? 'follows' : 'ditto')) as T;
+  if (validTabs && !validTabs.includes(defaultTab)) {
+    return [validTabs[validTabs.length - 1], setTab];
+  }
+  return [defaultTab, setTab];
 }
