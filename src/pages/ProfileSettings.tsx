@@ -10,13 +10,16 @@ import { useNostrLogin } from '@nostrify/react/login';
 import { defineMessage, FormattedMessage, useIntl, type IntlShape } from 'react-intl';
 
 import { saveNsec } from '@/lib/credentialManager';
+import { useRecordedNcryptsec } from '@/lib/keyLock';
+import { markKeyBackedUp } from '@/lib/keyBackup';
+import { KeyPasswordSettings, RevealKeyWithPassword } from '@/components/KeyPasswordSettings';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { publishedImageUrl } from '@/lib/metadataSchema';
 import { parseNip05Address } from '@/lib/nip05';
 import { parseBirthdayFromContent, daysInMonth, type Birthday } from '@/lib/birthday';
 import { useLayoutOptions, useNavHidden } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useForm, useFieldArray, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -463,6 +466,17 @@ export function ProfileSettings() {
 
   const [cropState, setCropState] = useState<CropState | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const { hash } = useLocation();
+  // `#key` (from the key-safety reminder) opens Advanced at the key section.
+  const keySectionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (hash !== '#key') return;
+    setShowAdvanced(true);
+    const frame = requestAnimationFrame(() => {
+      keySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hash]);
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [uploadingFieldIndex, setUploadingFieldIndex] = useState<number>(-1);
 
@@ -1032,7 +1046,7 @@ export function ProfileSettings() {
               />
 
               {/* Your Key — private-key backup. Rendered inside Advanced but is not part of the form. */}
-              <div className="pt-2">
+              <div id="key" ref={keySectionRef} className="pt-2 scroll-mt-20">
                 <BackupKeySection />
               </div>
             </CollapsibleContent>
@@ -1306,6 +1320,9 @@ function BackupKeySection() {
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const ncryptsec = useRecordedNcryptsec(current?.type === 'nsec' ? current.pubkey : undefined);
+  // Given its password this visit: the plain key is shown.
+  const [unlocked, setUnlocked] = useState(false);
 
   const heading = (
     <div className="flex items-center gap-2 pb-1">
@@ -1350,6 +1367,7 @@ function BackupKeySection() {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(nsec);
+      markKeyBackedUp(current.pubkey);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -1367,6 +1385,7 @@ function BackupKeySection() {
     try {
       const result = await saveNsec(npub, nsec, config.appName);
       if (result === 'saved' || result === 'saved-to-file') {
+        markKeyBackedUp(current.pubkey);
         toast({ title: intl.formatMessage({ id: 'settings.profile.backupKey.saved', defaultMessage: "Secret key saved" }) });
       }
       // 'dismissed' is a deliberate user choice — no toast.
@@ -1388,73 +1407,82 @@ function BackupKeySection() {
         <FormattedMessage id="settings.profile.backupKey.description" defaultMessage={"This secret key controls your account on {appName}. Anyone with it can post, read your DMs, and impersonate you. Store it in a password manager or somewhere else only you can access."} values={{ appName: config.appName }} />
       </p>
 
-      <div className="relative">
-        <Input
-          type={showKey ? 'text' : 'password'}
-          value={nsec}
-          readOnly
-          onFocus={(e) => e.currentTarget.select()}
-          onClick={(e) => e.currentTarget.select()}
-          className="pr-20 font-mono text-base md:text-sm"
-          aria-label={intl.formatMessage({ id: 'settings.profile.backupKey.inputAriaLabel', defaultMessage: "Your secret key" })}
-        />
-        <div className="absolute right-0 top-0 h-full flex items-center">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-full px-2 can-hover:bg-transparent"
-            onClick={handleCopy}
-            aria-label={intl.formatMessage({ id: 'settings.profile.backupKey.copyAriaLabel', defaultMessage: "Copy secret key" })}
-          >
-            {copied ? (
-              <Check className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <Copy className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-full px-2 can-hover:bg-transparent"
-            onClick={() => setShowKey((v) => !v)}
-            aria-label={showKey ? intl.formatMessage({ id: 'settings.profile.backupKey.hideAriaLabel', defaultMessage: "Hide secret key" }) : intl.formatMessage({ id: 'settings.profile.backupKey.revealAriaLabel', defaultMessage: "Reveal secret key" })}
-          >
-            {showKey ? (
-              <EyeOff className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            )}
-          </Button>
+      {/* With an ncryptsec, the plain key isn't even in the DOM until its password is given. */}
+      {ncryptsec && !unlocked ? (
+        <RevealKeyWithPassword ncryptsec={ncryptsec} onUnlock={() => setUnlocked(true)} />
+      ) : (
+        <>
+        <div className="relative">
+          <Input
+            type={showKey ? 'text' : 'password'}
+            value={nsec}
+            readOnly
+            onFocus={(e) => e.currentTarget.select()}
+            onClick={(e) => e.currentTarget.select()}
+            className="pr-20 font-mono text-base md:text-sm"
+            aria-label={intl.formatMessage({ id: 'settings.profile.backupKey.inputAriaLabel', defaultMessage: "Your secret key" })}
+          />
+          <div className="absolute right-0 top-0 h-full flex items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-full px-2 can-hover:bg-transparent"
+              onClick={handleCopy}
+              aria-label={intl.formatMessage({ id: 'settings.profile.backupKey.copyAriaLabel', defaultMessage: "Copy secret key" })}
+            >
+              {copied ? (
+                <Check className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <Copy className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-full px-2 can-hover:bg-transparent"
+              onClick={() => setShowKey((v) => !v)}
+              aria-label={showKey ? intl.formatMessage({ id: 'settings.profile.backupKey.hideAriaLabel', defaultMessage: "Hide secret key" }) : intl.formatMessage({ id: 'settings.profile.backupKey.revealAriaLabel', defaultMessage: "Reveal secret key" })}
+            >
+              {showKey ? (
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Eye className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {showKey && (
-        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
-          <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
-            <FormattedMessage id="settings.profile.backupKey.warning" defaultMessage={"NEVER share your secret key with anyone. Avoid screenshotting it or pasting it anywhere except a password manager. If shared, others will be able to access your account."} />
-          </p>
-        </div>
+        {showKey && (
+          <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in slide-in-from-top-1 duration-200">
+            <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
+              <FormattedMessage id="settings.profile.backupKey.warning" defaultMessage={"NEVER share your secret key with anyone. Avoid screenshotting it or pasting it anywhere except a password manager. If shared, others will be able to access your account."} />
+            </p>
+          </div>
+        )}
+
+        <Button
+          type="button"
+          size="lg"
+          className="w-full gap-2 rounded-full h-12"
+          onClick={handleBackup}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="settings.profile.backupKey.saving" defaultMessage={"Saving…"} />
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" /> <FormattedMessage id="settings.profile.backupKey.button" defaultMessage={"Back Up Key"} />
+            </>
+          )}
+        </Button>
+        </>
       )}
 
-      <Button
-        type="button"
-        size="lg"
-        className="w-full gap-2 rounded-full h-12"
-        onClick={handleBackup}
-        disabled={isSaving}
-      >
-        {isSaving ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="settings.profile.backupKey.saving" defaultMessage={"Saving…"} />
-          </>
-        ) : (
-          <>
-            <Download className="w-4 h-4" /> <FormattedMessage id="settings.profile.backupKey.button" defaultMessage={"Back Up Key"} />
-          </>
-        )}
-      </Button>
+      <KeyPasswordSettings nsec={nsec} pubkey={current.pubkey} />
     </div>
   );
 }

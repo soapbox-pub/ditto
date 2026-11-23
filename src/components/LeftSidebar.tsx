@@ -21,7 +21,7 @@ import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
-import { useLoginActions } from '@/hooks/useLoginActions';
+import { requestLogout } from '@/lib/logoutRequest';
 
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -43,7 +43,6 @@ export function LeftSidebar() {
   const { user, metadata, imeta, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUserProfile();
   const currentUserAvatarShape = getAvatarShape(metadata);
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
-  const { logout } = useLoginActions();
 
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, addDividerToSidebar, removeFromSidebar,
@@ -82,8 +81,7 @@ export function LeftSidebar() {
 
   const handleLogout = async () => {
     setAccountPopoverOpen(false);
-    await logout();
-    navigate('/');
+    if (await requestLogout()) navigate('/');
   };
 
   return (

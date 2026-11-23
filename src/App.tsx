@@ -6,6 +6,8 @@ import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ActiveAccountSync } from "@/components/ActiveAccountSync";
+import { AutoLock } from "@/components/AutoLock";
+import { UnlockScreen } from "@/components/auth/UnlockScreen";
 import { LogoutCleanup } from "@/components/LogoutCleanup";
 import { RelayAuthPrompt } from "@/components/RelayAuthPrompt";
 import { AppProvider } from "@/components/AppProvider";
@@ -23,7 +25,7 @@ import { useNsecPasteGuard } from "@/hooks/useNsecPasteGuard";
 import type { AppConfig } from "@/contexts/AppContext";
 import { NWCProvider } from "@/contexts/NWCContext";
 import { DittoConfigSchema, type DittoConfig } from "@/lib/schemas";
-import { secureStorage } from "@/lib/secureStorage";
+import { LOGIN_STORAGE_KEY, loginStorage } from "@/lib/secureStorage";
 import { APP_CONFIG_STORAGE_KEY } from "@/lib/activeAccount";
 import { DEFAULT_ESPLORA_APIS } from "@/lib/esplora";
 import { DEFAULT_MONERO_NODE_URLS } from "@/lib/monero/nodes";
@@ -261,8 +263,10 @@ export function App() {
       <I18nProvider>
         <NsecPasteGuard />
         <QueryClientProvider client={queryClient}>
-          <NostrLoginProvider storageKey="nostr:login" storage={secureStorage}>
+          {/* The fallback asks for the passwords of password-locked accounts (keyLock.ts). */}
+          <NostrLoginProvider storageKey={LOGIN_STORAGE_KEY} storage={loginStorage} fallback={<UnlockScreen />}>
             <ActiveAccountSync />
+            <AutoLock />
             <LogoutCleanup />
             <NostrProvider>
               <NostrSync />

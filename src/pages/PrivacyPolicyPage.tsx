@@ -68,6 +68,12 @@ export function PrivacyPolicyPage() {
             by {config.appName}. We strongly recommend using a browser extension or hardware signer to protect your
             private key.
           </p>
+          <p>
+            If you log in by pasting your private key instead, the iOS and Android apps keep it in the device's
+            secure keychain. The web version keeps it unencrypted in your browser's local storage, unless you turn
+            on <strong>Ask for password on open</strong> in your profile settings, which stores it only
+            password-encrypted.
+          </p>
         </section>
 
         <section className="space-y-2">

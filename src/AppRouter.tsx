@@ -17,6 +17,7 @@ import { MainLayout } from "./components/MainLayout";
 import { RoutePreloader } from "./components/RoutePreloader";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { StreakStartedDialog } from "./components/StreakStartedDialog";
+import { KeySafetyReminder, LogoutGuard } from "./components/auth/KeySafetyGuards";
 import { VersionCheck } from "./components/VersionCheck";
 import { useCurrentUserProfile } from "./hooks/useCurrentUser";
 import { useProfileUrl } from "./hooks/useProfileUrl";
@@ -346,6 +347,8 @@ export function AppRouter() {
         <HighlightSelectionButton />
         <ThemePreviewBar />
         <StreakStartedDialog />
+        <LogoutGuard />
+        <KeySafetyReminder />
         <BlobbiActionsProvider>
           <BlobbiCompanionGate />
           <PageRoutesContext.Provider value={routes}>

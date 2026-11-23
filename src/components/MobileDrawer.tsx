@@ -18,7 +18,7 @@ import { FollowQRDialog } from '@/components/FollowQRDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useCurrentUserProfile } from '@/hooks/useCurrentUser';
-import { useLoginActions } from '@/hooks/useLoginActions';
+import { requestLogout } from '@/lib/logoutRequest';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
@@ -65,7 +65,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { user, metadata, imeta, event: currentUserEvent } = useCurrentUserProfile();
   const currentUserAvatarShape = getAvatarShape(metadata);
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
-  const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
   const { orderedItems, hiddenItems, addToSidebar, addDividerToSidebar, removeFromSidebar, updateSidebarOrder } = useFeedSettings();
   const { config } = useAppContext();
@@ -122,7 +121,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const visibleHiddenItems = hiddenItems;
 
   const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
-  const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
+  const handleLogout = async () => {
+    handleClose();
+    if (await requestLogout()) navigate('/');
+  };
   const getDisplayName = (account: Account) => profileName(account.metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
   const displayName = profileName(metadata) || intl.formatMessage({ id: 'common.anonymous', defaultMessage: "Anonymous" });
 

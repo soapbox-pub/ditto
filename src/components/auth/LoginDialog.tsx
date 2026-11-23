@@ -22,11 +22,15 @@ import {
   type NostrConnectStatus,
 } from '@/hooks/useLoginActions';
 import { getNsecCredential } from '@/lib/credentialManager';
+import { recordNcryptsec, setKeyLock } from '@/lib/keyLock';
+import { decryptNcryptsec, looksLikeNcryptsec, NcryptsecError } from '@/lib/ncryptsec';
 import { DialogTitle } from '@radix-ui/react-dialog';
+import { getPublicKey, nip19 } from 'nostr-tools';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useShareOrigin } from '@/hooks/useShareOrigin';
 import { AndroidSignerOptions } from './AndroidSignerOptions';
+import { SignerSuggestion } from './SignerSuggestion';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -61,6 +65,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
   // Login state — single input accepting either an nsec or a bunker URI.
   const [loginInput, setLoginInput] = useState('');
+  // NIP-49: an ncryptsec in the field asks for the password it was sealed with.
+  const [keyPassword, setKeyPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -166,6 +172,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   useEffect(() => {
     if (!isOpen) {
       setLoginInput('');
+      setKeyPassword('');
       setIsLoggingIn(false);
       setLoginError('');
       setNostrConnectParams(null);
@@ -218,13 +225,18 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     setShowQr(true);
   };
 
-  const executeLogin = (key: string) => {
+  // `sealedWith`: the ncryptsec it came from. The login is stored sealed under
+  // it, so no nsec is at rest (keyLock.ts); a plain nsec login is stored plain.
+  const executeLogin = (key: string, sealedWith?: string) => {
     setIsLoggingIn(true);
     setLoginError('');
 
     // Use a timeout to allow the UI to update before the synchronous login call
     setTimeout(() => {
       try {
+        const sk = nip19.decode(key).data as Uint8Array;
+        setKeyLock(getPublicKey(sk), sealedWith ?? null);
+        sk.fill(0);
         login.nsec(key);
         onLogin();
         onClose();
@@ -235,11 +247,45 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     }, 50);
   };
 
-  // Submit the entered value — either an nsec or a bunker:// URI.
+  const executeEncryptedLogin = async (ncryptsec: string, password: string) => {
+    setIsLoggingIn(true);
+    setLoginError('');
+    let nsec: string;
+    try {
+      const sk = await decryptNcryptsec(ncryptsec, password);
+      try {
+        nsec = nip19.nsecEncode(sk);
+        // Settings then shows the backup as already set up.
+        recordNcryptsec(getPublicKey(sk), ncryptsec);
+      } finally {
+        sk.fill(0);
+      }
+    } catch (error) {
+      setLoginError(error instanceof NcryptsecError && error.reason === 'password'
+        ? intl.formatMessage({ id: 'login.error.ncryptsecWrongPassword', defaultMessage: 'Wrong password for this encrypted key.' })
+        : intl.formatMessage({ id: 'login.error.ncryptsecMalformed', defaultMessage: 'That encrypted key is incomplete or damaged. Check you copied the whole ncryptsec.' }));
+      setIsLoggingIn(false);
+      return;
+    }
+    setKeyPassword('');
+    executeLogin(nsec, ncryptsec);
+  };
+
+  // Submit the entered value — an nsec, an ncryptsec plus its password, or a
+  // bunker:// URI.
   const handleLogin = () => {
     const value = loginInput.trim();
     if (!value) {
       setLoginError(intl.formatMessage({ id: 'login.error.empty', defaultMessage: 'Enter your secret key or bunker URI.' }));
+      return;
+    }
+
+    if (looksLikeNcryptsec(value)) {
+      if (!keyPassword) {
+        setLoginError(intl.formatMessage({ id: 'login.error.ncryptsecNeedsPassword', defaultMessage: 'Enter the password this key was encrypted with.' }));
+        return;
+      }
+      void executeEncryptedLogin(value, keyPassword);
       return;
     }
 
@@ -260,7 +306,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     }
 
     if (!validateNsec(value)) {
-      setLoginError(intl.formatMessage({ id: 'login.error.invalidFormat', defaultMessage: 'Enter a valid nsec1… key or bunker://… URI.' }));
+      setLoginError(intl.formatMessage({ id: 'login.error.invalidFormatEncrypted', defaultMessage: 'Enter a valid nsec1… or ncryptsec1… key, or a bunker://… URI.' }));
       return;
     }
 
@@ -285,6 +331,10 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
         setLoginInput(key);
         setLoginError('');
         executeLogin(key);
+      } else if (content && looksLikeNcryptsec(content.trim())) {
+        // Put it in the field so the password prompt below it appears.
+        setLoginInput(content.trim());
+        setLoginError('');
       } else {
         setLoginError(intl.formatMessage({ id: 'login.error.invalidFile', defaultMessage: 'File does not contain a valid secret key.' }));
       }
@@ -413,7 +463,13 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
               }}
               className='space-y-3'
             >
-              <div className='relative'>
+              {/* One bordered box holding the field and the options caret, so
+                  the caret shares the box's corners instead of a button's pill. */}
+              <div
+                className={`flex overflow-hidden rounded-md border bg-background ring-offset-background focus-within:ring-2 focus-within:ring-offset-2 ${
+                  loginError ? 'border-destructive focus-within:ring-destructive' : 'border-input focus-within:ring-ring'
+                }`}
+              >
                 <Input
                   type='password'
                   value={loginInput}
@@ -421,12 +477,11 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                     setLoginInput(e.target.value);
                     if (loginError) setLoginError('');
                   }}
-                  placeholder={intl.formatMessage({ id: 'login.inputPlaceholder', defaultMessage: 'nsec1… or bunker://…' })}
+                  placeholder={intl.formatMessage({ id: 'login.inputPlaceholderEncrypted', defaultMessage: 'nsec, ncryptsec or bunker://' })}
                   autoComplete='off'
                   data-nsec-allowed
-                  className={`pr-12 ${
-                    loginError ? 'border-destructive focus-visible:ring-destructive' : ''
-                  }`}
+                  aria-invalid={!!loginError}
+                  className='min-w-0 flex-1 rounded-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0'
                 />
                 <input
                   type='file'
@@ -441,7 +496,9 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                       type='button'
                       variant='ghost'
                       size='icon'
-                      className='absolute right-0 top-0 h-full w-10 rounded-l-none border-l border-input bg-muted/40 can-hover:bg-muted'
+                      className={`h-auto w-10 shrink-0 rounded-none border-l bg-muted/40 can-hover:bg-muted focus-visible:ring-inset focus-visible:ring-offset-0 ${
+                        loginError ? 'border-destructive' : 'border-input'
+                      }`}
                       title={intl.formatMessage({ id: 'login.moreOptions', defaultMessage: 'More login options' })}
                       aria-label={intl.formatMessage({ id: 'login.moreOptions', defaultMessage: 'More login options' })}
                     >
@@ -476,6 +533,20 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+              {looksLikeNcryptsec(loginInput.trim()) && (
+                <Input
+                  type='password'
+                  value={keyPassword}
+                  onChange={(e) => {
+                    setKeyPassword(e.target.value);
+                    if (loginError) setLoginError('');
+                  }}
+                  autoFocus
+                  autoComplete='current-password'
+                  placeholder={intl.formatMessage({ id: 'login.ncryptsecPassword', defaultMessage: 'Password for this encrypted key' })}
+                  aria-label={intl.formatMessage({ id: 'login.ncryptsecPassword', defaultMessage: 'Password for this encrypted key' })}
+                />
+              )}
               {loginError && <p className='text-sm text-destructive'>{loginError}</p>}
 
               <Button
@@ -487,6 +558,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                   ? <FormattedMessage id="login.loggingIn" defaultMessage="Logging in…" />
                   : <FormattedMessage id="login.submit" defaultMessage="Log in" />}
               </Button>
+
+              <SignerSuggestion />
             </form>
           )}
         </div>

@@ -14,6 +14,7 @@ import {
 import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
 import { FormattedMessage, useIntl } from "react-intl";
 import { saveNsec } from "@/lib/credentialManager";
+import { markNewKey } from "@/lib/keyBackup";
 import { openUrl } from "@/lib/downloadFile";
 import { sanitizeUrl } from "@/lib/sanitizeUrl";
 import { fetchFreshEvent } from "@/lib/fetchFreshEvent";
@@ -103,7 +104,11 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
     markComplete();
   }, [markComplete]);
 
-  const contextValue = useMemo(() => ({ startSignup }), [startSignup]);
+  const onboardingActive = signupActive || (!!user && phase === "not-found");
+  const contextValue = useMemo(
+    () => ({ startSignup, active: onboardingActive }),
+    [startSignup, onboardingActive],
+  );
 
   // Signup flow takes priority (doesn't require a logged-in user yet)
   if (signupActive) {
@@ -410,9 +415,12 @@ function SetupQuestionnaire({
       const pubkey = getPublicKey(decoded.data);
       const npub = nip19.npubEncode(pubkey);
 
-      await saveNsec(npub, nsec, config.appName);
+      const saved = await saveNsec(npub, nsec, config.appName);
 
       login.nsec(nsec);
+      // A dismissed prompt leaves this device holding the only copy: guard
+      // logout and keep reminding. A web key gets the protection pitch either way.
+      markNewKey(pubkey, saved !== 'dismissed');
       next();
     } catch {
       toast({

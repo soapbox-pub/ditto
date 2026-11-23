@@ -1,6 +1,11 @@
 import { Capacitor } from '@capacitor/core';
 import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
 
+import { openLoginList, sealLoginList } from '@/lib/keyLock';
+
+/** Where `NostrLoginProvider` keeps the login list (it holds nsecs). */
+export const LOGIN_STORAGE_KEY = 'nostr:login';
+
 /**
  * Storage adapter that uses native secure storage (iOS Keychain / Android KeyStore)
  * on Capacitor builds and falls back to localStorage on web.
@@ -58,4 +63,17 @@ export const secureStorage = {
       // Key didn't exist — ignore.
     }
   },
+};
+
+/** {@link secureStorage} for the login list, with password-locked accounts sealed on write and opened on read (`keyLock.ts`). */
+export const loginStorage = {
+  async getItem(key: string): Promise<string | null> {
+    return openLoginList(await secureStorage.getItem(key));
+  },
+
+  async setItem(key: string, value: string): Promise<void> {
+    await secureStorage.setItem(key, sealLoginList(value));
+  },
+
+  removeItem: secureStorage.removeItem,
 };

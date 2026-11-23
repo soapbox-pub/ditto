@@ -16,13 +16,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx'
 import { getAvatarShape } from '@/lib/avatarShape';
 import { Skeleton } from '@/components/ui/skeleton.tsx';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
+import { requestLogout } from '@/lib/logoutRequest';
 
 interface AccountSwitcherProps {
   onAddAccountClick: () => void;
 }
 
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
-  const { currentUser, otherUsers, isLoading, setLogin, removeLogin } = useLoggedInAccounts();
+  const { currentUser, otherUsers, isLoading, setLogin } = useLoggedInAccounts();
   const [isOpen, setIsOpen] = useState(false);
   const intl = useIntl();
 
@@ -33,7 +34,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
     setIsOpen(false);
     // Use setTimeout to ensure the dropdown closes before removing login
     setTimeout(() => {
-      removeLogin(currentUser.id);
+      void requestLogout(currentUser.id);
     }, 0);
   };
 
