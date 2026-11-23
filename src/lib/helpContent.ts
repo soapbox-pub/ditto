@@ -159,16 +159,16 @@ const FAQ_TEMPLATE: FAQTemplateCategory[] = [
         id: 'direct-messages',
         question: defineMessage({ id: 'help.faq.directMessages.question', defaultMessage: 'Can I send direct messages?' }),
         answer: [
-          defineMessage({ id: 'help.faq.directMessages.answer1', defaultMessage: 'Not in {appName}. {appName} sticks to the public side of Nostr, so it doesn\'t send or show private messages.' }),
-          defineMessage({ id: 'help.faq.directMessages.answer2', defaultMessage: 'For chatting, use [Armada](https://armada.buzz). Log in with the same account and your conversations are all there. You can also jump straight into a chat from anyone\'s profile: tap the **...** menu and pick "Message on Armada."' }),
+          defineMessage({ id: 'help.faq.directMessages.answer1', defaultMessage: '{appName} doesn\'t do chat-style DMs, but it does have **Letters**: private, encrypted letters on stationery you pick, for when you want to write someone something a little more thoughtful. Open [Letters](/letters) to read yours, or tap the **...** menu on anyone\'s profile and choose "Write a letter."' }),
+          defineMessage({ id: 'help.faq.directMessages.answer2', defaultMessage: 'For back-and-forth chatting, use [Armada](https://armada.buzz). Log in with the same account and your conversations are all there. You can also jump straight into a chat from anyone\'s profile: tap the **...** menu and pick "Message on Armada."' }),
         ],
       },
       {
         id: 'report-bug',
         question: defineMessage({ id: 'help.faq.reportBug.question', defaultMessage: 'Something\'s broken. How do I report a bug?' }),
         answer: [
-          defineMessage({ id: 'help.faq.reportBug.answer1', defaultMessage: 'Sorry about that! Tap "Report a bug" in the links at the bottom of the menu or sidebar, or [open {appName}\'s repository]({repoPath}). From there you can file an issue on NostrHub or Gitworkshop with the same account you use here.' }),
-          defineMessage({ id: 'help.faq.reportBug.answer2', defaultMessage: 'Tell us what you did, what you expected, and what happened instead, plus your device and whether you\'re on the app or the website. Screenshots help a lot.' }),
+          defineMessage({ id: 'help.faq.reportBug.answer1', defaultMessage: 'Sorry about that! If it happened on a post, tap the **...** menu on that post and choose "Report a bug with this post." Otherwise, tap "Report a bug" in the links at the bottom of the menu or sidebar.' }),
+          defineMessage({ id: 'help.faq.reportBug.answer2', defaultMessage: 'Tell us what you did, what you expected, and what happened instead. Screenshots help a lot, and {appName} can attach your app version and device for you. Your report is filed as a public issue on [{appName}\'s repository]({repoPath}), where the team can reply.' }),
         ],
       },
     ],

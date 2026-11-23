@@ -21,6 +21,7 @@ import {
   PanelLeft,
   RotateCcw,
   EyeOff,
+  Bug,
 } from 'lucide-react';
 import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { usePresence } from '@/hooks/usePresence';
@@ -44,6 +45,7 @@ import { MountOnOpen } from '@/components/MountOnOpen';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
+import { BugReportDialog } from '@/components/BugReportDialog';
 import { EventJsonDialog } from '@/components/EventJsonDialog';
 import { RawEventEditDialog } from '@/components/RawEventEditDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
@@ -130,6 +132,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [hideConfirmOpen, setHideConfirmOpen] = useState(false);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
 
   const intl = useIntl();
   const { user } = useCurrentUser();
@@ -328,6 +331,10 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setMentionComposeOpen(true), 150);
           }}
+          onReportBug={() => {
+            onOpenChange(false);
+            setTimeout(() => setBugReportOpen(true), 150);
+          }}
           onAddToList={() => {
             onOpenChange(false);
             setTimeout(() => setAddToListOpen(true), 150);
@@ -358,6 +365,8 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
       )}
 
       <ReportDialog event={event} open={reportOpen} onOpenChange={setReportOpen} />
+
+      <BugReportDialog event={event} open={bugReportOpen} onOpenChange={setBugReportOpen} />
 
       <ReplyComposeModal
         open={mentionComposeOpen}
@@ -501,6 +510,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onMuteUser: () => void;
   onReport: () => void;
   onMention: () => void;
+  onReportBug: () => void;
   onAddToList: () => void;
   onViewEventJson: () => void;
   onEditEventJson: () => void;
@@ -511,7 +521,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onHideFromFeed: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onAddToList, onViewEventJson, onEditEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onReportBug, onAddToList, onViewEventJson, onEditEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
   const intl = useIntl();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -663,6 +673,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
               onClick={onMention}
             />
           )}
+          <MenuItem
+            icon={<Bug className="size-5" />}
+            label={intl.formatMessage({ id: 'note.moreMenu.reportBug', defaultMessage: 'Report a bug with this post' })}
+            onClick={onReportBug}
+          />
         </div>
 
         {!isOwnPost && (

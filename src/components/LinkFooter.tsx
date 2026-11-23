@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Info, BookOpen, Shield, Code, ScrollText, Bug } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
 
-import { DITTO_REPO_PATH } from '@/lib/dittoRepo';
+import { BugReportDialog } from '@/components/BugReportDialog';
 
 interface LinkFooterProps {
   /** Optional callback fired when an internal (React Router) link is clicked. */
@@ -16,6 +17,7 @@ const iconClass = 'size-3 shrink-0';
 /** Shared footer links used in both sidebars. */
 export function LinkFooter({ onNavigate }: LinkFooterProps) {
   const intl = useIntl();
+  const [bugReportOpen, setBugReportOpen] = useState(false);
 
   return (
     <footer className="mt-auto pt-3 pb-3 sidebar:bg-background/85 sidebar:rounded-2xl sidebar:px-1.5 sidebar:py-2">
@@ -60,10 +62,10 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
           <FormattedMessage id="linkFooter.changelog" defaultMessage="Changelog" />
         </Link>
 
-        <Link to={DITTO_REPO_PATH} className={chipClass} onClick={onNavigate}>
+        <button type="button" className={chipClass} onClick={() => setBugReportOpen(true)}>
           <Bug className={iconClass} />
           <FormattedMessage id="linkFooter.reportBug" defaultMessage="Report a bug" />
-        </Link>
+        </button>
 
         <a
           href="https://shakespeare.diy/clone?url=https%3A%2F%2Fgitlab.com%2Fsoapbox-pub%2Fditto.git"
@@ -75,6 +77,7 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
           <FormattedMessage id="linkFooter.editWithShakespeare" defaultMessage="Edit with Shakespeare" />
         </a>
       </nav>
+      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </footer>
   );
 }
