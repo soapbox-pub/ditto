@@ -42,6 +42,14 @@ import type { NostrEvent } from '@nostrify/nostrify';
  *    shape entirely and keys off the crowd-level tell instead: many distinct
  *    authors whose replies are built mostly from the SAME recurring word pool.
  *    Honest conversation doesn't look like uniform draws from a fixed bag.
+ *  - PITCH: a single giveaway-phishing reply — a link plus a lure word
+ *    ({@link PITCH_LURES}) and an ask ({@link PITCH_ASKS}). The crowd rules all
+ *    need several copies in one batch, so a key that drops ONE copy into each
+ *    of many threads (observed live: 30 rotated "claim your ETH airdrop" replies
+ *    to 30 threads in nine hours) never trips them. This one reads the words of
+ *    a lone reply instead. It can be dodged by rewording and it will fold the
+ *    occasional honest "claim the airdrop here" link, which is the price of
+ *    judging one message alone.
  *
  * ECHO and DENSITY cluster near-duplicates first (`shapeKey` normalization +
  * Jaccard similarity), so rotating the pitch's name or trailing nonce doesn't
@@ -133,6 +141,17 @@ export const SALAD_POOL_FRACTION = 0.6;
  * reads the whole word set, so a common word never changes a verdict.
  */
 const DF_CAP = 64;
+/** PITCH rule — words that name the bait of a giveaway-phishing reply. */
+export const PITCH_LURES: ReadonlySet<string> = new Set([
+  'airdrop', 'airdrops', 'giveaway', 'giveaways', 'presale',
+]);
+/**
+ * PITCH rule — words that ask the reader to act on the bait. A lure word alone
+ * is just talk about an airdrop; the ask plus a link is the phishing hook.
+ */
+export const PITCH_ASKS: ReadonlySet<string> = new Set([
+  'claim', 'claiming', 'claimable', 'eligibility', 'eligible', 'wallet',
+]);
 /**
  * Most candidate templates one template is compared against. A real campaign's
  * near-duplicates share far more words than this bound; it only bites on the
@@ -257,7 +276,17 @@ export function replyFloodIds(
   opts: ReplyFloodOptions = {},
 ): Set<string> {
   const flagged = new Set<string>();
-  if (replies.length < ECHO_MIN_COPIES) return flagged;
+
+  // PITCH: judged per reply, so it runs before the batch-size gate below.
+  for (const ev of replies) {
+    const { shape, words } = shapeOf(ev);
+    if (!shape.includes('@')) continue;
+    if (words.some((w) => PITCH_LURES.has(w)) && words.some((w) => PITCH_ASKS.has(w))) {
+      flagged.add(ev.id);
+    }
+  }
+
+  if (replies.length < ECHO_MIN_COPIES) return exempt(flagged, replies, opts);
 
   // Bucket by exact normalized shape. A reply with no words (bare link, image,
   // row of emoji) has nothing to repeat and joins no bucket.
@@ -445,10 +474,20 @@ export function replyFloodIds(
     }
   }
 
-  // Trust exemption, applied LAST so it overrides every rule: never fold the
-  // reader's own reply or a reply from someone they follow. This is what
-  // defeats the copy-a-regular attack — a follow's pasted line is cleared here
-  // while the strangers' copies of it stay folded.
+  return exempt(flagged, replies, opts);
+}
+
+/**
+ * Trust exemption, applied LAST so it overrides every rule: never fold the
+ * reader's own reply or a reply from someone they follow. This is what defeats
+ * the copy-a-regular attack — a follow's pasted line is cleared here while the
+ * strangers' copies of it stay folded.
+ */
+function exempt(
+  flagged: Set<string>,
+  replies: readonly NostrEvent[],
+  opts: ReplyFloodOptions,
+): Set<string> {
   if (flagged.size > 0 && (opts.self || opts.follows?.size)) {
     for (const ev of replies) {
       if (ev.pubkey === opts.self || opts.follows?.has(ev.pubkey)) {
