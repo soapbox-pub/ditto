@@ -1,5 +1,4 @@
 import type { NostrMetadata } from "@nostrify/nostrify";
-import { useNostr } from "@nostrify/react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Check,
@@ -38,7 +37,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useFollowList } from "@/hooks/useFollowActions";
 import { useEncryptedSettings, getLocalSettingsSync } from "@/hooks/useEncryptedSettings";
 import { type SyncPhase, useInitialSync } from "@/hooks/useInitialSync";
 import { useLoginActions } from "@/hooks/useLoginActions";
@@ -246,9 +244,9 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-// Steps for signup (includes keygen + profile) vs. settings-only (existing login)
-type SignupStep = "keygen" | "download" | "profile";
-type SettingsStep = "theme" | "follows" | "outro";
+// Steps for signup (key, profile, and meeting people) vs. settings-only (existing login)
+type SignupStep = "keygen" | "download" | "profile" | "follows";
+type SettingsStep = "theme" | "outro";
 type Step = SignupStep | SettingsStep;
 
 const SIGNUP_STEPS: Step[] = [
@@ -259,7 +257,7 @@ const SIGNUP_STEPS: Step[] = [
   "follows",
   "outro",
 ];
-const SETTINGS_STEPS: Step[] = ["theme", "follows", "outro"];
+const SETTINGS_STEPS: Step[] = ["theme", "outro"];
 
 function SetupQuestionnaire({
   onComplete,
@@ -271,21 +269,16 @@ function SetupQuestionnaire({
   isSignup?: boolean;
 }) {
   const intl = useIntl();
-  const { nostr } = useNostr();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
-  const { data: followData } = useFollowList();
-  // Ready the people step's suggestions while the earlier steps are filled in,
-  // for those who'll see it: an existing login that follows people skips it.
-  usePrefetchWelcomePeople(isSignup || followData?.pubkeys.length === 0);
+  // Ready the people step's suggestions while the earlier signup steps are filled in.
+  usePrefetchWelcomePeople(isSignup);
   const login = useLoginActions();
   const { setTheme, applyCustomTheme } = useTheme();
 
   const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
 
   const [step, setStep] = useState<Step>(steps[0]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
   // Signup-specific state
   const [nsec, setNsec] = useState("");
@@ -416,54 +409,6 @@ function SetupQuestionnaire({
     }
   }, [nsec, login, next, config.appName, intl]);
 
-  // Check for existing follows and transition to the follows step (or outro if they have follows).
-  //
-  // Historically this callback also wrote a hardcoded `feedSettings` block + `contentWarningPolicy`
-  // to both local config and encrypted relay settings. That block was the save handler for a
-  // questionnaire that has since been removed, so it was overwriting settings with a stale
-  // curated preset — clobbering the app-wide defaults in `App.tsx` (especially on the
-  // `phase === 'not-found'` path, where a returning user on a new device could lose their
-  // tuned feed settings if the encrypted-settings fetch returned empty). Defaults live in
-  // `App.tsx`'s `defaultConfig` and cross-device sync handles the rest.
-  const handleSaveAndContinue = useCallback(async () => {
-    // A key generated moments ago has no follow list. Asking relays anyway let
-    // a slow query (counted as "has follows") or a not-yet-switched `user` (the
-    // previously logged-in account, in the add-account flow) skip this step.
-    if (isSignup) {
-      setHasFollows(false);
-      goTo("follows");
-      return;
-    }
-
-    setIsSaving(true);
-
-    // Check if the user already has a follow list
-    let userHasFollows = false;
-    if (user) {
-      try {
-        const events = await nostr.query(
-          [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-          { signal: AbortSignal.timeout(5000) },
-        );
-        if (events.length > 0) {
-          const pTags = events[0].tags.filter(([n]) => n === "p");
-          userHasFollows = pTags.length > 0;
-        }
-      } catch {
-        userHasFollows = true;
-      }
-    }
-
-    setHasFollows(userHasFollows);
-    setIsSaving(false);
-
-    if (userHasFollows) {
-      goTo("outro");
-    } else {
-      goTo("follows");
-    }
-  }, [isSignup, user, nostr, goTo]);
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Progress bar */}
@@ -493,8 +438,7 @@ function SetupQuestionnaire({
 
           {step === "profile" && (
             <ProfileStep
-              onNext={handleSaveAndContinue}
-              isSaving={isSaving}
+              onNext={next}
               expectedPubkey={expectedPubkey}
             />
           )}
@@ -502,14 +446,13 @@ function SetupQuestionnaire({
           {/* Settings steps */}
           {step === "theme" && (
             <ThemeStep
-              onNext={isSignup ? next : handleSaveAndContinue}
+              onNext={next}
               onBack={back}
-              isFirst={isSignup && steps.indexOf("theme") === 0}
-              isSaving={!isSignup && isSaving}
+              isFirst={steps.indexOf("theme") === 0}
             />
           )}
 
-          {step === "follows" && hasFollows === false && (
+          {step === "follows" && (
             <MeetPeopleStep
               onNext={(didFollow) => {
                 if (didFollow) onPreload();
@@ -671,11 +614,9 @@ function DownloadStep({
 
 function ProfileStep({
   onNext,
-  isSaving = false,
   expectedPubkey,
 }: {
   onNext: () => void;
-  isSaving?: boolean;
   /**
    * Hex pubkey of the just-generated signup key. When set, the publish
    * handler refuses to publish kind 0 unless the active signer matches —
@@ -877,9 +818,9 @@ function ProfileStep({
       <Button
         onClick={handlePublishProfile}
         className="w-full rounded-full h-11 gap-1.5"
-        disabled={isPublishing || isUploading || isSaving}
+        disabled={isPublishing || isUploading}
       >
-        {isPublishing || isSaving ? (
+        {isPublishing ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.saving" defaultMessage="Saving…" />
           </>
@@ -901,12 +842,10 @@ export function ThemeStep({
   onNext,
   onBack,
   isFirst = false,
-  isSaving = false,
 }: {
   onNext: () => void;
   onBack: () => void;
   isFirst?: boolean;
-  isSaving?: boolean;
 }) {
   const { theme, customTheme, themes } = useTheme();
   const resolved = resolveTheme(theme);
@@ -946,45 +885,16 @@ export function ThemeStep({
         <ThemePicker />
 
         {isFirst ? (
-          <Button
-            onClick={onNext}
-            className="w-full rounded-full h-11 gap-1.5"
-            disabled={isSaving}
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.savingDots" defaultMessage="Saving..." />
-              </>
-            ) : (
-              <>
-                <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
-              </>
-            )}
+          <Button onClick={onNext} className="w-full rounded-full h-11 gap-1.5">
+            <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
           </Button>
         ) : (
           <div className="flex gap-3">
-            <Button
-              variant="ghost"
-              onClick={onBack}
-              className="flex-1 rounded-full h-11"
-              disabled={isSaving}
-            >
+            <Button variant="ghost" onClick={onBack} className="flex-1 rounded-full h-11">
               <FormattedMessage id="onboarding.back" defaultMessage="Back" />
             </Button>
-            <Button
-              onClick={onNext}
-              className="flex-1 rounded-full h-11 gap-1.5"
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> <FormattedMessage id="onboarding.savingDots" defaultMessage="Saving..." />
-                </>
-              ) : (
-                <>
-                  <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
-                </>
-              )}
+            <Button onClick={onNext} className="flex-1 rounded-full h-11 gap-1.5">
+              <FormattedMessage id="onboarding.continue" defaultMessage="Continue" /> <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         )}
