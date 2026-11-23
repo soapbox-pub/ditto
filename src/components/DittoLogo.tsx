@@ -111,11 +111,17 @@ function getPixelArtMask(): Promise<string> {
 /** The app logo rendered from the custom SVG asset. Occasionally appears pixelated for logged-in users. */
 export function DittoLogo({ className, size = 40 }: DittoLogoProps) {
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
 
   if (isPixelated && user) {
     return <PixelatedLogo className={className} size={size} />;
   }
+
+  return <DittoLogoMark className={className} size={size} />;
+}
+
+/** The plain logo, for screens that render outside `NostrProvider` (like `UnlockScreen`). */
+export function DittoLogoMark({ className, size = 40 }: DittoLogoProps) {
+  const { config } = useAppContext();
 
   return (
     <div

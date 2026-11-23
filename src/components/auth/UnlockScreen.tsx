@@ -3,7 +3,7 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import { Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
-import { DittoLogo } from '@/components/DittoLogo';
+import { DittoLogoMark } from '@/components/DittoLogo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useUnlockRequest } from '@/lib/keyLock';
@@ -47,7 +47,7 @@ export function UnlockScreen() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-8 px-6 text-center w-full max-w-sm">
-        <DittoLogo size={72} />
+        <DittoLogoMark size={72} />
 
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">
