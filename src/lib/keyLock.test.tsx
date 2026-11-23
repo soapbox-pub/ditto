@@ -1,9 +1,13 @@
 import { getPublicKey, nip19 } from 'nostr-tools';
 import * as nip49 from 'nostr-tools/nip49';
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
+import { NostrLoginProvider, useNostrLogin } from '@nostrify/react/login';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AutoLock } from '@/components/AutoLock';
+import { LogoutCleanup } from '@/components/LogoutCleanup';
 import {
+  forgetKeyLock,
   lockedNcryptsec,
   openLoginList,
   sealLoginList,
@@ -12,6 +16,9 @@ import {
   useUnlockRequest,
   type UnlockRequest,
 } from '@/lib/keyLock';
+import { LOGIN_STORAGE_KEY, loginStorage } from '@/lib/secureStorage';
+
+vi.mock('@/hooks/useAppContext', () => ({ useAppContext: () => ({ config: { appId: 'test' } }) }));
 
 const account = (fill: number, password: string) => {
   const sk = new Uint8Array(32).fill(fill);
@@ -112,5 +119,86 @@ describe('keyLock', () => {
     localStorage.clear();
     await openWith(stored, ['pw-a']);
     expect(lockedNcryptsec(a.pubkey)).toBe(a.ncryptsec);
+  });
+
+  it('leaves out a locked account logged out elsewhere, until it logs in again', () => {
+    const a = account(1, 'pw-a');
+    const b = account(2, 'pw-b');
+    setKeyLock(a.pubkey, a.ncryptsec);
+    forgetKeyLock(a.pubkey);
+    const written = sealLoginList(JSON.stringify([a.login, b.login]));
+    expect(written).not.toContain(a.pubkey);
+    expect(JSON.parse(written)).toEqual([b.login]);
+
+    setKeyLock(a.pubkey, null);
+    expect(sealLoginList(JSON.stringify([a.login]))).toContain(a.nsec);
+  });
+
+  it("doesn't mark a plain account forgotten", () => {
+    const a = account(1, 'pw-a');
+    forgetKeyLock(a.pubkey);
+    expect(sealLoginList(JSON.stringify([a.login]))).toContain(a.nsec);
+  });
+});
+
+describe('keyLock across tabs', () => {
+  type Api = ReturnType<typeof useNostrLogin>;
+  let reload: ReturnType<typeof vi.fn>;
+  const realLocation = window.location;
+
+  beforeEach(() => {
+    reload = vi.fn();
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...realLocation, reload } });
+  });
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation });
+  });
+
+  function Expose({ onApi }: { onApi: (api: Api) => void }) {
+    onApi(useNostrLogin());
+    return null;
+  }
+  let prompt: UnlockRequest | null = null;
+  function Prompt() {
+    prompt = useUnlockRequest();
+    return null;
+  }
+
+  /** One tab: its own login provider, with its own in-memory list, over the shared storage. */
+  async function openTab(password: string): Promise<() => Api> {
+    let api: Api | undefined;
+    prompt = null;
+    render(
+      <NostrLoginProvider storageKey={LOGIN_STORAGE_KEY} storage={loginStorage} fallback={<Prompt />}>
+        <LogoutCleanup />
+        <AutoLock />
+        <Expose onApi={(next) => { api = next; }} />
+      </NostrLoginProvider>,
+    );
+    await waitFor(() => expect(prompt).not.toBeNull());
+    await act(async () => { expect(await prompt!.unlock(password)).toBe('ok'); });
+    await waitFor(() => expect(api).toBeDefined());
+    return () => api!;
+  }
+
+  it("never writes a locked account's nsec to disk after another tab logs it out", async () => {
+    const a = account(1, 'pw-a');
+    const b = account(2, 'pw-b');
+    setKeyLock(a.pubkey, a.ncryptsec);
+    await loginStorage.setItem(LOGIN_STORAGE_KEY, JSON.stringify([a.login, b.login]));
+    const stored = () => localStorage.getItem(LOGIN_STORAGE_KEY)!;
+
+    const tabA = await openTab('pw-a');
+    const tabB = await openTab('pw-a');
+
+    act(() => tabA().removeLogin(a.login.id));
+    await waitFor(() => expect(lockedNcryptsec(a.pubkey)).toBeNull());
+
+    // Tab B still holds the key open: it reloads to drop it...
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    // ...and a write it makes first leaves the account out.
+    act(() => tabB().setLogin(b.login.id));
+    await waitFor(() => expect(JSON.parse(stored())).toEqual([b.login]));
+    expect(stored()).not.toContain(a.nsec);
   });
 });

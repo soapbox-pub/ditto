@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useNostrLogin } from '@nostrify/react/login';
 import { useEffect } from 'react';
 
-import { lockNow, useAnyKeyLocked, useAutoLockMinutes } from '@/lib/keyLock';
+import { lockNow, useAnyKeyForgotten, useAnyKeyLocked, useAutoLockMinutes } from '@/lib/keyLock';
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
 
@@ -21,8 +21,15 @@ function mediaPlaying(): boolean {
 export function AutoLock() {
   const { logins } = useNostrLogin();
   // Any locked account's key is open in memory, not just the active one's.
-  const locked = useAnyKeyLocked(logins.filter((login) => login.type === 'nsec').map((login) => login.pubkey));
+  const nsecPubkeys = logins.filter((login) => login.type === 'nsec').map((login) => login.pubkey);
+  const locked = useAnyKeyLocked(nsecPubkeys);
+  // Logged out in another tab: drop the key this tab still has open.
+  const forgotten = useAnyKeyForgotten(nsecPubkeys);
   const minutes = useAutoLockMinutes();
+
+  useEffect(() => {
+    if (forgotten) lockNow();
+  }, [forgotten]);
 
   useEffect(() => {
     if (!locked || minutes === 0) return;

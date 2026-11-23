@@ -21,6 +21,13 @@ const AUTO_LOCK_KEY = 'ditto:auto-lock-minutes';
  * already holds a password-protected backup.
  */
 const NCRYPTSEC_PREFIX = 'ditto:ncryptsec:';
+/**
+ * A locked account logged out on this device. Another tab may still hold its
+ * key open, and with the lock flag gone its next write would put the nsec on
+ * disk in plain text; this tells it to leave the account out instead. Cleared
+ * when the account is next given a lock state, i.e. logged in again.
+ */
+const FORGOTTEN_PREFIX = 'ditto:key-forgotten:';
 export const SEALED_LOGIN_TYPE = 'x-ncryptsec';
 
 interface StoredLogin {
@@ -43,6 +50,7 @@ function subscribe(listener: () => void): () => void {
       e.key === null ||
       e.key.startsWith(LOCK_PREFIX) ||
       e.key.startsWith(NCRYPTSEC_PREFIX) ||
+      e.key.startsWith(FORGOTTEN_PREFIX) ||
       e.key === AUTO_LOCK_KEY
     ) listener();
   };
@@ -67,8 +75,26 @@ export function setKeyLock(pubkey: string, ncryptsec: string | null): void {
   try {
     if (ncryptsec) localStorage.setItem(LOCK_PREFIX + pubkey, ncryptsec);
     else localStorage.removeItem(LOCK_PREFIX + pubkey);
+    localStorage.removeItem(FORGOTTEN_PREFIX + pubkey);
   } catch { /* ignore */ }
   notify();
+}
+
+function keyForgotten(pubkey: string): boolean {
+  try {
+    return localStorage.getItem(FORGOTTEN_PREFIX + pubkey) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether any of these accounts was a locked one logged out since this tab opened its key. */
+export function useAnyKeyForgotten(pubkeys: string[]): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => pubkeys.some(keyForgotten),
+    () => false,
+  );
 }
 
 export function useKeyLocked(pubkey: string | undefined): boolean {
@@ -102,6 +128,7 @@ export function recordedNcryptsec(pubkey: string): string | null {
 /** Drop an account's lock and recorded ncryptsec, once it's gone from this device. */
 export function forgetKeyLock(pubkey: string): void {
   try {
+    if (lockedNcryptsec(pubkey) !== null) localStorage.setItem(FORGOTTEN_PREFIX + pubkey, '1');
     localStorage.removeItem(LOCK_PREFIX + pubkey);
     localStorage.removeItem(NCRYPTSEC_PREFIX + pubkey);
   } catch { /* ignore */ }
@@ -152,18 +179,32 @@ function parseList(value: string): StoredLogin[] | null {
   }
 }
 
-/** The login list as it may be written to disk: locked accounts' nsecs replaced by their ncryptsec. */
+/**
+ * The login list as it may be written to disk: locked accounts' nsecs replaced
+ * by their ncryptsec, and locked accounts logged out elsewhere left out.
+ */
 export function sealLoginList(value: string): string {
   const list = parseList(value);
   if (!list) return value;
   let changed = false;
-  const sealed = list.map((login) => {
-    if (login?.type !== 'nsec') return login;
+  const sealed: StoredLogin[] = [];
+  for (const login of list) {
+    if (login?.type !== 'nsec') {
+      sealed.push(login);
+      continue;
+    }
+    if (keyForgotten(login.pubkey)) {
+      changed = true;
+      continue;
+    }
     const ncryptsec = lockedNcryptsec(login.pubkey);
-    if (!ncryptsec) return login;
+    if (!ncryptsec) {
+      sealed.push(login);
+      continue;
+    }
     changed = true;
-    return { id: login.id, type: SEALED_LOGIN_TYPE, pubkey: login.pubkey, createdAt: login.createdAt, data: { ncryptsec } };
-  });
+    sealed.push({ id: login.id, type: SEALED_LOGIN_TYPE, pubkey: login.pubkey, createdAt: login.createdAt, data: { ncryptsec } });
+  }
   return changed ? JSON.stringify(sealed) : value;
 }
 
