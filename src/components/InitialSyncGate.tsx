@@ -886,7 +886,7 @@ function ProfileStep({
 // Settings steps
 // ---------------------------------------------------------------------------
 
-function ThemeStep({
+export function ThemeStep({
   onNext,
   onBack,
   isFirst = false,
@@ -922,7 +922,8 @@ function ThemeStep({
             : "",
         )}
       >
-        <div className="space-y-2">
+        <div className="flex flex-col items-center space-y-2 text-center">
+          <DittoLogo size={48} className="mb-2" />
           <h2 className="text-xl font-semibold tracking-tight">
             <FormattedMessage id="onboarding.theme.title" defaultMessage="Choose your look" />
           </h2>
