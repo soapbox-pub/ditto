@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.46.7] - 2026-11-23
+
+Lock up your key: protect it with a password and Ditto keeps only the locked copy, asking for it when you open the app. New here? Meet real people by what they make (artists, cooks, musicians, game makers and more), each previewed with their own work, then swipe through themes to pick your look. Plus articles that follow your Text size setting, a home feed that isn't empty when you follow nobody, and no more error reporting to third parties.
+
+### Added
+- Protect your key with a password: log in with a password-protected key, or create one in profile settings → Your Key, and have Ditto ask for it when you open the app
+- The login dialog suggests a signer app or browser extension for your device, unless you already use one
+- New accounts get a reminder to back up their key, and logging out offers one last copy of it
+- Onboarding introduces people by what they make, previewed with their own work, so you follow people you actually like
+- A help answer on protecting your key with a password
+
+### Changed
+- Onboarding themes appear as a swipeable carousel of theme cards
+- If you follow nobody yet, the home page opens on the Ditto feed and other feed pages open on Discover
+- Wikipedia is no longer one of the default sidebar widgets
+- The privacy policy names the relays we run and says where a pasted key is kept
+
+### Fixed
+- Articles and other long-form text follow the Text size setting, along with the rest of the app's text
+- Ditto refuses a remote signer's signature when it doesn't match the post it was asked to sign
+
+### Removed
+- Error reporting to Sentry, along with its settings
+
 ## [2.46.6] - 2026-11-23
 
 Pick your flavor of Discover: tap the Discover tab to sort by Hot, Rising, or Latest on the home feed, Photos, Videos, and more. Spotted something broken? Report a bug right from a post's menu or the footer, screenshots and all. Plus message anyone on Armada from their profile, a mobile menu that stays above the keyboard, fewer giveaway scam replies, and smoother account switching with remote signers.
