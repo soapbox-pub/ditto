@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * Text size, as a percentage, published as `--font-scale` on `<html>`. Only
- * font sizes read it (`tailwind.config.ts`), so spacing and icons keep their
- * size. Device-wide rather than in the per-account AppConfig: a phone and a
+ * font sizes and line heights read it (`postcss.config.js`), so spacing and
+ * icons keep their size. Inline `style` font sizes escape it; use `text-*`. Device-wide rather than in the per-account AppConfig: a phone and a
  * desktop rarely want the same size. `public/theme.js` applies it before first
  * paint, so the key is fixed rather than namespaced by `appId`.
  */

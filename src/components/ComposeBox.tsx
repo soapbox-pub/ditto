@@ -1430,7 +1430,7 @@ export function ComposeBox({
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30',
                   )}
                 >
-                  {d === 0 ? <span style={{ fontSize: '15px', lineHeight: 1, position: 'relative', top: '-1px' }}>∞</span> : <FormattedMessage id="compose.poll.days" defaultMessage="{days}d" values={{ days: d }} />}
+                  {d === 0 ? <span className="text-[15px]" style={{ lineHeight: 1, position: 'relative', top: '-1px' }}>∞</span> : <FormattedMessage id="compose.poll.days" defaultMessage="{days}d" values={{ days: d }} />}
                 </button>
               ))}
             </div>

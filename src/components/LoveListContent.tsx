@@ -171,10 +171,9 @@ function LovedNameRow({ pubkey, compact }: { pubkey: string; compact?: boolean }
             <Link
               to={profileUrl}
               onClick={(e) => e.stopPropagation()}
-              className="truncate hover:underline decoration-[#C0392B]/50"
+              className={cn('truncate hover:underline decoration-[#C0392B]/50', compact ? 'text-[1.5rem]' : 'text-[1.7rem]')}
               style={{
                 fontFamily: LETTER_FONT,
-                fontSize: compact ? '1.5rem' : '1.7rem',
                 lineHeight: 1.2,
                 color: '#6B3A3A',
               }}
@@ -335,9 +334,9 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
                 </span>
               </span>
               <span
+                className={compact ? 'text-[2rem]' : 'text-[2.4rem]'}
                 style={{
                   fontFamily: LETTER_FONT,
-                  fontSize: compact ? '2rem' : '2.4rem',
                   color: '#7a1a19',
                   lineHeight: 1,
                   // Optical correction: Fredoka's ink mass sits below the
@@ -358,10 +357,9 @@ export function LoveListContent({ event, compact, className }: LoveListContentPr
 
             {overflow > 0 && (
               <p
-                className="mt-3"
+                className={cn('mt-3', compact ? 'text-[1.35rem]' : 'text-[1.5rem]')}
                 style={{
                   fontFamily: LETTER_FONT,
-                  fontSize: compact ? '1.35rem' : '1.5rem',
                   color: '#A05252',
                 }}
               >

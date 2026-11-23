@@ -75,7 +75,7 @@ function NameLabel({ pubkey, prefix, size = 'md' }: { pubkey: string; prefix?: s
   const displayName = getDisplayName(metadata, pubkey);
   const profileUrl = useProfileUrl(pubkey, metadata);
 
-  const fontSize = size === 'lg' ? '1.6rem' : size === 'sm' ? '0.95rem' : '1.15rem';
+  const sizeClass = size === 'lg' ? 'text-[1.6rem]' : size === 'sm' ? 'text-[0.95rem]' : 'text-[1.15rem]';
 
   if (author.isLoading) {
     return (
@@ -93,8 +93,8 @@ function NameLabel({ pubkey, prefix, size = 'md' }: { pubkey: string; prefix?: s
         <Link
           to={profileUrl}
           onClick={(e) => e.stopPropagation()}
-          className="font-semibold truncate hover:underline transition-colors"
-          style={{ fontFamily: "'Caveat', 'Pacifico', cursive", fontSize }}
+          className={cn('font-semibold truncate hover:underline transition-colors', sizeClass)}
+          style={{ fontFamily: "'Caveat', 'Pacifico', cursive" }}
         >
           {displayName}
         </Link>
@@ -384,10 +384,9 @@ export function EncryptedLetterContent({ event, compact, className }: EncryptedL
                     {/* Nushu ciphertext */}
                     <div className="flex-1 min-h-0 overflow-y-auto relative">
                       <p
-                        className="text-center select-none"
+                        className={cn('text-center select-none', compact ? 'text-[1rem]' : 'text-[1.25rem]')}
                         style={{
                           fontFamily: "'Noto Sans Nushu', serif",
-                          fontSize: compact ? '1rem' : '1.25rem',
                           color: '#3A2E26',
                           lineHeight: 2.2,
                           letterSpacing: '0.25em',

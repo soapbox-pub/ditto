@@ -3,9 +3,6 @@ import plugin from "tailwindcss/plugin";
 import tailwindcssAnimate from "tailwindcss-animate";
 import typography from "@tailwindcss/typography";
 
-/** A length times the Text size setting (`--font-scale`, `lib/fontScale.ts`); only font sizes use it. */
-const scaled = (length: string) => `calc(${length} * var(--font-scale, 1))`;
-
 /** What takes a tap for itself inside a larger tap target (see the `can-hover` variant). */
 const PRESS_TARGETS = [
 	'a',
@@ -22,40 +19,7 @@ const PRESS_TARGETS = [
 	'.cursor-pointer',
 ];
 
-type FontSizeOptions = string | { lineHeight?: string; letterSpacing?: string; fontWeight?: string };
-
-/** px and rem lengths times the Text size setting. em, %, and unitless values already follow the parent. */
-const scaleLength = (value: string) => (/^[\d.]+(px|rem)$/.test(value) ? scaled(value) : value);
-
-/**
- * `text-*` font sizes that follow the Text size setting, theme and arbitrary
- * values (`text-[15px]`) alike, so no size can opt out by accident. Otherwise
- * the same as Tailwind's core `fontSize` plugin.
- */
-const fontSizeUtilities = plugin(({ matchUtilities, theme }) => {
-	matchUtilities<string | [string, FontSizeOptions]>({
-		text: (value, { modifier }) => {
-			const [fontSize, options] = Array.isArray(value) ? value : [value];
-			if (modifier) return { 'font-size': scaleLength(fontSize), 'line-height': scaleLength(modifier) };
-			const { lineHeight, letterSpacing, fontWeight } = typeof options === 'object' ? options : { lineHeight: options };
-			return {
-				'font-size': scaleLength(fontSize),
-				...(lineHeight === undefined ? {} : { 'line-height': scaleLength(lineHeight) }),
-				...(letterSpacing === undefined ? {} : { 'letter-spacing': letterSpacing }),
-				...(fontWeight === undefined ? {} : { 'font-weight': fontWeight }),
-			};
-		},
-	}, {
-		values: theme('fontSize'),
-		modifiers: theme('lineHeight'),
-		type: ['absolute-size', 'relative-size', 'length', 'percentage'],
-	});
-});
-
 export default {
-	corePlugins: {
-		fontSize: false,
-	},
 	content: [
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",
@@ -84,16 +48,6 @@ export default {
 		extend: {
 			spacing: {
 				'22': '5.5rem',
-			},
-			// Each `prose-*` size sets its root font size in rem (everything inside
-			// is em), so scale those roots to follow the Text size setting too.
-			typography: {
-				DEFAULT: { css: { fontSize: scaled('1rem') } },
-				sm: { css: { fontSize: scaled('0.875rem') } },
-				base: { css: { fontSize: scaled('1rem') } },
-				lg: { css: { fontSize: scaled('1.125rem') } },
-				xl: { css: { fontSize: scaled('1.25rem') } },
-				'2xl': { css: { fontSize: scaled('1.5rem') } },
 			},
 			fontFamily: {
 				sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
@@ -453,7 +407,6 @@ export default {
 	plugins: [
 		tailwindcssAnimate,
 		typography,
-		fontSizeUtilities,
 		// `fullscreen:` variant — targets an element while it is the fullscreen element.
 		plugin(({ addVariant }) => {
 			addVariant('fullscreen', '&:fullscreen');
