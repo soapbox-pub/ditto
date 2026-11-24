@@ -5,6 +5,7 @@ import { NUser, useNostrLogin } from '@nostrify/react/login';
 import type { NostrSigner } from '@nostrify/types';
 import { useAppContext } from '@/hooks/useAppContext';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
+import { NBrowserSignerBtc } from '@/lib/bitcoin-signers';
 import { getNip46SessionSigner, retainNip46SessionSigners } from '@/lib/nip46Signer';
 import { retainNip46Transports } from '@/lib/nip46Transport';
 import { getEffectiveRelays, getPublishRelays, DITTO_RELAYS, DIVINE_RELAY, NGIT_RELAY, ZAPSTORE_RELAY } from '@/lib/appRelays';
@@ -114,7 +115,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
             relays: currentLogin.data.relays ?? [],
           });
         case 'extension':
-          return NUser.fromExtensionLogin(currentLogin).signer;
+          // Pinned to the login's account where the extension offers getSigner.
+          return new NBrowserSignerBtc({ pubkey: currentLogin.pubkey });
         case 'x-android-signer': {
           // Native Android signer app (Amber, etc.) via NIP-55. Seeded with the
           // login's known pubkey so answering a challenge never triggers a

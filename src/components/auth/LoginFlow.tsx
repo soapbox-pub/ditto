@@ -1,23 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLoginActions } from '@/hooks/useLoginActions';
+import { getNip07Provider, hasRequestPublicKey } from '@/lib/nip07';
 import LoginDialog from './LoginDialog';
 import { QuickLoginDialog } from './QuickLoginDialog';
-
-/** Minimal shape of the NIP-07 provider injected at `window.nostr`. */
-interface Nip07Provider {
-  getPublicKey(): Promise<string>;
-}
-
-function getNip07Provider(): Nip07Provider | undefined {
-  if (typeof window === 'undefined' || !('nostr' in window)) return undefined;
-  const provider = (window as { nostr?: unknown }).nostr;
-  if (
-    provider &&
-    typeof (provider as Nip07Provider).getPublicKey === 'function'
-  ) {
-    return provider as Nip07Provider;
-  }
-  return undefined;
-}
 
 export interface LoginFlowProps {
   isOpen: boolean;
@@ -30,14 +15,26 @@ type View = 'probing' | 'quick' | 'full';
 
 /**
  * Orchestrates the login flow: when opened, probes for a NIP-07 extension.
- * If one is present and exposes a pubkey, shows the one-tap QuickLoginDialog
- * ("Welcome back") first; otherwise falls through to the full LoginDialog.
+ * One that can give the site an account (`requestPublicKey`) is asked for one
+ * and logged in with straight away, since the extension shows the account
+ * itself. Otherwise, if one exposes a pubkey, shows the one-tap
+ * QuickLoginDialog ("Welcome back") first. Either way a refusal falls through
+ * to the full LoginDialog.
  *
  * Drop-in replacement for rendering LoginDialog directly — same props.
  */
 export function LoginFlow({ isOpen, onClose, onLogin, onSignupClick }: LoginFlowProps) {
   const [view, setView] = useState<View>('probing');
   const [quickLoginPubkey, setQuickLoginPubkey] = useState<string | null>(null);
+  const login = useLoginActions();
+  // Read from the effect without making each render's new object a dependency.
+  const loginRef = useRef(login);
+  loginRef.current = login;
+  const doneRef = useRef({ onLogin, onClose });
+  doneRef.current = { onLogin, onClose };
+  // The account request in flight, so an effect re-run (StrictMode) waits on
+  // it instead of asking the user twice.
+  const requestRef = useRef<Promise<void> | null>(null);
 
   // Probe the NIP-07 extension each time the flow opens. While the probe is
   // pending (the extension may show its own permission popup) nothing is
@@ -53,7 +50,20 @@ export function LoginFlow({ isOpen, onClose, onLogin, onSignupClick }: LoginFlow
 
     const probe = async () => {
       const provider = getNip07Provider();
-      if (provider) {
+      if (hasRequestPublicKey(provider)) {
+        requestRef.current ??= loginRef.current.extension().finally(() => {
+          requestRef.current = null;
+        });
+        try {
+          await requestRef.current;
+          if (cancelled) return;
+          doneRef.current.onLogin();
+          doneRef.current.onClose();
+          return;
+        } catch {
+          // Declined or errored — fall through to the full dialog.
+        }
+      } else if (provider) {
         try {
           const pubkey = await provider.getPublicKey();
           if (cancelled) return;

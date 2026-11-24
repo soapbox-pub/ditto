@@ -68,8 +68,8 @@ export function useCurrentUser() {
         nudgeOpts = { remote: true, signerRelays: bunkerRelays, hardTimeoutMs: NIP46_SIGN_TIMEOUT_MS + 10_000 };
         break;
       }
-      case 'extension': // Nostr login with NIP-07 browser extension — use BTC-extended signer
-        user = new NUser(login.type, login.pubkey, new NBrowserSignerBtc());
+      case 'extension': // NIP-07 browser extension, pinned to this account where the extension can (getSigner)
+        user = new NUser(login.type, login.pubkey, new NBrowserSignerBtc({ pubkey: login.pubkey }));
         break;
       case 'x-android-signer': { // Native Android signer app (Amber, etc.) via capacitor-plugin-nostr-signer
         const { packageName } = login.data as { packageName: string };
