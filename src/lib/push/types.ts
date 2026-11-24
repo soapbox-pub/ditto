@@ -23,12 +23,15 @@
 
 import type { EncryptedSettings } from '@/hooks/useEncryptedSettings';
 import type { NappSubscription } from '@/lib/push/napp';
+import type { PushMutes } from '@/lib/push/workerState';
 
 /** Per-type notification preferences, as persisted in encrypted settings. */
 export type PushPreferences = NonNullable<EncryptedSettings['notificationPreferences']>;
 
 /** Which transport a host speaks. Exposed for logging and diagnostics. */
 export type PushTransport = 'napp' | 'nostr-push' | 'native';
+
+export type { PushMutes };
 
 /** Everything needed to build (or rebuild) the subscriptions. */
 export interface PushContext {
@@ -41,10 +44,11 @@ export interface PushContext {
   /** The user's follow set, for "only from people I follow" and spam exemptions. */
   follows?: string[];
   /**
-   * Pubkeys on the user's mute list, public and private halves decrypted.
-   * Never sent to a transport; only the service worker gets them.
+   * The user's mute list, public and private halves decrypted. Never sent to
+   * a transport, only to whatever renders notifications on the device: the
+   * service worker or the native apps.
    */
-  muted?: string[];
+  mutes?: PushMutes;
   /** Native only: 'persistent' holds a relay connection open on Android. */
   style?: 'push' | 'persistent';
 }

@@ -6,7 +6,7 @@
  * nostr-push service, which does the same over Web Push. Neither decides what
  * deserves a notification, so the worker has to, and for that it needs what it
  * cannot derive from a payload: who the logged-in user is, which filters they
- * asked for, and who they follow. The page writes them to IndexedDB, which
+ * asked for, who they follow, and who and what they muted. The page writes them to IndexedDB, which
  * both sides of the origin share.
  *
  * The follow set is here rather than only in the filters because
@@ -29,6 +29,19 @@ export const PUSH_STATE_DB = 'ditto-push-state';
 export const PUSH_STATE_STORE = 'state';
 export const PUSH_STATE_KEY = 'napp';
 
+/** The user's mute list, as the in-app notification list applies it. */
+export interface PushMutes {
+  pubkeys: string[];
+  /** Event ids whose threads are muted. */
+  threads: string[];
+  hashtags: string[];
+  words: string[];
+  /** Skip hashtag, word, and profile mutes for people the user follows. */
+  exemptFollows: boolean;
+  /** Also mute authors whose profile contains a muted word. */
+  profiles: boolean;
+}
+
 export interface PushWorkerState {
   /** Hex pubkey of the logged-in user. Their own events are never shown. */
   pubkey: string;
@@ -39,10 +52,12 @@ export interface PushWorkerState {
   /** Whether to drop events from authors outside `follows`. */
   onlyFollowing: boolean;
   /**
-   * Pubkeys the user has muted. The private half of a mute list is encrypted
-   * and the worker has no signer, so the page hands over the decrypted set —
-   * no more exposed here than in the page's own localStorage cache of it.
+   * The user's mute list. The private half of a mute list is encrypted and
+   * the worker has no signer, so the page hands over the decrypted list — no
+   * more exposed here than in the page's own localStorage cache of it.
    */
+  mutes: PushMutes;
+  /** The muted pubkeys alone, for a worker from before `mutes`. */
   muted: string[];
   /** When this record was written (ms). */
   updatedAt: number;

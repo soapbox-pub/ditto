@@ -87,20 +87,22 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
     private static let subscriptionsKey = "\(prefsKey).subscriptions"
     /// Keys written by builds from before subscriptions, cleared on the next set.
     private static let legacyKeys = ["relayUrls", "enabledKinds", "authors"]
-    private static let configKeys = ["userPubkey", "subscriptions", "follows", "onlyFollowing", "notificationStyle"]
+    private static let configKeys = ["userPubkey", "subscriptions", "follows", "onlyFollowing", "mutes", "notificationStyle"]
 
     /// Called from JS: `DittoNotification.setSubscriptions({ ... })`.
     ///
     /// Replaces the watched subscriptions — napp's `NappSubscription[]`, built
     /// by the JS layer exactly as it is for Tenna and the nostr-push service.
     /// An empty list stops watching. Also carries what the renderer needs
-    /// beside the filters: the user, the follow set, and "only following".
+    /// beside the filters: the user, the follow set, "only following", and
+    /// the mute list.
     @objc func setSubscriptions(_ call: CAPPluginCall) {
         let userPubkey = call.getString("userPubkey")
         let notificationStyle = call.getString("notificationStyle") ?? "push"
         let subscriptions = call.getArray("subscriptions") ?? []
         let follows = call.getArray("follows")?.compactMap { $0 as? String } ?? []
         let onlyFollowing = call.getBool("onlyFollowing") ?? false
+        let mutes = call.getObject("mutes")
 
         let defaults = UserDefaults.standard
         for suffix in Self.legacyKeys + Self.configKeys {
@@ -114,6 +116,9 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
             defaults.set(data, forKey: Self.subscriptionsKey)
             defaults.set(follows, forKey: "\(Self.prefsKey).follows")
             defaults.set(onlyFollowing, forKey: "\(Self.prefsKey).onlyFollowing")
+            if let mutes, let data = try? JSONSerialization.data(withJSONObject: mutes) {
+                defaults.set(data, forKey: "\(Self.prefsKey).mutes")
+            }
             defaults.set(notificationStyle, forKey: "\(Self.prefsKey).notificationStyle")
             NSLog("[DittoNotification] Subscriptions set: pubkey=%@..., subscriptions=%d",
                   String(userPubkey.prefix(8)), subscriptions.count)
@@ -137,14 +142,23 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// Everything a poll needs, or nil when nothing is configured.
-    private static func pollConfig() -> (userPubkey: String, relays: [NostrPoller.RelayFilters], follows: Set<String>, onlyFollowing: Bool)? {
+    private static func pollConfig() -> (
+        userPubkey: String,
+        relays: [NostrPoller.RelayFilters],
+        follows: Set<String>,
+        onlyFollowing: Bool,
+        mutes: NostrPoller.MuteFilter
+    )? {
         let defaults = UserDefaults.standard
         guard let userPubkey = defaults.string(forKey: "\(prefsKey).userPubkey") else { return nil }
         let relays = NostrPoller.relayFilters(from: storedSubscriptions())
         guard !relays.isEmpty else { return nil }
         let follows = Set(defaults.stringArray(forKey: "\(prefsKey).follows") ?? [])
         let onlyFollowing = defaults.bool(forKey: "\(prefsKey).onlyFollowing")
-        return (userPubkey, relays, follows, onlyFollowing)
+        let mutes = defaults.data(forKey: "\(prefsKey).mutes")
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            .map(NostrPoller.MuteFilter.init(json:)) ?? .empty
+        return (userPubkey, relays, follows, onlyFollowing, mutes)
     }
 
     // MARK: - Background Task Management
@@ -219,7 +233,8 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
                 userPubkey: config.userPubkey,
                 relays: config.relays,
                 follows: config.follows,
-                onlyFollowing: config.onlyFollowing
+                onlyFollowing: config.onlyFollowing,
+                mutes: config.mutes
             )
             NSLog("[DittoNotification] Background poll complete: %d notifications", count)
             task.setTaskCompleted(success: true)
@@ -246,7 +261,8 @@ public class DittoNotificationPlugin: CAPPlugin, CAPBridgedPlugin {
                 userPubkey: config.userPubkey,
                 relays: config.relays,
                 follows: config.follows,
-                onlyFollowing: config.onlyFollowing
+                onlyFollowing: config.onlyFollowing,
+                mutes: config.mutes
             )
         }
     }

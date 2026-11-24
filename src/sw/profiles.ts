@@ -5,6 +5,7 @@
 
 import type { NostrEvent } from '@nostrify/nostrify';
 
+import { profileMutableText } from '@/lib/muteHelpers';
 import { isLocalNetworkUrl, sanitizeUrl } from '@/lib/sanitizeUrl';
 
 import { parseEvent } from './event';
@@ -14,6 +15,11 @@ import { requestEventFromAny, requestEventsFromAll } from './relays';
 export interface Profile {
   name: string | null;
   picture: string | null;
+  /**
+   * The text profile word mutes match against. Absent from rows cached before
+   * it was kept, which then mute nothing until they're refetched.
+   */
+  text?: string | null;
 }
 
 interface ProfileRow extends Profile {
@@ -21,7 +27,7 @@ interface ProfileRow extends Profile {
   fetchedAt: number;
 }
 
-export const NO_PROFILE: Profile = { name: null, picture: null };
+export const NO_PROFILE: Profile = { name: null, picture: null, text: null };
 
 const PROFILE_DB = 'ditto-push-profiles';
 const PROFILE_STORE = 'profiles';
@@ -109,7 +115,7 @@ async function requestProfile(relays: string[], pubkey: string): Promise<Profile
   return event ? profileOf(event) : NO_PROFILE;
 }
 
-/** The name and picture a kind 0 declares. */
+/** The name and picture a kind 0 declares, and its text for profile word mutes. */
 function profileOf(event: NostrEvent): Profile {
   let metadata: Record<string, unknown>;
   try {
@@ -122,6 +128,7 @@ function profileOf(event: NostrEvent): Profile {
   return {
     name: cleanName(metadata.display_name) ?? cleanName(metadata.name),
     picture: typeof metadata.picture === 'string' ? notificationImage(metadata.picture) : null,
+    text: profileMutableText(event.content),
   };
 }
 

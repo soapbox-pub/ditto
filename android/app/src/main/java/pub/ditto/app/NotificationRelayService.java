@@ -216,6 +216,8 @@ public class NotificationRelayService extends Service {
     // follow" re-check for when the filters had to go without `authors`.
     private final Set<String> follows = new HashSet<>();
     private boolean onlyFollowing = false;
+    // The user's mute list: notifications the in-app list would hide are never shown.
+    private MuteFilter mutes = MuteFilter.EMPTY;
 
     // Event ids already notified — dedupes across relays and reconnects.
     // Insertion-ordered so that at the cap the OLDEST ids are evicted one at a
@@ -331,11 +333,13 @@ public class NotificationRelayService extends Service {
     private static final class Profile {
         final String name;    // display_name > name, possibly null
         final String picture; // possibly null
+        final String text;    // what profile word mutes match against
         final long ts;        // created_at, newest wins across relays
 
-        Profile(String name, String picture, long ts) {
+        Profile(String name, String picture, String text, long ts) {
             this.name = name;
             this.picture = picture;
+            this.text = text;
             this.ts = ts;
         }
     }
@@ -503,6 +507,7 @@ public class NotificationRelayService extends Service {
         follows.clear();
         follows.addAll(parseStringArray(prefs.getString("follows", null)));
         onlyFollowing = prefs.getBoolean("onlyFollowing", false);
+        mutes = MuteFilter.parse(prefs.getString("mutes", null));
 
         relayFilters.clear();
         String subscriptions = prefs.getString("subscriptions", null);
@@ -1473,6 +1478,7 @@ public class NotificationRelayService extends Service {
             // "Only from people I follow", re-checked here for when the follow
             // set was too big to send as the filters' `authors`.
             if (onlyFollowing && !follows.isEmpty() && !follows.contains(sender)) continue;
+            if (mutes.isMuted(event, sender, follows.contains(sender))) continue;
             // Bounded LRU insert: at the cap the oldest id is evicted, never the
             // whole set. `id` is known-new here (contains() rejected dupes above).
             rememberBoundedId(notifiedIds, id, MAX_NOTIFIED_IDS);
@@ -1533,18 +1539,19 @@ public class NotificationRelayService extends Service {
         resolveReferencedEvents(refIds, () -> {
             // Ownership filter: reactions/reposts/highlights on posts the user
             // didn't author (they were merely tagged) are not notifications.
+            // Nor is acting on a post that sits in a muted thread.
             // When the referenced event couldn't be fetched, keep the event —
             // better a notification with less context than a silently missing one.
             List<JSONObject> notifiable = new ArrayList<>();
             for (JSONObject event : candidates) {
                 int kind = event.optInt("kind");
+                String refId = referencedIdFor(event);
+                JSONObject ref = refId != null ? eventCache.get(refId) : null;
                 if (kind == 7 || kind == 6 || kind == 16 || kind == 9802) {
-                    String refId = NostrPoller.getReferencedEventId(event);
-                    if (refId != null) {
-                        JSONObject ref = eventCache.get(refId);
-                        if (ref != null && !userPubkey.equals(ref.optString("pubkey"))) continue;
-                    }
+                    if (ref != null && !userPubkey.equals(ref.optString("pubkey"))) continue;
                 }
+                // Acting on any post inside a muted thread, not only its root.
+                if (ref != null && mutes.isInMutedThread(ref)) continue;
                 notifiable.add(event);
             }
 
@@ -1560,14 +1567,17 @@ public class NotificationRelayService extends Service {
                 String refId = NostrPoller.getReferencedEventId(event);
                 JSONObject ref = refId != null ? eventCache.get(refId) : null;
                 String sender = NostrPoller.getSenderPubkey(event);
-                resolveAuthor(sender, profile -> poller.showEventNotification(
-                        event,
-                        profile != null ? profile.name : null,
-                        profile != null ? profile.picture : null,
-                        ref,
-                        this::mentionName,
-                        httpClient
-                ));
+                resolveAuthor(sender, profile -> {
+                    if (profile != null && mutes.isProfileMuted(profile.text, follows.contains(sender))) return;
+                    poller.showEventNotification(
+                            event,
+                            profile != null ? profile.name : null,
+                            profile != null ? profile.picture : null,
+                            ref,
+                            this::mentionName,
+                            httpClient
+                    );
+                });
             }
         });
     }
@@ -1748,6 +1758,7 @@ public class NotificationRelayService extends Service {
     /** Parse a kind-0 event's content into a {@link Profile}. */
     private static Profile parseProfile(JSONObject event) {
         long ts = event.optLong("created_at", 0);
+        String text = MuteFilter.profileText(event.optString("content", ""));
         try {
             JSONObject meta = new JSONObject(event.optString("content", "{}"));
             String name = meta.optString("display_name", "");
@@ -1756,10 +1767,11 @@ public class NotificationRelayService extends Service {
             return new Profile(
                     name.isEmpty() ? null : name,
                     picture.isEmpty() ? null : picture,
+                    text,
                     ts
             );
         } catch (JSONException e) {
-            return new Profile(null, null, ts);
+            return new Profile(null, null, text, ts);
         }
     }
 

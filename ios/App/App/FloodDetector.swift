@@ -24,6 +24,10 @@ import Foundation
 ///    salad drawn from one shared vocabulary pool — the campaign that defeats
 ///    shape clustering on purpose. Keys off the crowd (many authors, one shared
 ///    word pool), not shape.
+///  - PITCH: a single giveaway-phishing event — a link plus a lure word and an
+///    ask.
+///  - DISGUISE: a single linked event with `disguiseMinWords`+ words that mix
+///    Latin letters with Cyrillic, Greek, Armenian or Cherokee look-alikes.
 ///  - A CONTAINMENT sweep that only WIDENS an already-confirmed flood.
 ///
 /// The caller feeds a batch (a poll cycle's worth of events) so the crowd
@@ -55,8 +59,39 @@ enum FloodDetector {
     static let saladMinWords = 6
     /// Document frequency (over the distinct-author corpus) at/above which a word is "pool".
     static let saladPoolDf = 3
-    /// Fraction of a reply's distinct words that must be pool words to read as salad.
+    /// Fraction of a reply's distinct content words that must be pool words to read as salad.
     static let saladPoolFraction = 0.6
+    /// Distinct non-function words a reply needs before SALAD will judge it.
+    static let saladMinContentWords = 4
+    /// Mixed-script words a linked event needs before DISGUISE reads it as disguised.
+    static let disguiseMinWords = 2
+    /// PITCH rule — words that name the bait of a giveaway-phishing event.
+    static let pitchLures: Set<String> = ["airdrop", "airdrops", "giveaway", "giveaways", "presale"]
+    /// PITCH rule — words that ask the reader to act on the bait.
+    static let pitchAsks: Set<String> = ["claim", "claiming", "claimable", "eligibility", "eligible", "wallet"]
+    /// Function words SALAD sets aside — English, Spanish, Portuguese, German,
+    /// French. Mirrors `STOPWORDS` in replyFlood.ts.
+    static let stopwords: Set<String> = Set("""
+        a about above after again against all also am an and any are as at be because been before being below between
+        both but by can could d did do does doing don down during each even every few for from further get got go going
+        had has have having he her here hers him his how i if in into is it its just know like ll m may me might mine more
+        most must my no not now of off ok on once one only onto or other our out over own re really s same see shall she
+        should so some still such t than that the their them then there these they think this those through to too under
+        until up us ve very was way we well were what when where which while who whom whose why will with would yeah yes
+        you your
+        al algo algunas algunos ante antes como con contra cual cuando de del desde donde durante el ella ellos en entre
+        era es esa eso esta estar estas este esto estos hay hasta la las le les lo los mi mis mucho muchos muy más nada
+        ni no nos nosotros o otra otras otro otros para pero poco por porque que quien quienes qué se sin sobre su sus sí
+        también tanto te ti todo todos tu tus tú un una uno unos y ya yo él
+        ao aos as da das dele deles depois do dos ela elas ele eles em essa essas esse esses está estão eu foi foram há
+        isso já lhe mas meu meus minha minhas mesmo na nas nem no nossa nosso num numa não nós os ou pela pelas pelo
+        pelos quando seja ser seu seus sua suas são tem tenho ter teu tua têm você vocês à às é
+        aber am an auch auf aus bei bin bis da das dass dem den der des dich die dir du durch ein eine einem einen einer
+        er es für hat ich ihr im ist ja man mehr mich mir mit nach nicht noch nur oder sich sie sind so um und von vor
+        war was wenn werden wie wir wird zu zum zur über
+        au aux avec c ce ces cet cette dans des du elle elles et il ils j je l les leur leurs ma mais me mes mon n ne
+        nous on ou par pas plus pour qu qui sa ses son sur ta tes toi ton une vous où
+        """.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init))
     /// Document frequency above which a word is skipped when generating merge candidates.
     static let dfCap = 64
     /// Most candidate templates one template is compared against.
@@ -73,6 +108,81 @@ enum FloodDetector {
     private static let whitespace = try! NSRegularExpression(pattern: "\\s+")
     /// Words, in any script. Emoji and punctuation are deliberately not words.
     private static let word = try! NSRegularExpression(pattern: "[\\p{L}][\\p{L}\\p{N}_]*")
+
+    // MARK: - Mixed-script look-alikes
+
+    /// Latin look-alikes as (look-alike, Latin) pairs, in Cyrillic, Greek,
+    /// Armenian, and Cherokee order. Mirrors replyFlood.ts.
+    private static let confusablePairs = """
+        \u{0410}A\u{0412}B\u{0415}E\u{0405}S\u{0406}I\u{0408}J\u{041A}K\u{041C}M\u{041D}H\u{041E}O
+        \u{0420}P\u{0421}C\u{0422}T\u{0425}X\u{0423}Y\u{04AE}Y\u{051A}Q\u{051C}W\u{0500}D\u{0430}a
+        \u{0432}b\u{0435}e\u{0455}s\u{0456}i\u{0458}j\u{043A}k\u{043C}m\u{043D}h\u{043E}o\u{0440}p
+        \u{0441}c\u{0442}t\u{0445}x\u{0443}y\u{04AF}y\u{0501}d\u{04BB}h\u{051B}q\u{051D}w
+        \u{0391}A\u{0392}B\u{0395}E\u{0396}Z\u{0397}H\u{0399}I\u{039A}K\u{039C}M\u{039D}N\u{039F}O
+        \u{03A1}P\u{03A4}T\u{03A5}Y\u{03A7}X\u{03B1}a\u{03B5}e\u{03B9}i\u{03BA}k\u{03BD}v\u{03BF}o
+        \u{03C1}p\u{03C4}t\u{03C5}u\u{03C7}x
+        \u{0555}O\u{0585}o\u{054D}U\u{057D}u\u{053C}L\u{0578}n\u{0570}h\u{0581}g\u{0566}q
+        \u{13AA}A\u{13F4}B\u{13DF}C\u{13A0}D\u{13AC}E\u{13C0}G\u{13BB}H\u{13A5}i\u{13AB}J\u{13E6}K
+        \u{13DE}L\u{13B7}M\u{13E2}P\u{13D2}R\u{13DA}S\u{13A2}T\u{13D9}V\u{13B3}W\u{13C3}Z
+        """
+    private static let confusables: [Unicode.Scalar: Unicode.Scalar] = {
+        let scalars = Array(confusablePairs.unicodeScalars.filter { $0 != "\n" })
+        var map = [Unicode.Scalar: Unicode.Scalar]()
+        for i in stride(from: 0, to: scalars.count - 1, by: 2) {
+            map[scalars[i]] = scalars[i + 1]
+        }
+        return map
+    }()
+
+    private static func isLatin(_ v: UInt32) -> Bool {
+        (v >= 0x41 && v <= 0x5a) || (v >= 0x61 && v <= 0x7a) || (v >= 0xc0 && v <= 0x24f)
+    }
+
+    /// Greek, Cyrillic, Armenian, and Cherokee: the scripts with Latin look-alikes.
+    private static func isLookalikeScript(_ v: UInt32) -> Bool {
+        (v >= 0x370 && v <= 0x58f) || (v >= 0x13a0 && v <= 0x13ff) || (v >= 0xab70 && v <= 0xabbf)
+    }
+
+    /// Whether `word` spells itself in Latin and a look-alike script at once.
+    static func isMixedScript(_ word: String) -> Bool {
+        var latin = false
+        var lookalike = false
+        for scalar in word.unicodeScalars {
+            if isLatin(scalar.value) {
+                latin = true
+            } else if isLookalikeScript(scalar.value) {
+                lookalike = true
+            }
+            if latin && lookalike { return true }
+        }
+        return false
+    }
+
+    /// `content` with every mixed-script word swapped back to the Latin it imitates.
+    private static func foldConfusables(_ content: String) -> String {
+        let ns = content as NSString
+        var out = ""
+        var last = 0
+        var changed = false
+        for match in word.matches(in: content, range: NSRange(location: 0, length: ns.length)) {
+            let w = ns.substring(with: match.range)
+            guard isMixedScript(w) else { continue }
+            changed = true
+            out += ns.substring(with: NSRange(location: last, length: match.range.location - last))
+            var folded = String.UnicodeScalarView()
+            for scalar in w.unicodeScalars { folded.append(confusables[scalar] ?? scalar) }
+            out += String(folded)
+            last = match.range.location + match.range.length
+        }
+        guard changed else { return content }
+        out += ns.substring(from: last)
+        return out
+    }
+
+    /// How many words of `content`, outside its links, are mixed-script.
+    private static func countMixedScript(_ content: String) -> Int {
+        normalizeTokens(replaceAll(urlRun, in: content, with: " ")).filter(isMixedScript).count
+    }
 
     // MARK: - Input
 
@@ -117,7 +227,9 @@ enum FloodDetector {
     /// parts that vary per copy (URLs, digits, a trailing nonce, held-down keys)
     /// are collapsed.
     static func shapeKey(_ content: String) -> String {
-        var s = content.lowercased()
+        // Folded before lowercasing: Cherokee look-alikes lowercase into a block
+        // that no longer matches the table.
+        var s = foldConfusables(content).lowercased()
         s = replaceAll(invisible, in: s, with: "")
         s = replaceAll(whitespace, in: s, with: " ").trimmingCharacters(in: .whitespaces)
         s = replaceAll(urlRun, in: s, with: "@")
@@ -186,7 +298,25 @@ enum FloodDetector {
     /// `follows` may be nil / empty.
     static func floodIds(_ replies: [Event], selfPubkey: String?, follows: Set<String>?) -> Set<String> {
         var flagged = Set<String>()
-        if replies.count < echoMinCopies { return flagged }
+
+        // PITCH and DISGUISE: judged per event, so they run before the
+        // batch-size gate below.
+        for ev in replies {
+            let shape = shapeKey(ev.content)
+            if !shape.contains("@") { continue }
+            if countMixedScript(ev.content) >= disguiseMinWords {
+                flagged.insert(ev.id)
+                continue
+            }
+            let words = normalizeTokens(shape)
+            if words.contains(where: pitchLures.contains) && words.contains(where: pitchAsks.contains) {
+                flagged.insert(ev.id)
+            }
+        }
+
+        if replies.count < echoMinCopies {
+            return exempt(flagged, replies, selfPubkey: selfPubkey, follows: follows)
+        }
 
         // Bucket by exact normalized shape. A reply with no words joins no bucket.
         var byShape = [String: Bucket]()
@@ -288,12 +418,12 @@ enum FloodDetector {
         // substantial replies (one per pubkey), take the pool to be the words
         // recurring across saladPoolDf+ distinct authors, and flag replies mostly
         // built from that pool — but only when they span a large enough crowd.
+        // Both the pool and the score read content words only: function words
+        // recur across every author of any real discussion.
         var perAuthor = [String: Set<String>]()
         for ev in replies {
             if perAuthor[ev.pubkey] != nil { continue }
-            let words = normalizeTokens(shapeKey(ev.content))
-            if words.count < saladMinWords { continue }
-            perAuthor[ev.pubkey] = Set(words)
+            if let content = saladWords(ev) { perAuthor[ev.pubkey] = content }
         }
         if perAuthor.count >= saladMinAuthors {
             var poolDf = [String: Int]()
@@ -303,9 +433,7 @@ enum FloodDetector {
             var memberIds: [String] = []
             var memberAuthors = Set<String>()
             for ev in replies {
-                let words = normalizeTokens(shapeKey(ev.content))
-                if words.count < saladMinWords { continue }
-                let distinct = Set(words)
+                guard let distinct = saladWords(ev) else { continue }
                 var pool = 0
                 for w in distinct where (poolDf[w] ?? 0) >= saladPoolDf { pool += 1 }
                 if Double(pool) / Double(distinct.count) >= saladPoolFraction {
@@ -341,7 +469,14 @@ enum FloodDetector {
             }
         }
 
-        // Trust exemption, applied LAST so it overrides every rule.
+        return exempt(flagged, replies, selfPubkey: selfPubkey, follows: follows)
+    }
+
+    /// Trust exemption, applied LAST so it overrides every rule.
+    private static func exempt(
+        _ flagged: Set<String>, _ replies: [Event], selfPubkey: String?, follows: Set<String>?
+    ) -> Set<String> {
+        var flagged = flagged
         if !flagged.isEmpty && (selfPubkey != nil || !(follows?.isEmpty ?? true)) {
             for ev in replies {
                 if ev.pubkey == selfPubkey || (follows?.contains(ev.pubkey) ?? false) {
@@ -349,7 +484,15 @@ enum FloodDetector {
                 }
             }
         }
-
         return flagged
+    }
+
+    /// An event's distinct content words (function words set aside), or nil
+    /// when it is too short for SALAD to judge.
+    private static func saladWords(_ ev: Event) -> Set<String>? {
+        let words = normalizeTokens(shapeKey(ev.content))
+        if words.count < saladMinWords { return nil }
+        let content = Set(words.filter { !stopwords.contains($0) })
+        return content.count >= saladMinContentWords ? content : nil
     }
 }

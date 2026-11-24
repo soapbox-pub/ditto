@@ -9,7 +9,9 @@
 import { buildPushSubscriptions } from '@/lib/push/subscriptions';
 import { clearPushWorkerState, putPushWorkerState } from '@/lib/push/workerState';
 import type { NappSubscription } from '@/lib/push/napp';
-import type { PushContext, PushHost, PushTransport } from '@/lib/push/types';
+import type { PushContext, PushHost, PushMutes, PushTransport } from '@/lib/push/types';
+
+const NO_MUTES: PushMutes = { pubkeys: [], threads: [], hashtags: [], words: [], exemptFollows: false, profiles: false };
 
 /** Fingerprint of the last set that landed, so an unchanged one is skipped. */
 const APPLIED_KEY = 'ditto-push-applied';
@@ -107,10 +109,14 @@ export class PushAdapter {
       context.follows ?? [],
       context.prefs?.onlyFollowing === true,
       context.style ?? 'push',
+      // A host that renders on the device filters by the mute list itself.
+      this.host.usesServiceWorker ? null : context.mutes ?? null,
     ]));
-    // The mute list only reaches the worker, so a change to it alone rewrites
-    // the worker's copy without troubling the host.
-    const workerOnly = this.host.usesServiceWorker ? fingerprint(JSON.stringify(context.muted ?? [])) : '';
+    // Otherwise the mute list only reaches the worker, so a change to it alone
+    // rewrites the worker's copy without troubling the host.
+    const workerOnly = this.host.usesServiceWorker
+      ? fingerprint(JSON.stringify(context.mutes ?? NO_MUTES))
+      : '';
     const [lastApplied, lastWorkerOnly] = (localStorage.getItem(APPLIED_KEY) ?? '').split('.');
 
     if (skipIfUnchanged && lastApplied === applied) {
@@ -131,7 +137,7 @@ export class PushAdapter {
   }
 
   private async writeWorkerState(
-    { pubkey, prefs, follows = [], muted = [] }: PushContext,
+    { pubkey, prefs, follows = [], mutes = NO_MUTES }: PushContext,
     subscriptions: NappSubscription[],
   ): Promise<void> {
     try {
@@ -140,7 +146,8 @@ export class PushAdapter {
         subscriptions,
         follows,
         onlyFollowing: prefs?.onlyFollowing === true,
-        muted,
+        mutes,
+        muted: mutes.pubkeys,
       });
     } catch (err) {
       // Not fatal: without it the worker shows everything the filters matched.

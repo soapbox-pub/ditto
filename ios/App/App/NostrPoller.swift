@@ -63,9 +63,132 @@ final class NostrPoller {
         }
     }
 
-    /// Cached author display name.
+    /// The user's mute list — a port of `createMuteMatcher` in
+    /// `src/lib/muteHelpers.ts` (and Android's `MuteFilter.java`), so a
+    /// notification the in-app list hides is never shown. Handed over by the
+    /// JS layer with the private half decrypted; it stays on the device.
+    struct MuteFilter {
+        static let empty = MuteFilter(json: [:])
+
+        /// Tags whose value is text a client shows in place of, or beside, the content.
+        private static let textTags: Set<String> = [
+            "title", "summary", "name", "description", "subject", "location", "content-warning",
+        ]
+
+        let pubkeys: Set<String>
+        let threads: Set<String>
+        let hashtags: Set<String>
+        let words: [String]
+        /// Skip hashtag, word, and profile mutes for people the user follows.
+        let exemptFollows: Bool
+        /// Also mute authors whose profile contains a muted word.
+        let profiles: Bool
+
+        init(json: [String: Any]) {
+            func strings(_ key: String) -> [String] {
+                (json[key] as? [Any])?.compactMap { $0 as? String }.filter { !$0.isEmpty } ?? []
+            }
+            pubkeys = Set(strings("pubkeys"))
+            threads = Set(strings("threads"))
+            hashtags = Set(strings("hashtags").map { $0.lowercased() })
+            words = Array(Set(strings("words").map { $0.lowercased() }))
+            exemptFollows = json["exemptFollows"] as? Bool ?? false
+            profiles = json["profiles"] as? Bool ?? false
+        }
+
+        var isEmpty: Bool {
+            pubkeys.isEmpty && threads.isEmpty && hashtags.isEmpty && words.isEmpty
+        }
+
+        /// Whether the mute list hides `event`. `sender` is who it is from — for
+        /// a zap, the zapper rather than the receipt's signer — and `followed`
+        /// whether the user follows them.
+        func isMuted(_ event: NostrEvent, sender: String, followed: Bool) -> Bool {
+            if isEmpty { return false }
+            if pubkeys.contains(event.pubkey) || pubkeys.contains(sender) { return true }
+
+            if isInMutedThread(event) { return true }
+
+            if exemptFollows && followed { return false }
+
+            for tag in event.tags where tag.count >= 2 && tag[0] == "t" {
+                if hashtags.contains(tag[1].lowercased()) { return true }
+            }
+
+            if words.isEmpty { return false }
+            let text = Self.mutableText(event)
+            return words.contains { text.contains($0) }
+        }
+
+        /// Whether `event` is a muted thread or a reply inside one. Checked
+        /// against the post a reaction, repost, or zap targets, so acting on
+        /// any reply in a muted thread is hidden too, not only on its root.
+        func isInMutedThread(_ event: NostrEvent) -> Bool {
+            if threads.isEmpty { return false }
+            if threads.contains(event.id) { return true }
+            // A NIP-10 reply names the thread in its `e` tags; a NIP-22
+            // comment names the root in `E`. NIP-10 `mention` e-tags are
+            // inline quotes.
+            for tag in event.tags where tag.count >= 2 {
+                let isThread = (tag[0] == "e" && (tag.count < 4 || tag[3] != "mention")) || tag[0] == "E"
+                if isThread && threads.contains(tag[1]) { return true }
+            }
+            return false
+        }
+
+        /// Whether the author's profile contains a muted word, when the user
+        /// asked for profiles to be checked. `profileText` comes from
+        /// `profileText(_:)`.
+        func isProfileMuted(_ profileText: String?, followed: Bool) -> Bool {
+            guard profiles, !words.isEmpty, let profileText else { return false }
+            if exemptFollows && followed { return false }
+            return words.contains { profileText.contains($0) }
+        }
+
+        /// Profile fields shown to people, matched instead of the raw kind 0 JSON.
+        private static let profileTextFields = ["name", "display_name", "about", "nip05", "website"]
+
+        /// The lowercased text muted words are matched against in a kind 0's
+        /// content: the name, bio, and other visible fields, not the JSON keys.
+        static func profileText(_ content: String) -> String {
+            guard let data = content.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return content.lowercased()
+            }
+            return profileTextFields.compactMap { json[$0] as? String }.joined(separator: "\n").lowercased()
+        }
+
+        /// The lowercased text muted words are matched against: the content plus
+        /// the visible text some kinds keep in tags. A reaction's `+` or empty
+        /// content is a 👍 like, so a muted 👍 hides those too.
+        private static func mutableText(_ event: NostrEvent) -> String {
+            if event.kind == 7 {
+                let trimmed = event.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed == "+" || trimmed.isEmpty { return "👍" }
+            }
+            var parts = [event.content]
+            for tag in event.tags where tag.count >= 2 {
+                let name = tag[0]
+                // A zap receipt's `description` is the zap request JSON, not prose.
+                if textTags.contains(name) && !(name == "description" && event.kind == 9735) {
+                    parts.append(tag[1])
+                } else if name == "option" && tag.count >= 3 {
+                    parts.append(tag[2])
+                } else if name == "imeta" {
+                    for entry in tag.dropFirst() where entry.hasPrefix("alt ") {
+                        parts.append(String(entry.dropFirst(4)))
+                    }
+                }
+            }
+            return parts.joined(separator: "\n").lowercased()
+        }
+    }
+
+    /// Cached author display name, and the profile's text for profile word
+    /// mutes (nil in entries cached before it was kept).
     private struct AuthorCache: Codable {
         let name: String
+        var text: String?
         let timestamp: TimeInterval
     }
 
@@ -101,7 +224,8 @@ final class NostrPoller {
         userPubkey: String,
         relays: [RelayFilters],
         follows: Set<String>? = nil,
-        onlyFollowing: Bool = false
+        onlyFollowing: Bool = false,
+        mutes: MuteFilter = .empty
     ) async -> Int {
         guard !relays.isEmpty else { return 0 }
 
@@ -131,6 +255,7 @@ final class NostrPoller {
                 let sender = Self.senderPubkey(of: ev)
                 guard sender != userPubkey, !seenIds.contains(ev.id) else { return false }
                 if onlyFollowing, let follows, !follows.isEmpty, !follows.contains(sender) { return false }
+                if mutes.isMuted(ev, sender: sender, followed: follows?.contains(sender) ?? false) { return false }
                 seenIds.insert(ev.id)
                 return true
             }
@@ -179,7 +304,8 @@ final class NostrPoller {
             let notifiable = await verifyReferencedEvents(
                 events: deflooded,
                 userPubkey: userPubkey,
-                relayUrl: relayUrl
+                relayUrl: relayUrl,
+                mutes: mutes
             )
 
             // Update last-seen to newest event in the full filtered set (not
@@ -192,14 +318,20 @@ final class NostrPoller {
 
             guard !notifiable.isEmpty else { return 0 }
 
-            // Fetch author metadata for unique pubkeys.
-            let pubkeys = Array(Set(notifiable.map(\.pubkey)))
-            let authorNames = await resolveAuthorNames(pubkeys: pubkeys, relayUrl: relayUrl)
+            // Fetch author metadata for unique pubkeys, and for zaps the sender
+            // too, whose profile is the one profile word mutes judge.
+            let pubkeys = Array(Set(notifiable.flatMap { [$0.pubkey, Self.senderPubkey(of: $0)] }))
+            let authors = await resolveAuthors(pubkeys: pubkeys, relayUrl: relayUrl)
+
+            let shown = notifiable.filter { ev in
+                let sender = Self.senderPubkey(of: ev)
+                return !mutes.isProfileMuted(authors.texts[sender], followed: follows?.contains(sender) ?? false)
+            }
 
             // Display notifications.
-            await displayNotifications(events: notifiable, authorNames: authorNames)
+            await displayNotifications(events: shown, authorNames: authors.names)
 
-            return notifiable.count
+            return shown.count
         }
 
         return 0 // All relays failed.
@@ -376,12 +508,13 @@ final class NostrPoller {
     // MARK: - Event Verification
 
     /// For reactions (7), reposts (6, 16), and zaps (9735), verify that the
-    /// referenced event was authored by the current user. Events that pass
-    /// verification or don't need it are returned.
+    /// referenced event was authored by the current user and isn't in a muted
+    /// thread. Events that pass verification or don't need it are returned.
     private func verifyReferencedEvents(
         events: [NostrEvent],
         userPubkey: String,
-        relayUrl: String
+        relayUrl: String,
+        mutes: MuteFilter
     ) async -> [NostrEvent] {
         let needsVerification: Set<Int> = [7, 6, 16, 9735]
 
@@ -403,13 +536,17 @@ final class NostrPoller {
         return events.filter { ev in
             guard needsVerification.contains(ev.kind) else { return true }
 
+            let refEvent = referencedEventId(from: ev).flatMap { refMap[$0] }
+            // Acting on any post inside a muted thread, not only its root.
+            if let refEvent, mutes.isInMutedThread(refEvent) { return false }
+
             // Zaps with #p tag targeting the user are valid (profile zaps have no e tag).
             if ev.kind == 9735 {
                 return true
             }
 
-            guard let refId = referencedEventId(from: ev) else { return false }
-            guard let refEvent = refMap[refId] else {
+            guard referencedEventId(from: ev) != nil else { return false }
+            guard let refEvent else {
                 // Couldn't fetch — keep the notification rather than silently dropping it.
                 return true
             }
@@ -424,9 +561,14 @@ final class NostrPoller {
 
     // MARK: - Author Metadata Resolution
 
-    /// Resolve display names for a set of pubkeys, using cache where possible.
-    private func resolveAuthorNames(pubkeys: [String], relayUrl: String) async -> [String: String] {
+    /// Resolve display names, and profile text for profile word mutes, for a
+    /// set of pubkeys, using cache where possible.
+    private func resolveAuthors(
+        pubkeys: [String],
+        relayUrl: String
+    ) async -> (names: [String: String], texts: [String: String]) {
         var result = [String: String]()
+        var texts = [String: String]()
         var uncached = [String]()
 
         let cache = loadMetadataCache()
@@ -435,6 +577,7 @@ final class NostrPoller {
         for pk in pubkeys {
             if let cached = cache[pk], now - cached.timestamp < Self.metadataTTL {
                 result[pk] = cached.name
+                if let text = cached.text { texts[pk] = text }
             } else {
                 uncached.append(pk)
             }
@@ -446,9 +589,11 @@ final class NostrPoller {
             var updatedCache = cache
 
             for pk in uncached {
+                let text = metadataEvents[pk].map { MuteFilter.profileText($0.content) }
+                if let text { texts[pk] = text }
                 if let ev = metadataEvents[pk], let name = parseDisplayName(from: ev) {
                     result[pk] = name
-                    updatedCache[pk] = AuthorCache(name: name, timestamp: now)
+                    updatedCache[pk] = AuthorCache(name: name, text: text, timestamp: now)
                 } else {
                     // Fall back to truncated npub-style identifier.
                     let fallback = formatPubkey(pk)
@@ -460,7 +605,7 @@ final class NostrPoller {
             saveMetadataCache(updatedCache)
         }
 
-        return result
+        return (result, texts)
     }
 
     /// Parse display_name or name from a kind 0 event's content JSON.

@@ -18,12 +18,10 @@ import {
   type Nip51ListEdit,
 } from '@/lib/nip51List';
 import { isNostrId } from '@/lib/nostrId';
+import type { MuteListItem } from '@/lib/muteHelpers';
 import { getStorageKey } from '@/lib/storageKey';
 
-export interface MuteListItem {
-  type: 'pubkey' | 'hashtag' | 'word' | 'thread';
-  value: string;
-}
+export type { MuteListItem };
 
 /** Build the localStorage key for cached mute list items. */
 export function getMuteCacheKey(appId: string): string {

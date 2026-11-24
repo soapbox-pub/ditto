@@ -12,7 +12,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
 import type { NappSubscription } from '@/lib/push/napp';
-import type { PushHost, PushSetOptions } from '@/lib/push/types';
+import type { PushHost, PushMutes, PushSetOptions } from '@/lib/push/types';
 
 interface SetSubscriptionsOptions {
   /** The filters to watch. An empty list stops watching. */
@@ -27,6 +27,8 @@ interface SetSubscriptionsOptions {
   follows?: string[];
   /** Whether to drop events from authors outside `follows`. */
   onlyFollowing?: boolean;
+  /** The mute list, so nothing the in-app list hides is shown natively. */
+  mutes?: PushMutes;
   /** 'persistent' holds relay connections open on Android; 'push' polls. */
   notificationStyle?: 'push' | 'persistent';
 }
@@ -118,6 +120,7 @@ export class NativeHost implements PushHost {
       userPubkey: context.pubkey,
       follows: context.follows ?? [],
       onlyFollowing: context.prefs?.onlyFollowing === true,
+      mutes: context.mutes,
       notificationStyle: context.style ?? 'push',
     });
   }

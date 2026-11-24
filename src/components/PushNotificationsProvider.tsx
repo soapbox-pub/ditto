@@ -4,8 +4,9 @@
  * - Selects and brings up a `PushAdapter` on mount, restoring prior state.
  * - Re-applies the subscriptions whenever what they're built from changes:
  *   the user, their notification preferences, read relays, or follow set.
- * - Keeps the service worker's copy of the user's muted pubkeys current, so
- *   web push drops events from them.
+ * - Keeps the user's mute list current wherever notifications are rendered
+ *   (the service worker, the native apps), so they hide what the in-app
+ *   notification list hides.
  * - Native apps follow the synced `notificationsEnabled` setting (on unless
  *   switched off); elsewhere push is a per-device choice made in settings.
  * - Pings transports whose registration expires, on launch and on return.
@@ -26,11 +27,11 @@ import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
+import { useMuteList } from '@/hooks/useMuteList';
 import { getEffectiveRelays } from '@/lib/appRelays';
 import { createPushAdapter } from '@/lib/push';
 import { dismissReadNotifications } from '@/lib/push/dismissRead';
-import type { PushContext, PushPreferences } from '@/lib/push/types';
+import type { PushContext, PushMutes, PushPreferences } from '@/lib/push/types';
 
 export function PushNotificationsProvider({ children }: { children: ReactNode }) {
   const { config } = useAppContext();
@@ -38,7 +39,7 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
   const { logins } = useNostrLogin();
   const { settings, isLoading: settingsLoading } = useEncryptedSettings();
   const { data: followData } = useFollowList();
-  const { mutedPubkeys, mutedKey } = useMutedAuthorFilter();
+  const { muteItems } = useMuteList();
 
   // Picked from globals that don't change after load, so it never re-selects.
   // Brought up (and torn down) by the effect below.
@@ -56,13 +57,33 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
   }, [config.relayMetadata, config.useAppRelays, config.useUserRelays]);
 
   const follows = useMemo(() => followData?.pubkeys ?? [], [followData?.pubkeys]);
-  const muted = useMemo(() => [...mutedPubkeys], [mutedPubkeys]);
+  const exemptFollows = config.exemptFollowsFromFilters === true;
+  const profileMutes = config.muteWordsInProfiles === true;
+  const mutes = useMemo<PushMutes>(() => {
+    const mutes: PushMutes = {
+      pubkeys: [],
+      threads: [],
+      hashtags: [],
+      words: [],
+      exemptFollows,
+      profiles: profileMutes,
+    };
+    for (const item of muteItems) {
+      switch (item.type) {
+        case 'pubkey': mutes.pubkeys.push(item.value); break;
+        case 'thread': mutes.threads.push(item.value); break;
+        case 'hashtag': mutes.hashtags.push(item.value); break;
+        case 'word': mutes.words.push(item.value); break;
+      }
+    }
+    return mutes;
+  }, [muteItems, exemptFollows, profileMutes]);
   const prefs = settings?.notificationPreferences ?? undefined;
   const style = settings?.notificationStyle ?? 'push';
 
   // Keep the latest context reachable from callbacks without rebuilding them.
   const contextRef = useRef<Omit<PushContext, 'pubkey'>>({});
-  contextRef.current = { prefs, relays, follows, muted, style };
+  contextRef.current = { prefs, relays, follows, mutes, style };
 
   // ─── Bring the adapter up ─────────────────────────────────────────────────
 
@@ -119,6 +140,7 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
   const followsKey = useMemo(() => follows.slice().sort().join(','), [follows]);
   const relaysKey = relays.join(',');
   const prefsKey = JSON.stringify(prefs ?? {});
+  const mutesKey = JSON.stringify(mutes);
 
   // Native: on/off is the synced setting. Wait for settings to load so the
   // first subscription doesn't briefly watch every type the user turned off.
@@ -134,7 +156,7 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
 
     run.catch((err) => console.error('[push] Failed to configure native notifications:', err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, ready, nativeWanted, user?.pubkey, settingsLoading, followsKey, relaysKey, prefsKey, style]);
+  }, [adapter, ready, nativeWanted, user?.pubkey, settingsLoading, followsKey, relaysKey, prefsKey, mutesKey, style]);
 
   // Everywhere else: push is turned on from settings, and once on, follows
   // whatever it is built from. The adapter skips a set that would change
@@ -146,7 +168,7 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
       console.error('[push] Failed to re-sync subscriptions:', err);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, ready, enabled, user?.pubkey, followsKey, relaysKey, prefsKey, mutedKey]);
+  }, [adapter, ready, enabled, user?.pubkey, followsKey, relaysKey, prefsKey, mutesKey]);
 
   // Logging out the account push was set up for turns it off. Switching to
   // another logged-in account instead moves it over (above). Native follows

@@ -5,7 +5,10 @@ import { decode, nprofileEncode, npubEncode } from 'nostr-tools/nip19';
 import { ALL_NOTIFICATION_KINDS } from '@/lib/notificationKinds';
 
 import {
+  isInMutedThread,
+  isProfileMuted,
   isWanted,
+  mutedThreadTargetId,
   mentionPubkeys,
   notificationActions,
   notificationPath,
@@ -162,5 +165,43 @@ describe('isWanted', () => {
 
     const zap = event(9735, [['p', USER], ['description', JSON.stringify({ pubkey: TARGET, tags: [] })]]);
     expect(isWanted(zap, { ...state, muted: [TARGET] })).toBe(false);
+  });
+
+  it('drops events matching muted threads, hashtags, and words, as the in-app list does', () => {
+    const none = { pubkeys: [], threads: [], hashtags: [], words: [], exemptFollows: false, profiles: false };
+    const state = { pubkey: USER, subscriptions, follows: [AUTHOR] };
+    const reply = { ...event(1, [['p', USER], ['e', TARGET, '', 'root'], ['t', 'Airdrop']]), content: 'Claim it now' };
+
+    expect(isWanted(reply, { ...state, mutes: none })).toBe(true);
+    expect(isWanted(reply, { ...state, mutes: { ...none, pubkeys: [AUTHOR] } })).toBe(false);
+    expect(isWanted(reply, { ...state, mutes: { ...none, threads: [TARGET] } })).toBe(false);
+    expect(isWanted(reply, { ...state, mutes: { ...none, hashtags: ['airdrop'] } })).toBe(false);
+    expect(isWanted(reply, { ...state, mutes: { ...none, words: ['claim'] } })).toBe(false);
+
+    // "Don't filter people I follow" spares a follow's hashtags and words, never a muted thread.
+    const exempt = { ...none, exemptFollows: true };
+    expect(isWanted(reply, { ...state, mutes: { ...exempt, words: ['claim'] } })).toBe(true);
+    expect(isWanted(reply, { ...state, mutes: { ...exempt, threads: [TARGET] } })).toBe(false);
+  });
+
+  it('looks up the target of a reaction only when threads are muted', () => {
+    const none = { pubkeys: [], threads: [], hashtags: [], words: [], exemptFollows: false, profiles: false };
+    const reaction = event(7, [['p', USER], ['e', TARGET]]);
+    expect(mutedThreadTargetId(reaction, { pubkey: USER, mutes: none })).toBeUndefined();
+    expect(mutedThreadTargetId(reaction, { pubkey: USER, mutes: { ...none, threads: [AUTHOR] } })).toBe(TARGET);
+    expect(mutedThreadTargetId(event(1, [['p', USER], ['e', TARGET]]), { pubkey: USER, mutes: { ...none, threads: [AUTHOR] } })).toBeUndefined();
+
+    const reply = { ...event(1, [['e', AUTHOR, '', 'root']]), id: TARGET };
+    expect(isInMutedThread(reply, { pubkey: USER, mutes: { ...none, threads: [AUTHOR] } })).toBe(true);
+    expect(isInMutedThread(reply, { pubkey: USER, mutes: none })).toBe(false);
+  });
+
+  it('mutes an author whose profile has a muted word, only when asked to', () => {
+    const none = { pubkeys: [], threads: [], hashtags: [], words: ['airdrop'], exemptFollows: false, profiles: false };
+    const state = { pubkey: USER, subscriptions, follows: [] };
+    expect(isProfileMuted(AUTHOR, 'free airdrop daily', { ...state, mutes: none })).toBe(false);
+    expect(isProfileMuted(AUTHOR, 'free airdrop daily', { ...state, mutes: { ...none, profiles: true } })).toBe(true);
+    expect(isProfileMuted(AUTHOR, 'just a person', { ...state, mutes: { ...none, profiles: true } })).toBe(false);
+    expect(isProfileMuted(AUTHOR, undefined, { ...state, mutes: { ...none, profiles: true } })).toBe(false);
   });
 });

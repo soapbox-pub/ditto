@@ -34,6 +34,11 @@ import java.util.regex.Pattern;
  *    salad drawn from one shared vocabulary pool — the campaign that defeats
  *    shape clustering on purpose. Keys off the crowd (many authors, one shared
  *    word pool), not shape.
+ *  - PITCH: a single giveaway-phishing event — a link plus a lure word and an
+ *    ask.
+ *  - DISGUISE: a single linked event with {@link #DISGUISE_MIN_WORDS}+ words
+ *    that mix Latin letters with Cyrillic, Greek, Armenian or Cherokee
+ *    look-alikes.
  *  - A CONTAINMENT sweep that only WIDENS an already-confirmed flood.
  *
  * Because notifications arrive one at a time on the live socket, the caller
@@ -67,8 +72,45 @@ public final class FloodDetector {
     public static final int SALAD_MIN_WORDS = 6;
     /** Document frequency (over the distinct-author corpus) at/above which a word is "pool". */
     public static final int SALAD_POOL_DF = 3;
-    /** Fraction of a reply's distinct words that must be pool words to read as salad. */
+    /** Fraction of a reply's distinct content words that must be pool words to read as salad. */
     public static final double SALAD_POOL_FRACTION = 0.6;
+    /** Distinct non-function words a reply needs before SALAD will judge it. */
+    public static final int SALAD_MIN_CONTENT_WORDS = 4;
+    /** Mixed-script words a linked event needs before DISGUISE reads it as disguised. */
+    public static final int DISGUISE_MIN_WORDS = 2;
+    /** PITCH rule — words that name the bait of a giveaway-phishing event. */
+    public static final Set<String> PITCH_LURES = new HashSet<>(java.util.Arrays.asList(
+            "airdrop", "airdrops", "giveaway", "giveaways", "presale"));
+    /** PITCH rule — words that ask the reader to act on the bait. */
+    public static final Set<String> PITCH_ASKS = new HashSet<>(java.util.Arrays.asList(
+            "claim", "claiming", "claimable", "eligibility", "eligible", "wallet"));
+    /** Function words SALAD sets aside. Mirrors {@code STOPWORDS} in replyFlood.ts. */
+    public static final Set<String> STOPWORDS = new HashSet<>(java.util.Arrays.asList((
+            // English
+            "a about above after again against all also am an and any are as at be because been before being below between " +
+            "both but by can could d did do does doing don down during each even every few for from further get got go going " +
+            "had has have having he her here hers him his how i if in into is it its just know like ll m may me might mine more " +
+            "most must my no not now of off ok on once one only onto or other our out over own re really s same see shall she " +
+            "should so some still such t than that the their them then there these they think this those through to too under " +
+            "until up us ve very was way we well were what when where which while who whom whose why will with would yeah yes " +
+            "you your " +
+            // Spanish
+            "al algo algunas algunos ante antes como con contra cual cuando de del desde donde durante el ella ellos en entre " +
+            "era es esa eso esta estar estas este esto estos hay hasta la las le les lo los mi mis mucho muchos muy más nada " +
+            "ni no nos nosotros o otra otras otro otros para pero poco por porque que quien quienes qué se sin sobre su sus sí " +
+            "también tanto te ti todo todos tu tus tú un una uno unos y ya yo él " +
+            // Portuguese
+            "ao aos as da das dele deles depois do dos ela elas ele eles em essa essas esse esses está estão eu foi foram há " +
+            "isso já lhe mas meu meus minha minhas mesmo na nas nem no nossa nosso num numa não nós os ou pela pelas pelo " +
+            "pelos quando seja ser seu seus sua suas são tem tenho ter teu tua têm você vocês à às é " +
+            // German
+            "aber am an auch auf aus bei bin bis da das dass dem den der des dich die dir du durch ein eine einem einen einer " +
+            "er es für hat ich ihr im ist ja man mehr mich mir mit nach nicht noch nur oder sich sie sind so um und von vor " +
+            "war was wenn werden wie wir wird zu zum zur über " +
+            // French
+            "au aux avec c ce ces cet cette dans des du elle elles et il ils j je l les leur leurs ma mais me mes mon n ne " +
+            "nous on ou par pas plus pour qu qui sa ses son sur ta tes toi ton une vous où"
+    ).split(" ")));
     /** Document frequency above which a word is skipped when generating merge candidates. */
     private static final int DF_CAP = 64;
     /** Most candidate templates one template is compared against. */
@@ -91,6 +133,81 @@ public final class FloodDetector {
     private static final Pattern WORD =
             Pattern.compile("[\\p{L}][\\p{L}\\p{N}_]*");
 
+    /** Latin look-alikes as (look-alike, Latin) pairs. Mirrors replyFlood.ts. */
+    private static final String CONFUSABLE_PAIRS =
+            // Cyrillic
+            "\u0410A\u0412B\u0415E\u0405S\u0406I\u0408J\u041AK\u041CM\u041DH\u041EO" +
+            "\u0420P\u0421C\u0422T\u0425X\u0423Y\u04AEY\u051AQ\u051CW\u0500D\u0430a" +
+            "\u0432b\u0435e\u0455s\u0456i\u0458j\u043Ak\u043Cm\u043Dh\u043Eo\u0440p" +
+            "\u0441c\u0442t\u0445x\u0443y\u04AFy\u0501d\u04BBh\u051Bq\u051Dw" +
+            // Greek
+            "\u0391A\u0392B\u0395E\u0396Z\u0397H\u0399I\u039AK\u039CM\u039DN\u039FO" +
+            "\u03A1P\u03A4T\u03A5Y\u03A7X\u03B1a\u03B5e\u03B9i\u03BAk\u03BDv\u03BFo" +
+            "\u03C1p\u03C4t\u03C5u\u03C7x" +
+            // Armenian
+            "\u0555O\u0585o\u054DU\u057Du\u053CL\u0578n\u0570h\u0581g\u0566q" +
+            // Cherokee
+            "\u13AAA\u13F4B\u13DFC\u13A0D\u13ACE\u13C0G\u13BBH\u13A5i\u13ABJ\u13E6K" +
+            "\u13DEL\u13B7M\u13E2P\u13D2R\u13DAS\u13A2T\u13D9V\u13B3W\u13C3Z";
+    private static final Map<Character, Character> CONFUSABLES = new HashMap<>();
+    static {
+        for (int i = 0; i < CONFUSABLE_PAIRS.length(); i += 2) {
+            CONFUSABLES.put(CONFUSABLE_PAIRS.charAt(i), CONFUSABLE_PAIRS.charAt(i + 1));
+        }
+    }
+
+    private static boolean isLatin(char c) {
+        return (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a) || (c >= 0xc0 && c <= 0x24f);
+    }
+
+    /** Greek, Cyrillic, Armenian, and Cherokee: the scripts with Latin look-alikes. */
+    private static boolean isLookalikeScript(char c) {
+        return (c >= 0x370 && c <= 0x58f) || (c >= 0x13a0 && c <= 0x13ff) || (c >= 0xab70 && c <= 0xabbf);
+    }
+
+    /** Whether {@code word} spells itself in Latin and a look-alike script at once. */
+    public static boolean isMixedScript(String word) {
+        boolean latin = false;
+        boolean lookalike = false;
+        for (int i = 0; i < word.length(); i++) {
+            char c = word.charAt(i);
+            if (isLatin(c)) latin = true;
+            else if (isLookalikeScript(c)) lookalike = true;
+            if (latin && lookalike) return true;
+        }
+        return false;
+    }
+
+    /** {@code content} with every mixed-script word swapped back to the Latin it imitates. */
+    private static String foldConfusables(String content) {
+        Matcher m = WORD.matcher(content);
+        StringBuilder out = null;
+        int last = 0;
+        while (m.find()) {
+            String word = m.group();
+            if (!isMixedScript(word)) continue;
+            if (out == null) out = new StringBuilder(content.length());
+            out.append(content, last, m.start());
+            for (int i = 0; i < word.length(); i++) {
+                char c = word.charAt(i);
+                Character folded = CONFUSABLES.get(c);
+                out.append(folded != null ? folded : c);
+            }
+            last = m.end();
+        }
+        if (out == null) return content;
+        out.append(content, last, content.length());
+        return out.toString();
+    }
+
+    /** How many words of {@code content}, outside its links, are mixed-script. */
+    private static int countMixedScript(String content) {
+        Matcher m = WORD.matcher(URL_RUN.matcher(content).replaceAll(" "));
+        int count = 0;
+        while (m.find()) if (isMixedScript(m.group())) count++;
+        return count;
+    }
+
     /** One event for the detector: just the fields the rules read. */
     public static final class Event {
         public final String id;
@@ -110,7 +227,9 @@ public final class FloodDetector {
      * are collapsed.
      */
     public static String shapeKey(String content) {
-        String s = content.toLowerCase(Locale.ROOT);
+        // Folded before lowercasing: Cherokee look-alikes lowercase into a block
+        // that no longer matches the table.
+        String s = foldConfusables(content).toLowerCase(Locale.ROOT);
         s = INVISIBLE.matcher(s).replaceAll("");
         s = WHITESPACE.matcher(s).replaceAll(" ").trim();
         s = URL_RUN.matcher(s).replaceAll("@");
@@ -173,7 +292,26 @@ public final class FloodDetector {
      */
     public static Set<String> floodIds(List<Event> replies, String self, Set<String> follows) {
         Set<String> flagged = new HashSet<>();
-        if (replies.size() < ECHO_MIN_COPIES) return flagged;
+
+        // PITCH and DISGUISE: judged per event, so they run before the
+        // batch-size gate below.
+        for (Event ev : replies) {
+            String shape = shapeKey(ev.content);
+            if (shape.indexOf('@') < 0) continue;
+            if (countMixedScript(ev.content) >= DISGUISE_MIN_WORDS) {
+                flagged.add(ev.id);
+                continue;
+            }
+            boolean lure = false;
+            boolean ask = false;
+            for (String w : normalizeTokens(shape)) {
+                if (PITCH_LURES.contains(w)) lure = true;
+                if (PITCH_ASKS.contains(w)) ask = true;
+            }
+            if (lure && ask) flagged.add(ev.id);
+        }
+
+        if (replies.size() < ECHO_MIN_COPIES) return exempt(flagged, replies, self, follows);
 
         // Bucket by exact normalized shape. A reply with no words joins no bucket.
         Map<String, Bucket> byShape = new LinkedHashMap<>();
@@ -278,12 +416,13 @@ public final class FloodDetector {
         // substantial replies (one per pubkey), take the pool to be the words
         // recurring across SALAD_POOL_DF+ distinct authors, and flag replies
         // mostly built from that pool — but only when they span a big enough crowd.
+        // Both the pool and the score read content words only: function words
+        // recur across every author of any real discussion.
         Map<String, Set<String>> perAuthor = new HashMap<>();
         for (Event ev : replies) {
             if (perAuthor.containsKey(ev.pubkey)) continue;
-            List<String> words = normalizeTokens(shapeKey(ev.content));
-            if (words.size() < SALAD_MIN_WORDS) continue;
-            perAuthor.put(ev.pubkey, new HashSet<>(words));
+            Set<String> content = saladWords(ev);
+            if (content != null) perAuthor.put(ev.pubkey, content);
         }
         if (perAuthor.size() >= SALAD_MIN_AUTHORS) {
             Map<String, Integer> poolDf = new HashMap<>();
@@ -293,9 +432,8 @@ public final class FloodDetector {
             List<String> memberIds = new ArrayList<>();
             Set<String> memberAuthors = new HashSet<>();
             for (Event ev : replies) {
-                List<String> words = normalizeTokens(shapeKey(ev.content));
-                if (words.size() < SALAD_MIN_WORDS) continue;
-                Set<String> distinct = new HashSet<>(words);
+                Set<String> distinct = saladWords(ev);
+                if (distinct == null) continue;
                 int pool = 0;
                 for (String w : distinct) {
                     if (poolDf.getOrDefault(w, 0) >= SALAD_POOL_DF) pool++;
@@ -333,7 +471,11 @@ public final class FloodDetector {
             }
         }
 
-        // Trust exemption, applied LAST so it overrides every rule.
+        return exempt(flagged, replies, self, follows);
+    }
+
+    /** Trust exemption, applied LAST so it overrides every rule. */
+    private static Set<String> exempt(Set<String> flagged, List<Event> replies, String self, Set<String> follows) {
         if (!flagged.isEmpty() && (self != null || (follows != null && !follows.isEmpty()))) {
             for (Event ev : replies) {
                 if (ev.pubkey.equals(self) || (follows != null && follows.contains(ev.pubkey))) {
@@ -341,8 +483,19 @@ public final class FloodDetector {
                 }
             }
         }
-
         return flagged;
+    }
+
+    /**
+     * An event's distinct content words (function words set aside), or null when
+     * it is too short for SALAD to judge.
+     */
+    private static Set<String> saladWords(Event ev) {
+        List<String> words = normalizeTokens(shapeKey(ev.content));
+        if (words.size() < SALAD_MIN_WORDS) return null;
+        Set<String> content = new HashSet<>();
+        for (String w : words) if (!STOPWORDS.contains(w)) content.add(w);
+        return content.size() >= SALAD_MIN_CONTENT_WORDS ? content : null;
     }
 
     private static final class Campaign {

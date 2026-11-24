@@ -42,6 +42,9 @@ import type { NostrEvent } from '@nostrify/nostrify';
  *    shape entirely and keys off the crowd-level tell instead: many distinct
  *    authors whose replies are built mostly from the SAME recurring word pool.
  *    Honest conversation doesn't look like uniform draws from a fixed bag.
+ *    Function words ({@link STOPWORDS}) are left out of the pool: every
+ *    discussion big enough to judge shares `the`/`to`/`it`, and counting them
+ *    made ordinary chatty replies read as 60%+ pool.
  *  - PITCH: a single giveaway-phishing reply — a link plus a lure word
  *    ({@link PITCH_LURES}) and an ask ({@link PITCH_ASKS}). The crowd rules all
  *    need several copies in one batch, so a key that drops ONE copy into each
@@ -50,10 +53,18 @@ import type { NostrEvent } from '@nostrify/nostrify';
  *    a lone reply instead. It can be dodged by rewording and it will fold the
  *    occasional honest "claim the airdrop here" link, which is the price of
  *    judging one message alone.
+ *  - DISGUISE: a single linked reply with {@link DISGUISE_MIN_WORDS}+ words
+ *    that mix Latin letters with Cyrillic, Greek, Armenian or Cherokee look-
+ *    alikes (observed live: "LՕΟk aТ ᎢhiЅ: <link> ᎢiМᎬ iᏚ limiΤЕd!"). Spelling
+ *    a word in two scripts at once only serves to slip past word filters;
+ *    nobody types it, and a reader who writes in one of those scripts writes
+ *    whole words in it.
  *
  * ECHO and DENSITY cluster near-duplicates first (`shapeKey` normalization +
  * Jaccard similarity), so rotating the pitch's name or trailing nonce doesn't
- * split one campaign into a dozen innocent-looking singletons. SALAD is the
+ * split one campaign into a dozen innocent-looking singletons. `shapeKey` also
+ * folds a mixed-script word back to the Latin it imitates, so a disguised
+ * "AirdroΡ" still counts as the PITCH lure and clusters with its plain copies. SALAD is the
  * complement: it catches the campaign that defeats clustering ON PURPOSE by
  * making every copy uniquely shaped.
  *
@@ -153,6 +164,118 @@ export const PITCH_ASKS: ReadonlySet<string> = new Set([
   'claim', 'claiming', 'claimable', 'eligibility', 'eligible', 'wallet',
 ]);
 /**
+ * DISGUISE rule — mixed-script words a linked reply needs before it reads as
+ * disguised. One could be a typo or a pasted brand name; two is a pattern.
+ */
+export const DISGUISE_MIN_WORDS = 2;
+/**
+ * SALAD rule — distinct non-function words a reply needs before SALAD will
+ * judge it, on top of {@link SALAD_MIN_WORDS}. With the function words set
+ * aside, a reply that is mostly `the`/`it`/`is` has too little left to tell a
+ * pool draw from ordinary speech.
+ */
+export const SALAD_MIN_CONTENT_WORDS = 4;
+
+/**
+ * Function words in the languages Ditto's readers mostly write, set aside by
+ * SALAD. Contraction fragments (`t`, `s`, `ll`) are here because the word
+ * pattern splits `don't` into `don` and `t`. Mirrored by the native detectors.
+ */
+export const STOPWORDS: ReadonlySet<string> = new Set((
+  // English
+  'a about above after again against all also am an and any are as at be because been before being below between ' +
+  'both but by can could d did do does doing don down during each even every few for from further get got go going ' +
+  'had has have having he her here hers him his how i if in into is it its just know like ll m may me might mine more ' +
+  'most must my no not now of off ok on once one only onto or other our out over own re really s same see shall she ' +
+  'should so some still such t than that the their them then there these they think this those through to too under ' +
+  'until up us ve very was way we well were what when where which while who whom whose why will with would yeah yes ' +
+  'you your ' +
+  // Spanish
+  'al algo algunas algunos ante antes como con contra cual cuando de del desde donde durante el ella ellos en entre ' +
+  'era es esa eso esta estar estas este esto estos hay hasta la las le les lo los mi mis mucho muchos muy más nada ' +
+  'ni no nos nosotros o otra otras otro otros para pero poco por porque que quien quienes qué se sin sobre su sus sí ' +
+  'también tanto te ti todo todos tu tus tú un una uno unos y ya yo él ' +
+  // Portuguese
+  'ao aos as da das dele deles depois do dos ela elas ele eles em essa essas esse esses está estão eu foi foram há ' +
+  'isso já lhe mas meu meus minha minhas mesmo na nas nem no nossa nosso num numa não nós os ou pela pelas pelo ' +
+  'pelos quando seja ser seu seus sua suas são tem tenho ter teu tua têm você vocês à às é ' +
+  // German
+  'aber am an auch auf aus bei bin bis da das dass dem den der des dich die dir du durch ein eine einem einen einer ' +
+  'er es für hat ich ihr im ist ja man mehr mich mir mit nach nicht noch nur oder sich sie sind so um und von vor ' +
+  'war was wenn werden wie wir wird zu zum zur über ' +
+  // French
+  'au aux avec c ce ces cet cette dans des du elle elles et il ils j je l les leur leurs ma mais me mes mon n ne ' +
+  'nous on ou par pas plus pour qu qui sa ses son sur ta tes toi ton une vous où'
+).split(' '));
+
+/**
+ * Latin look-alikes from the scripts spam borrows to dodge word filters, as
+ * (look-alike, Latin) pairs. `shapeKey` swaps them back only inside a word that
+ * mixes scripts, so text written wholly in Cyrillic or Greek is left alone.
+ */
+const CONFUSABLE_PAIRS =
+  // Cyrillic
+  '\u0410A\u0412B\u0415E\u0405S\u0406I\u0408J\u041AK\u041CM\u041DH\u041EO' +
+  '\u0420P\u0421C\u0422T\u0425X\u0423Y\u04AEY\u051AQ\u051CW\u0500D\u0430a' +
+  '\u0432b\u0435e\u0455s\u0456i\u0458j\u043Ak\u043Cm\u043Dh\u043Eo\u0440p' +
+  '\u0441c\u0442t\u0445x\u0443y\u04AFy\u0501d\u04BBh\u051Bq\u051Dw' +
+  // Greek
+  '\u0391A\u0392B\u0395E\u0396Z\u0397H\u0399I\u039AK\u039CM\u039DN\u039FO' +
+  '\u03A1P\u03A4T\u03A5Y\u03A7X\u03B1a\u03B5e\u03B9i\u03BAk\u03BDv\u03BFo' +
+  '\u03C1p\u03C4t\u03C5u\u03C7x' +
+  // Armenian
+  '\u0555O\u0585o\u054DU\u057Du\u053CL\u0578n\u0570h\u0581g\u0566q' +
+  // Cherokee
+  '\u13AAA\u13F4B\u13DFC\u13A0D\u13ACE\u13C0G\u13BBH\u13A5i\u13ABJ\u13E6K' +
+  '\u13DEL\u13B7M\u13E2P\u13D2R\u13DAS\u13A2T\u13D9V\u13B3W\u13C3Z';
+
+const CONFUSABLES = new Map<string, string>();
+for (let i = 0; i < CONFUSABLE_PAIRS.length; i += 2) {
+  CONFUSABLES.set(CONFUSABLE_PAIRS[i], CONFUSABLE_PAIRS[i + 1]);
+}
+
+/** Basic Latin and Latin-1/Extended-A/B letters. */
+function isLatin(cp: number): boolean {
+  return (cp >= 0x41 && cp <= 0x5a) || (cp >= 0x61 && cp <= 0x7a) || (cp >= 0xc0 && cp <= 0x24f);
+}
+
+/** Greek, Cyrillic, Armenian, and Cherokee (both cases): the scripts with Latin look-alikes. */
+function isLookalikeScript(cp: number): boolean {
+  return (cp >= 0x370 && cp <= 0x58f) || (cp >= 0x13a0 && cp <= 0x13ff) || (cp >= 0xab70 && cp <= 0xabbf);
+}
+
+/** Whether `word` spells itself in Latin and a look-alike script at once. */
+export function isMixedScript(word: string): boolean {
+  let latin = false;
+  let lookalike = false;
+  for (let i = 0; i < word.length; i++) {
+    const cp = word.charCodeAt(i);
+    if (isLatin(cp)) latin = true;
+    else if (isLookalikeScript(cp)) lookalike = true;
+    if (latin && lookalike) return true;
+  }
+  return false;
+}
+
+/** `content` with every mixed-script word swapped back to the Latin it imitates. */
+function foldConfusables(content: string): string {
+  return content.replace(WORD, (word) => {
+    if (!isMixedScript(word)) return word;
+    let folded = '';
+    for (const ch of word) folded += CONFUSABLES.get(ch) ?? ch;
+    return folded;
+  });
+}
+
+/** How many words of `content`, outside its links, are mixed-script. */
+function countMixedScript(content: string): number {
+  let count = 0;
+  for (const word of content.replace(URL_RUN, ' ').match(WORD) ?? []) {
+    if (isMixedScript(word)) count++;
+  }
+  return count;
+}
+/**
  * Most candidate templates one template is compared against. A real campaign's
  * near-duplicates share far more words than this bound; it only bites on the
  * long tail of templates that share a stray word and were never going to clear
@@ -176,7 +299,9 @@ const WORD = /[\p{L}][\p{L}\p{N}_]*/gu;
  * name normalize to the same (or a near-identical) shape.
  */
 export function shapeKey(content: string): string {
-  return content
+  // Folded before lowercasing: Cherokee look-alikes lowercase into a block
+  // that no longer matches the table.
+  return foldConfusables(content)
     .toLowerCase()
     .replace(INVISIBLE, '')
     .replace(/\s+/g, ' ')
@@ -209,14 +334,14 @@ export function normalizeTokens(shape: string): string[] {
  * Keyed by id rather than object: the stream hands over fresh copies of the
  * same events, and an id is a hash over the content, so it can't go stale.
  */
-const shapeCache = new Map<string, { shape: string; words: string[] }>();
+const shapeCache = new Map<string, { shape: string; words: string[]; mixed: number }>();
 const SHAPE_CACHE_MAX = 5_000;
 
-function shapeOf(ev: NostrEvent): { shape: string; words: string[] } {
+function shapeOf(ev: NostrEvent): { shape: string; words: string[]; mixed: number } {
   let cached = shapeCache.get(ev.id);
   if (!cached) {
     const shape = shapeKey(ev.content);
-    cached = { shape, words: shape ? normalizeTokens(shape) : [] };
+    cached = { shape, words: shape ? normalizeTokens(shape) : [], mixed: countMixedScript(ev.content) };
     shapeCache.set(ev.id, cached);
     if (shapeCache.size > SHAPE_CACHE_MAX) {
       const oldest = shapeCache.keys().next().value;
@@ -260,6 +385,18 @@ function containment(a: Set<string>, b: Set<string>): number {
   return shared / small.size;
 }
 
+/**
+ * A reply's distinct content words (function words set aside), or undefined
+ * when it is too short for SALAD to judge.
+ */
+function saladWords(ev: NostrEvent): Set<string> | undefined {
+  const { words } = shapeOf(ev);
+  if (words.length < SALAD_MIN_WORDS) return undefined;
+  const content = new Set<string>();
+  for (const w of words) if (!STOPWORDS.has(w)) content.add(w);
+  return content.size >= SALAD_MIN_CONTENT_WORDS ? content : undefined;
+}
+
 export interface ReplyFloodOptions {
   /** The reading user's pubkey. Their own replies are never flagged. */
   self?: string;
@@ -277,11 +414,14 @@ export function replyFloodIds(
 ): Set<string> {
   const flagged = new Set<string>();
 
-  // PITCH: judged per reply, so it runs before the batch-size gate below.
+  // PITCH and DISGUISE: judged per reply, so they run before the batch-size
+  // gate below.
   for (const ev of replies) {
-    const { shape, words } = shapeOf(ev);
+    const { shape, words, mixed } = shapeOf(ev);
     if (!shape.includes('@')) continue;
-    if (words.some((w) => PITCH_LURES.has(w)) && words.some((w) => PITCH_ASKS.has(w))) {
+    if (mixed >= DISGUISE_MIN_WORDS) {
+      flagged.add(ev.id);
+    } else if (words.some((w) => PITCH_LURES.has(w)) && words.some((w) => PITCH_ASKS.has(w))) {
       flagged.add(ev.id);
     }
   }
@@ -411,12 +551,15 @@ export function replyFloodIds(
   // reply is a salad member when most of its distinct words come from that pool.
   // Fires only when the members span a large enough crowd to rule out a few
   // people genuinely echoing the thread's topic words.
+  //
+  // Both the pool and the score read content words only. Function words recur
+  // across every author of any real discussion, so with them in, a chatty
+  // reply in a busy inbox scored as a pool draw.
   const perAuthor = new Map<string, Set<string>>();
   for (const ev of replies) {
     if (perAuthor.has(ev.pubkey)) continue; // first substantial reply per author
-    const { words } = shapeOf(ev);
-    if (words.length < SALAD_MIN_WORDS) continue;
-    perAuthor.set(ev.pubkey, new Set(words));
+    const content = saladWords(ev);
+    if (content) perAuthor.set(ev.pubkey, content);
   }
   if (perAuthor.size >= SALAD_MIN_AUTHORS) {
     const poolDf = new Map<string, number>();
@@ -429,9 +572,8 @@ export function replyFloodIds(
     const members: { id: string; pubkey: string }[] = [];
     const memberAuthors = new Set<string>();
     for (const ev of replies) {
-      const { words } = shapeOf(ev);
-      if (words.length < SALAD_MIN_WORDS) continue;
-      const distinct = new Set(words);
+      const distinct = saladWords(ev);
+      if (!distinct) continue;
       let pool = 0;
       for (const w of distinct) if ((poolDf.get(w) ?? 0) >= SALAD_POOL_DF) pool++;
       if (pool / distinct.size >= SALAD_POOL_FRACTION) {

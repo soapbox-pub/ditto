@@ -6,7 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
 import { useProfileWordMutes } from '@/hooks/useProfileWordMutes';
-import { createMuteMatcher } from '@/lib/muteHelpers';
+import { createMuteMatcher, muteAuthor } from '@/lib/muteHelpers';
 
 export interface UseMuteFilterReturn {
   /** Raw mute list items (same as `useMuteList().muteItems`). */
@@ -20,6 +20,11 @@ export interface UseMuteFilterReturn {
    * an author whose loaded profile contains a muted word are hidden too.
    */
   isMuted: (event: NostrEvent) => boolean;
+  /**
+   * Whether `event` is a muted thread or a reply inside one — for checking
+   * the post a reaction, repost, or zap targets.
+   */
+  isInMutedThread: (event: NostrEvent) => boolean;
 }
 
 /**
@@ -55,11 +60,13 @@ export function useMuteFilter(): UseMuteFilterReturn {
 
   const isMuted = useCallback((event: NostrEvent): boolean => {
     if (muteItems.length === 0) return false;
-    const skipContentMutes = event.pubkey === selfPubkey ||
-      exemptPubkeys?.has(event.pubkey) === true;
+    // A zap is judged by its sender, not the wallet service that signed it.
+    const author = muteAuthor(event);
+    const skipContentMutes = author === selfPubkey ||
+      exemptPubkeys?.has(author) === true;
     if (matcher.isMuted(event, { skipContentMutes })) return true;
-    return !skipContentMutes && profileMutedAuthors.has(event.pubkey);
+    return !skipContentMutes && profileMutedAuthors.has(author);
   }, [muteItems, matcher, exemptPubkeys, selfPubkey, profileMutedAuthors]);
 
-  return { muteItems, isMuted };
+  return { muteItems, isMuted, isInMutedThread: matcher.inMutedThread };
 }

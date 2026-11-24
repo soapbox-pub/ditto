@@ -306,7 +306,7 @@ export function NotificationsPage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useNotifications();
-  const { isMuted } = useMuteFilter();
+  const { isMuted, isInMutedThread } = useMuteFilter();
   const { floodIds } = useNotificationFlood();
 
   const handleRefresh = useCallback(async () => {
@@ -348,8 +348,10 @@ export function NotificationsPage() {
 
   const filteredGroups = useMemo(() => {
     let filtered = groupedItems;
-    // Filter out notifications from muted users/content
+    // Filter out notifications from muted users/content, and reactions,
+    // reposts, and zaps on any post inside a muted thread.
     filtered = filtered.filter((group) =>
+      !(group.referencedEvent && isInMutedThread(group.referencedEvent)) &&
       group.actors.every((item) => !isMuted(item.event)),
     );
     if (activeTab === 'mentions') {
@@ -360,7 +362,7 @@ export function NotificationsPage() {
       });
     }
     return filtered;
-  }, [groupedItems, activeTab, isMuted, user]);
+  }, [groupedItems, activeTab, isMuted, isInMutedThread, user]);
 
   // Flood detection over every text notification currently loaded — one pitch
   // echoed by a crowd of pubkeys, and (the shape built to defeat that) a burst

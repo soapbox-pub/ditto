@@ -112,8 +112,8 @@ public class DittoNotificationPlugin extends Plugin {
      *
      * Also carries what the renderer needs beside the filters: the user (whose
      * own events are never shown), the follow set (the "only from people I
-     * follow" re-check, and the spam detectors' trust exemption), and the
-     * delivery style.
+     * follow" re-check, and the spam detectors' trust exemption), the mute
+     * list, and the delivery style.
      */
     @PluginMethod
     public void setSubscriptions(PluginCall call) {
@@ -121,6 +121,7 @@ public class DittoNotificationPlugin extends Plugin {
         String notificationStyle = call.getString("notificationStyle", "push");
         boolean onlyFollowing = Boolean.TRUE.equals(call.getBoolean("onlyFollowing", false));
 
+        JSObject mutes = call.getObject("mutes");
         JSONArray subscriptions = null;
         JSONArray follows = null;
         try {
@@ -140,6 +141,7 @@ public class DittoNotificationPlugin extends Plugin {
                     .putString("subscriptions", subscriptions.toString())
                     .putString("follows", follows != null ? follows.toString() : "[]")
                     .putBoolean("onlyFollowing", onlyFollowing)
+                    .putString("mutes", mutes != null ? mutes.toString() : null)
                     .putString("notificationStyle", notificationStyle)
                     .apply();
             Log.d(TAG, "Subscriptions set: pubkey=" + userPubkey.substring(0, 8) + "..., style=" + notificationStyle

@@ -10,6 +10,7 @@ import { matchFilters } from 'nostr-tools/filter';
 import { decode as nip19Decode, neventEncode } from 'nostr-tools/nip19';
 
 import { BADGE_DEFINITION_KIND, parseBadgeATag } from '@/lib/badgeUtils';
+import { createMuteMatcher, type MuteListItem } from '@/lib/muteHelpers';
 import { isNostrId } from '@/lib/nostrId';
 import { getReferencedETag } from '@/lib/notificationTarget';
 import type { PushWorkerLocale, PushWorkerState } from '@/lib/push/workerState';
@@ -283,12 +284,65 @@ export function isWanted(event: NostrEvent, state: Partial<PushWorkerState> | nu
 
   // A zap receipt is checked for its sender and its signer both, so muting a
   // wallet provider silences it too.
-  if (state.muted?.length && (state.muted.includes(author) || state.muted.includes(event.pubkey))) return false;
+  const mutedPubkeys = state.mutes?.pubkeys ?? state.muted;
+  if (mutedPubkeys?.length && (mutedPubkeys.includes(author) || mutedPubkeys.includes(event.pubkey))) return false;
+  if (state.mutes && createMuteMatcher(muteItemsOf(state.mutes)).isMuted(event, {
+    skipContentMutes: isMuteExempt(author, state),
+  })) return false;
 
   if (state.onlyFollowing && state.follows?.length) {
     return state.follows.includes(author);
   }
   return true;
+}
+
+/**
+ * Whether the author's profile contains a muted word, when the user asked for
+ * profiles to be checked — the in-app "Check profiles for muted words".
+ */
+export function isProfileMuted(
+  author: string,
+  profileText: string | null | undefined,
+  state: Partial<PushWorkerState> | null,
+): boolean {
+  const mutes = state?.mutes;
+  if (!mutes?.profiles || !mutes.words.length || !profileText) return false;
+  if (isMuteExempt(author, state)) return false;
+  return mutes.words.some((word) => word && profileText.includes(word.toLowerCase()));
+}
+
+/** Kinds that act on a post the user wrote, naming it in their last `e` tag. */
+const ACTS_ON_POST = new Set([6, 7, 16, 9735, 9802]);
+
+/**
+ * The id of the post `event` acts on, when the user has muted threads and it
+ * takes fetching that post to tell whether it sits in one of them. A reply
+ * already names its thread; a reaction, repost, or zap names only its target.
+ */
+export function mutedThreadTargetId(event: NostrEvent, state: Partial<PushWorkerState> | null): string | undefined {
+  if (!state?.mutes?.threads.length || !ACTS_ON_POST.has(event.kind)) return undefined;
+  const id = getReferencedETag(event)?.[1];
+  return isNostrId(id) ? id : undefined;
+}
+
+/** Whether `target`, the post a reaction, repost, or zap acts on, is in a muted thread. */
+export function isInMutedThread(target: NostrEvent, state: Partial<PushWorkerState> | null): boolean {
+  const threads = state?.mutes?.threads;
+  if (!threads?.length) return false;
+  return createMuteMatcher(threads.map((value): MuteListItem => ({ type: 'thread', value }))).inMutedThread(target);
+}
+
+/** Whether word, hashtag, and profile mutes pass over this author, as someone the user follows. */
+function isMuteExempt(author: string, state: Partial<PushWorkerState> | null): boolean {
+  return state?.mutes?.exemptFollows === true && state.follows?.includes(author) === true;
+}
+
+function muteItemsOf(mutes: NonNullable<PushWorkerState['mutes']>): MuteListItem[] {
+  return [
+    ...mutes.threads.map((value): MuteListItem => ({ type: 'thread', value })),
+    ...mutes.hashtags.map((value): MuteListItem => ({ type: 'hashtag', value })),
+    ...mutes.words.map((value): MuteListItem => ({ type: 'word', value })),
+  ];
 }
 
 // --- Action buttons ---

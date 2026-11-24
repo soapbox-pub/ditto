@@ -56,6 +56,7 @@ import { defineMessage, type IntlShape } from '@formatjs/intl';
 
 import { parseBadgeATag } from '@/lib/badgeUtils';
 import { isNostrId } from '@/lib/nostrId';
+import type { PushWorkerState } from '@/lib/push/workerState';
 import { isLocalNetworkUrl } from '@/lib/sanitizeUrl';
 import { receiveSharePost, SHARE_ACTION } from '@/lib/webShareInbox';
 import { isValidZapReceipt } from '@/lib/zapReceipt';
@@ -67,9 +68,12 @@ import { fetchEventById } from './relays';
 import {
   createNotificationIntl,
   eventIdPath,
+  isInMutedThread,
+  isProfileMuted,
   isWanted,
   MARK_READ_ACTION,
   mentionPubkeys,
+  mutedThreadTargetId,
   notificationActions,
   type NotificationButton,
   notificationAuthor,
@@ -160,7 +164,7 @@ async function showUnknownEventNotification(eventId: string, relays: string[]): 
   const body = intl.formatMessage(UNKNOWN_BODY);
   const isBurst = await recordAndCheckBurst(notificationShape(body));
   const state = await loadPushState();
-  const quiet = isBurst || !!state?.muted?.length || state?.onlyFollowing === true;
+  const quiet = isBurst || hasMutes(state) || state?.onlyFollowing === true;
 
   await show(title, {
     body,
@@ -176,6 +180,13 @@ async function showUnknownEventNotification(eventId: string, relays: string[]): 
     renotify: !quiet,
     silent: quiet,
   });
+}
+
+/** Whether the user has muted anyone or anything. */
+function hasMutes(state: Partial<PushWorkerState> | null): boolean {
+  const mutes = state?.mutes;
+  if (!mutes) return !!state?.muted?.length;
+  return mutes.pubkeys.length + mutes.threads.length + mutes.hashtags.length + mutes.words.length > 0;
 }
 
 /** Render and post a notification for one event handed over by the host. */
@@ -208,6 +219,16 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
   const state = await loadPushState();
   if (!isWanted(event, state)) return;
 
+  const targetId = mutedThreadTargetId(event, state);
+  if (targetId) {
+    const target = await fetchEventById(relays, targetId, (candidate) => {
+      const found = parseEvent(candidate);
+      return found?.id === targetId ? found : null;
+    });
+    // Not found: show it, as the in-app list does when the target won't load.
+    if (target && isInMutedThread(target, state)) return;
+  }
+
   const author = notificationAuthor(event);
   const mentioned = template.body === 'content' ? mentionPubkeys(event.content) : [];
   const [profile, mentionProfiles, intl] = await Promise.all([
@@ -216,6 +237,7 @@ async function handleNappPush(payload: NappPayload): Promise<void> {
     loadIntl(),
   ]);
   const mentionNames = new Map<string, string>();
+  if (isProfileMuted(author, profile.text, state)) return;
   for (const [pubkey, { name }] of mentionProfiles) {
     if (name) mentionNames.set(pubkey, name);
   }
