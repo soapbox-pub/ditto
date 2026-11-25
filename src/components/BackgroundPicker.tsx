@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ImagePlus, X, Loader2 } from 'lucide-react';
 import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 
@@ -117,7 +117,21 @@ export function BackgroundPicker({ value, onChange }: {
     });
   };
 
-  const surfaceOpacity = currentBg?.surfaceOpacity ?? DEFAULT_SURFACE_OPACITY;
+  // While dragging, preview through an inline --surface-opacity on <html>
+  // (it outranks the theme stylesheet's :root rule) and save once on release,
+  // rather than rewriting the theme config on every tick.
+  const [dragOpacity, setDragOpacity] = useState<number>();
+  const savedOpacity = currentBg?.surfaceOpacity;
+  const surfaceOpacity = dragOpacity ?? savedOpacity ?? DEFAULT_SURFACE_OPACITY;
+
+  useEffect(() => {
+    if (dragOpacity === undefined) return;
+    const root = document.documentElement.style;
+    root.setProperty('--surface-opacity', String(dragOpacity));
+    return () => {
+      root.removeProperty('--surface-opacity');
+    };
+  }, [dragOpacity]);
 
   return (
     <div className="space-y-2">
@@ -180,7 +194,11 @@ export function BackgroundPicker({ value, onChange }: {
               max={1}
               step={0.05}
               value={[surfaceOpacity]}
-              onValueChange={([v]) => updateBackground({ surfaceOpacity: v })}
+              onValueChange={([v]) => setDragOpacity(v)}
+              onValueCommit={([v]) => {
+                setDragOpacity(undefined);
+                if (v !== savedOpacity) updateBackground({ surfaceOpacity: v });
+              }}
             />
           </div>
         </div>
