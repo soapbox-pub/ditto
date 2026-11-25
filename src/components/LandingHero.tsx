@@ -1,14 +1,13 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { FormattedMessage, useIntl } from 'react-intl';
 
 import { DittoLogo } from '@/components/DittoLogo';
-import { ThumbnailImage } from '@/components/ThumbnailImage';
+import { ThemeCard } from '@/components/ThemeSelector';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { themePresets, coreToTokens, type CoreThemeColors } from '@/themes';
+import { themePresets, coreToTokens, resolveThemeConfig } from '@/themes';
 import { isSlideRender } from '@/lib/pushTransition';
 import { cn } from '@/lib/utils';
 
@@ -17,89 +16,163 @@ interface LandingHeroProps {
   onSignupClick: () => void;
 }
 
-/** Converts an HSL token string like "258 70% 60%" to a CSS hsl() value. */
-function hsl(value: string): string {
-  return `hsl(${value})`;
-}
+/** Pixels per second the theme strip pans on its own. */
+const PAN_SPEED = 20;
 
-/** A mini theme preview swatch that shows a visual taste of the theme's personality. */
-function ThemeSwatch({
-  colors,
-  label,
-  emoji,
-  backgroundUrl,
-  isActive,
-  onClick,
-}: {
-  colors: CoreThemeColors;
-  label: string;
-  emoji: string;
-  backgroundUrl?: string;
-  isActive: boolean;
-  onClick: () => void;
-}) {
-  const tokens = useMemo(() => coreToTokens(colors), [colors]);
+/** Pointer travel past which a press counts as a drag rather than a click. */
+const DRAG_THRESHOLD = 4;
+
+const EDGE_FADE = 'linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent)';
+
+/**
+ * A strip that pans slowly and loops. The items are rendered twice so the
+ * track can wrap at half its width without a visible jump. Hover or focus
+ * pauses it, it can be dragged (with momentum), and with reduced motion it
+ * sits still as a plain horizontal scroll.
+ */
+function ThemeMarquee({ items }: { items: { key: string; node: ReactNode }[] }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offset = useRef(0);
+  const paused = useRef(false);
+  const drag = useRef({ active: false, pointerId: -1, startX: 0, startOffset: 0, lastX: 0, lastTime: 0, velocity: 0, travel: 0 });
+  const momentumRaf = useRef(0);
+  const [reduceMotion, setReduceMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduceMotion(mq.matches);
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  /** Moves the track, keeping the offset within one copy of the items so the loop stays seamless. */
+  const place = useCallback((value: number) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const half = track.scrollWidth / 2;
+    if (half > 0 && -value >= half) value += half;
+    if (half > 0 && value > 0) value -= half;
+    offset.current = value;
+    track.style.transform = `translate3d(${value}px, 0, 0)`;
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    let last = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const dt = (now - last) / 1000;
+      last = now;
+      if (!paused.current) place(offset.current - PAN_SPEED * dt);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      cancelAnimationFrame(momentumRaf.current);
+    };
+  }, [reduceMotion, place]);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (reduceMotion || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    cancelAnimationFrame(momentumRaf.current);
+    paused.current = true;
+    drag.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startOffset: offset.current,
+      lastX: e.clientX,
+      lastTime: performance.now(),
+      velocity: 0,
+      travel: 0,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d.active) return;
+    // Capture only once it's a real drag: capturing on pointerdown would
+    // retarget the click away from the card under the pointer.
+    if (d.travel <= DRAG_THRESHOLD && Math.abs(e.clientX - d.startX) > DRAG_THRESHOLD) {
+      viewportRef.current?.setPointerCapture(d.pointerId);
+    }
+    place(d.startOffset + e.clientX - d.startX);
+    d.travel += Math.abs(e.clientX - d.lastX);
+    const now = performance.now();
+    if (now > d.lastTime) d.velocity = ((e.clientX - d.lastX) / (now - d.lastTime)) * 1000;
+    d.lastX = e.clientX;
+    d.lastTime = now;
+  };
+
+  const handlePointerUp = () => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    // The click fires right after pointerup and still needs to see the travel.
+    requestAnimationFrame(() => { drag.current.travel = 0; });
+
+    let v = drag.current.velocity;
+    const coast = () => {
+      v *= 0.92;
+      if (Math.abs(v) < 1) {
+        paused.current = viewportRef.current?.matches(':hover, :focus-within') ?? false;
+        return;
+      }
+      place(offset.current + v / 60);
+      momentumRaf.current = requestAnimationFrame(coast);
+    };
+    momentumRaf.current = requestAnimationFrame(coast);
+  };
+
+  const handlePointerCancel = () => {
+    drag.current.active = false;
+    paused.current = false;
+    cancelAnimationFrame(momentumRaf.current);
+  };
 
   return (
-    <button
-      onClick={onClick}
+    <div
+      ref={viewportRef}
       className={cn(
-        'group flex-shrink-0 rounded-xl border-2 p-1 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        isActive
-          ? 'border-primary shadow-md scale-[1.02]'
-          : 'border-border/50 hover:border-primary/40 hover:shadow-sm',
+        'select-none',
+        reduceMotion ? 'overflow-x-auto scrollbar-none' : 'overflow-hidden cursor-grab active:cursor-grabbing',
       )}
+      style={{ maskImage: EDGE_FADE, WebkitMaskImage: EDGE_FADE, touchAction: reduceMotion ? undefined : 'pan-y' }}
+      onMouseEnter={() => { if (!drag.current.active) paused.current = true; }}
+      onMouseLeave={() => { if (!drag.current.active) paused.current = false; }}
+      onFocusCapture={() => { paused.current = true; }}
+      onBlurCapture={() => { if (!drag.current.active) paused.current = false; }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onClickCapture={(e) => {
+        if (drag.current.travel > DRAG_THRESHOLD) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      onDragStart={(e) => e.preventDefault()}
     >
-      {/* Mini preview */}
-      <div
-        className="w-[88px] aspect-[4/3] rounded-lg overflow-hidden relative"
-        style={{ backgroundColor: hsl(tokens.background) }}
-      >
-        {backgroundUrl && (
-          <ThumbnailImage
-            src={backgroundUrl}
-            alt=""
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover opacity-40"
-            decoding="async"
-          />
-        )}
-        {/* Content area */}
-        <div className="p-1.5 pt-2.5 space-y-0.5 relative">
-          <div
-            className="h-0.5 w-3/4 rounded-full"
-            style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.5 }}
-          />
-          <div
-            className="h-0.5 w-1/2 rounded-full"
-            style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.3 }}
-          />
-          <div className="pt-0.5">
-            <div
-              className="h-1.5 w-6 rounded-sm"
-              style={{ backgroundColor: hsl(tokens.primary) }}
-            />
+      <div ref={trackRef} className={cn('flex w-max py-1', reduceMotion ? 'pl-4' : 'will-change-transform')}>
+        {[0, 1].map((copy) => (copy === 1 && reduceMotion ? null : (
+          // The second copy only exists for the loop, so it's hidden from assistive tech and focus.
+          <div key={copy} className="flex gap-2 pr-2" inert={copy === 1}>
+            {items.map((item) => (
+              <div key={item.key} className="w-32 flex-shrink-0">{item.node}</div>
+            ))}
           </div>
-        </div>
+        )))}
       </div>
-      {/* Label */}
-      <p className={cn(
-        'mt-1 text-[10px] font-medium text-center truncate transition-colors',
-        isActive ? 'text-foreground' : 'text-muted-foreground',
-      )}>
-        {emoji} {label}
-      </p>
-    </button>
+    </div>
   );
 }
 
 export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
   const intl = useIntl();
   const { config } = useAppContext();
-  const { theme, customTheme, applyCustomTheme, setTheme } = useTheme();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const { theme, customTheme, themes, applyCustomTheme, setTheme } = useTheme();
   // Fades in on arrival, not when coming back to it (a swipe back already showed it).
   const [fade] = useState(() => !isSlideRender() && 'landing-hero-fade');
 
@@ -111,6 +184,11 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
     [],
   );
 
+  const systemTokens = useMemo(() => ({
+    light: coreToTokens(resolveThemeConfig('light', themes).colors),
+    dark: coreToTokens(resolveThemeConfig('dark', themes).colors),
+  }), [themes]);
+
   // Check which preset is active
   const activePresetId = useMemo(() => {
     if (theme !== 'custom' || !customTheme) return null;
@@ -121,19 +199,37 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
     return null;
   }, [theme, customTheme]);
 
-  const updateScrollButtons = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  };
-
-  const scroll = (direction: 'left' | 'right') => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const amount = el.clientWidth * 0.6;
-    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' });
-  };
+  const themeItems = [
+    ...featuredPresets.map(([id, preset]) => ({
+      key: id,
+      node: (
+        <ThemeCard
+          tokens={coreToTokens(preset.colors)}
+          backgroundUrl={preset.background?.url}
+          label={intl.formatMessage(preset.label)}
+          isActive={activePresetId === id}
+          onSelect={() => applyCustomTheme({
+            colors: preset.colors,
+            font: preset.font,
+            titleFont: preset.titleFont,
+            background: preset.background,
+          })}
+        />
+      ),
+    })),
+    {
+      key: 'system',
+      node: (
+        <ThemeCard
+          tokens={systemTokens.light}
+          darkTokens={systemTokens.dark}
+          label={intl.formatMessage({ id: 'landingHero.defaultTheme', defaultMessage: 'Default' })}
+          isActive={theme === 'system'}
+          onSelect={() => setTheme('system')}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="landing-hero">
@@ -148,7 +244,7 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
             {config.appName}
           </h1>
           <p className="text-muted-foreground text-sm sidebar:text-base max-w-xs mx-auto leading-relaxed">
-            <FormattedMessage id="landingHero.tagline" defaultMessage="Your content. Your vibe. Your rules." />
+            <FormattedMessage id="landingHero.tagline" defaultMessage="Your content. Your vibe. Your rules." />
           </p>
         </div>
 
@@ -179,77 +275,11 @@ export function LandingHero({ onLoginClick, onSignupClick }: LandingHeroProps) {
           </Link>
         </div>
 
-        {/* Scrollable theme strip */}
-        <div className="relative group/scroll">
-          {/* Left arrow */}
-          {canScrollLeft && (
-            <button
-              onClick={() => scroll('left')}
-              className="absolute left-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-              aria-label={intl.formatMessage({ id: 'landingHero.scrollLeft', defaultMessage: 'Scroll left' })}
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-          )}
-
-          <div
-            ref={scrollRef}
-            onScroll={updateScrollButtons}
-            className="flex gap-2 px-4 overflow-x-auto scrollbar-none scroll-smooth"
-          >
-            {featuredPresets.map(([id, preset]) => (
-              <ThemeSwatch
-                key={id}
-                colors={preset.colors}
-                label={intl.formatMessage(preset.label)}
-                emoji={preset.emoji}
-                backgroundUrl={preset.background?.url}
-                isActive={activePresetId === id}
-                onClick={() => applyCustomTheme({
-                  colors: preset.colors,
-                  font: preset.font,
-                  background: preset.background,
-                })}
-              />
-            ))}
-
-            {/* Reset to default */}
-            <button
-              onClick={() => setTheme('system')}
-              className={cn(
-                'flex-shrink-0 rounded-xl border-2 p-1 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                theme === 'system'
-                  ? 'border-primary shadow-md scale-[1.02]'
-                  : 'border-border/50 hover:border-primary/40 hover:shadow-sm',
-              )}
-            >
-              <div className="w-[88px] aspect-[4/3] rounded-lg overflow-hidden relative bg-gradient-to-br from-background to-muted flex items-center justify-center">
-                <span className="text-lg">🔄</span>
-              </div>
-              <p className={cn(
-                'mt-1 text-[10px] font-medium text-center truncate transition-colors',
-                theme === 'system' ? 'text-foreground' : 'text-muted-foreground',
-              )}>
-                <FormattedMessage id="landingHero.defaultTheme" defaultMessage="Default" />
-              </p>
-            </button>
-          </div>
-
-          {/* Right arrow */}
-          {canScrollRight && (
-            <button
-              onClick={() => scroll('right')}
-              className="absolute right-1 top-1/2 -translate-y-1/2 z-10 size-7 rounded-full bg-background/90 border border-border shadow-sm flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity"
-              aria-label={intl.formatMessage({ id: 'landingHero.scrollRight', defaultMessage: 'Scroll right' })}
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          )}
-        </div>
+        <ThemeMarquee items={themeItems} />
       </div>
 
       {/* ── Divider into feed ── */}
-      <div className="border-b border-border" />
+      <div className="border-b border-border-subtle" />
     </div>
   );
 }

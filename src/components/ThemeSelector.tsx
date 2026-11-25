@@ -130,7 +130,7 @@ function ThemeCardArt({ tokens, backgroundUrl, className }: { tokens: ThemeToken
         <div className="h-2 w-3/4 rounded-full" style={{ backgroundColor: hsl(tokens.foreground), opacity: 0.6 }} />
         <div className="h-2 w-1/2 rounded-full" style={{ backgroundColor: hsl(tokens.mutedForeground), opacity: 0.4 }} />
         <div className="pt-1">
-          <div className="h-4 w-1/3 rounded-sm" style={{ backgroundColor: hsl(tokens.primary) }} />
+          <div className="h-4 w-1/3 min-w-8 rounded-sm" style={{ backgroundColor: hsl(tokens.primary) }} />
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@ function ThemeCardArt({ tokens, backgroundUrl, className }: { tokens: ThemeToken
  * A theme option on the Themes page, styled like the theme cards in the feed:
  * a mockup in the theme's colors over a title bar in the theme's card color.
  */
-function ThemeCard({
+export function ThemeCard({
   tokens,
   darkTokens,
   backgroundUrl,
