@@ -73,7 +73,7 @@ export function WidgetCard({
   return (
     <div
       className={cn(
-        'group/widget flex flex-col min-h-0 bg-background/85 rounded-2xl overflow-hidden transition-shadow',
+        'group/widget flex flex-col min-h-0 bg-surface rounded-2xl overflow-hidden transition-shadow',
         isDragging && 'shadow-lg ring-1 ring-primary/20',
         resizing && 'select-none',
       )}

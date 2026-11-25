@@ -37,7 +37,7 @@ export function MobileTopBar({ onAvatarClick, hasSubHeader, titlePubkey, titleVi
     <header className="push-transition-top-bar sticky top-0 z-20 sidebar:hidden safe-area-top chrome-follow chrome-follow-top-bar">
       {/* Safe-area fill — only covers the padding zone above the content with a single layer of bg. */}
       <div
-        className="absolute top-0 left-0 right-0 bg-background/85"
+        className="absolute top-0 left-0 right-0 bg-surface"
         style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))' }}
       />
       {/* Relative wrapper so the background shape only covers the content area, not the safe-area padding above it. */}

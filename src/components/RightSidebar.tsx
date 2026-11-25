@@ -74,7 +74,7 @@ export function RightSidebar() {
   return (
     <aside className="w-1/4 max-w-[300px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto scrollbar-none py-3 px-4">
       {/* Trending Tags */}
-      <section className="mb-3 bg-background/85 rounded-2xl p-4">
+      <section className="mb-3 bg-surface rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.trends" defaultMessage="Trends" /></h2>
           <Link to="/trends" className="text-sm text-primary hover:underline"><FormattedMessage id="rightSidebar.viewAll" defaultMessage="View all" /></Link>
@@ -129,7 +129,7 @@ export function RightSidebar() {
       </section>
 
       {/* Hot Posts */}
-      <section className="mb-3 bg-background/85 rounded-2xl p-4">
+      <section className="mb-3 bg-surface rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.hotPosts" defaultMessage="Hot Posts" /></h2>
           <Link to="/trends" className="text-sm text-primary hover:underline"><FormattedMessage id="rightSidebar.more" defaultMessage="More" /></Link>
@@ -160,7 +160,7 @@ export function RightSidebar() {
       </section>
 
       {/* Latest Accounts */}
-      <section className="mb-3 bg-background/85 rounded-2xl p-4">
+      <section className="mb-3 bg-surface rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: 'var(--title-font-family, inherit)' }}><FormattedMessage id="rightSidebar.newAccounts" defaultMessage="New Accounts" /></h2>
         </div>

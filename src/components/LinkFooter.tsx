@@ -20,7 +20,7 @@ export function LinkFooter({ onNavigate }: LinkFooterProps) {
   const [bugReportOpen, setBugReportOpen] = useState(false);
 
   return (
-    <footer className="mt-auto pt-3 pb-3 sidebar:bg-background/85 sidebar:rounded-2xl sidebar:px-1.5 sidebar:py-2">
+    <footer className="mt-auto pt-3 pb-3 sidebar:bg-surface sidebar:rounded-2xl sidebar:px-1.5 sidebar:py-2">
       <nav className="flex items-center justify-center gap-0.5 flex-wrap" aria-label={intl.formatMessage({ id: 'linkFooter.ariaLabel', defaultMessage: 'Footer links' })}>
         <a
           href="https://about.ditto.pub"

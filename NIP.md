@@ -597,8 +597,10 @@ Format: `["bg", "url <url>", "mode <mode>", "m <mime-type>", ...]`
 | `m`         | Yes      | MIME type (e.g. `"image/jpeg"`, `"image/png"`, `"video/mp4"`)                            |
 | `dim`       | No       | Dimensions in pixels: `"<width>x<height>"` (e.g. `"1920x1080"`)                          |
 | `blurhash`  | No       | Blurhash placeholder string for progressive loading                                      |
+| `surface`   | No       | Opacity of the theme's background color on content panels drawn over the media, from `0` to `1` (e.g. `"0.6"`). Defaults to `0.85` |
 
 - At most one `bg` tag is allowed per event.
+- Clients MAY raise a low `surface` value to keep text readable.
 - Clients MAY choose not to render video backgrounds for performance or bandwidth reasons.
 - Unknown keys SHOULD be ignored for forward compatibility.
 

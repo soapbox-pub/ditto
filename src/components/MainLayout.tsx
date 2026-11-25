@@ -27,7 +27,7 @@ function PageSkeleton() {
     /* Main column placeholder — mirrors the Outlet wrapper's border + bg classes.
        No right-sidebar placeholder: the sidebar lives outside this Suspense
        boundary and stays mounted while page chunks load. */
-    <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border-subtle bg-background/85 sidebar:max-w-[600px] flex items-center justify-center">
+    <main className="flex-1 min-w-0 min-h-screen sidebar:border-l sidebar:border-r border-border-subtle bg-surface sidebar:max-w-[600px] flex items-center justify-center">
       <div className="relative w-10 h-10">
         <div className="absolute inset-0 rounded-full border-[2.5px] border-primary/20" />
         <div className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin" />
@@ -93,7 +93,7 @@ function MainLayoutInner() {
         {/* Without the top bar in flow above it, the column keeps the bar's
             padding but not the margin that pulls it up behind the bar. */}
         <div
-          className={cn("relative z-0 flex-1 min-w-0 bg-background/85", !hideTopBar && "-mt-mobile-bar")}
+          className={cn("relative z-0 flex-1 min-w-0 bg-surface", !hideTopBar && "-mt-mobile-bar")}
           style={hideTopBar ? undefined : { marginTop: 0 }}
         >
           <Suspense fallback={null}>
@@ -134,7 +134,7 @@ function MainLayoutInner() {
           <div
             ref={(el) => { centerColumnRef.current = el; setCenterColumnEl(el); }}
             data-push-source
-            className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border-subtle bg-background/85", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
+            className={cn("relative z-0 flex-1 min-w-0 sidebar:border-l sidebar:border-r border-border-subtle bg-surface", !hideTopBar && "-mt-mobile-bar", !noMaxWidth && "sidebar:max-w-[600px]", !noOverscroll && "pb-overscroll")}
           >
             <ErrorBoundary
               resetKeys={[location.pathname]}

@@ -41,7 +41,14 @@ export interface ThemeBackground {
   mimeType?: string;
   /** Blurhash placeholder for progressive loading */
   blurhash?: string;
+  /** Opacity (0–1) of the background color on content panels drawn over the media */
+  surfaceOpacity?: number;
 }
+
+/** Panel opacity over a background image when the theme doesn't set one. */
+export const DEFAULT_SURFACE_OPACITY = 0.85;
+/** Lowest panel opacity applied, so text stays readable over busy images. */
+export const MIN_SURFACE_OPACITY = 0.3;
 
 // ─── Source Attribution ───────────────────────────────────────────────
 
@@ -565,14 +572,20 @@ export function buildThemeCss(tokens: ThemeTokens): string {
  * `z-index: -1` in the root stacking context: above the canvas (html has no
  * background of its own, so body's color propagates there) and below all
  * page content.
+ *
+ * `surfaceOpacity` sets `--surface-opacity`, which the `bg-surface` panels
+ * drawn over the image read.
  */
-export function buildBackgroundCss(rawUrl: string, mode: ThemeBackground['mode'] = 'cover'): string {
+export function buildBackgroundCss(rawUrl: string, mode: ThemeBackground['mode'] = 'cover', surfaceOpacity?: number): string {
   const url = sanitizeUrl(rawUrl);
   if (!url) return '';
+  const surface = surfaceOpacity !== undefined && Number.isFinite(surfaceOpacity)
+    ? ` :root { --surface-opacity: ${Math.min(1, Math.max(MIN_SURFACE_OPACITY, surfaceOpacity))}; }`
+    : '';
   if (mode === 'tile') {
-    return `body { background-image: url("${url}"); background-repeat: repeat; background-size: auto; }`;
+    return `body { background-image: url("${url}"); background-repeat: repeat; background-size: auto; }${surface}`;
   }
-  return `body::before { content: ""; position: fixed; inset: 0; z-index: -2147483648; pointer-events: none; background-image: url("${url}"); background-size: cover; background-repeat: no-repeat; background-position: center; }`;
+  return `body::before { content: ""; position: fixed; inset: 0; z-index: -2147483648; pointer-events: none; background-image: url("${url}"); background-size: cover; background-repeat: no-repeat; background-position: center; }${surface}`;
 }
 
 /** Derive full ThemeTokens from CoreThemeColors */

@@ -277,6 +277,7 @@
   "backgroundPicker.mode.cover": "Füllen",
   "backgroundPicker.mode.tile": "Kacheln",
   "backgroundPicker.remove": "Hintergrund entfernen",
+  "backgroundPicker.surfaceOpacity": "Deckkraft der Flächen",
   "backgroundPicker.upload": "Bild hochladen",
   "backgroundPicker.uploadFailed.description": "Das Bild konnte nicht hochgeladen werden.",
   "backgroundPicker.uploadFailed.title": "Hochladen fehlgeschlagen",

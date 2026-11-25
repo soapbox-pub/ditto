@@ -63,6 +63,8 @@ export default {
 				ring: 'hsl(var(--ring))',
 				greentext: 'hsl(var(--greentext))',
 				background: 'hsl(var(--background))',
+				// Panels drawn over a theme background image; themes set the opacity.
+				surface: 'hsl(var(--background) / var(--surface-opacity, 0.85))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',

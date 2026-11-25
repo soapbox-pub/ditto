@@ -2040,7 +2040,7 @@ function ProfilePageInner() {
         bgEl.id = bgStyleId;
         document.head.appendChild(bgEl);
       }
-      bgEl.textContent = buildBackgroundCss(effectiveProfileBackground.url, effectiveProfileBackground.mode);
+      bgEl.textContent = buildBackgroundCss(effectiveProfileBackground.url, effectiveProfileBackground.mode, effectiveProfileBackground.surfaceOpacity);
     } else {
       // No profile background — remove any existing background style
       previousBgEl?.remove();
@@ -2085,7 +2085,7 @@ function ProfilePageInner() {
           document.head.appendChild(newBgEl);
           return newBgEl;
         })();
-        targetEl.textContent = buildBackgroundCss(ownBgUrl, ownActiveConfig?.background?.mode);
+        targetEl.textContent = buildBackgroundCss(ownBgUrl, ownActiveConfig?.background?.mode, ownActiveConfig?.background?.surfaceOpacity);
       } else {
         // Own theme has no background — remove the style element
         bgEl?.remove();

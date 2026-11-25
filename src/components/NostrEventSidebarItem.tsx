@@ -121,7 +121,7 @@ export function NostrEventSidebarItem({
   return (
     <div
       ref={setNodeRef}
-      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'opacity-40')}
+      className={cn('flex items-center rounded-full transition-colors relative bg-surface', isDragging && 'opacity-40')}
     >
       {editing && (
         <button

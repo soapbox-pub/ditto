@@ -249,6 +249,7 @@ function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined, 
   const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
   const bgUrl = activeConfig?.background?.url;
   const bgMode = activeConfig?.background?.mode ?? 'cover';
+  const bgSurfaceOpacity = activeConfig?.background?.surfaceOpacity;
 
   useEffect(() => {
     let style = document.getElementById(BG_STYLE_ID) as HTMLStyleElement | null;
@@ -264,12 +265,12 @@ function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined, 
       document.head.appendChild(style);
     }
 
-    style.textContent = buildBackgroundCss(bgUrl, bgMode);
+    style.textContent = buildBackgroundCss(bgUrl, bgMode, bgSurfaceOpacity);
 
     return () => {
       document.getElementById(BG_STYLE_ID)?.remove();
     };
-  }, [theme, bgUrl, bgMode]);
+  }, [theme, bgUrl, bgMode, bgSurfaceOpacity]);
 }
 
 /**

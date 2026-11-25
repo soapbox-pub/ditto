@@ -277,6 +277,7 @@
   "backgroundPicker.mode.cover": "全体に表示",
   "backgroundPicker.mode.tile": "タイル",
   "backgroundPicker.remove": "背景を削除",
+  "backgroundPicker.surfaceOpacity": "パネルの不透明度",
   "backgroundPicker.upload": "画像をアップロード",
   "backgroundPicker.uploadFailed.description": "画像をアップロードできませんでした。",
   "backgroundPicker.uploadFailed.title": "アップロードに失敗しました",

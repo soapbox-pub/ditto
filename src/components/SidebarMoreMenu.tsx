@@ -257,7 +257,7 @@ export function SidebarMoreMenu({
       <div className="flex flex-col gap-0.5">
         <DropdownMenu open={addMenuOpen} onOpenChange={(o) => { setAddMenuOpen(o); if (!o) setAddQuery(''); }}>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
+            <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-surface">
               <Plus className="size-4" />
               <span><FormattedMessage id="common.add" defaultMessage={"Add"} /></span>
             </button>
@@ -280,12 +280,12 @@ export function SidebarMoreMenu({
             {add.canScrollDown && <ScrollCaret direction="down" onMouseEnter={() => add.startScroll('down')} onMouseLeave={add.stopScroll} />}
           </DropdownMenuContent>
         </DropdownMenu>
-        <button onClick={onAddDivider} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85">
+        <button onClick={onAddDivider} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-surface">
           <SeparatorHorizontal className="size-4" />
           <span><FormattedMessage id="sidebar.addDivider" defaultMessage={"Add divider"} /></span>
         </button>
         {linkInput ? (
-          <div className="flex flex-col gap-1 px-4 py-2 bg-background/85 rounded-2xl">
+          <div className="flex flex-col gap-1 px-4 py-2 bg-surface rounded-2xl">
             <div className="flex items-center gap-2">
               <LinkIcon className="size-4 text-muted-foreground shrink-0" />
               <input
@@ -325,13 +325,13 @@ export function SidebarMoreMenu({
         ) : (
           <button
             onClick={() => setLinkInput(true)}
-            className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-background/85"
+            className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 bg-surface"
           >
             <LinkIcon className="size-4" />
             <span><FormattedMessage id="sidebar.addLink" defaultMessage={"Add link"} /></span>
           </button>
         )}
-        <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85">
+        <button onClick={onDoneEditing} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-surface">
           <Check className="size-4" />
           <span><FormattedMessage id="sidebar.doneEditing" defaultMessage={"Done editing"} /></span>
         </button>
@@ -342,7 +342,7 @@ export function SidebarMoreMenu({
   return (
     <DropdownMenu open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setQuery(''); }}>
       <DropdownMenuTrigger asChild>
-        <button ref={triggerRef} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
+        <button ref={triggerRef} className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-surface">
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           <span><FormattedMessage id="sidebar.more" defaultMessage={"More..."} /></span>
         </button>

@@ -1,14 +1,15 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { ImagePlus, X, Loader2 } from 'lucide-react';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 
 import { useTheme } from '@/hooks/useTheme';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { resizeImage } from '@/lib/resizeImage';
-import type { ThemeBackground } from '@/themes';
+import { DEFAULT_SURFACE_OPACITY, MIN_SURFACE_OPACITY, type ThemeBackground } from '@/themes';
 
 /**
  * Background image picker for theme customization.
@@ -28,6 +29,7 @@ export function BackgroundPicker({ value, onChange }: {
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const opacityLabelId = useId();
   const controlled = onChange !== undefined;
 
   const currentBg: ThemeBackground | undefined = controlled
@@ -101,19 +103,21 @@ export function BackgroundPicker({ value, onChange }: {
     });
   };
 
-  const handleModeChange = (mode: 'cover' | 'tile') => {
+  const updateBackground = (patch: Partial<ThemeBackground>) => {
     if (controlled) {
       if (!value) return;
-      onChange({ ...value, mode });
+      onChange({ ...value, ...patch });
       return;
     }
     if (!customTheme?.background) return;
     applyCustomTheme({
       ...customTheme,
-      background: { ...customTheme.background, mode },
+      background: { ...customTheme.background, ...patch },
       source: undefined,
     });
   };
+
+  const surfaceOpacity = currentBg?.surfaceOpacity ?? DEFAULT_SURFACE_OPACITY;
 
   return (
     <div className="space-y-2">
@@ -146,7 +150,7 @@ export function BackgroundPicker({ value, onChange }: {
             {(['cover', 'tile'] as const).map((mode) => (
               <button
                 key={mode}
-                onClick={() => handleModeChange(mode)}
+                onClick={() => updateBackground({ mode })}
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   (currentBg.mode ?? 'cover') === mode
@@ -159,6 +163,25 @@ export function BackgroundPicker({ value, onChange }: {
                   : <FormattedMessage id="backgroundPicker.mode.tile" defaultMessage="Tile" />}
               </button>
             ))}
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <label id={opacityLabelId}>
+                <FormattedMessage id="backgroundPicker.surfaceOpacity" defaultMessage="Panel opacity" />
+              </label>
+              <span className="tabular-nums">
+                <FormattedNumber value={surfaceOpacity} style="percent" />
+              </span>
+            </div>
+            <Slider
+              aria-labelledby={opacityLabelId}
+              min={MIN_SURFACE_OPACITY}
+              max={1}
+              step={0.05}
+              value={[surfaceOpacity]}
+              onValueChange={([v]) => updateBackground({ surfaceOpacity: v })}
+            />
           </div>
         </div>
       ) : (

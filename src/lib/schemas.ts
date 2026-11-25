@@ -81,6 +81,7 @@ export const ThemeBackgroundSchema = z.object({
   dimensions: z.string().optional(),
   mimeType: z.string().optional(),
   blurhash: z.string().optional(),
+  surfaceOpacity: z.number().min(0).max(1).optional(),
 });
 
 /** Zod schema for ThemeSource */

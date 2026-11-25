@@ -188,7 +188,7 @@ export function MobileBottomNav() {
           </div>
         </div>
         {/* Safe area fill — matches the arc's semi-transparent background */}
-        <div className="safe-area-bottom bg-background/85" />
+        <div className="safe-area-bottom bg-surface" />
       </nav>
     </>
   );

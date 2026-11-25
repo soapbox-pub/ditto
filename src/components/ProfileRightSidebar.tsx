@@ -628,7 +628,7 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
           Mirrored inline on the profile itself below `lg`, where the whole
           sidebar is hidden. */}
       {pubkey !== undefined && top8.length > 0 && (
-        <section className="mb-3 bg-background/85 rounded-2xl p-4">
+        <section className="mb-3 bg-surface rounded-2xl p-4">
           <h2 className="flex items-center gap-2 text-lg font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
             <Crown className="size-5 text-primary" aria-hidden />
             <Link
@@ -643,7 +643,7 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
       )}
 
       {/* Media Section — only shown when pubkey prop is provided */}
-      {pubkey !== undefined && <section className="mb-3 bg-background/85 rounded-2xl p-4">
+      {pubkey !== undefined && <section className="mb-3 bg-surface rounded-2xl p-4">
         <h2 className="text-lg font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
           <FormattedMessage id="profileSidebar.media" defaultMessage="Media" />
         </h2>
@@ -746,7 +746,7 @@ export function ProfileRightSidebar({ fields, pubkey, onMediaClick, className }:
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
-        <section className="mb-3 bg-background/85 rounded-2xl p-4">
+        <section className="mb-3 bg-surface rounded-2xl p-4">
           <h2 className="text-lg font-bold mb-3" style={{ fontFamily: 'var(--title-font-family, inherit)' }}>
             <FormattedMessage id="profileSidebar.profileFields" defaultMessage="Profile fields" />
           </h2>

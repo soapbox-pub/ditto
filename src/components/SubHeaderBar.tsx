@@ -288,7 +288,7 @@ export function SubHeaderBar({ children, className, innerClassName, noArc, pinne
             same translucent bg as the MobileTopBar, coming in as the top bar goes. */}
         {pinned && follow && stuck && (
           <div
-            className="absolute bottom-full left-0 right-0 bg-background/85 sidebar:hidden"
+            className="absolute bottom-full left-0 right-0 bg-surface sidebar:hidden"
             style={{ height: 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))', opacity: 'var(--chrome-hide, 0)' }}
           />
         )}

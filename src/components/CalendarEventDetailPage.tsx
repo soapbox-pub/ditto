@@ -292,12 +292,12 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
 
         {/* Date & Location — sidebar-style pills */}
         <div className="flex flex-col gap-0.5">
-          <div className="flex items-center gap-4 px-3 py-3 rounded-full bg-background/85">
+          <div className="flex items-center gap-4 px-3 py-3 rounded-full bg-surface">
             <Clock className="size-5 text-primary shrink-0" />
             <span className="text-sm">{dateStr}</span>
           </div>
           {location && (
-            <div className="flex items-center gap-4 px-3 py-3 rounded-full bg-background/85">
+            <div className="flex items-center gap-4 px-3 py-3 rounded-full bg-surface">
               <MapPin className="size-5 text-primary shrink-0" />
               <span className="text-sm">{location}</span>
             </div>
@@ -341,7 +341,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 px-3 py-3 rounded-full bg-background/85 hover:bg-secondary/60 transition-colors"
+                className="flex items-center gap-4 px-3 py-3 rounded-full bg-surface hover:bg-secondary/60 transition-colors"
               >
                 <LinkIcon className="size-5 text-primary shrink-0" />
                 <span className="text-sm truncate flex-1">{url.replace(/^https?:\/\//, '')}</span>
@@ -370,7 +370,7 @@ export function CalendarEventDetailPage({ event }: { event: NostrEvent }) {
 
         {/* RSVP section */}
         {showRSVP && (
-          <div className="rounded-[1.25rem] bg-background/85 p-4 space-y-3">
+          <div className="rounded-[1.25rem] bg-surface p-4 space-y-3">
             <h2 className="text-sm font-semibold px-1"><FormattedMessage id="calendarEvent.yourRsvp" defaultMessage="Your RSVP" /></h2>
 
             {myRsvp.status && !selectedStatus && (
