@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { DITTO_RELAYS } from '@/lib/appRelays';
+import { isWelcomeProfile, SAFE_SEARCH } from '@/lib/newcomerFilter';
+import { parseAuthorEvent } from '@/hooks/useAuthor';
+import { isWelcomeWork } from '@/hooks/useWelcomePeople';
 import { useIsScrollRestore } from '@/hooks/useIsScrollRestore';
 import { feedSnapshotOptions, usePersistFeedSnapshot } from '@/hooks/useFeedSnapshot';
 import type { FeedSnapshotRef } from '@/lib/feedSnapshot';
@@ -112,23 +115,58 @@ function fingerprint(items: string[]): string {
  * @param authors - Pubkeys whose content to include (from useCuratorNetwork).
  * @param enabled - Whether the query should run.
  * @param snapshot - Save the feed on the device and start from it on the next launch (home feed).
+ * @param newcomer - Screen it the way onboarding screens what it shows (logged out): no NSFW or
+ *   content-warned posts, only work onboarding would preview, by people with a welcoming profile.
  */
-export function useCuratedDittoFeed(authors: string[] | undefined, enabled: boolean, snapshot?: FeedSnapshotRef) {
+export function useCuratedDittoFeed(authors: string[] | undefined, enabled: boolean, snapshot?: FeedSnapshotRef, newcomer = false) {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
   // Up to thousands of authors: hash them once per list, not every render.
   const authorsKey = useMemo(() => (authors ? fingerprint(authors) : ''), [authors]);
   const isScrollRestore = useIsScrollRestore();
-  const queryKey = ['ditto-curated-feed', authorsKey];
+  const queryKey = ['ditto-curated-feed', authorsKey, newcomer];
 
   const query = useInfiniteQuery<CuratedPage, Error, InfiniteData<NostrEvent[], number | undefined>, readonly unknown[], number | undefined>({
     queryKey,
     queryFn: async ({ pageParam, signal }) => {
+      /** Keep what onboarding would show, by people onboarding would show. */
+      async function welcomeOnly(events: NostrEvent[]): Promise<NostrEvent[]> {
+        const works = events.filter(isWelcomeWork);
+        const pubkeys = [...new Set(works.map((e) => e.pubkey))];
+        if (!pubkeys.length) return [];
+        let profiles: NostrEvent[];
+        try {
+          profiles = await nostr.query(
+            [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+          );
+        } catch {
+          // Profiles can't be screened right now; the posts still were.
+          return works;
+        }
+        const newest = new Map<string, NostrEvent>();
+        for (const profile of profiles) {
+          const current = newest.get(profile.pubkey);
+          if (!current || profile.created_at > current.created_at) newest.set(profile.pubkey, profile);
+        }
+        const welcome = new Set<string>();
+        for (const [pubkey, profile] of newest) {
+          const author = parseAuthorEvent(profile);
+          // The cards would fetch these next. Logged out, there's no newer
+          // copy of anyone's profile on the device to prefer.
+          if (!queryClient.getQueryData(['author', pubkey])) queryClient.setQueryData(['author', pubkey], author);
+          if (isWelcomeProfile(author.metadata)) welcome.add(pubkey);
+        }
+        return works.filter((e) => welcome.has(e.pubkey));
+      }
+
       const until = pageParam;
+      const search = newcomer ? `${DISTINCT_AUTHOR} ${SAFE_SEARCH}` : DISTINCT_AUTHOR;
       const base: Record<string, unknown> = {
         kinds: CURATED_KINDS,
         authors,
         limit: PAGE_LIMIT,
-        search: DISTINCT_AUTHOR,
+        search,
       };
       if (until) base.until = until;
 
@@ -137,7 +175,7 @@ export function useCuratedDittoFeed(authors: string[] | undefined, enabled: bool
         ...WEBXDC_FILTER,
         authors,
         limit: PAGE_LIMIT,
-        search: DISTINCT_AUTHOR,
+        search,
       };
       if (until) webxdcFilter.until = until;
 
@@ -150,10 +188,11 @@ export function useCuratedDittoFeed(authors: string[] | undefined, enabled: bool
       // Events at exactly the cutoff second are kept and re-requested by the
       // next page (`until` is inclusive); Feed dedupes them by id.
       const cutoff = pageCutoff(events);
+      const kept = events
+        .filter((e) => cutoff === undefined || e.created_at >= cutoff)
+        .filter((e) => !isStaleBlobbiUpdate(e));
       return {
-        events: events
-          .filter((e) => cutoff === undefined || e.created_at >= cutoff)
-          .filter((e) => !isStaleBlobbiUpdate(e)),
+        events: newcomer ? await welcomeOnly(kept) : kept,
         nextUntil: cutoff,
       };
     },

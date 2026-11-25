@@ -46,7 +46,6 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostrStorage } from '@/hooks/useNostrStorage';
 import { toast } from '@/hooks/useToast';
 import {
-  isOffTopicProfile,
   MIN_PEOPLE,
   PEOPLE,
   useWelcomePeople,
@@ -62,6 +61,7 @@ import {
   type WelcomeTrack,
 } from '@/hooks/useWelcomePeople';
 import { getAvatarShape } from '@/lib/avatarShape';
+import { isWelcomeProfile } from '@/lib/newcomerFilter';
 import { fetchFreshEvent } from '@/lib/fetchFreshEvent';
 import { loadFont, sanitizeCssString } from '@/lib/fontLoader';
 import { profileName } from '@/lib/getDisplayName';
@@ -125,9 +125,7 @@ export function MeetPeopleStep({ onNext, onBack, expectedPubkey }: MeetPeopleSte
         people: (isFetched
           ? section.people.filter((p) => {
             if (p.pubkey === user?.pubkey) return false;
-            const m = authors?.get(p.pubkey)?.metadata;
-            if (!m?.picture || m.bot) return false;
-            return section.vetted || !isOffTopicProfile(`${m.name ?? ''} ${m.display_name ?? ''} ${m.about ?? ''}`);
+            return isWelcomeProfile(authors?.get(p.pubkey)?.metadata, section.vetted);
           })
           : section.people).slice(0, PEOPLE),
       }))

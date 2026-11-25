@@ -9,6 +9,7 @@ import { DITTO_RELAY, NGIT_RELAY } from '@/lib/appRelays';
 import { parseImetaEntries, type ImetaEntry } from '@/lib/imeta';
 import { parseMusicTrack, type ParsedMusicTrack } from '@/lib/musicHelpers';
 import { isNostrId } from '@/lib/nostrId';
+import { isHashtagStuffed, isOffTopicEvent, isSparseCollection, OFF_TOPIC, OFF_TOPIC_BUILD, SAFE_SEARCH } from '@/lib/newcomerFilter';
 import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { parseThemeDefinition, THEME_DEFINITION_KIND, type ThemeDefinition } from '@/lib/themeEvent';
 
@@ -35,14 +36,11 @@ const DITTO_KINDS = [2256, 3367, THEME_DEFINITION_KIND, 15683, 8211, 37516, 7516
 /** Kinds that make a good showcase on a card, most visual first. */
 const SHOWCASE_KINDS = [31124, 2256, 2473, 3367, 30030, 37516, 7516, THEME_DEFINITION_KIND];
 
-/** Enough emoji in a pack to show it off. */
-const MIN_PACK_EMOJI = 4;
-
 /** Whether a Ditto thing has something to show on its own, not just an icon standing in for it. */
 function showcaseable(thing: WelcomeDittoThing): boolean {
-  const { kind, tags } = thing.event;
+  const { kind } = thing.event;
   if (!SHOWCASE_KINDS.includes(kind)) return false;
-  if (kind === 30030) return tags.filter(([n]) => n === 'emoji').length >= MIN_PACK_EMOJI;
+  if (kind === 30030) return !isSparseCollection(thing.event);
   if (kind === 37516 || kind === 7516 || kind === THEME_DEFINITION_KIND) return !!thing.image;
   return true;
 }
@@ -69,26 +67,7 @@ export const MIN_PEOPLE = 4;
 /** Most pack members looked up. */
 const MEMBERS = 40;
 
-/** Shared NIP-50 terms: nothing NSFW or content-warned. */
-const SAFE = 'nsfw:false -tag:content-warning';
-const HOT = `sort:hot distinct:author ${SAFE}`;
-
-
-/**
- * Narrower rule for profiles (names, bios). Almost everyone here mentions
- * Nostr or freedom somewhere in their bio; only screen out the crypto and
- * politics accounts.
- */
-const OFF_TOPIC_PROFILE = /₿|🟠|bitch|fuck|patriarch|treasury|bitcoin|\bbtc\b|\bbch\b|\bsats\b|satoshi|crypto|\bhodl\b|plebs?\b|\bmaxi\b|\bfiat\b|digital cash|\bp2p cash|blockchain|\bweb3\b|\bnfts?\b|\bdefi\b|token|ethereum|\beth\b|solana|altcoin|\bdoge|politic|trump|maga|election/i;
-
-const OFF_TOPIC_BUILD = new RegExp(`${OFF_TOPIC_PROFILE.source}|lightning|wallet|\\bzaps?\\b|cashu|e-?cash|payments?|monero|lnurl|\\bnwc\\b|\\bdvm\\b|trading|exchange|\\bprice`, 'i');
-
-export function isOffTopicProfile(text: string): boolean {
-  return OFF_TOPIC_PROFILE.test(text);
-}
-
-/** Kept out of everything in this step: money, Nostr meta-talk, politics. */
-const OFF_TOPIC = /₿|bitcoin|\bbtc\b|\bsats?\b|freedom|collectiv|socialis|communis|tyrann|\btax|satan|satoshi|crypto|hodl|bitfest|plebs?\b|\bstack|lightning|\bzaps?\b|wallet|nostr|fiat|\$\d|politic|uspol|election|government|trump|\bwar\b|\bice\b|datacenter|dicks?\b|fuck|shit|bitch|\bass\b/i;
+const HOT = `sort:hot distinct:author ${SAFE_SEARCH}`;
 
 /** Webxdc uploads that are tools or tests, not things to play. */
 const NOT_A_GAME = /tester|counter|\bapi\b|\btest\b|demo|openttd/i;
@@ -228,19 +207,8 @@ function tagValue(event: NostrEvent, name: string): string | undefined {
   return event.tags.find(([n]) => n === name)?.[1];
 }
 
-function offTopic(event: NostrEvent): boolean {
-  return OFF_TOPIC.test(event.content) || event.tags.some(([n, v]) => (n === 't' || n === 'title') && OFF_TOPIC.test(v ?? ''));
-}
-
-/** Posts carrying this many hashtags are almost always bots, reposters or stock art. */
-const MAX_HASHTAGS = 8;
-
-function hashtagStuffed(event: NostrEvent): boolean {
-  return event.tags.filter(([n]) => n === 't').length > MAX_HASHTAGS;
-}
-
 function photoOf(event: NostrEvent): WelcomePhoto | undefined {
-  if ((event.kind !== 1 && event.kind !== 20) || offTopic(event) || hashtagStuffed(event)) return;
+  if ((event.kind !== 1 && event.kind !== 20) || isOffTopicEvent(event) || isHashtagStuffed(event)) return;
   const entry = parseImetaEntries(event.tags).find((e) => !e.encryption && (!e.mime || e.mime.startsWith('image/')));
   if (entry) return { event, image: entry };
   const url = sanitizeUrl(event.content.match(/https:\/\/\S+\.(?:jpe?g|png|webp)(?:\?\S*)?/i)?.[0]);
@@ -248,7 +216,7 @@ function photoOf(event: NostrEvent): WelcomePhoto | undefined {
 }
 
 function gameOf(event: NostrEvent): WelcomeGame | undefined {
-  if (event.kind !== 1063 || tagValue(event, 'm') !== WEBXDC_MIME || offTopic(event)) return;
+  if (event.kind !== 1063 || tagValue(event, 'm') !== WEBXDC_MIME || isOffTopicEvent(event)) return;
   const name = tagValue(event, 'alt')?.replace(/^Webxdc app:\s*/i, '').trim();
   const url = sanitizeUrl(tagValue(event, 'url'));
   const icon = sanitizeUrl(tagValue(event, 'image'));
@@ -307,7 +275,7 @@ function talkOf(event: NostrEvent): WelcomeTalk | undefined {
     if (!name || OFF_TOPIC_BUILD.test(`${name} ${description ?? ''}`)) return;
     return { event, text: description ? `${name} — ${description}` : name };
   }
-  if (event.kind !== 1 || hashtagStuffed(event) || event.tags.some(([n]) => n === 'e' || n === 'q')) return;
+  if (event.kind !== 1 || isHashtagStuffed(event) || event.tags.some(([n]) => n === 'e' || n === 'q')) return;
   if (OFF_TOPIC_BUILD.test(event.content)) return;
   const text = event.content
     .replace(/https?:\/\/\S+/g, '')
@@ -319,6 +287,30 @@ function talkOf(event: NostrEvent): WelcomeTalk | undefined {
 }
 
 const PARSERS = { talk: talkOf, ditto: dittoThingOf, themes: themeOf, photos: photoOf, game: gameOf, track: trackOf, cover: coverOf } as const;
+
+/**
+ * Whether onboarding would show this to a newcomer, by the same rules as its
+ * previews. Kinds it doesn't preview only need to be on topic, not stuffed
+ * with hashtags, and not a near-empty collection.
+ */
+export function isWelcomeWork(event: NostrEvent): boolean {
+  switch (event.kind) {
+    case 1:
+    case 20:
+      return !!photoOf(event);
+    case 1063:
+      return !!gameOf(event);
+    case THEME_DEFINITION_KIND:
+      return !!themeOf(event);
+    case TRACK_KIND:
+      return !!trackOf(event);
+  }
+  if (DITTO_KINDS.includes(event.kind)) {
+    const thing = dittoThingOf(event);
+    return !!thing && (!SHOWCASE_KINDS.includes(event.kind) || showcaseable(thing));
+  }
+  return !isOffTopicEvent(event) && !isHashtagStuffed(event) && !isSparseCollection(event);
+}
 
 /** A person's newest works of one type, or nothing if they have none. */
 function previewFor(events: NostrEvent[], type: PreviewType): WelcomePreview | undefined {
@@ -347,7 +339,7 @@ function byAuthor(events: NostrEvent[]): Map<string, NostrEvent[]> {
 
 /** NIP-50 search for an archetype's kinds: notes must carry media and not be replies. */
 function searchFor(a: Archetype, hot: boolean): string {
-  const base = hot ? HOT : SAFE;
+  const base = hot ? HOT : SAFE_SEARCH;
   if (a.preview === 'photos') return `${base} media:true -tag:e`;
   if (a.preview === 'talk') return `${base} -tag:e`;
   return base;
@@ -376,8 +368,8 @@ async function discover(nostr: Nostr, signal: AbortSignal): Promise<Discovery> {
   const opts = { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) };
   const ditto = nostr.relay(DITTO_RELAY).query([
     // Regulars: Ditto's own kinds, and posts made from Ditto, over the last month.
-    { kinds: DITTO_KINDS, since: now - 30 * DAY, limit: 1000, search: SAFE },
-    { kinds: [1, 20, 1111], since: now - 30 * DAY, limit: 1000, search: `client:${DITTO_CLIENT} ${SAFE}` },
+    { kinds: DITTO_KINDS, since: now - 30 * DAY, limit: 1000, search: SAFE_SEARCH },
+    { kinds: [1, 20, 1111], since: now - 30 * DAY, limit: 1000, search: `client:${DITTO_CLIENT} ${SAFE_SEARCH}` },
     { kinds: [FOLLOW_PACK_KIND], authors: [ARTISTS_PACK.author], limit: 30 },
     ...ARCHETYPES.filter((a) => !a.vetted).flatMap((a) => [
       filterFor(a, { since: now - (a.days ?? 7) * DAY, limit: 16, search: searchFor(a, true) }),

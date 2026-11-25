@@ -295,6 +295,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     curatedAuthors,
     useTopFeedForLoggedOut || !!useDittoTab,
     useDittoQuery ? snapshotRef : undefined,
+    useTopFeedForLoggedOut,
   );
 
   // Unify the two query shapes behind a single interface
@@ -411,6 +412,9 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
     const seen = new Set<string>();
 
     if (useDittoQuery) {
+      // Each page has one post per author, but a prolific author is back on
+      // every page. Logged out, show each author once across the whole feed.
+      const shownAuthors = new Set<string>();
       // Deduplicate and filter each page independently, then diversify
       // page-by-page so earlier pages never change when new pages arrive.
       const dedupedPages = (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
@@ -421,6 +425,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
               seen.add(event.id);
               if (shouldHideFeedEvent(event)) return false;
               if (isMuted(event)) return false;
+              if (useTopFeedForLoggedOut) {
+                if (shownAuthors.has(event.pubkey)) return false;
+                shownAuthors.add(event.pubkey);
+              }
               return true;
             })
             .map((event): FeedItem => ({ event, sortTimestamp: event.created_at })),
@@ -442,7 +450,7 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
         if (isMuted(item.event)) return false;
         return true;
       });
-  }, [rawData?.pages, isMuted, useDittoQuery]);
+  }, [rawData?.pages, isMuted, useDittoQuery, useTopFeedForLoggedOut]);
 
   // Retain the last non-empty list so a key change / background refetch /
   // settled-empty relay miss never flashes the empty state over a feed the
