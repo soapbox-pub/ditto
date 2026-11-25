@@ -116,6 +116,7 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
+import { ThemeSectionLabel } from '@/components/ThemeSectionLabel';
 import { PortalContainerProvider } from '@/hooks/usePortalContainer';
 import { formatNumber } from '@/lib/formatNumber';
 import { SubHeaderBar } from '@/components/SubHeaderBar';
@@ -3675,7 +3676,7 @@ function ProfilePageInner() {
 
         {/* Edit profile theme dialog — independent from app theme */}
         <Dialog open={editProfileThemeOpen} onOpenChange={setEditProfileThemeOpen}>
-          <DialogContent ref={editThemeContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
+          <DialogContent ref={editThemeContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-2xl p-0">
             <PortalContainerProvider value={editThemePortalContainer}>
             <div className="overflow-y-auto max-h-[85vh] p-6 space-y-4">
             <DialogHeader>
@@ -3687,22 +3688,27 @@ function ProfilePageInner() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-2">
+            <div className="space-y-6 py-2">
               {/* Colors */}
-              <div className="flex items-start justify-center gap-6">
-                {(['primary', 'text', 'background'] as const).map((key) => (
-                  <ColorPicker
-                    key={key}
-                    label={intl.formatMessage(THEME_COLOR_MESSAGES[key])}
-                    value={hslStringToHex(localProfileColors[key])}
-                    onChange={(hex) => {
-                      setLocalProfileColors((prev) => ({
-                        ...prev,
-                        [key]: hexToHslString(hex),
-                      }));
-                    }}
-                  />
-                ))}
+              <div className="space-y-3">
+                <ThemeSectionLabel icon={Palette}>
+                  <FormattedMessage id="themeEditor.colors" defaultMessage="Colors" />
+                </ThemeSectionLabel>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['primary', 'text', 'background'] as const).map((key) => (
+                    <ColorPicker
+                      key={key}
+                      label={intl.formatMessage(THEME_COLOR_MESSAGES[key])}
+                      value={hslStringToHex(localProfileColors[key])}
+                      onChange={(hex) => {
+                        setLocalProfileColors((prev) => ({
+                          ...prev,
+                          [key]: hexToHslString(hex),
+                        }));
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
 
               {/* Fonts (body + title) */}

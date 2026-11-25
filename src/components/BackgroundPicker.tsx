@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ImagePlus, X, Loader2 } from 'lucide-react';
+import { ImageIcon, ImagePlus, Loader2, Trash2 } from 'lucide-react';
 import { FormattedMessage, FormattedNumber, useIntl } from 'react-intl';
 
 import { useTheme } from '@/hooks/useTheme';
@@ -7,7 +7,9 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { ThemeSectionLabel } from '@/components/ThemeSectionLabel';
 import { cn } from '@/lib/utils';
+import { sanitizeUrl } from '@/lib/sanitizeUrl';
 import { resizeImage } from '@/lib/resizeImage';
 import { DEFAULT_SURFACE_OPACITY, MIN_SURFACE_OPACITY, type ThemeBackground } from '@/themes';
 
@@ -29,7 +31,7 @@ export function BackgroundPicker({ value, onChange }: {
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const opacityLabelId = useId();
+  const fitLabelId = useId();
   const controlled = onChange !== undefined;
 
   const currentBg: ThemeBackground | undefined = controlled
@@ -59,9 +61,11 @@ export function BackgroundPicker({ value, onChange }: {
 
       const bg: ThemeBackground = {
         url,
-        mode: 'cover',
+        // Replacing the image keeps the fit and panel opacity already chosen.
+        mode: currentBg?.mode ?? 'cover',
         mimeType: optimized.type,
         dimensions,
+        surfaceOpacity: currentBg?.surfaceOpacity,
       };
 
       if (controlled) {
@@ -133,87 +137,132 @@ export function BackgroundPicker({ value, onChange }: {
     };
   }, [dragOpacity]);
 
+  const mode = currentBg?.mode ?? 'cover';
+  const previewUrl = sanitizeUrl(currentBg?.url);
+  const previewStyle: React.CSSProperties | undefined = previewUrl
+    ? {
+      backgroundImage: `url("${previewUrl.replace(/["\\\n\r]/g, (c) => encodeURIComponent(c))}")`,
+      ...(mode === 'tile'
+        ? { backgroundRepeat: 'repeat', backgroundSize: 'auto' }
+        : { backgroundRepeat: 'no-repeat', backgroundSize: 'cover', backgroundPosition: 'center' }),
+    }
+    : undefined;
+
+  const overlayButton = 'size-8 rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-sm can-hover:bg-background';
+
   return (
-    <div className="space-y-2">
-      <span className="text-xs font-medium text-muted-foreground">
+    <div className="space-y-3">
+      <ThemeSectionLabel icon={ImageIcon}>
         <FormattedMessage id="backgroundPicker.label" defaultMessage="Background" />
-      </span>
+      </ThemeSectionLabel>
 
       {currentBg ? (
-        <div className="space-y-2">
-          <div className="relative rounded-lg overflow-hidden border border-border-subtle">
-            <img
-              src={currentBg.url}
-              alt={intl.formatMessage({ id: 'backgroundPicker.imageAlt', defaultMessage: 'Theme background' })}
-              className="w-full h-24 object-cover"
-              decoding="async"
-            />
-            <Button
-              variant="secondary"
-              size="icon"
-              className="absolute top-1.5 right-1.5 size-6 rounded-full bg-background/80 backdrop-blur-sm can-hover:bg-background"
-              onClick={handleRemove}
-              aria-label={intl.formatMessage({ id: 'backgroundPicker.remove', defaultMessage: 'Remove background' })}
+        <div className="space-y-3">
+          {/* The image with a sample panel at the chosen opacity, so the slider shows what it does */}
+          <div
+            role="img"
+            aria-label={intl.formatMessage({ id: 'backgroundPicker.imageAlt', defaultMessage: 'Theme background' })}
+            className="relative flex h-36 items-center justify-center overflow-hidden rounded-2xl border border-border-subtle bg-secondary"
+            style={previewStyle}
+          >
+            <div
+              aria-hidden
+              className="flex w-3/5 items-center gap-3 rounded-xl p-3 shadow-sm"
+              style={{ backgroundColor: `hsl(var(--background) / ${surfaceOpacity})` }}
             >
-              <X className="size-3.5" />
-            </Button>
-          </div>
+              <div className="size-8 shrink-0 rounded-full bg-primary" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-2 w-3/4 rounded-full bg-foreground/80" />
+                <div className="h-2 w-1/2 rounded-full bg-muted-foreground/60" />
+              </div>
+            </div>
 
-          {/* Mode toggle */}
-          <div className="flex gap-1 rounded-lg border border-border-subtle p-0.5 w-fit">
-            {(['cover', 'tile'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => updateBackground({ mode })}
-                className={cn(
-                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                  (currentBg.mode ?? 'cover') === mode
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
+            <div className="absolute right-2 top-2 flex gap-1.5">
+              <Button
+                variant="secondary"
+                size="icon"
+                className={overlayButton}
+                onClick={() => inputRef.current?.click()}
+                disabled={isUploading}
+                aria-label={intl.formatMessage({ id: 'backgroundPicker.replace', defaultMessage: 'Replace image' })}
               >
-                {mode === 'cover'
-                  ? <FormattedMessage id="backgroundPicker.mode.cover" defaultMessage="Cover" />
-                  : <FormattedMessage id="backgroundPicker.mode.tile" defaultMessage="Tile" />}
-              </button>
-            ))}
+                {isUploading ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className={cn(overlayButton, 'can-hover:text-destructive')}
+                onClick={handleRemove}
+                aria-label={intl.formatMessage({ id: 'backgroundPicker.remove', defaultMessage: 'Remove background' })}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <label id={opacityLabelId}>
-                <FormattedMessage id="backgroundPicker.surfaceOpacity" defaultMessage="Panel opacity" />
-              </label>
-              <span className="tabular-nums">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span id={fitLabelId} className="w-14 shrink-0 text-xs text-muted-foreground">
+                <FormattedMessage id="backgroundPicker.fit" defaultMessage="Fit" />
+              </span>
+              <div role="group" aria-labelledby={fitLabelId} className="inset-well inline-flex gap-1 p-1">
+                {(['cover', 'tile'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={mode === m}
+                    onClick={() => updateBackground({ mode: m })}
+                    className={cn(
+                      'rounded-md px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      mode === m
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {m === 'cover'
+                      ? <FormattedMessage id="backgroundPicker.mode.cover" defaultMessage="Cover" />
+                      : <FormattedMessage id="backgroundPicker.mode.tile" defaultMessage="Tile" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-14 shrink-0 text-xs text-muted-foreground">
+                <FormattedMessage id="backgroundPicker.panels" defaultMessage="Panels" />
+              </span>
+              <Slider
+                className="flex-1"
+                aria-label={intl.formatMessage({ id: 'backgroundPicker.surfaceOpacity', defaultMessage: 'Panel opacity' })}
+                min={MIN_SURFACE_OPACITY}
+                max={1}
+                step={0.05}
+                value={[surfaceOpacity]}
+                onValueChange={([v]) => setDragOpacity(v)}
+                onValueCommit={([v]) => {
+                  setDragOpacity(undefined);
+                  if (v !== savedOpacity) updateBackground({ surfaceOpacity: v });
+                }}
+              />
+              <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
                 <FormattedNumber value={surfaceOpacity} style="percent" />
               </span>
             </div>
-            <Slider
-              aria-labelledby={opacityLabelId}
-              min={MIN_SURFACE_OPACITY}
-              max={1}
-              step={0.05}
-              value={[surfaceOpacity]}
-              onValueChange={([v]) => setDragOpacity(v)}
-              onValueCommit={([v]) => {
-                setDragOpacity(undefined);
-                if (v !== savedOpacity) updateBackground({ surfaceOpacity: v });
-              }}
-            />
           </div>
         </div>
       ) : (
         <button
+          type="button"
           onClick={() => inputRef.current?.click()}
           disabled={isUploading}
-          className="w-full h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/40 transition-colors flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="flex h-36 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
         >
           {isUploading ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-5 animate-spin" />
           ) : (
             <>
-              <ImagePlus className="size-4" />
-              <span className="text-xs"><FormattedMessage id="backgroundPicker.upload" defaultMessage="Upload image" /></span>
+              <ImagePlus className="size-5" />
+              <span className="text-sm"><FormattedMessage id="backgroundPicker.upload" defaultMessage="Upload image" /></span>
             </>
           )}
         </button>

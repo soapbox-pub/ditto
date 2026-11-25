@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type RefCallback } from 'react';
-import { Check, Palette, Pencil, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw } from 'lucide-react';
+import { Check, Palette, Pencil, Plus, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw, Loader2 } from 'lucide-react';
 import { defineMessages, FormattedMessage, useIntl } from 'react-intl';
 import { builtinThemeLabels } from '@/lib/themeLabels';
 import { type Theme } from '@/contexts/AppContext';
@@ -13,6 +13,7 @@ import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type Core
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontSection } from '@/components/FontPicker';
+import { ThemeSectionLabel } from '@/components/ThemeSectionLabel';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { ThumbnailImage } from '@/components/ThumbnailImage';
 import { Button } from '@/components/ui/button';
@@ -928,7 +929,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
 
       {/* ── Builder Dialog ── */}
       <Dialog open={builderOpen ?? false} onOpenChange={handleBuilderOpenChange}>
-        <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-lg p-0">
+        <DialogContent ref={builderContentRef} className="w-[calc(100%-2rem)] max-w-md max-h-[85vh] overflow-visible rounded-2xl p-0">
           <PortalContainerProvider value={builderPortalContainer}>
           {hasChanges && (
             <button
@@ -974,17 +975,22 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-6 py-2">
             {/* Colors */}
-            <div className="flex items-start justify-center gap-6">
-              {CORE_KEYS.map((key) => (
-                <ColorPicker
-                  key={key}
-                  label={intl.formatMessage(COLOR_LABELS[key])}
-                  value={hslStringToHex(effectiveColors[key])}
-                  onChange={(hex) => handleColorChange(key, hex)}
-                />
-              ))}
+            <div className="space-y-3">
+              <ThemeSectionLabel icon={Palette}>
+                <FormattedMessage id="themeEditor.colors" defaultMessage="Colors" />
+              </ThemeSectionLabel>
+              <div className="grid grid-cols-3 gap-2">
+                {CORE_KEYS.map((key) => (
+                  <ColorPicker
+                    key={key}
+                    label={intl.formatMessage(COLOR_LABELS[key])}
+                    value={hslStringToHex(effectiveColors[key])}
+                    onChange={(hex) => handleColorChange(key, hex)}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Fonts (body + title) */}
@@ -1014,7 +1020,7 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
 
             {/* Auto-share toggle */}
             {user && (
-              <div className="rounded-xl border border-border-subtle bg-card p-4">
+              <div className="border-t border-border-subtle pt-5">
                 <div className="flex items-center justify-between gap-4">
                   <Label htmlFor="auto-share-theme-dialog" className="flex flex-col gap-1 cursor-pointer">
                     <span className="text-sm font-medium"><FormattedMessage id="themeSelector.syncWithProfile" defaultMessage="Sync with Profile" /></span>
@@ -1038,25 +1044,21 @@ export function ThemeSelector({ builderOpen, onBuilderOpenChange, builderMode = 
               <div className="flex flex-col gap-2">
                 {builderTheme && (
                   <Button
-                    variant="secondary"
-                    size="sm"
                     className="w-full"
                     onClick={handleUpdateTheme}
                     disabled={isPublishing}
                   >
-                    <Palette className="size-3.5 mr-1.5" />
+                    {isPublishing && <Loader2 className="size-4 animate-spin" />}
                     {isPublishing
                       ? <FormattedMessage id="themeSelector.updating" defaultMessage="Updating..." />
                       : <FormattedMessage id="themeSelector.updateTheme" defaultMessage='Update "{title}"' values={{ title: builderTheme.title }} />}
                   </Button>
                 )}
                 <Button
-                  variant={builderTheme ? 'outline' : 'default'}
-                  size="sm"
+                  variant={builderTheme ? 'ghost' : 'default'}
                   className="w-full"
                   onClick={handlePublishNew}
                 >
-                  <Palette className="size-3.5 mr-1.5" />
                   {builderTheme
                     ? <FormattedMessage id="themeSelector.saveAsNew" defaultMessage="Save as New Theme" />
                     : <FormattedMessage id="themeSelector.publishNew" defaultMessage="Publish New Theme" />}

@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ThemeSectionLabel } from '@/components/ThemeSectionLabel';
 import { bundledFonts, findBundledFont, loadBundledFont, resolveCssFamily, type FontCategory } from '@/lib/fonts';
 import { loadFont } from '@/lib/fontLoader';
 import type { ThemeFont } from '@/themes';
@@ -334,15 +335,14 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
 
   return (
     <div className="space-y-3">
-      <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-        <Type className="size-3.5" />
+      <ThemeSectionLabel icon={Type}>
         <FormattedMessage id="fontPicker.fonts" defaultMessage="Fonts" />
-      </span>
+      </ThemeSectionLabel>
 
       {/* Two-row picker layout */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground w-10 shrink-0">
+          <span className="text-xs text-muted-foreground w-14 shrink-0">
             <FormattedMessage id="fontPicker.title" defaultMessage="Title" />
           </span>
           <div className="flex-1">
@@ -350,7 +350,7 @@ export function FontSection({ bodyFont, onBodyFontChange, titleFont, onTitleFont
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground w-10 shrink-0">
+          <span className="text-xs text-muted-foreground w-14 shrink-0">
             <FormattedMessage id="fontPicker.body" defaultMessage="Body" />
           </span>
           <div className="flex-1">

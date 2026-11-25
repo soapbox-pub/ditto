@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -196,27 +195,21 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
         <button
           type="button"
           className={cn(
-            'group transition-colors',
-            'flex flex-col items-center gap-1.5',
-            'sidebar:flex-row sidebar:items-center sidebar:gap-2.5',
+            'group flex flex-col items-center gap-2 rounded-xl p-1 transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             disabled && 'opacity-50 cursor-not-allowed',
             className,
           )}
         >
-          {/* Color circle swatch */}
+          {/* Color circle swatch; the ring keeps it visible against a same-colored surface */}
           <div
-            className="relative size-12 rounded-full border-2 border-border shadow-sm cursor-pointer transition-all group-hover:scale-105 group-hover:shadow-md group-hover:border-foreground/20 shrink-0"
+            className="size-12 shrink-0 cursor-pointer rounded-full ring-1 ring-inset ring-foreground/15 transition-transform motion-safe:group-hover:scale-105 group-data-[state=open]:ring-2 group-data-[state=open]:ring-primary"
             style={{ backgroundColor: value }}
-          >
-            {/* Edit overlay */}
-            <div className="absolute inset-0 rounded-full flex items-center justify-center transition-colors">
-              <Pencil className="size-3.5 text-white drop-shadow-sm" />
-            </div>
-          </div>
+          />
           {label && (
             <div className="flex flex-col items-center gap-0.5">
               <span className="text-xs font-medium text-foreground">{label}</span>
-              <span className="text-[10px] text-muted-foreground font-mono uppercase">{value}</span>
+              <span className="font-mono text-xs uppercase text-muted-foreground">{value}</span>
             </div>
           )}
         </button>
