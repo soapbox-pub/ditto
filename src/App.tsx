@@ -215,7 +215,7 @@ const hardcodedConfig: AppConfig = {
   autoplayVideos: false,
   stripTrackingParams: true,
   imageQuality: 'compressed',
-  curatorPubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d',
+  curatorPubkey: '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5',
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   moneroNodes: [...DEFAULT_MONERO_NODE_URLS],
