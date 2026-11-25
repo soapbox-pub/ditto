@@ -11,6 +11,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
+import { toastPublishError } from '@/lib/publishErrorToast';
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { AnimatedCount } from '@/components/AnimatedCount';
 import { impactLight, impactMedium } from '@/lib/haptics';
@@ -157,12 +158,13 @@ export function ReactionButton({
             queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
           }, 3000);
         },
-        onError: () => {
+        onError: (error) => {
           queryClient.setQueryData(['user-reaction', eventId], prevReaction);
+          toastPublishError(intl, error);
         },
       },
     );
-  }, [user, nostr, eventId, eventPubkey, publishEvent, queryClient]);
+  }, [user, nostr, eventId, eventPubkey, publishEvent, queryClient, intl]);
 
   // Hover only for pointers that can hover. A first tap on Android WebView
   // emits emulated enter events before the click, so opening here would let
@@ -239,8 +241,9 @@ export function ReactionButton({
                   queryClient.invalidateQueries({ queryKey: ['user-reaction', eventId] });
                 }, 3000);
               },
-              onError: () => {
+              onError: (error) => {
                 queryClient.setQueryData(['user-reaction', eventId], null);
+                toastPublishError(intl, error);
               },
             },
           );

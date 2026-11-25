@@ -14,6 +14,7 @@ const EmojiPicker = lazy(() => import('@/components/EmojiPicker').then(m => ({ d
 import { isCustomEmoji } from '@/lib/customEmoji';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { rebroadcastEvent } from '@/lib/rebroadcastEvent';
+import { toastPublishError } from '@/lib/publishErrorToast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { useCustomEmojis } from '@/hooks/useCustomEmojis';
@@ -71,7 +72,7 @@ export function QuickReactMenu({
   const intl = useIntl();
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
-  const { mutate: publishEvent } = useNostrPublish();
+  const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
   const { trackEmojiUsage } = useEmojiUsage();
   const quickEmojis = useQuickReactions();
@@ -118,29 +119,26 @@ export function QuickReactMenu({
     ];
     if (emojiTag) tags.push(emojiTag);
 
-    // Publish kind 7 reaction
-    publishEvent(
-      {
-        kind: 7,
-        content: emoji,
-        created_at: Math.floor(Date.now() / 1000),
-        tags,
-      },
-      {
-        onSuccess: () => {
-          // Rebroadcast the original event alongside the reaction (best-effort).
-          if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
-          setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
-          }, 3000);
-        },
-        onError: () => {
-          setSelectedEmoji(null);
-          queryClient.removeQueries({ queryKey: ['user-reaction', eventId] });
-        },
-      },
-    );
-  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, onClose, onReacted]);
+    // Publish kind 7 reaction. Chained on the promise rather than passed to
+    // `mutate`, whose callbacks are skipped once this menu unmounts, and the
+    // popover closes above.
+    publishEvent({
+      kind: 7,
+      content: emoji,
+      created_at: Math.floor(Date.now() / 1000),
+      tags,
+    }).then(() => {
+      // Rebroadcast the original event alongside the reaction (best-effort).
+      if (reactedEvent) rebroadcastEvent(nostr, reactedEvent);
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+      }, 3000);
+    }).catch((error: unknown) => {
+      setSelectedEmoji(null);
+      queryClient.removeQueries({ queryKey: ['user-reaction', eventId] });
+      toastPublishError(intl, error);
+    });
+  }, [user, eventId, eventPubkey, eventKind, reactedEvent, nostr, onReact, publishEvent, queryClient, onClose, onReacted, intl]);
 
   /**
    * Handle selection from the quick buttons (native or custom emoji). Picks
