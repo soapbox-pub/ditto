@@ -59,6 +59,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
  *    a word in two scripts at once only serves to slip past word filters;
  *    nobody types it, and a reader who writes in one of those scripts writes
  *    whole words in it.
+ *  - HIDDEN TAG: a linked reply with a lure hashtag ({@link PITCH_LURES}) in
+ *    its `t` tags that its text never shows. Clients make `t` tags from the
+ *    hashtags people write, so a lure tag the reader can't see is there only
+ *    to put the pitch in hashtag feeds. Observed live on every reply of a
+ *    one-per-thread airdrop flood, about 7,000 an hour from throwaway keys,
+ *    including the copies whose only disguised word was an all-caps `EТH`,
+ *    which DISGUISE can't count as two.
  *
  * ECHO and DENSITY cluster near-duplicates first (`shapeKey` normalization +
  * Jaccard similarity), so rotating the pitch's name or trailing nonce doesn't
@@ -351,6 +358,22 @@ function shapeOf(ev: NostrEvent): { shape: string; words: string[]; mixed: numbe
   return cached;
 }
 
+/**
+ * Whether the event carries a lure hashtag ({@link PITCH_LURES}) in its `t`
+ * tags that its text doesn't show as `#tag`.
+ */
+function hasHiddenLure(ev: NostrEvent): boolean {
+  let content: string | undefined;
+  for (const tag of ev.tags) {
+    if (tag[0] !== 't' || typeof tag[1] !== 'string') continue;
+    const name = tag[1].toLowerCase();
+    if (!PITCH_LURES.has(name)) continue;
+    content ??= foldConfusables(ev.content).toLowerCase();
+    if (!new RegExp(`#${name}(?![\\p{L}\\p{N}_])`, 'u').test(content)) return true;
+  }
+  return false;
+}
+
 /** One template and every reply that shares it. */
 interface Bucket {
   words: Set<string>;
@@ -414,14 +437,16 @@ export function replyFloodIds(
 ): Set<string> {
   const flagged = new Set<string>();
 
-  // PITCH and DISGUISE: judged per reply, so they run before the batch-size
-  // gate below.
+  // PITCH, DISGUISE and HIDDEN TAG: judged per reply, so they run before the
+  // batch-size gate below.
   for (const ev of replies) {
     const { shape, words, mixed } = shapeOf(ev);
     if (!shape.includes('@')) continue;
     if (mixed >= DISGUISE_MIN_WORDS) {
       flagged.add(ev.id);
     } else if (words.some((w) => PITCH_LURES.has(w)) && words.some((w) => PITCH_ASKS.has(w))) {
+      flagged.add(ev.id);
+    } else if (hasHiddenLure(ev)) {
       flagged.add(ev.id);
     }
   }
