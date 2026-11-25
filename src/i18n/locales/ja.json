@@ -3539,6 +3539,8 @@
   "notifications.subject.two": "{first}と{second}",
   "notifications.tab.all": "すべて",
   "notifications.tab.mentions": "メンション",
+  "notifications.unknownHide": "知らないアカウントからの{count}件の{count, plural, one {通知} other {通知}}を隠す",
+  "notifications.unknownShow": "知らないアカウントからの{count}件の{count, plural, one {通知} other {通知}}",
   "notifications.viewAllLetters": "すべての手紙を見る",
   "notifications.zapUnverified": "未検証",
   "notifications.zapUnverified.title": "このレシートはあなたの既知のLightningプロバイダーによって署名されていないため、送信者や金額がでっち上げの可能性があります。",

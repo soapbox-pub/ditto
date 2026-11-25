@@ -3539,6 +3539,8 @@
   "notifications.subject.two": "{first} und {second}",
   "notifications.tab.all": "Alle",
   "notifications.tab.mentions": "Erwähnungen",
+  "notifications.unknownHide": "{count} {count, plural, one {Benachrichtigung} other {Benachrichtigungen}} von Accounts, die du nicht kennst, ausblenden",
+  "notifications.unknownShow": "{count} {count, plural, one {Benachrichtigung} other {Benachrichtigungen}} von Accounts, die du nicht kennst",
   "notifications.viewAllLetters": "Alle Briefe ansehen",
   "notifications.zapUnverified": "Nicht verifiziert",
   "notifications.zapUnverified.title": "Dieser Beleg wurde von keinem dir bekannten Lightning-Anbieter signiert, Absender und Betrag könnten also erfunden sein.",

@@ -5,7 +5,7 @@ import { useEntryState } from '@/hooks/useEntryState';
 import { useInView } from '@/hooks/useInView';
 import { useSeoMeta } from '@/hooks/useSeoMeta';
 import { useQueryClient } from '@tanstack/react-query';
-import { Zap, AtSign, ClipboardCheck, MessageCircle, Quote, Loader2, Award, Mail, ShieldAlert } from 'lucide-react';
+import { Zap, AtSign, ClipboardCheck, MessageCircle, Quote, Loader2, Award, Mail, ShieldAlert, UserX } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -23,6 +23,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNotifications, type GroupedNotificationItem, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteFilter } from '@/hooks/useMuteFilter';
 import { useNotificationFlood } from '@/hooks/useNotificationFlood';
+import { useUnknownAuthors } from '@/hooks/useUnknownAuthors';
 import { nip19 } from 'nostr-tools';
 import { isReplyEvent } from '@/lib/nostrEvents';
 import { getAvatarShape, emojiAvatarBorderStyle } from '@/lib/avatarShape';
@@ -248,7 +249,7 @@ const FLOOD_KINDS = new Set([1, 1111]);
  */
 type NotificationRow =
   | { type: 'group'; key: string; group: GroupedNotificationItem }
-  | { type: 'flood'; key: string; groups: GroupedNotificationItem[] };
+  | { type: 'flood' | 'unknown'; key: string; groups: GroupedNotificationItem[] };
 
 /** Get a bare noun label for a kind number, defaulting to "post". */
 function getNotificationKindNoun(kind: number | undefined): MessageDescriptor {
@@ -381,13 +382,30 @@ export function NotificationsPage() {
     return events.length > 0 ? floodIds(events) : new Set<string>();
   }, [filteredGroups, floodIds]);
 
+  // Mentions and replies from accounts the reader has no reason to know — no
+  // profile, and nobody they follow follows them — fold too, under their own
+  // line. That's every throwaway spam key, whatever it writes, and it's the
+  // default rather than "only people I follow", which would empty a newcomer's
+  // inbox. Judged only for what the flood rules let through.
+  const strangerPubkeys = useMemo(() => {
+    const out: string[] = [];
+    for (const group of filteredGroups) {
+      if (!FLOOD_KINDS.has(group.kind)) continue;
+      for (const actor of group.actors) {
+        if (!floodedIds.has(actor.event.id)) out.push(actor.event.pubkey);
+      }
+    }
+    return out;
+  }, [filteredGroups, floodedIds]);
+  const unknownAuthors = useUnknownAuthors(strangerPubkeys);
+
   // Fold each contiguous run of flagged groups into one collapsed row, in
   // place. A thread can push its flood to the bottom because it has a fixed
   // root; an inbox is a chronology that keeps growing as pages load, so folding
   // where the run happens is the only placement that leaves the surrounding
   // notifications where the reader last saw them.
   const rows = useMemo<NotificationRow[]>(() => {
-    if (floodedIds.size === 0) {
+    if (floodedIds.size === 0 && unknownAuthors.size === 0) {
       return filteredGroups.map((group) => ({ type: 'group', key: group.key, group }));
     }
     const out: NotificationRow[] = [];
@@ -395,17 +413,21 @@ export function NotificationsPage() {
       // Every actor must be flagged: a group holding even one unflagged actor
       // is a conversation the reader should see, not a wall.
       const flooded = group.actors.every((actor) => floodedIds.has(actor.event.id));
+      const unknown = !flooded && FLOOD_KINDS.has(group.kind) && group.actors.every((actor) =>
+        floodedIds.has(actor.event.id) || unknownAuthors.has(actor.event.pubkey),
+      );
+      const type = flooded ? 'flood' : unknown ? 'unknown' : undefined;
       const last = out[out.length - 1];
-      if (!flooded) {
+      if (!type) {
         out.push({ type: 'group', key: group.key, group });
-      } else if (last?.type === 'flood') {
+      } else if (last?.type === type) {
         last.groups.push(group);
       } else {
-        out.push({ type: 'flood', key: `flood:${group.key}`, groups: [group] });
+        out.push({ type, key: `${type}:${group.key}`, groups: [group] });
       }
     }
     return out;
-  }, [filteredGroups, floodedIds]);
+  }, [filteredGroups, floodedIds, unknownAuthors]);
 
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: intl.formatMessage({ id: 'notifications.tab.all', defaultMessage: 'All' }) },
@@ -443,9 +465,9 @@ export function NotificationsPage() {
         ) : rows.length > 0 ? (
           <div>
             {rows.map((row) => (
-              row.type === 'flood'
-                ? <CollapsedFloodNotifications key={row.key} groups={row.groups} />
-                : <GroupedNotificationView key={row.key} group={row.group} />
+              row.type === 'group'
+                ? <GroupedNotificationView key={row.key} group={row.group} />
+                : <CollapsedFloodNotifications key={row.key} groups={row.groups} reason={row.type} />
             ))}
             {hasNextPage && (
               <div ref={scrollRef} className="py-4">
@@ -513,12 +535,13 @@ function GroupedNotificationView({ group }: { group: GroupedNotificationItem }) 
  * Renders a run of flood-flagged notifications (`src/lib/replyFlood.ts`) as one
  * quiet inline line — "N notifications marked as spam" — that reveals them as
  * ordinary notification rows on click. A DISPLAY fold only: nothing is dropped,
- * and a false positive costs one click.
+ * and a false positive costs one click. A run from unknown accounts
+ * (`useUnknownAuthors`) folds the same way, under a line that says so.
  *
  * The unread stripe stays inside the folded rows rather than on the line: a
  * flood being new is not news, and the read cursor advances either way.
  */
-function CollapsedFloodNotifications({ groups }: { groups: GroupedNotificationItem[] }) {
+function CollapsedFloodNotifications({ groups, reason }: { groups: GroupedNotificationItem[]; reason: 'flood' | 'unknown' }) {
   const [expanded, setExpanded] = useState(false);
 
   if (groups.length === 0) return null;
@@ -529,9 +552,23 @@ function CollapsedFloodNotifications({ groups }: { groups: GroupedNotificationIt
         onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-2 px-4 py-3 w-full text-left text-sm text-muted-foreground hover:text-foreground transition-colors group border-b border-border-subtle"
       >
-        <ShieldAlert className="size-4 shrink-0" />
+        {reason === 'unknown' ? <UserX className="size-4 shrink-0" /> : <ShieldAlert className="size-4 shrink-0" />}
         <span className="group-hover:underline">
-          {expanded ? (
+          {reason === 'unknown' ? (
+            expanded ? (
+              <FormattedMessage
+                id="notifications.unknownHide"
+                defaultMessage="Hide {count} {count, plural, one {notification} other {notifications}} from accounts you don't know"
+                values={{ count: groups.length }}
+              />
+            ) : (
+              <FormattedMessage
+                id="notifications.unknownShow"
+                defaultMessage="{count} {count, plural, one {notification} other {notifications}} from accounts you don't know"
+                values={{ count: groups.length }}
+              />
+            )
+          ) : expanded ? (
             <FormattedMessage
               id="notifications.floodHide"
               defaultMessage="Hide {count} {count, plural, one {notification} other {notifications}} marked as spam"

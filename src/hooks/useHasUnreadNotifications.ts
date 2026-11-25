@@ -1,14 +1,16 @@
 import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useFollowList } from './useFollowActions';
+import { useNostrStorage } from './useNostrStorage';
 import { useReplyFlood } from './useReplyFlood';
 import { useZapReceiptCheck } from './useZapReceiptCheck';
 import type { AppPool } from '@/lib/AppPool';
 import { getEnabledNotificationKinds, NOTIFICATION_EOSE_GRACE_MS } from '@/lib/notificationKinds';
+import { findUnknownAuthors } from '@/lib/unknownAuthors';
 
 /** Unread events to sample per check — enough to let flood detection see the crowd. */
 const UNREAD_BATCH = 10;
@@ -26,7 +28,9 @@ const UNREAD_BATCH = 10;
  * lights if an unread event SURVIVES the filter — the same "fold likely spam"
  * heuristic the thread view uses, extended so a wall of throwaway-key spam
  * mentions never lights the dot. The reader's own events and events from people
- * they follow are never treated as spam.
+ * they follow are never treated as spam. Nor do mentions and replies from
+ * accounts the reader has no reason to know (`findUnknownAuthors`), which the
+ * notifications page folds the same way.
  *
  * Real-time updates are handled by the always-mounted NotificationStream
  * component, which holds a persistent relay subscription and invalidates the
@@ -38,6 +42,8 @@ const UNREAD_BATCH = 10;
  */
 export function useHasUnreadNotifications(): boolean {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
+  const { store } = useNostrStorage();
   const { user } = useCurrentUser();
   const { settings } = useEncryptedSettings();
   const { floodIds } = useReplyFlood();
@@ -99,7 +105,17 @@ export function useHasUnreadNotifications(): boolean {
       // unread event survives — a real interaction, or spam too sparse to flag.
       const unread = events.filter((e) => e.pubkey !== user.pubkey && checkZap(e) === 'genuine');
       const flooded = floodIds(unread);
-      return unread.some((e) => !flooded.has(e.id));
+      const left = unread.filter((e) => !flooded.has(e.id));
+      // Anything but a mention or reply lights the dot as it is. Those are
+      // what the page folds from unknown accounts, so only an unread one from
+      // someone the reader could know lights it.
+      if (left.some((e) => e.kind !== 1 && e.kind !== 1111)) return true;
+      if (left.length === 0) return false;
+      const follows = followData?.pubkeys ?? [];
+      const followSet = new Set(follows);
+      if (left.some((e) => followSet.has(e.pubkey))) return true;
+      const unknown = await findUnknownAuthors(nostr, queryClient, store, left.map((e) => e.pubkey), follows, signal);
+      return left.some((e) => !unknown.has(e.pubkey));
     },
     enabled: !!user && notificationsCursor !== null,
     // No polling — the NotificationStream subscription invalidates this query
