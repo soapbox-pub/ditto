@@ -421,8 +421,14 @@ export interface AppConfig {
   quickReactions?: QuickReaction[];
   /** Image upload quality: "compressed" resizes/optimizes, "original" uploads as-is. Default: "compressed". */
   imageQuality: 'compressed' | 'original';
-  /** Hex pubkey of the curator whose follow list defines the Ditto feed. */
-  curatorPubkey?: string;
+  /**
+   * This build's curators (see `lib/discoverCurators.ts`): `npub`/hex accounts
+   * (with who they follow) and `naddr` lists. They define the Ditto feed, and
+   * Discover for anyone without follows of their own.
+   */
+  defaultCurators: string[];
+  /** The user's own curators, replacing `defaultCurators`. Unset means the default; empty means none. */
+  curators?: string[];
   /** Wildcard domain used for iframe sandboxing (e.g. "iframe.diy"). Default: "iframe.diy". */
   sandboxDomain: string;
   /**

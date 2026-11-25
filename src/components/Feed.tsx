@@ -17,7 +17,7 @@ import { LoginFlow } from '@/components/auth/LoginFlow';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useFeed } from '@/hooks/useFeed';
-import { useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
+import { useCuratorNetwork, useDiscoverAuthors } from '@/hooks/useDiscoverAuthors';
 import { useFeedStream } from '@/hooks/useFeedStream';
 import { useFollowList } from '@/hooks/useFollowActions';
 import { useMutedAuthorFilter } from '@/hooks/useMutedAuthorFilter';
@@ -35,7 +35,6 @@ import { useLoveList } from '@/hooks/useLoveList';
 import { useTabFeed } from '@/hooks/useProfileFeed';
 import { useSavedFeeds } from '@/hooks/useSavedFeeds';
 import { useResolveTabFilter } from '@/hooks/useResolveTabFilter';
-import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
 import { useCuratedDittoFeed } from '@/hooks/useCuratedDittoFeed';
 import { useStickyFeedItems } from '@/hooks/useStickyFeedItems';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -155,7 +154,6 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   const { savedFeeds } = useSavedFeeds();
   const { hashtags } = useInterests();
   const { hashtags: geotags } = useInterests('g');
-  const { data: curatorFollowList, isError: isCuratorError } = useCuratorFollowList();
   const { data: followData } = useFollowList();
   const { excludeMuted } = useMutedAuthorFilter();
   const { feedSettings } = useFeedSettings();
@@ -291,9 +289,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   });
   const { authors: discoverAuthors } = useDiscoverAuthors(feedTabForQuery === 'global' && feedQueryEnabled);
 
-  // Curated Ditto feed: latest content from the curator's follow list.
+  // Curated Ditto feed: latest content from the curators' network, two hops deep.
+  const { authors: curatedAuthors, isError: isCuratorError } = useCuratorNetwork(!!useDittoQuery);
   const topQuery = useCuratedDittoFeed(
-    curatorFollowList,
+    curatedAuthors,
     useTopFeedForLoggedOut || !!useDittoTab,
     useDittoQuery ? snapshotRef : undefined,
   );
@@ -539,8 +538,10 @@ export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage, fee
   }, [snapshotRef]);
 
   // Show skeletons while loading, but not if the curator list query errored
-  // (that would leave logged-out users staring at infinite skeletons).
-  const showSkeleton = (isPending || (isLoading && !rawData)) && !(useDittoQuery && isCuratorError);
+  // or there are no curators (that would leave logged-out users staring at
+  // infinite skeletons).
+  const showSkeleton = (isPending || (isLoading && !rawData)) &&
+    !(useDittoQuery && (isCuratorError || curatedAuthors?.length === 0));
   // The feed fades in over its placeholders, when there were any to replace.
   const [sawSkeleton, setSawSkeleton] = useState(false);
   if (showSkeleton && !sawSkeleton) setSawSkeleton(true);

@@ -1,6 +1,7 @@
 import { profileName } from '@/lib/getDisplayName';
 import { useState, type ReactNode } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
+import { CuratorsSettings } from '@/components/CuratorsSettings';
 import { IntroImage } from '@/components/IntroImage';
 import {
   Users, Download, Loader2, X, Pencil, Home, Globe, MapPin,
@@ -469,6 +470,8 @@ function FeedTabsSection() {
           />
         </div>
       </div>
+
+      <CuratorsSettings />
 
       <div className="border-b border-border">
         <div className="flex items-center justify-between py-3.5 px-3">

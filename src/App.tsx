@@ -215,7 +215,8 @@ const hardcodedConfig: AppConfig = {
   autoplayVideos: false,
   stripTrackingParams: true,
   imageQuality: 'compressed',
-  curatorPubkey: '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5',
+  // Team Soapbox.
+  defaultCurators: ['npub10qdp2fc9ta6vraczxrcs8prqnv69fru2k6s2dj48gqjcylulmtjsg9arpj'],
   sandboxDomain: 'iframe.diy',
   esploraApis: [...DEFAULT_ESPLORA_APIS],
   moneroNodes: [...DEFAULT_MONERO_NODE_URLS],

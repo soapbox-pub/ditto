@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -105,16 +106,17 @@ function fingerprint(items: string[]): string {
 }
 
 /**
- * Curated Ditto feed: latest content from the curator's follow list.
+ * Curated Ditto feed: latest content from the curators' network.
  * Reverse-chronological pagination (no sort:hot), one event per author per page.
  *
- * @param authors - Pubkeys whose content to include (from useCuratorFollowList).
+ * @param authors - Pubkeys whose content to include (from useCuratorNetwork).
  * @param enabled - Whether the query should run.
  * @param snapshot - Save the feed on the device and start from it on the next launch (home feed).
  */
 export function useCuratedDittoFeed(authors: string[] | undefined, enabled: boolean, snapshot?: FeedSnapshotRef) {
   const { nostr } = useNostr();
-  const authorsKey = authors ? fingerprint(authors) : '';
+  // Up to thousands of authors: hash them once per list, not every render.
+  const authorsKey = useMemo(() => (authors ? fingerprint(authors) : ''), [authors]);
   const isScrollRestore = useIsScrollRestore();
   const queryKey = ['ditto-curated-feed', authorsKey];
 

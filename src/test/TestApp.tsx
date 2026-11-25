@@ -161,6 +161,7 @@ export function TestApp({ children }: TestAppProps) {
     autoplayVideos: false,
     stripTrackingParams: true,
     imageQuality: 'compressed',
+    defaultCurators: [],
     sandboxDomain: 'iframe.diy',
     esploraApis: ['https://mempool.space/api'],
     moneroNodes: ['https://xmr-node.cakewallet.com:18081'],

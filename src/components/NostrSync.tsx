@@ -510,6 +510,18 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (encryptedSettings.curators !== undefined) {
+        const curators = encryptedSettings.curators ?? undefined;
+        if (JSON.stringify(curators) !== JSON.stringify(current.curators)) {
+          updates.curators = curators;
+          changed = true;
+        }
+      } else if (isSwitch && current.curators !== undefined) {
+        // The new user never chose curators; don't keep the previous user's.
+        updates.curators = undefined;
+        changed = true;
+      }
+
       if (
         encryptedSettings.quickReactions !== undefined &&
         JSON.stringify(encryptedSettings.quickReactions) !== JSON.stringify(current.quickReactions ?? [])

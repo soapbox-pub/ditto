@@ -2,7 +2,8 @@ import type { NostrEvent, NPool } from '@nostrify/nostrify';
 import type { NIndexedDB } from '@nostrify/indexeddb';
 
 import { DITTO_RELAYS } from '@/lib/appRelays';
-import { contactListPubkeys, fetchContactList } from '@/lib/contactList';
+import { contactListPubkeys } from '@/lib/contactList';
+import { curatorPubkeys, fetchCuratorEvents, type DiscoverCurator } from '@/lib/discoverCurators';
 import { isNostrId } from '@/lib/nostrId';
 
 /** Most authors a Discover network holds. */
@@ -33,29 +34,34 @@ export function discoverSearch(sort: DiscoverSort): string {
 const CONTACT_LIST_CHUNK = 1000;
 
 /**
- * Rank `seed`'s friends-of-friends network: the seed, everyone it follows, and
- * everyone they follow, ordered by how many of those follow lists (the seed's
- * included) name them. The seed always comes first.
+ * Rank a friends-of-friends network: the seeds, everyone their lists name,
+ * and everyone those people follow, ordered by how many of those lists (the
+ * seeds' included) name them. The seeds always come first.
  *
- * With `excludeDirect`, the seed and everyone it follows are left out, so
- * the network is only the people they follow — what a Follows tab doesn't
+ * With `excludeDirect`, the seeds and everyone their lists name are left out,
+ * so the network is only the people those follow — what a Follows tab doesn't
  * already show.
  *
- * @param seedList The seed's own contact list.
- * @param followLists Contact lists of the people the seed follows. Lists by
- *   anyone else are ignored, and only the newest list per author counts.
+ * @param seeds Accounts at the network's centre.
+ * @param seedLists The lists the first hop comes from: the seeds' contact
+ *   lists, and any other `p`-tagged lists (a curator's follow set).
+ * @param followLists Contact lists of the people the seed lists name. Lists
+ *   by anyone else are ignored, and only the newest list per author counts.
  */
 export function rankDiscoverNetwork(
-  seed: string,
-  seedList: NostrEvent,
+  seeds: string[],
+  seedLists: NostrEvent[],
   followLists: NostrEvent[],
   { excludeDirect = false, limit = DISCOVER_NETWORK_LIMIT }: { excludeDirect?: boolean; limit?: number } = {},
 ): string[] {
-  const follows = new Set(contactListPubkeys(seedList));
+  const seedSet = new Set(seeds);
+  const follows = new Set(seedLists.flatMap(contactListPubkeys));
 
+  // A seed's contact list may also arrive as a follow's; count it once.
+  const counted = new Set(seedLists.filter((list) => list.kind === 3).map((list) => list.pubkey));
   const newest = new Map<string, NostrEvent>();
   for (const list of followLists) {
-    if (list.kind !== 3 || !follows.has(list.pubkey)) continue;
+    if (list.kind !== 3 || !follows.has(list.pubkey) || counted.has(list.pubkey)) continue;
     const current = newest.get(list.pubkey);
     if (!current || list.created_at > current.created_at) newest.set(list.pubkey, list);
   }
@@ -64,12 +70,12 @@ export function rankDiscoverNetwork(
   // and no per-list arrays or sets: `list` dedupes a pubkey within a list,
   // and ids are validated only for the few thousand that make the cut.
   const counts = new Map<string, { count: number; list: number }>();
-  const lists = [seedList, ...newest.values()];
+  const lists = [...seedLists, ...newest.values()];
   for (let i = 0; i < lists.length; i++) {
     for (const tag of lists[i].tags) {
       if (tag[0] !== 'p') continue;
       const pubkey = tag[1];
-      if (typeof pubkey !== 'string' || pubkey === seed) continue;
+      if (typeof pubkey !== 'string' || seedSet.has(pubkey)) continue;
       const entry = counts.get(pubkey);
       if (entry) {
         if (entry.list === i) continue;
@@ -85,7 +91,7 @@ export function rankDiscoverNetwork(
   // stable sort would.
   const byCount: string[][] = [];
   for (const [pubkey, { count }] of counts) (byCount[count] ??= []).push(pubkey);
-  const ranked = excludeDirect ? [] : [seed];
+  const ranked = excludeDirect ? [] : [...seedSet];
   for (let count = byCount.length - 1; count > 0 && ranked.length < limit; count--) {
     for (const pubkey of byCount[count] ?? []) {
       if (!isNostrId(pubkey)) continue;
@@ -97,22 +103,22 @@ export function rankDiscoverNetwork(
 }
 
 /**
- * Fetch the contact lists behind `seed`'s network and rank it with
- * {@link rankDiscoverNetwork}. Throws when the seed's list can't be found or
- * none of its follows' lists arrive, so a relay outage isn't cached as a tiny
- * network.
+ * Fetch the lists behind the network of `curators` (or of a viewer, as their
+ * own sole curator) and rank it with {@link rankDiscoverNetwork}. Throws when
+ * none of the curators' lists can be found or none of their follows' lists
+ * arrive, so a relay outage isn't cached as a tiny network.
  */
 export async function fetchDiscoverNetwork(
   nostr: NPool,
   store: NIndexedDB,
-  seed: string,
+  curators: DiscoverCurator[],
   signal: AbortSignal,
   opts: { excludeDirect?: boolean } = {},
 ): Promise<string[]> {
-  const seedList = await fetchContactList(nostr, store, seed, { signal });
-  if (!seedList) throw new Error('Contact list not found');
+  const seedLists = await fetchCuratorEvents(nostr, store, curators, signal);
+  if (seedLists.length === 0) throw new Error('No curator lists found');
 
-  const follows = [...new Set(contactListPubkeys(seedList))];
+  const follows = [...new Set(seedLists.flatMap(contactListPubkeys))];
   const chunks: string[][] = [];
   for (let i = 0; i < follows.length; i += CONTACT_LIST_CHUNK) {
     chunks.push(follows.slice(i, i + CONTACT_LIST_CHUNK));
@@ -131,5 +137,5 @@ export async function fetchDiscoverNetwork(
     throw new Error('No follow lists found');
   }
 
-  return rankDiscoverNetwork(seed, seedList, followLists, opts);
+  return rankDiscoverNetwork(curatorPubkeys(curators), seedLists, followLists, opts);
 }

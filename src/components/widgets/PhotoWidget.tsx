@@ -13,7 +13,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList } from '@/hooks/useFollowActions';
-import { useCuratorFollowList } from '@/hooks/useCuratorFollowList';
+import { useCuratedAuthors } from '@/hooks/useCuratedAuthors';
 import { isHiddenFromPublicFeeds } from '@/lib/nsfw';
 import { getAvatarShape } from '@/lib/avatarShape';
 import { timeAgo } from '@/lib/timeAgo';
@@ -36,7 +36,7 @@ export function PhotoWidget() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
-  const { data: curatorFollows } = useCuratorFollowList();
+  const { data: curatorFollows } = useCuratedAuthors();
 
   const followPubkeys = followData?.pubkeys;
   const authors = user && followPubkeys?.length ? followPubkeys : curatorFollows;
@@ -45,6 +45,8 @@ export function PhotoWidget() {
   const { data: event, isLoading } = useQuery<NostrEvent | null>({
     queryKey: ['widget-photo', authorsKey],
     queryFn: async () => {
+      // No curators: nobody to show, and an empty `authors` would match everyone.
+      if (authors?.length === 0) return null;
       const events = await nostr.query([{ kinds: [20], limit: 1, ...(authors ? { authors } : {}) }]);
       // Without an authors filter this is a public feed.
       return (authors ? events[0] : events.find((e) => !isHiddenFromPublicFeeds(e))) ?? null;

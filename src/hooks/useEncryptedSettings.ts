@@ -119,6 +119,8 @@ export interface EncryptedSettings {
   stripTrackingParams?: boolean;
   /** Emojis pinned to the quick-react row (see AppConfig). Empty means fully learned. */
   quickReactions?: QuickReaction[];
+  /** The user's curators (see AppConfig). `null` means back to the default. */
+  curators?: string[] | null;
   /** How to display monetary amounts ("usd" or "sats"). */
   currencyDisplay?: 'usd' | 'sats';
   /** Saved feed tabs created from the search page. */
