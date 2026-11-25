@@ -22,6 +22,7 @@ import {
   RotateCcw,
   EyeOff,
   Bug,
+  Music,
 } from 'lucide-react';
 import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { usePresence } from '@/hooks/usePresence';
@@ -47,6 +48,7 @@ import { ReportDialog } from '@/components/ReportDialog';
 import { AddToListDialog } from '@/components/AddToListDialog';
 import { BugReportDialog } from '@/components/BugReportDialog';
 import { EventJsonDialog } from '@/components/EventJsonDialog';
+import { OcarinaSongDialog } from '@/components/OcarinaSongDialog';
 import { RawEventEditDialog } from '@/components/RawEventEditDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
@@ -66,6 +68,7 @@ import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain, isNsiteKind } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
+import { primeOcarina } from '@/lib/ocarinaSong';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -133,6 +136,7 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [hideConfirmOpen, setHideConfirmOpen] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
+  const [ocarinaOpen, setOcarinaOpen] = useState(false);
 
   const intl = useIntl();
   const { user } = useCurrentUser();
@@ -343,6 +347,12 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onOpenChange(false);
             setTimeout(() => setEventJsonOpen(true), 150);
           }}
+          onPlayOcarina={() => {
+            // Wake audio inside the tap; the song starts once its dialog opens.
+            primeOcarina();
+            onOpenChange(false);
+            setTimeout(() => setOcarinaOpen(true), 150);
+          }}
           onEditEventJson={() => {
             onOpenChange(false);
             setTimeout(() => setEditJsonOpen(true), 150);
@@ -367,6 +377,8 @@ function NoteMoreMenuImpl({ event, open, onOpenChange }: NoteMoreMenuProps) {
       <ReportDialog event={event} open={reportOpen} onOpenChange={setReportOpen} />
 
       <BugReportDialog event={event} open={bugReportOpen} onOpenChange={setBugReportOpen} />
+
+      <OcarinaSongDialog event={event} open={ocarinaOpen} onOpenChange={setOcarinaOpen} />
 
       <ReplyComposeModal
         open={mentionComposeOpen}
@@ -513,6 +525,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onReportBug: () => void;
   onAddToList: () => void;
   onViewEventJson: () => void;
+  onPlayOcarina: () => void;
   onEditEventJson: () => void;
   onDelete: () => void;
   onRestore: () => void;
@@ -521,7 +534,7 @@ interface NoteMoreMenuContentProps extends NoteMoreMenuProps {
   onHideFromFeed: () => void;
 }
 
-function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onReportBug, onAddToList, onViewEventJson, onEditEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
+function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, userMuted, conversationMuted, displayName, onBookmark, onTogglePin, onMuteConversation, onMuteUser, onReport, onMention, onReportBug, onAddToList, onViewEventJson, onPlayOcarina, onEditEventJson, onDelete, onRestore, hideFromFeedType, onHideFromFeed }: NoteMoreMenuContentProps) {
   const intl = useIntl();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
@@ -614,6 +627,11 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
             icon={isInSidebar ? <Trash2 className="size-5" /> : <PanelLeft className="size-5" />}
             label={isInSidebar ? intl.formatMessage({ id: 'note.moreMenu.removeFromSidebar', defaultMessage: 'Remove from sidebar' }) : intl.formatMessage({ id: 'note.moreMenu.addToSidebar', defaultMessage: 'Add to sidebar' })}
             onClick={handleToggleSidebar}
+          />
+          <MenuItem
+            icon={<Music className="size-5" />}
+            label={intl.formatMessage({ id: 'note.moreMenu.playOcarina', defaultMessage: 'Play as an ocarina song' })}
+            onClick={onPlayOcarina}
           />
         </div>
 
