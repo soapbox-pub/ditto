@@ -3,28 +3,31 @@ import { useNostrLogin } from '@nostrify/react/login';
 
 import { KeySafetyDialog } from '@/components/auth/KeySafetyDialog';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { clearKeyReminder, snoozeKeyReminder, useKeySafetyMarker } from '@/lib/keyBackup';
+import { clearKeyReminder, keySafetyMarker, snoozeKeyReminder, useKeySafetyMarker } from '@/lib/keyBackup';
 import { useLogoutRequest } from '@/lib/logoutRequest';
 
 /**
- * Answers {@link requestLogout}. Extension and remote-signer logins go at once;
- * an nsec login gets one last chance to copy its key, and one whose key exists
- * nowhere else is warned to back it up first.
+ * Answers {@link requestLogout}. Only an nsec login whose key signup made on
+ * this device is held back: warned to back it up if that hasn't happened, or
+ * given one last chance to copy it. Everything else goes at once.
  */
 export function LogoutGuard() {
   const request = useLogoutRequest();
   const { logins, removeLogin } = useNostrLogin();
   const login = request ? (request.loginId ? logins.find((l) => l.id === request.loginId) : logins[0]) : undefined;
-  const nsecLogin = login?.type === 'nsec' ? login : undefined;
+  // Decided once per request, so backing up from inside the dialog doesn't log out.
+  const [held, setHeld] = useState<typeof request>(null);
+  const nsecLogin = login?.type === 'nsec' && held === request ? login : undefined;
 
   useEffect(() => {
-    if (!request) return;
+    if (!request || held === request) return;
     if (!login) request.resolve(false);
-    else if (login.type !== 'nsec') {
+    else if (login.type === 'nsec' && keySafetyMarker(login.pubkey)) setHeld(request);
+    else {
       removeLogin(login.id);
       request.resolve(true);
     }
-  }, [request, login, removeLogin]);
+  }, [request, held, login, removeLogin]);
 
   if (!request || !nsecLogin) return null;
 

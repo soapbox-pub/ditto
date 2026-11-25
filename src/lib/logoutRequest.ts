@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 /**
  * The one way a "Log out" button removes an account. `LogoutGuard` answers the
- * request: an nsec account is asked to confirm, and one whose key exists
- * nowhere else (`keyBackupPending`) is asked to back it up first. Resolves
+ * request: only an nsec account signup made on this device is held back, asked
+ * to back its key up first if it exists nowhere else (`keyBackupPending`). Resolves
  * `true` once the account is removed, `false` if the user backed out.
  */
 
