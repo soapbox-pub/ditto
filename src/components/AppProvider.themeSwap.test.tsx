@@ -167,4 +167,72 @@ describe("AppProvider per-account theme swap", () => {
     );
     expect(bStored.theme).toBe("light");
   });
+
+  it("keeps each account's whole stored config across a switch and back", async () => {
+    localStorage.setItem(
+      accountScopedKey(APP_CONFIG_STORAGE_KEY, A),
+      JSON.stringify({ theme: "dark", powDifficulty: 16, sidebarOrder: ["mine"] }),
+    );
+    localStorage.setItem(
+      accountScopedKey(APP_CONFIG_STORAGE_KEY, B),
+      JSON.stringify({ theme: "light" }),
+    );
+    localStorage.setItem(
+      "test-login",
+      JSON.stringify([
+        { id: "A", type: "nsec", pubkey: A, data: { nsec: "nsec1a" } },
+        { id: "B", type: "nsec", pubkey: B, data: { nsec: "nsec1b" } },
+      ]),
+    );
+
+    // Stand-in for NostrSync's relay-list sync: on every user change, an
+    // updater that spreads the config it is handed. Run against the previous
+    // account's value under the new account's key, it copies that whole blob
+    // across, PoW and sidebar order included.
+    function SpreadingWriter() {
+      const { updateConfig } = useAppContext();
+      const { logins } = useNostrLogin();
+      const pubkey = logins[0]?.pubkey;
+      useEffect(() => {
+        if (!pubkey) return;
+        updateConfig((c) => ({ ...c, homePage: "feed" }));
+      }, [pubkey, updateConfig]);
+      return null;
+    }
+
+    let switchTo: (id: string) => void = () => {};
+    function Harness() {
+      const { config } = useAppContext();
+      const { setLogin } = useNostrLogin();
+      switchTo = setLogin;
+      return <div data-testid="theme">{config.theme}</div>;
+    }
+
+    const { getByTestId } = render(
+      <AppProvider storageKey={APP_CONFIG_STORAGE_KEY} defaultConfig={defaultConfig}>
+        <NostrLoginProvider storageKey="test-login" storage={localStorage}>
+          <ActiveAccountSync />
+          <SpreadingWriter />
+          <Harness />
+        </NostrLoginProvider>
+      </AppProvider>,
+    );
+
+    await waitFor(() => expect(getByTestId("theme").textContent).toBe("dark"));
+    act(() => switchTo("B"));
+    await waitFor(() => expect(getByTestId("theme").textContent).toBe("light"));
+    act(() => switchTo("A"));
+    await waitFor(() => expect(getByTestId("theme").textContent).toBe("dark"));
+
+    const aStored = JSON.parse(
+      localStorage.getItem(accountScopedKey(APP_CONFIG_STORAGE_KEY, A)) ?? "{}",
+    );
+    const bStored = JSON.parse(
+      localStorage.getItem(accountScopedKey(APP_CONFIG_STORAGE_KEY, B)) ?? "{}",
+    );
+    expect(aStored).toMatchObject({ theme: "dark", powDifficulty: 16, sidebarOrder: ["mine"] });
+    expect(bStored.theme).toBe("light");
+    expect(bStored.powDifficulty).toBeUndefined();
+    expect(bStored.sidebarOrder).toBeUndefined();
+  });
 });
