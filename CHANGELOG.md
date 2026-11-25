@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.46.8] - 2026-11-25
+
+Curate the curators: choose the people and lists behind your Ditto feed under Settings → Home Feed. Themes with a background image get a slider for how see-through the panels over it are. Plus notifications that respect your whole mute list on every device, smarter spam folding that catches look-alike letters and leaves real replies alone, reactions that tell you when they didn't send, and account switching that keeps each account's settings its own.
+
+### Added
+- Choose the curators behind the Ditto feed and Discover under Settings → Home Feed, mixing any people and lists you like
+- Themes with a background image can set how see-through the panels over it are
+- Browser extensions that hold several accounts sign as the right account for each login, and can log you in without the extra confirmation step
+
+### Changed
+- The Ditto feed reaches further, with posts from the people your curators pick and the people those people follow
+- The feed you see before logging in draws from more people, shows each person once, and skips money talk and politics
+- The theme strip on the welcome page drifts along on its own, using the same cards as the Themes page
+- The theme editors share one tidier layout, with a background preview that shows the panel opacity
+- Spam replies disguised with look-alike letters are folded away
+- Logging out only pauses for a key backup on accounts you created on this device
+
+### Fixed
+- Notifications respect your whole mute list on every device, including muted words and threads
+- Zaps from people you muted stay hidden, along with reactions, reposts, and zaps anywhere in a muted thread
+- Ordinary replies in busy conversations are no longer folded away as spam
+- Switching accounts no longer hands one account's device settings, such as the sidebar order, to the other
+- A reaction that fails to send says why instead of quietly disappearing
+- New accounts always get to meet some people during signup, and logging in to an existing account no longer shows that step
+
 ## [2.46.7] - 2026-11-23
 
 Lock up your key: protect it with a password and Ditto keeps only the locked copy, asking for it when you open the app. New here? Meet real people by what they make (artists, cooks, musicians, game makers and more), each previewed with their own work, then swipe through themes to pick your look. Plus articles that follow your Text size setting, a home feed that isn't empty when you follow nobody, and no more error reporting to third parties.
