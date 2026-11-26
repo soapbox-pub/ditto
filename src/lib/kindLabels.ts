@@ -108,6 +108,8 @@ export const KIND_LABELS: Record<number, MessageDescriptor> = {
   1631: defineMessage({ id: 'kindLabels.k1631', defaultMessage: 'Git status (applied)' }),
   1632: defineMessage({ id: 'kindLabels.k1632', defaultMessage: 'Git status (closed)' }),
   1633: defineMessage({ id: 'kindLabels.k1633', defaultMessage: 'Git status (draft)' }),
+  // oota
+  1853: defineMessage({ id: 'kindLabels.k1853', defaultMessage: 'Ocarina song' }),
   // Nostrocket
   1971: defineMessage({ id: 'kindLabels.k1971', defaultMessage: 'Problem tracker' }),
   // NIP-56

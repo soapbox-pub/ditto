@@ -50,7 +50,7 @@ const PAGE_LOADERS: Record<string, React.LazyExoticComponent<React.ComponentType
 };
 
 /** Sidebar items that use KindFeedPage and need extra kind definitions. */
-const KIND_FEED_ITEMS = ['polls', 'colors', 'packs', 'articles', 'decks', 'emojis', 'highlights', 'torrents'] as const;
+const KIND_FEED_ITEMS = ['polls', 'colors', 'packs', 'articles', 'decks', 'emojis', 'highlights', 'torrents', 'ocarina'] as const;
 
 // KindFeedPage is lazy too
 const LazyKindFeedPage = lazy(() => import('./KindFeedPage').then(m => ({ default: m.KindFeedPage })));

@@ -628,6 +628,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'whimsy',
     blurb: defineMessage({ id: 'extraKinds.cards.blurb', defaultMessage: 'PlayStation 1 memory cards, published block-by-block to Nostr. Browse cards shared by others, watch their animated save icons, and open a card to see all 16 blocks. Titles, regions and icons are decoded straight from the raw save bytes.' }),
   },
+  {
+    kind: 1853,
+    id: 'ocarina',
+    showKey: 'showOcarinaSongs',
+    feedKey: 'feedIncludeOcarinaSongs',
+    label: defineMessage({ id: 'extraKinds.ocarina.label', defaultMessage: 'Ocarina Songs' }),
+    description: defineMessage({ id: 'extraKinds.ocarina.description', defaultMessage: 'Short songs for a five-hole ocarina (kind 1853)' }),
+    route: 'ocarina',
+    addressable: false,
+    section: 'whimsy',
+    blurb: defineMessage({ id: 'extraKinds.ocarina.blurb', defaultMessage: 'Little ocarina songs, the kind Link learns, played on the five buttons. Make your own on oota, or play any post as a song from its menu and share what it sounds like.' }),
+    sites: [{ url: 'https://oota.app' }],
+  },
   // Simple Nostr Objects (feed toggle only; their own feed is at /objects)
   {
     kind: 33331,

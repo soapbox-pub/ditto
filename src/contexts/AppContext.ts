@@ -110,6 +110,8 @@ export interface FeedSettings {
   showColors: boolean;
   /** Show Memory Cards (kind 38192) link in sidebar */
   showMemoryCards: boolean;
+  /** Show Ocarina Songs (kind 1853) link in sidebar */
+  showOcarinaSongs: boolean;
   /** Show People Lists (kind 39089 follow packs, kind 30000 people sets) link in sidebar */
   showPeopleLists: boolean;
   /** Include Vines in the follows/global feed */
@@ -124,6 +126,8 @@ export interface FeedSettings {
   feedIncludeColors: boolean;
   /** Include Memory Cards (kind 38192) in the follows/global feed */
   feedIncludeMemoryCards: boolean;
+  /** Include Ocarina Songs (kind 1853) in the follows/global feed */
+  feedIncludeOcarinaSongs: boolean;
   /** Include People Lists (kind 3 follow lists, kind 30000 people sets, kind 39089 follow packs) in the follows/global feed */
   feedIncludePeopleLists: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */
