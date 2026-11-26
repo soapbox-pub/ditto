@@ -4640,6 +4640,7 @@
   "sendBitcoin.recipient.spAddress": "サイレントペイメントアドレス",
   "sendBitcoin.recipient.to": "送金先",
   "sendBitcoin.recipientPlaceholder": "人を検索、npubを貼り付け、またはBitcoinアドレスかsp1…アドレスを入力",
+  "sendBitcoin.requestedExact": "請求どおり、ちょうど{amount}",
   "sendBitcoin.retry": "再試行",
   "sendBitcoin.scan.failed": "QRコードを読み取れませんでした",
   "sendBitcoin.scan.failedDescription": "Bitcoinアドレス、サイレントペイメントアドレス（sp1…）、またはNostr識別子（npub、nprofile、NIP-05）が必要です。",

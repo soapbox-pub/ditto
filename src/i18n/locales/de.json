@@ -4640,6 +4640,7 @@
   "sendBitcoin.recipient.spAddress": "Silent-Payment-Adresse",
   "sendBitcoin.recipient.to": "An",
   "sendBitcoin.recipientPlaceholder": "Leute suchen, npub einfügen oder Bitcoin- bzw. sp1…-Adresse eingeben",
+  "sendBitcoin.requestedExact": "Genau {amount}, wie angefordert",
   "sendBitcoin.retry": "Erneut versuchen",
   "sendBitcoin.scan.failed": "Dieser QR-Code konnte nicht gelesen werden",
   "sendBitcoin.scan.failedDescription": "Erwartet wurde eine Bitcoin-Adresse, eine Silent-Payment-Adresse (sp1…) oder eine Nostr-Kennung (npub, nprofile, NIP-05).",

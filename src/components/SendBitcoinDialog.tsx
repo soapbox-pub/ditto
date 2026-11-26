@@ -65,6 +65,7 @@ import {
   amountInputToSats,
   formatMoneyAmount,
   formatAmountInput,
+  formatSatsAmount,
   looksLikeSilentPaymentAddress,
   parseBitcoinUri,
   validateSilentPaymentAddress,
@@ -306,11 +307,20 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     initialUriHandled.current = true;
   }, [isOpen, initialUri, intl]);
 
+  /**
+   * The exact sats a `bitcoin:` request asked for, while the USD field shows
+   * it rounded to the cent. A cent is around ten sats, so converting the
+   * rounded dollars back at send time paid a few sats off the request (in
+   * either direction, and more if the price refreshed in between) — enough
+   * for a service matching payments to the sat to treat it as short. Held
+   * until the user changes the amount themselves.
+   */
+  const [requestedSats, setRequestedSats] = useState<number | null>(null);
+
   // Apply the pending amount (in sats, from the URI) once we can express it in
   // the form's display currency. In sats mode the input *is* sats, so we seed
   // it directly. In USD mode we wait for `btcPrice`, convert, and round to
-  // cents for a clean display; the actual send amount is recomputed from the
-  // input, so tiny rounding differences (< $0.005) get smoothed out at send time.
+  // cents for display, and pin the requested sats as what's actually sent.
   useEffect(() => {
     if (!isOpen) return;
     const sats = pendingAmountSats.current;
@@ -326,6 +336,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     const usd = (sats / 100_000_000) * btcPrice;
     if (Number.isFinite(usd) && usd > 0) {
       setAmount(Math.round(usd * 100) / 100);
+      setRequestedSats(sats);
     }
     pendingAmountSats.current = null;
   }, [isOpen, btcPrice, currency]);
@@ -363,8 +374,8 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
   // ── Amount → sats conversion ─────────────────────────────────
 
   const amountSats = useMemo(
-    () => amountInputToSats(amount, currency, btcPrice),
-    [amount, currency, btcPrice],
+    () => requestedSats ?? amountInputToSats(amount, currency, btcPrice),
+    [requestedSats, amount, currency, btcPrice],
   );
 
   const estimatedFeeSats = useMemo(() => {
@@ -591,6 +602,7 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
     feeSpeedUserChanged.current = false;
     initialUriHandled.current = false;
     pendingAmountSats.current = null;
+    setRequestedSats(null);
     setPickerInitialQuery(undefined);
     onClose();
   }, [onClose, currency]);
@@ -679,13 +691,23 @@ export function SendBitcoinDialog({ isOpen, onClose, btcPrice, initialUri }: Sen
               <div className="grid gap-4 pt-2">
                 <AmountField
                   value={amount}
-                  onValueChange={(v) => { setAmount(v); setError(''); }}
+                  onValueChange={(v) => { setAmount(v); setRequestedSats(null); setError(''); }}
                   currency={currency}
                   editing={editingAmount}
                   setEditing={setEditingAmount}
                   presets={PRESETS}
                   invalid={insufficient}
                 />
+                {/* The dollar figure is rounded; say what actually goes out. */}
+                {requestedSats !== null && currency === 'usd' && (
+                  <p className="-mt-2 text-center text-xs text-muted-foreground">
+                    <FormattedMessage
+                      id="sendBitcoin.requestedExact"
+                      defaultMessage="Exactly {amount}, as requested"
+                      values={{ amount: formatSatsAmount(requestedSats, intl.locale) }}
+                    />
+                  </p>
+                )}
               </div>
 
               {/* Recipient picker */}
