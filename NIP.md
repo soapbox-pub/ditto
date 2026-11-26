@@ -24,6 +24,7 @@ These event kinds were created by community contributors and are supported by Di
 
 | Kind  | Name                   | Description                                                      | Spec                                                                                      |
 |-------|------------------------|------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| 1853  | Ocarina Song           | Short melody for a five-hole ocarina, stored as `note` tags      | [oota](https://oota.app); see [Kind 1853: Ocarina Song](#kind-1853-ocarina-song) below    |
 | 2473  | Bird Detection         | Bird-by-ear observation log (species heard in the wild)          | [NIP](https://gitlab.com/alexgleason/birdstar/-/blob/main/NIP.md)                         |
 | 12473 | Birdex                 | Author's cumulative life list of confirmed bird species          | [NIP](https://gitlab.com/alexgleason/birdstar/-/blob/main/NIP.md)                         |
 | 3367  | Color Moment           | Color palette post expressing a mood                             | [NIP](https://gitlab.com/chad.curtis/espy/-/blob/main/NIP.md)                            |
@@ -1099,6 +1100,55 @@ The `pet` action is reserved for a future version.
 - Clients MUST apply a bounded recency window (6 hours) when querying kind 1124 events, regardless of checkpoint state. If a valid checkpoint `processed_until` is more recent than the window floor, clients use the checkpoint as the `since` bound instead. Interactions older than the recency window are considered stale and MUST NOT be projected onto current stats.
 - Owner consolidation writes processed stats back to kind 31124 and advances the checkpoint (stored in the event's `content` JSON). This happens automatically when the owner opens the dashboard.
 - After consolidation, kind 1124 events remain available as history but MUST NOT be re-applied to canonical stats. The checkpoint's `last_event_id` and `processed_until` fields delineate the boundary.
+
+---
+
+## Kind 1853: Ocarina Song
+
+### Summary
+
+A short melody for a five-hole ocarina, from [oota](https://oota.app). Ditto renders songs in feeds, quotes and search, plays them, and can make one from any post (its words read into one of the shapes the games' songs use, the same way oota reads them) and publish it crediting the post's author.
+
+### Event Structure
+
+Regular event. Content is empty; the song is in the tags.
+
+```json
+{
+  "kind": 1853,
+  "content": "",
+  "tags": [
+    ["note", "74", "2"],
+    ["note", "81", "1"],
+    ["note", "86", "3"],
+    ["bpm", "100"],
+    ["title", "song of lanterns"],
+    ["e", "<event-id>", "<relay-url>", "<pubkey>"],
+    ["p", "<pubkey>"],
+    ["k", "1"],
+    ["alt", "Ocarina song \"song of lanterns\": D5 A5 D6"]
+  ]
+}
+```
+
+### Tags
+
+| Tag | Required | Description |
+| --- | --- | --- |
+| `note` | yes, 3 to 16 | `["note", <midi>, <beats>]` in playing order. `midi` is a whole number from 71 to 89 (B4 to F6); `beats` is one of `0.5`, `1`, `1.5`, `2`, `3`, `4`. Notes follow each other with no rests. |
+| `bpm` | no | Whole number, 40 to 220. Default `100` |
+| `title` | no | At most 40 characters |
+| `e` | no | The event the song was made of, or answers |
+| `a` | no | That event's address, when it is addressable |
+| `p` | should, with an `e` that names a pubkey | The linked event's author, credited |
+| `k` | should, with an `e` | The linked event's kind, as a string |
+| `alt` | should | NIP-31 description |
+
+### Client Behavior
+
+- Drop a song unless it has 3 to 16 valid `note` tags. Clamp `bpm` to 40–220; ignore one that isn't a number.
+- The five holes are D5 F5 A5 B5 D6 (MIDI 74 77 81 83 86); other notes are those holes bent up to three semitones.
+- Sharing a song made from a post also opens a quote of that post with the song embedded (`nostr:nevent…` in the content).
 
 ---
 

@@ -17,6 +17,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { BitcoinTxPreview, BitcoinAddressPreview } from '@/components/BitcoinContentHeader';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { OcarinaIcon } from '@/components/icons/OcarinaIcon';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
@@ -143,6 +144,7 @@ const KIND_LABEL = defineMessages({
   birdDetection: { id: 'commentContext.kind.birdDetection', defaultMessage: 'a bird detection' },
   birdex: { id: 'commentContext.kind.birdex', defaultMessage: 'a Birdex' },
   colorMoment: { id: 'commentContext.kind.colorMoment', defaultMessage: 'a color moment' },
+  ocarinaSong: { id: 'commentContext.kind.ocarinaSong', defaultMessage: 'an ocarina song' },
   foundLog: { id: 'commentContext.kind.foundLog', defaultMessage: 'a found log' },
   nsiteSnapshot: { id: 'commentContext.kind.nsiteSnapshot', defaultMessage: 'an nsite snapshot' },
   nsite: { id: 'commentContext.kind.nsite', defaultMessage: 'an nsite' },
@@ -237,6 +239,7 @@ const KIND_LABELS: Record<number, MessageDescriptor> = {
   2473: KIND_LABEL.birdDetection,
   12473: KIND_LABEL.birdex,
   3367: KIND_LABEL.colorMoment,
+  1853: KIND_LABEL.ocarinaSong,
   7516: KIND_LABEL.foundLog,
   5128: KIND_LABEL.nsiteSnapshot,
   15128: KIND_LABEL.nsite,
@@ -359,6 +362,7 @@ const KIND_ICONS: Partial<Record<number, React.ComponentType<{ className?: strin
   30000: Users,
   39089: PartyPopper,
   3367: Palette,
+  1853: OcarinaIcon,
   9735: Zap,
   9802: Quote,
   2003: Magnet,

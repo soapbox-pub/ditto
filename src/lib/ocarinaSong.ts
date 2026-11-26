@@ -1,53 +1,219 @@
+import type { NostrEvent } from '@nostrify/nostrify';
+
 /**
- * Turns a post into a short ocarina song, the kind Link learns in Ocarina of
- * Time and Majora's Mask: six to eight notes from the five ocarina buttons,
- * built on one of the shapes those songs use (a phrase played twice, a
- * call and answer, a rising run that comes home), with a rhythm to match.
- *
- * The post's text seeds everything, so a post always plays the same song.
- *
- * Synthesized with the Web Audio API like `birthdayJingle.ts`: no audio
- * files, no dependencies. The ocarina is a near-sine wave with a breathy
- * attack, a little scoop up into pitch and vibrato that swells in, played in
- * a big generated reverb over a soft drone, the way the games play a song
- * back once you've learned it.
+ * Ocarina songs (kind 1853, see NIP.md): a short melody for a five-hole
+ * ocarina, stored as `note` tags. The format, and the way any event is read
+ * into a song, follow oota (https://oota.app), so a post makes the same song
+ * there and here.
  */
 
-// ─── Songs ────────────────────────────────────────────────────────────────────
+/** Numbered for 1853, the year Giuseppe Donati made the first modern ocarina. */
+export const OCARINA_SONG_KIND = 1853;
 
-/** The five ocarina buttons, lowest to highest — also their staff lines, bottom to top. */
-export type OcarinaButton = 'a' | 'down' | 'right' | 'left' | 'up';
+/**
+ * The five holes, lowest to highest: the games' A button, then C-down,
+ * C-right, C-left and C-up. Also their staff lines, bottom to top.
+ */
+export type Step = 0 | 1 | 2 | 3 | 4;
+export const STEPS: readonly Step[] = [0, 1, 2, 3, 4];
 
-export const OCARINA_BUTTONS: readonly OcarinaButton[] = ['a', 'down', 'right', 'left', 'up'];
+/** A bend in semitones, up to three either way: B4 under the low hole, F6 over the high one. */
+export type Bend = -3 | -2 | -1 | 0 | 1 | 2 | 3;
+const MAX_BEND = 3;
 
-/** D5 F5 A5 B5 D6 — the games' D dorian-ish five-note ocarina. */
-const PITCH: Record<OcarinaButton, number> = {
-  a: 587.33,
-  down: 698.46,
-  right: 880.0,
-  left: 987.77,
-  up: 1174.66,
-};
-
-export interface OcarinaNote {
-  button: OcarinaButton;
-  /** Length in beats. */
+export interface SongNote {
+  step: Step;
+  /** Length in beats: one of BEAT_VALUES. */
   beats: number;
+  bend: Bend;
 }
 
-export interface OcarinaSong {
-  notes: OcarinaNote[];
+/** The event a song was made of, and whose it was. */
+export interface SongLink {
+  id: string;
+  relay?: string;
+  pubkey?: string;
+  kind?: number;
+  /** `<kind>:<pubkey>:<d>`, when it's addressable. */
+  address?: string;
+}
+
+export interface Song {
+  notes: SongNote[];
   bpm: number;
-  /** A word from the post to name the song after, if it has one. */
-  word?: string;
+  title?: string;
+  link?: SongLink;
+}
+
+export interface SongPost extends Song {
+  event: NostrEvent;
+}
+
+export const BEAT_VALUES = [0.5, 1, 1.5, 2, 3, 4] as const;
+const MIN_NOTES = 3;
+const MAX_NOTES = 16;
+const MIN_BPM = 40;
+const MAX_BPM = 220;
+const DEFAULT_BPM = 100;
+const TITLE_MAX = 40;
+
+/** The five holes as MIDI notes: D5 F5 A5 B5 D6. */
+const HOLES = [74, 77, 81, 83, 86] as const;
+
+export function noteMidi(note: Pick<SongNote, 'step' | 'bend'>): number {
+  return HOLES[note.step] + note.bend;
+}
+
+/** A bend as it's written: a sharp or a flat for each semitone. */
+export function bendMark(bend: Bend): string {
+  return (bend > 0 ? '♯' : '♭').repeat(Math.abs(bend));
 }
 
 /**
- * Song shapes: each letter is a button, and the same letter is the same
- * button. Each shape has the rhythms (in beats) that suit it.
+ * A pitch as the five holes write it: the hole that needs the least bending,
+ * and of two that need the same, the lower one bent up. Null outside B4 to F6.
+ */
+function spell(midi: number): Pick<SongNote, 'step' | 'bend'> | null {
+  for (let by = 0; by <= MAX_BEND; by++) {
+    for (const bend of [by, -by] as Bend[]) {
+      const step = STEPS.find((hole) => noteMidi({ step: hole, bend }) === midi);
+      if (step !== undefined) return { step, bend };
+    }
+  }
+  return null;
+}
+
+const PITCH_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+
+/** A MIDI note by name, middle C being C4: 74 is "D5". */
+function pitchName(midi: number): string {
+  return `${PITCH_NAMES[midi % 12]}${Math.floor(midi / 12) - 1}`;
+}
+
+/** Build the unsigned event for a song. */
+export function songToEvent(song: Song): { kind: number; content: string; tags: string[][]; created_at: number } {
+  const tags: string[][] = song.notes.map((n) => ['note', String(noteMidi(n)), String(n.beats)]);
+  tags.push(['bpm', String(Math.round(song.bpm))]);
+  const title = song.title?.trim();
+  if (title) tags.push(['title', title.slice(0, TITLE_MAX)]);
+  if (song.link) {
+    const { id, relay = '', pubkey, kind, address } = song.link;
+    tags.push(pubkey ? ['e', id, relay, pubkey] : relay ? ['e', id, relay] : ['e', id]);
+    if (address) tags.push(relay ? ['a', address, relay] : ['a', address]);
+    // Credit whoever wrote what the song was made of.
+    if (pubkey) tags.push(['p', pubkey]);
+    if (kind !== undefined) tags.push(['k', String(kind)]);
+  }
+  const pitches = song.notes.map((n) => pitchName(noteMidi(n))).join(' ');
+  tags.push(['alt', `Ocarina song${title ? ` "${title}"` : ''}: ${pitches}`]);
+
+  return { kind: OCARINA_SONG_KIND, content: '', tags, created_at: Math.floor(Date.now() / 1000) };
+}
+
+/** Parse and validate a song event. Returns null for anything malformed. */
+export function parseSong(event: NostrEvent): SongPost | null {
+  if (event.kind !== OCARINA_SONG_KIND) return null;
+
+  const notes: SongNote[] = [];
+  for (const [name, midi, beats] of event.tags) {
+    if (name !== 'note') continue;
+    const fingered = String(Number(midi)) === midi ? spell(Number(midi)) : null;
+    const length = BEAT_VALUES.find((value) => String(value) === beats);
+    if (!fingered || length === undefined) return null;
+    notes.push({ ...fingered, beats: length });
+  }
+  if (notes.length < MIN_NOTES || notes.length > MAX_NOTES) return null;
+
+  const bpmTag = Number(event.tags.find(([name]) => name === 'bpm')?.[1]);
+  const bpm = Number.isFinite(bpmTag) ? Math.min(MAX_BPM, Math.max(MIN_BPM, bpmTag)) : DEFAULT_BPM;
+
+  const title = event.tags.find(([name]) => name === 'title')?.[1]?.trim().slice(0, TITLE_MAX) || undefined;
+
+  const [, id, relay, pubkey] = event.tags.find(([name, id]) => name === 'e' && /^[0-9a-f]{64}$/.test(id ?? '')) ?? [];
+  const kindTag = event.tags.find(([name]) => name === 'k')?.[1] ?? '';
+  const kind = /^\d{1,5}$/.test(kindTag) ? Number(kindTag) : undefined;
+  const address = event.tags.find(([name, value]) => name === 'a' && /^\d{1,5}:[0-9a-f]{64}:/.test(value ?? ''))?.[1];
+  const link = id
+    ? { id, relay: relay?.startsWith('wss://') ? relay : undefined, pubkey: /^[0-9a-f]{64}$/.test(pubkey ?? '') ? pubkey : undefined, kind, address }
+    : undefined;
+
+  return { event, notes, bpm, title, link };
+}
+
+/** How long a song lasts, in seconds. */
+export function songSeconds(song: Pick<Song, 'notes' | 'bpm'>): number {
+  return song.notes.reduce((sum, note) => sum + note.beats, 0) * (60 / song.bpm);
+}
+
+// ─── Making songs of things ───────────────────────────────────────────────────
+//
+// Each is read the same way every time, so the same event always gives the
+// same song: a colour moment by its colours, a Grimoire spell by its spell,
+// anything else by its words.
+
+/** Espy's colour moments: three to six colours, an emoji, maybe a name. */
+const COLOR_MOMENT_KIND = 3367;
+
+interface ColorMoment {
+  colors: string[];
+  emoji?: string;
+  name?: string;
+}
+
+function parseColorMoment(event: NostrEvent): ColorMoment | null {
+  if (event.kind !== COLOR_MOMENT_KIND) return null;
+  const colors = event.tags.filter(([name, value]) => name === 'c' && /^#[0-9a-f]{6}$/i.test(value ?? '')).map(([, value]) => value);
+  if (colors.length < 3) return null;
+  return {
+    colors: colors.slice(0, 8),
+    emoji: event.content.trim() || undefined,
+    name: event.tags.find(([name]) => name === 'name')?.[1]?.trim() || undefined,
+  };
+}
+
+/** Hue in degrees, saturation and lightness from 0 to 1. */
+function hsl(hex: string): { h: number; s: number; l: number } {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (!d) return { h: 0, s: 0, l };
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s, l };
+}
+
+/**
+ * A colour as a note: round the wheel from red, low, to violet, high, lifted
+ * or lowered by how much paler or deeper it is than its palette. A grey is
+ * only as high as it is light. Vivid colours are short, dull ones linger.
+ */
+function colorNote(hex: string, light: number): SongNote {
+  const { h, s, l } = hsl(hex);
+  const grey = s < 0.15 || l < 0.06 || l > 0.96;
+  const lift = Math.sign(l - light) * (Math.abs(l - light) > 0.25 ? 2 : Math.abs(l - light) > 0.06 ? 1 : 0);
+  const hole = grey ? Math.round(l * 4) : Math.floor(((h + 36) % 360) / 72) + lift;
+  return { step: Math.max(0, Math.min(4, hole)) as Step, bend: 0, beats: s >= 0.6 && !grey ? 1 : s >= 0.3 && !grey ? 1.5 : 2 };
+}
+
+/** A palette played out and back, ending on its first colour, held. Brighter moments are quicker. */
+function colorSong(moment: ColorMoment, link: SongLink): Song {
+  const light = moment.colors.reduce((sum, c) => sum + hsl(c).l, 0) / moment.colors.length;
+  const there = moment.colors.slice(0, Math.ceil(MAX_NOTES / 2)).map((c) => colorNote(c, light));
+  const notes = [...there, ...there.slice(0, -1).reverse()];
+  notes[notes.length - 1] = { ...notes[notes.length - 1], beats: 3 };
+  const title = moment.name ?? `colours of ${moment.emoji ?? 'a moment'}`;
+  return { notes, bpm: Math.round(60 + light * 70), title: title.slice(0, TITLE_MAX), link };
+}
+
+/**
+ * Song shapes, from the songs Link learns: a phrase played twice, a call and
+ * answer, a run out and home. Each letter is a hole, and the same letter is
+ * the same hole. Each shape has the rhythms, in beats, that suit it.
  */
 const SHAPES: ReadonlyArray<{ shape: string; rhythms: number[][] }> = [
-  // A phrase played twice, like Zelda's Lullaby or Saria's Song.
+  // A phrase played twice.
   { shape: 'abcabc', rhythms: [[2, 1, 3, 2, 1, 3], [1, 1, 2, 1, 1, 3], [1.5, 0.5, 2, 1.5, 0.5, 3]] },
   // Twice, with a new last note.
   { shape: 'abcabd', rhythms: [[2, 1, 3, 2, 1, 3], [1, 1, 2, 1, 1, 3]] },
@@ -65,7 +231,7 @@ const SHAPES: ReadonlyArray<{ shape: string; rhythms: number[][] }> = [
   { shape: 'abacade', rhythms: [[1, 1, 1, 1, 1, 1, 3]] },
 ];
 
-/** FNV-1a, for turning the post into a seed. */
+/** FNV-1a, for turning words into a seed. */
 function hashString(text: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -90,313 +256,86 @@ function pick<T>(random: () => number, items: readonly T[]): T {
   return items[Math.floor(random() * items.length)];
 }
 
-/** A word of the post to name the song after: letters only, no links or mentions. */
+/** A word to name the song after: letters only, no links or mentions. */
 function pickWord(text: string, random: () => number): string | undefined {
-  const words = text
-    .replace(/(?:https?:\/\/|nostr:)\S+/g, ' ')
-    .match(/\p{L}{4,}/gu);
-  if (!words) return undefined;
-  const word = pick(random, words).slice(0, 12);
-  return word.charAt(0).toLocaleUpperCase() + word.slice(1).toLocaleLowerCase();
+  const words = text.replace(/(?:https?:\/\/|nostr:)\S+/g, ' ').match(/\p{L}{4,}/gu);
+  return words ? pick(random, words).slice(0, 12).toLocaleLowerCase() : undefined;
 }
 
-/** Compose the song for a piece of text. The same text always gives the same song. */
-export function composeOcarinaSong(text: string): OcarinaSong {
-  const random = seededRandom(hashString(text));
-
+/** Words as a song, on one of the shapes above. */
+function wordSong(text: string, link: SongLink): Song {
+  const words = text.trim();
+  const random = seededRandom(hashString(words));
   const { shape, rhythms } = pick(random, SHAPES);
   const rhythm = pick(random, rhythms);
 
-  // Deal the buttons out to the shape's letters.
-  const deck = [...OCARINA_BUTTONS];
+  // Deal the holes out to the shape's letters.
+  const deck = [...STEPS];
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
 
-  const notes = [...shape].map((letter, i) => ({
-    button: deck[letter.charCodeAt(0) - 97],
-    beats: rhythm[i],
-  }));
+  const notes = [...shape].map((letter, i) => ({ step: deck[letter.charCodeAt(0) - 97], bend: 0 as const, beats: rhythm[i] }));
+  const bpm = 96 + Math.floor(random() * 40);
+  const word = pickWord(words, random);
+  return { notes, bpm, title: word ? `song of ${word}` : 'the nameless song', link };
+}
 
-  return {
-    notes,
-    bpm: 96 + Math.floor(random() * 40),
-    word: pickWord(text, random),
+/** A Grimoire spell: a relay query saved as kind 777. */
+const RUNE_KIND = 777;
+
+/** A Grimoire spell read as words: its name, what it's for, and the query written out as it's typed. */
+function runeWords(event: NostrEvent): { name: string; words: string } | null {
+  if (event.kind !== RUNE_KIND) return null;
+  const all = (name: string) => event.tags.filter(([tag]) => tag === name);
+  const cmd = all('cmd')[0]?.[1];
+  if (!cmd || all('client')[0]?.[1] !== 'grimoire') return null;
+
+  const words = [cmd.toLowerCase()];
+  const flag = (mark: string, values: (string | undefined)[]) => {
+    const given = values.filter((value): value is string => !!value);
+    if (given.length) words.push(mark, given.join(','));
   };
+  flag('-k', all('k').map(([, kind]) => kind));
+  flag('-a', all('authors').flatMap(([, ...who]) => who).map((who) => (who.length === 64 ? `${who.slice(0, 8)}…` : who)));
+  for (const [, letter, ...values] of all('tag')) flag(`-${letter}`, values);
+  flag('--search', [all('search')[0]?.[1]]);
+  flag('--since', [all('since')[0]?.[1]]);
+  flag('--until', [all('until')[0]?.[1]]);
+  flag('-l', [all('limit')[0]?.[1]]);
+
+  const about = event.content.trim() || undefined;
+  const name = all('name')[0]?.[1]?.trim() || about?.slice(0, TITLE_MAX) || 'a spell with no name';
+  return { name, words: [name, about, words.join(' ')].filter(Boolean).join('\n') };
 }
 
-// ─── Audio ────────────────────────────────────────────────────────────────────
-
-const MASTER_GAIN = 0.22;
-const REVERB_SEC = 2.6;
-/** Drone under the song: D4 and A4. */
-const DRONE = [293.66, 440.0];
-
-let ctx: AudioContext | null = null;
-let ocarinaWave: PeriodicWave | null = null;
-let noiseBuffer: AudioBuffer | null = null;
-let reverbBuffer: AudioBuffer | null = null;
-
-function getContext(): AudioContext | null {
-  if (ctx) return ctx;
-  try {
-    ctx = new AudioContext();
-  } catch {
-    ctx = null;
-  }
-  return ctx;
+/** A song's link to the event it was made of: which it is, what kind, where it lives if it's addressable, and whose. */
+function linkTo(event: NostrEvent, relay?: string): SongLink {
+  const d = event.kind >= 30000 && event.kind < 40000 ? event.tags.find(([name]) => name === 'd')?.[1] : undefined;
+  return { id: event.id, relay, pubkey: event.pubkey, kind: event.kind, address: d !== undefined ? `${event.kind}:${event.pubkey}:${d}` : undefined };
 }
 
-/**
- * Wake the audio context. Call this from the tap that leads to playback:
- * iOS only lets audio start inside a user gesture, and the song starts a
- * moment later, once its dialog has opened.
- */
-export function primeOcarina(): void {
-  const ac = getContext();
-  if (ac?.state === 'suspended') void ac.resume().catch(() => {});
-}
-
-/** Almost a sine, with a whisper of overtones so it reads as a wind instrument. */
-function getOcarinaWave(ac: AudioContext): PeriodicWave {
-  ocarinaWave ??= ac.createPeriodicWave(
-    new Float32Array([0, 1, 0.1, 0.04, 0.015]),
-    new Float32Array(5),
-  );
-  return ocarinaWave;
-}
-
-function getNoiseBuffer(ac: AudioContext): AudioBuffer {
-  if (noiseBuffer) return noiseBuffer;
-  noiseBuffer = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
-  const data = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-  return noiseBuffer;
-}
-
-/** A big, soft hall: decaying stereo noise. */
-function getReverbBuffer(ac: AudioContext): AudioBuffer {
-  if (reverbBuffer) return reverbBuffer;
-  const length = Math.floor(ac.sampleRate * REVERB_SEC);
-  reverbBuffer = ac.createBuffer(2, length, ac.sampleRate);
-  for (let channel = 0; channel < 2; channel++) {
-    const data = reverbBuffer.getChannelData(channel);
-    for (let i = 0; i < length; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3;
-    }
-  }
-  return reverbBuffer;
-}
-
-interface Voice {
-  ac: AudioContext;
-  /** Feeds the master both dry and through the reverb. */
-  bus: GainNode;
-  nodes: AudioNode[];
-  sources: AudioScheduledSourceNode[];
-}
-
-/** One ocarina note, held from `start` for `length` seconds. */
-function scheduleNote(v: Voice, freq: number, start: number, length: number): void {
-  const { ac, bus } = v;
-  // Release a touch before the next note and let the reverb carry the rest.
-  const release = Math.max(start + 0.12, start + length - 0.05);
-  const stop = release + 0.25;
-
-  const gain = ac.createGain();
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.linearRampToValueAtTime(0.5, start + 0.035);
-  gain.gain.linearRampToValueAtTime(0.4, start + 0.12);
-  gain.gain.setValueAtTime(0.4, release);
-  gain.gain.exponentialRampToValueAtTime(0.0001, release + 0.2);
-  gain.connect(bus);
-
-  const osc = ac.createOscillator();
-  osc.setPeriodicWave(getOcarinaWave(ac));
-  // Scoop up into the note, as breath settles on it.
-  osc.frequency.setValueAtTime(freq * 0.985, start);
-  osc.frequency.exponentialRampToValueAtTime(freq, start + 0.06);
-  osc.connect(gain);
-
-  // Vibrato that swells in on held notes.
-  const lfo = ac.createOscillator();
-  lfo.frequency.value = 5.2;
-  const depth = ac.createGain();
-  depth.gain.setValueAtTime(0, start);
-  depth.gain.setValueAtTime(0, start + 0.2);
-  depth.gain.linearRampToValueAtTime(freq * 0.006, start + 0.55);
-  lfo.connect(depth);
-  depth.connect(osc.frequency);
-
-  // Breath: a puff of hiss on the attack, then a faint steady air.
-  const breath = ac.createBufferSource();
-  breath.buffer = getNoiseBuffer(ac);
-  breath.loop = true;
-  const breathFilter = ac.createBiquadFilter();
-  breathFilter.type = 'bandpass';
-  breathFilter.frequency.value = freq * 2;
-  breathFilter.Q.value = 0.8;
-  const breathGain = ac.createGain();
-  breathGain.gain.setValueAtTime(0.0001, start);
-  breathGain.gain.linearRampToValueAtTime(0.16, start + 0.02);
-  breathGain.gain.exponentialRampToValueAtTime(0.03, start + 0.14);
-  breathGain.gain.setValueAtTime(0.03, release);
-  breathGain.gain.exponentialRampToValueAtTime(0.0001, release + 0.15);
-  breath.connect(breathFilter);
-  breathFilter.connect(breathGain);
-  breathGain.connect(bus);
-
-  for (const source of [osc, lfo, breath]) {
-    source.start(start);
-    source.stop(stop);
-  }
-  v.sources.push(osc, lfo, breath);
-  v.nodes.push(gain, depth, breathFilter, breathGain);
-}
-
-/** The soft drone under the song, fading in and out around it. */
-function scheduleDrone(v: Voice, start: number, end: number): void {
-  const { ac, bus } = v;
-  for (const freq of DRONE) {
-    const gain = ac.createGain();
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.linearRampToValueAtTime(0.05, start + 0.8);
-    gain.gain.setValueAtTime(0.05, end);
-    gain.gain.exponentialRampToValueAtTime(0.0001, end + 1.4);
-    gain.connect(bus);
-
-    // Two slightly detuned voices, for warmth.
-    for (const detune of [-6, 6]) {
-      const osc = ac.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      osc.detune.value = detune;
-      osc.connect(gain);
-      osc.start(start);
-      osc.stop(end + 1.5);
-      v.sources.push(osc);
-    }
-    v.nodes.push(gain);
-  }
-}
-
-/** A little two-note chime once the song is done. */
-function scheduleChime(v: Voice, start: number): void {
-  const { ac, bus } = v;
-  [1174.66, 1760.0].forEach((freq, i) => {
-    const at = start + i * 0.1;
-    const gain = ac.createGain();
-    gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.linearRampToValueAtTime(0.18, at + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.7);
-    gain.connect(bus);
-
-    const osc = ac.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    osc.connect(gain);
-    osc.start(at);
-    osc.stop(at + 0.75);
-    v.sources.push(osc);
-    v.nodes.push(gain);
-  });
-}
-
-interface PlayCallbacks {
-  /** A note starts sounding. */
-  onNote?: (index: number) => void;
-  /** The song, and its chime, are done. */
-  onEnd?: () => void;
-}
-
-/**
- * Play the song once. Returns a function that stops it early. Errors are
- * swallowed: music must never break the page.
- */
-export function playOcarinaSong(song: OcarinaSong, { onNote, onEnd }: PlayCallbacks = {}): () => void {
-  const timers: ReturnType<typeof setTimeout>[] = [];
-  let voice: Voice | null = null;
-  let master: GainNode | null = null;
-  let stopped = false;
-
-  const begin = () => {
-    const ac = getContext();
-    if (stopped || !ac) return;
-
-    master = ac.createGain();
-    master.gain.value = MASTER_GAIN;
-    const lowpass = ac.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = 5200;
-    lowpass.connect(master);
-    master.connect(ac.destination);
-
-    const bus = ac.createGain();
-    bus.connect(lowpass);
-    const reverb = ac.createConvolver();
-    reverb.buffer = getReverbBuffer(ac);
-    const wet = ac.createGain();
-    wet.gain.value = 0.45;
-    bus.connect(reverb);
-    reverb.connect(wet);
-    wet.connect(lowpass);
-
-    const v: Voice = { ac, bus, nodes: [master, lowpass, bus, reverb, wet], sources: [] };
-    voice = v;
-
-    const beat = 60 / song.bpm;
-    const songStart = ac.currentTime + 0.25;
-    let at = songStart;
-    song.notes.forEach((note, i) => {
-      const length = note.beats * beat;
-      scheduleNote(v, PITCH[note.button], at, length);
-      timers.push(setTimeout(() => onNote?.(i), (at - ac.currentTime) * 1000));
-      at += length;
-    });
-
-    scheduleDrone(v, songStart - 0.2, at);
-    scheduleChime(v, at);
-    timers.push(setTimeout(() => onEnd?.(), (at + 0.6 - ac.currentTime) * 1000));
-  };
-
-  try {
-    const ac = getContext();
-    if (!ac) {
-      onEnd?.();
-      return () => {};
-    }
-    if (ac.state === 'running') begin();
-    else void ac.resume().then(begin).catch(() => onEnd?.());
-  } catch {
-    onEnd?.();
-  }
-
-  return () => {
-    if (stopped) return;
-    stopped = true;
-    for (const timer of timers) clearTimeout(timer);
-    const v = voice;
-    if (!v || !master) return;
-
+/** What an event is read by: a profile by its name and what it says of itself, anything else by what it says, or its id when it says nothing. */
+function eventWords(event: NostrEvent): string {
+  if (event.kind === 0) {
     try {
-      // Fade quickly instead of clicking off, then free everything.
-      const now = v.ac.currentTime;
-      master.gain.cancelScheduledValues(now);
-      master.gain.setValueAtTime(master.gain.value, now);
-      master.gain.linearRampToValueAtTime(0.0001, now + 0.15);
-      setTimeout(() => {
-        for (const source of v.sources) {
-          try {
-            source.stop();
-          } catch {
-            // Already stopped.
-          }
-        }
-        for (const node of [...v.sources, ...v.nodes]) node.disconnect();
-      }, 200);
+      const { display_name, name, about } = JSON.parse(event.content) as Record<string, unknown>;
+      const words = [display_name || name, about].filter((part): part is string => typeof part === 'string' && !!part.trim());
+      if (words.length) return words.join('\n');
     } catch {
-      // Never let teardown throw.
+      // Not a profile after all.
     }
-  };
+  }
+  return event.content.trim() ? event.content : event.id;
+}
+
+/** Any event as a song, linked back to it and crediting its author. */
+export function eventSong(event: NostrEvent, relay?: string): Song {
+  const link = linkTo(event, relay);
+  const moment = parseColorMoment(event);
+  if (moment) return colorSong(moment, link);
+  const rune = runeWords(event);
+  if (rune) return { ...wordSong(rune.words, link), title: rune.name.slice(0, TITLE_MAX) };
+  return wordSong(eventWords(event), link);
 }

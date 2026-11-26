@@ -139,6 +139,8 @@ import { LOVE_LIST_KIND } from "@/hooks/useLoveList";
 import { TOP8_KIND } from "@/hooks/useTop8";
 import { SnoContent } from "@/components/SnoContent";
 import { SNO_KIND } from "@/lib/sno";
+import { OCARINA_SONG_KIND } from "@/lib/ocarinaSong";
+import { OcarinaSongContent } from "@/components/OcarinaSongContent";
 import { VanishEventContent } from "@/components/VanishEventContent";
 import { parseFirstImeta } from '@/lib/imeta';
 import { type FileEncryption } from '@/lib/encryptedFile';
@@ -1373,6 +1375,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const isFoundLog = event.kind === 7516;
   const isColor = event.kind === 3367;
   const isSno = event.kind === SNO_KIND;
+  const isOcarinaSong = event.kind === OCARINA_SONG_KIND;
   const isBirdDetection = event.kind === 2473;
   const isBirdex = event.kind === 12473;
   const isConstellation = event.kind === 30621;
@@ -1435,6 +1438,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     !isFoundLog &&
     !isColor &&
     !isSno &&
+    !isOcarinaSong &&
     !isBirdDetection &&
     !isConstellation &&
     !isPeopleList &&
@@ -3027,6 +3031,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <BadgeAwardCard event={event} />
             ) : isSno ? (
               <SnoContent event={event} expanded className="mt-3" />
+            ) : isOcarinaSong ? (
+              <OcarinaSongContent event={event} className="mt-3" />
             ) : isVine ||
               isPoll ||
               isGeocache ||

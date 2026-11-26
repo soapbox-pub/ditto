@@ -9,6 +9,7 @@ import { highlightExternalSource } from '@/lib/highlightSource';
 import { isNsiteKind } from '@/lib/nsiteSubdomain';
 import { getZapAmountSats, getZapSenderPubkey, getTargetEventId } from '@/lib/zapHelpers';
 import { parseCardsFromEvent } from '@/lib/tarot/cards';
+import { OCARINA_SONG_KIND, parseSong } from '@/lib/ocarinaSong';
 
 /**
  * Minimum gap (in seconds) between consecutive events to be considered an
@@ -242,6 +243,8 @@ export function shouldHideFeedEvent(event: NostrEvent): boolean {
     const wikidataRe = /^https:\/\/www\.wikidata\.org\/entity\/Q\d+$/;
     if (!event.tags.some(([n, v]) => n === 'i' && typeof v === 'string' && wikidataRe.test(v))) return true;
   }
+  // Ocarina songs (kind 1853) whose notes don't make a song: the staff is the card.
+  if (event.kind === OCARINA_SONG_KIND && !parseSong(event)) return true;
   // Custom constellations (kind 30621) without any valid edge tags
   if (event.kind === 30621) {
     const hasEdge = event.tags.some(([n, from, to]) => n === 'edge' && /^\d+$/.test(from ?? '') && /^\d+$/.test(to ?? ''));

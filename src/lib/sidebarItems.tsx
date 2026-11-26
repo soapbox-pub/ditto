@@ -57,6 +57,7 @@ import {
 import { defineMessages, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { CardsIcon } from "@/components/icons/CardsIcon";
 import { ChestIcon } from "@/components/icons/ChestIcon";
+import { OcarinaIcon } from "@/components/icons/OcarinaIcon";
 import { PlanetIcon } from "@/components/icons/PlanetIcon";
 import { WikipediaIcon } from "@/components/icons/WikipediaIcon";
 import { BlueskyIcon } from "@/components/icons/BlueskyIcon";
@@ -305,6 +306,7 @@ export const SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: "treasures", label: "Treasures", path: "/treasures", icon: ChestIcon, section: "fun" },
   { id: "quizzes", label: "Quizzes", path: "/quizzes", icon: ClipboardList, section: "fun" },
   { id: "cards", label: "Memory Cards", path: "/memory-cards", icon: Gamepad2, section: "fun" },
+  { id: "ocarina", label: "Ocarina Songs", path: "/ocarina", icon: OcarinaIcon, section: "fun" },
   { id: "emojis", label: "Emojis", path: "/emojis", icon: SmilePlus, section: "personalize" },
   { id: "development", label: "Development", path: "/development", icon: Code, section: "tools" },
   { id: "badges", label: "Badges", path: "/badges", icon: Award, section: "fun" },

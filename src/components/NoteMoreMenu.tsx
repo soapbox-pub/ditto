@@ -22,7 +22,6 @@ import {
   RotateCcw,
   EyeOff,
   Bug,
-  Music,
 } from 'lucide-react';
 import { AdaptiveDialog, AdaptiveDialogContent, AdaptiveDialogTitle } from '@/components/AdaptiveDialog';
 import { usePresence } from '@/hooks/usePresence';
@@ -49,6 +48,7 @@ import { AddToListDialog } from '@/components/AddToListDialog';
 import { BugReportDialog } from '@/components/BugReportDialog';
 import { EventJsonDialog } from '@/components/EventJsonDialog';
 import { OcarinaSongDialog } from '@/components/OcarinaSongDialog';
+import { OcarinaIcon } from '@/components/icons/OcarinaIcon';
 import { RawEventEditDialog } from '@/components/RawEventEditDialog';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
@@ -68,7 +68,8 @@ import { isReplaceableLikeKind } from '@/lib/eventKinds';
 import { getNsiteSubdomain, isNsiteKind } from '@/lib/nsiteSubdomain';
 import { toast } from '@/hooks/useToast';
 import { impactLight } from '@/lib/haptics';
-import { primeOcarina } from '@/lib/ocarinaSong';
+import { primeOcarina } from '@/lib/ocarinaAudio';
+import { OCARINA_SONG_KIND } from '@/lib/ocarinaSong';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -628,11 +629,13 @@ function NoteMoreMenuContent({ event, open, onOpenChange, bookmarked, pinned, us
             label={isInSidebar ? intl.formatMessage({ id: 'note.moreMenu.removeFromSidebar', defaultMessage: 'Remove from sidebar' }) : intl.formatMessage({ id: 'note.moreMenu.addToSidebar', defaultMessage: 'Add to sidebar' })}
             onClick={handleToggleSidebar}
           />
-          <MenuItem
-            icon={<Music className="size-5" />}
-            label={intl.formatMessage({ id: 'note.moreMenu.playOcarina', defaultMessage: 'Play as an ocarina song' })}
-            onClick={onPlayOcarina}
-          />
+          {event.kind !== OCARINA_SONG_KIND && (
+            <MenuItem
+              icon={<OcarinaIcon className="size-5" />}
+              label={intl.formatMessage({ id: 'note.moreMenu.playOcarina', defaultMessage: 'Play as an ocarina song' })}
+              onClick={onPlayOcarina}
+            />
+          )}
         </div>
 
         <Separator />

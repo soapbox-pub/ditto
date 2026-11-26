@@ -42,6 +42,8 @@ import { EmbeddedMemoryCardCard } from '@/components/EmbeddedMemoryCardCard';
 import { MEMORY_CARD_KIND } from '@/lib/memorycard';
 import { EmbeddedSnoCard } from '@/components/EmbeddedSnoCard';
 import { SNO_KIND } from '@/lib/sno';
+import { OCARINA_SONG_KIND } from '@/lib/ocarinaSong';
+import { EmbeddedOcarinaSongCard } from '@/components/EmbeddedOcarinaSongCard';
 import { EmbeddedTarotReadingCard } from '@/components/tarot/EmbeddedTarotReadingCard';
 import { TAROT_READING_KIND } from '@/lib/tarot/cards';
 import { PeopleAvatarStack } from '@/components/PeopleAvatarStack';
@@ -271,6 +273,11 @@ function EmbeddedEventBody({ event, className, disableHoverCards, highlightText,
   // show a rendered still instead of the raw payload.
   if (event.kind === SNO_KIND) {
     return <EmbeddedSnoCard event={event} className={className} disableHoverCards={disableHoverCards} />;
+  }
+
+  // Ocarina songs (kind 1853) keep their notes in tags; show the staff.
+  if (event.kind === OCARINA_SONG_KIND) {
+    return <EmbeddedOcarinaSongCard event={event} className={className} disableHoverCards={disableHoverCards} />;
   }
 
   // Memory-card blocks (kind 38192) decode to a save icon + title instead of

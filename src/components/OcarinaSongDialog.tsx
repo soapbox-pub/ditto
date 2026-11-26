@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FormattedMessage } from 'react-intl';
-import { RotateCcw, Triangle } from 'lucide-react';
+import { useIntl } from 'react-intl';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import {
@@ -9,15 +8,17 @@ import {
   AdaptiveDialogDescription,
   AdaptiveDialogTitle,
 } from '@/components/AdaptiveDialog';
-import { Button } from '@/components/ui/button';
-import {
-  composeOcarinaSong,
-  OCARINA_BUTTONS,
-  playOcarinaSong,
-  type OcarinaButton,
-  type OcarinaSong,
-} from '@/lib/ocarinaSong';
-import { cn } from '@/lib/utils';
+import { OcarinaStaff } from '@/components/OcarinaStaff';
+import { OcarinaTalk, type TalkChoice, type TalkPart } from '@/components/OcarinaTalk';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useOcarinaPlayback } from '@/hooks/useOcarinaPlayback';
+import { getDisplayName } from '@/lib/getDisplayName';
+import { playFanfare } from '@/lib/ocarinaAudio';
+import { eventSong, songToEvent } from '@/lib/ocarinaSong';
+import { tryNeventEncode } from '@/lib/safeNip19';
 
 interface OcarinaSongDialogProps {
   event: NostrEvent;
@@ -25,112 +26,176 @@ interface OcarinaSongDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** The post, played as a short ocarina song on the games' five-line staff. */
+/**
+ * The post, played as a short ocarina song on the games' staff, then the
+ * question the games would ask: share it? Sharing publishes the song (kind
+ * 1853, crediting the post's author) and opens a quote of the post with the
+ * song in it.
+ */
 export function OcarinaSongDialog({ event, open, onOpenChange }: OcarinaSongDialogProps) {
-  const song = useMemo(() => composeOcarinaSong(event.content.trim() || event.id), [event.content, event.id]);
+  const intl = useIntl();
+  const [shared, setShared] = useState<NostrEvent | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const sharedNevent = shared ? tryNeventEncode({ id: shared.id, author: shared.pubkey, kind: shared.kind }) : undefined;
 
   return (
-    <AdaptiveDialog open={open} onOpenChange={onOpenChange}>
-      <AdaptiveDialogContent
-        className="max-w-md rounded-2xl"
-        sheetClassName="px-6 pb-6 pt-2"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="space-y-1 text-center">
-          <AdaptiveDialogTitle className="text-2xl font-semibold">
-            {song.word
-              ? <FormattedMessage id="ocarina.title" defaultMessage="Song of {word}" values={{ word: song.word }} />
-              : <FormattedMessage id="ocarina.titleUntitled" defaultMessage="The Nameless Song" />}
+    <>
+      <AdaptiveDialog open={open} onOpenChange={onOpenChange}>
+        <AdaptiveDialogContent
+          className="max-w-md overflow-hidden rounded-2xl border-none p-0"
+          sheetClassName="p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <AdaptiveDialogTitle className="sr-only">
+            {intl.formatMessage({ id: 'ocarina.dialog.title', defaultMessage: 'Ocarina song' })}
           </AdaptiveDialogTitle>
-          <AdaptiveDialogDescription>
-            <FormattedMessage id="ocarina.description" defaultMessage="Composed from this post, for ocarina" />
+          <AdaptiveDialogDescription className="sr-only">
+            {intl.formatMessage({ id: 'ocarina.description', defaultMessage: 'Composed from this post, for ocarina' })}
           </AdaptiveDialogDescription>
-        </div>
+          <OcarinaScene
+            event={event}
+            onShared={setShared}
+            onCompose={() => {
+              onOpenChange(false);
+              setTimeout(() => setComposeOpen(true), 150);
+            }}
+            onClose={() => onOpenChange(false)}
+          />
+        </AdaptiveDialogContent>
+      </AdaptiveDialog>
 
-        <OcarinaPlayer song={song} />
-      </AdaptiveDialogContent>
-    </AdaptiveDialog>
+      {sharedNevent && (
+        <ReplyComposeModal
+          open={composeOpen}
+          onOpenChange={setComposeOpen}
+          quotedEvent={event}
+          initialContent={`\n\nnostr:${sharedNevent}`}
+        />
+      )}
+    </>
   );
+}
+
+type Phase = 'playing' | 'played' | 'ask' | 'sending' | 'sent' | 'failed';
+
+interface OcarinaSceneProps {
+  event: NostrEvent;
+  onShared: (song: NostrEvent) => void;
+  onCompose: () => void;
+  onClose: () => void;
 }
 
 /** Mounted while the dialog is open, so the song plays each time it opens. */
-function OcarinaPlayer({ song }: { song: OcarinaSong }) {
-  const [take, setTake] = useState(0);
-  /** How many notes have sounded so far. */
-  const [heard, setHeard] = useState(0);
-  const [playing, setPlaying] = useState(true);
+function OcarinaScene({ event, onShared, onCompose, onClose }: OcarinaSceneProps) {
+  const intl = useIntl();
+  const { user } = useCurrentUser();
+  const author = useAuthor(event.pubkey);
+  const { mutate: publish } = useNostrPublish();
+  const song = useMemo(() => eventSong(event), [event]);
+  const { play, playing, heard } = useOcarinaPlayback();
+  const [phase, setPhase] = useState<Phase>('playing');
 
   useEffect(() => {
-    return playOcarinaSong(song, {
-      onNote: (index) => setHeard(index + 1),
-      onEnd: () => setPlaying(false),
-    });
-  }, [song, take]);
+    play(song, () => setPhase('played'));
+  }, [play, song]);
 
-  const replay = () => {
-    setHeard(0);
-    setPlaying(true);
-    setTake((n) => n + 1);
+  const title = song.title ?? '';
+  const name = getDisplayName(author.data?.metadata);
+
+  const again = () => {
+    setPhase('playing');
+    play(song, () => setPhase('ask'));
   };
 
+  const share = () => {
+    setPhase('sending');
+    publish(songToEvent(song), {
+      onSuccess: (published) => {
+        playFanfare();
+        onShared(published);
+        setPhase('sent');
+      },
+      onError: () => setPhase('failed'),
+    });
+  };
+
+  const choices = {
+    share: { label: intl.formatMessage({ id: 'ocarina.choice.share', defaultMessage: 'Share it' }), onChoose: share },
+    again: { label: intl.formatMessage({ id: 'ocarina.choice.again', defaultMessage: 'Play it again' }), onChoose: again },
+    notNow: { label: intl.formatMessage({ id: 'ocarina.choice.notNow', defaultMessage: 'Not now' }), onChoose: onClose },
+    retry: { label: intl.formatMessage({ id: 'ocarina.choice.retry', defaultMessage: 'Try again' }), onChoose: share },
+    okay: { label: intl.formatMessage({ id: 'ocarina.choice.okay', defaultMessage: 'Okay' }), onChoose: onClose },
+  } satisfies Record<string, TalkChoice>;
+
+  const talk: { line: TalkPart[]; choices?: TalkChoice[]; onNext?: () => void } | null = (() => {
+    switch (phase) {
+      case 'playing':
+        return null;
+      case 'played':
+        return {
+          line: toParts(intl.formatMessage(
+            { id: 'ocarina.talk.played', defaultMessage: 'You played <red>{title}</red>!' },
+            { title, red: redChunks },
+          )),
+          onNext: () => setPhase('ask'),
+        };
+      case 'ask':
+        if (!user) {
+          return {
+            line: [{ text: intl.formatMessage({ id: 'ocarina.talk.logIn', defaultMessage: 'Log in, and you can share the songs you play.' }) }],
+            choices: [choices.again, choices.okay],
+          };
+        }
+        return {
+          line: user.pubkey === event.pubkey
+            ? [{ text: intl.formatMessage({ id: 'ocarina.talk.askOwn', defaultMessage: 'Share it, so everyone can hear it?' }) }]
+            : toParts(intl.formatMessage(
+              { id: 'ocarina.talk.ask', defaultMessage: 'Share it, so everyone can hear it? <red>{name}</red> will be credited for it.' },
+              { name, red: redChunks },
+            )),
+          choices: [choices.share, choices.again, choices.notNow],
+        };
+      case 'sending':
+        return { line: [{ text: intl.formatMessage({ id: 'ocarina.talk.sending', defaultMessage: 'Sending it out…' }) }] };
+      case 'sent':
+        return {
+          line: toParts(intl.formatMessage(
+            { id: 'ocarina.talk.sent', defaultMessage: 'You shared <red>{title}</red>! Now tell everyone about it.' },
+            { title, red: redChunks },
+          )),
+          onNext: onCompose,
+        };
+      case 'failed':
+        return {
+          line: [{ text: intl.formatMessage({ id: 'ocarina.talk.failed', defaultMessage: "That didn't send. Try again?" }) }],
+          choices: [choices.retry, choices.notNow],
+        };
+    }
+  })();
+
   return (
-    <div className="space-y-6 pt-4">
-      <div className="relative h-40" aria-hidden>
-        {OCARINA_BUTTONS.map((button) => (
-          <div
-            key={button}
-            className="absolute inset-x-0 h-px bg-rose-500/40"
-            style={{ top: lineTop(button) }}
-          />
-        ))}
-        <div className="absolute inset-0 flex">
-          {song.notes.map((note, i) => (
-            <div key={i} className="relative flex-1">
-              <NoteButton
-                button={note.button}
-                shown={i < heard}
-                current={playing && i === heard - 1}
-              />
-            </div>
-          ))}
-        </div>
+    <div className="relative flex min-h-[22rem] flex-col justify-between gap-4 overflow-hidden rounded-2xl bg-[radial-gradient(ellipse_at_top,#1f4a3a,#0b1a22_70%)] p-4">
+      <OcarinaStaff
+        notes={song.notes}
+        shown={phase === 'playing' ? heard : song.notes.length}
+        current={playing ? heard - 1 : null}
+        className="mt-6"
+      />
+      <div className="min-h-[6.5rem]">
+        {talk && <OcarinaTalk key={phase} line={talk.line} choices={talk.choices} onNext={talk.onNext} />}
       </div>
-
-      <Button variant="secondary" className="w-full" onClick={replay} disabled={playing}>
-        <RotateCcw className="size-4" />
-        <FormattedMessage id="ocarina.playAgain" defaultMessage="Play again" />
-      </Button>
     </div>
   );
 }
 
-/** Where a button's staff line sits: the A button on the bottom line, C-up on top. */
-function lineTop(button: OcarinaButton): string {
-  return `${10 + (4 - OCARINA_BUTTONS.indexOf(button)) * 20}%`;
+/** Marks a stretch of a message red, for `toParts` to find. */
+function redChunks(chunks: string[]): string {
+  return `\uE000${chunks.join('')}\uE001`;
 }
 
-const ARROW_ROTATION: Record<Exclude<OcarinaButton, 'a'>, string> = {
-  up: '',
-  down: 'rotate-180',
-  left: '-rotate-90',
-  right: 'rotate-90',
-};
-
-function NoteButton({ button, shown, current }: { button: OcarinaButton; shown: boolean; current: boolean }) {
-  return (
-    <div
-      className={cn(
-        'absolute left-1/2 flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-sm',
-        'motion-safe:transition-[opacity,transform] motion-safe:duration-200',
-        button === 'a' ? 'bg-blue-600 text-white' : 'bg-yellow-400 text-yellow-950',
-        shown ? 'opacity-100' : 'opacity-0 scale-50',
-        current && 'scale-125',
-      )}
-      style={{ top: lineTop(button) }}
-    >
-      {button === 'a'
-        ? <span className="text-xs font-bold">A</span>
-        : <Triangle className={cn('size-3 fill-current', ARROW_ROTATION[button])} />}
-    </div>
-  );
+/** A message with `<red>` stretches marked by `redChunks`, as parts of a line. */
+function toParts(said: string): TalkPart[] {
+  return said.split(/(\uE000[^\uE001]*\uE001)/).filter(Boolean).map((part) => (
+    part.startsWith('\uE000') ? { text: part.slice(1, -1), red: true } : { text: part }
+  ));
 }

@@ -115,6 +115,7 @@ const decksDef = getExtraKindDef("decks")!;
 const highlightsDef = getExtraKindDef("highlights")!;
 const torrentsDef = getExtraKindDef("torrents")!;
 const snoDef = getExtraKindDef("sno")!;
+const ocarinaDef = getExtraKindDef("ocarina")!;
 
 /** Polls feed page with a FAB that opens the compose modal (poll mode via + menu). */
 function PollsFeedPage() {
@@ -251,6 +252,17 @@ export function AppRouter() {
               kind={decksDef.kind}
               title={decksDef.label}
               icon={sidebarItemIcon("decks", "size-5")}
+            />
+          }
+        />
+        <Route
+          path="/ocarina"
+          element={
+            <KindFeedPage
+              kind={ocarinaDef.kind}
+              title={ocarinaDef.label}
+              icon={sidebarItemIcon("ocarina", "size-5")}
+              showFAB={false}
             />
           }
         />
