@@ -215,7 +215,24 @@ describe('parseBitcoinUri', () => {
     expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.000000019')?.amountSats).toBe(1);
   });
 
+  it('parses the amount exactly, without float drift', () => {
+    // `Math.floor(0.00000029 * 1e8)` is 28: these used to come out a sat short.
+    for (const [amount, sats] of [
+      ['0.00000029', 29],
+      ['0.00000003', 3],
+      ['0.29', 29_000_000],
+      ['1.00000105', 100_000_105],
+      ['.5', 50_000_000],
+      ['21', 2_100_000_000],
+    ] as const) {
+      expect(parseBitcoinUri(`bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=${amount}`)?.amountSats).toBe(sats);
+    }
+  });
+
   it('omits amountSats when the parameter is malformed or non-positive', () => {
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=1e-3')?.amountSats).toBeUndefined();
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=.')?.amountSats).toBeUndefined();
+    expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0.000000001')?.amountSats).toBeUndefined();
     expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=abc')?.amountSats).toBeUndefined();
     expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=0')?.amountSats).toBeUndefined();
     expect(parseBitcoinUri('bitcoin:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2?amount=-1')?.amountSats).toBeUndefined();

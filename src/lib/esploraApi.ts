@@ -472,16 +472,32 @@ export function parseBitcoinUri(input: string): ParsedBitcoinUri | null {
     sp = params.get('sp')?.trim() || undefined;
 
     const amountRaw = params.get('amount')?.trim();
-    if (amountRaw) {
-      const btc = Number(amountRaw);
-      if (Number.isFinite(btc) && btc > 0) {
-        // Round down — never overstate the requested amount.
-        amountSats = Math.floor(btc * 100_000_000);
-      }
-    }
+    if (amountRaw) amountSats = parseBtcAmountToSats(amountRaw);
   }
 
   return { address, sp, amountSats };
+}
+
+/**
+ * Convert a BIP-21 `amount=` value (a decimal BTC string) to whole satoshis.
+ *
+ * Done on the digits, never by multiplying a float: `Math.floor(btc * 1e8)`
+ * lands a hair under the integer for about one amount in twelve (0.00000029
+ * BTC came out as 28 sats), so a payment request for an exact amount was
+ * paid one sat short. Digits past the eighth place are fractions of a sat,
+ * which can't be paid, and are dropped. Returns `undefined` for anything that
+ * isn't a plain positive decimal.
+ */
+function parseBtcAmountToSats(raw: string): number | undefined {
+  const match = /^(\d*)(?:\.(\d*))?$/.exec(raw);
+  if (!match) return undefined;
+  const [, whole = '', fraction = ''] = match;
+  if (!whole && !fraction) return undefined;
+
+  const sats = BigInt(whole || '0') * 100_000_000n + BigInt(fraction.slice(0, 8).padEnd(8, '0'));
+  // 21M BTC is far below 2^53 sats, so anything larger isn't a real request.
+  if (sats <= 0n || sats > BigInt(Number.MAX_SAFE_INTEGER)) return undefined;
+  return Number(sats);
 }
 
 /**
