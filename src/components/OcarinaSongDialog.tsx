@@ -42,7 +42,7 @@ export function OcarinaSongDialog({ event, open, onOpenChange }: OcarinaSongDial
     <>
       <AdaptiveDialog open={open} onOpenChange={onOpenChange}>
         <AdaptiveDialogContent
-          className="max-w-md overflow-hidden rounded-2xl border-none p-0"
+          className="max-w-xl overflow-hidden rounded-2xl border-none p-0"
           sheetClassName="p-3"
           onClick={(e) => e.stopPropagation()}
         >
@@ -174,12 +174,12 @@ function OcarinaScene({ event, onShared, onCompose, onClose }: OcarinaSceneProps
   })();
 
   return (
-    <div className="relative flex min-h-[22rem] flex-col justify-between gap-4 overflow-hidden rounded-2xl bg-[radial-gradient(ellipse_at_top,#1f4a3a,#0b1a22_70%)] p-4">
+    <div className="relative flex min-h-[28rem] flex-col justify-between gap-8 overflow-hidden rounded-2xl bg-[radial-gradient(ellipse_at_top,#1f4a3a,#0b1a22_70%)] p-6 sm:p-8">
       <OcarinaStaff
         notes={song.notes}
         shown={phase === 'playing' ? heard : song.notes.length}
         current={playing ? heard - 1 : null}
-        className="mt-6"
+        className="mt-8 h-40"
       />
       <div className="min-h-[6.5rem]">
         {talk && <OcarinaTalk key={phase} line={talk.line} choices={talk.choices} onNext={talk.onNext} />}
