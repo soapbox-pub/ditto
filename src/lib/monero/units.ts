@@ -46,6 +46,18 @@ export function formatXMR(
 }
 
 /**
+ * Format atomic units as an XMR decimal string to the last atomic unit.
+ *
+ * For anything being authorized or filled into a form rather than glanced at:
+ * {@link formatXMR}'s default cuts to six places, which turned a payment
+ * request for 0.01057693 XMR into a send of 0.010576 and then showed the
+ * truncated figure on the confirmation as if nothing had changed.
+ */
+export function formatXMRExact(atomicUnits: bigint, { minDecimals = 0 }: { minDecimals?: number } = {}): string {
+  return formatXMR(atomicUnits, { maxDecimals: XMR_DECIMALS, minDecimals });
+}
+
+/**
  * Parse a user-entered XMR decimal string into atomic units.
  *
  * Returns `null` for anything unparseable. Extra decimal places beyond 12 are
@@ -252,7 +264,7 @@ export function parseMoneroUri(
 export function buildMoneroUri(address: string, amount?: bigint, description?: string): string {
   const params = new URLSearchParams();
   if (amount && amount > 0n) {
-    params.set('tx_amount', formatXMR(amount, { maxDecimals: XMR_DECIMALS, minDecimals: 0 }));
+    params.set('tx_amount', formatXMRExact(amount));
   }
   if (description) params.set('tx_description', description);
   const query = params.toString();

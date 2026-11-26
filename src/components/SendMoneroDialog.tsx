@@ -29,7 +29,7 @@ import {
   atomicToFiat,
   formatMoneroAmount,
   formatMoneroAmountInput,
-  formatXMR,
+  formatXMRExact,
   isMoneroAddress,
   parseMoneroUri,
   truncateAddress,
@@ -58,14 +58,25 @@ function defaultAmount(unit: MoneroDisplayUnit): number {
   return unit === 'xmr' ? 0.02 : 5;
 }
 
-/** Render an atomic amount as a value the amount field can hold and re-parse. */
+/**
+ * Render an atomic amount as a value the amount field can hold and re-parse.
+ *
+ * In XMR this keeps every atomic unit. A `monero:` request is usually priced
+ * to more places than a balance is shown to, and the field's value is what
+ * gets sent, so cutting digits here underpays the request.
+ */
 function atomicToInputValue(
   atomicUnits: bigint,
   unit: MoneroDisplayUnit,
   xmrPrice: number | undefined,
 ): string {
   if (unit === 'usd' && xmrPrice) return atomicToFiat(atomicUnits, xmrPrice).toFixed(2);
-  return formatXMR(atomicUnits, { maxDecimals: 6, minDecimals: 0 });
+  return formatXMRExact(atomicUnits);
+}
+
+/** An XMR amount being authorized or reported as sent, to the last atomic unit. */
+function exactXmrLabel(atomicUnits: bigint): string {
+  return `${formatXMRExact(atomicUnits, { minDecimals: 4 })} XMR`;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,17 +240,22 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
   // In USD mode the amount is 0 until the price lands, so fall back to echoing
   // the raw input ("$5") rather than putting a "0" on the send button.
   const totalDisplay =
-    total > 0n ? formatMoneroAmount(total, unit, xmrPrice, intl.locale) : formatMoneroAmountInput(amountInput, unit, intl.locale);
+    total > 0n
+      ? unit === 'xmr'
+        ? exactXmrLabel(total)
+        : formatMoneroAmount(total, unit, xmrPrice, intl.locale)
+      : formatMoneroAmountInput(amountInput, unit, intl.locale);
 
   /**
-   * The same total in XMR, always stated on the confirming tap.
+   * The exact total in XMR, always stated on the confirming tap.
    *
    * A USD figure is the output of a price fetched over the network, and the
    * thing being authorized is an irreversible, unverifiable transfer. If that
    * number is wrong the user can't tell from a dollar sign — so the
-   * confirmation says what actually leaves the wallet.
+   * confirmation says what actually leaves the wallet, to the atomic unit, so
+   * it can be checked against a payment request priced finer than a balance.
    */
-  const totalXmrDisplay = unit === 'usd' && total > 0n ? formatMoneroAmount(total, 'xmr', xmrPrice, intl.locale) : null;
+  const totalXmrDisplay = total > 0n ? exactXmrLabel(total) : null;
 
   const syncing = phase === 'loading' || phase === 'opening' || phase === 'syncing';
   const awaitingPrice = unit === 'usd' && !xmrPrice;
@@ -325,7 +341,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
       void refreshState();
       toast({
         title: intl.formatMessage({ id: 'monero.send.sent.title', defaultMessage: 'Monero sent' }),
-        description: formatMoneroAmount(prepared.amount, 'xmr', xmrPrice, intl.locale),
+        description: exactXmrLabel(prepared.amount),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to broadcast the transaction');
@@ -472,7 +488,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                         <FormattedMessage id="monero.send.confirm.amount" defaultMessage="Amount" />
                       </dt>
                       <dd className="font-medium text-right">
-                        {formatMoneroAmount(prepared.amount, 'xmr', xmrPrice, intl.locale)}
+                        {exactXmrLabel(prepared.amount)}
                         {unit === 'usd' && xmrPrice
                           ? ` · ${formatMoneroAmount(prepared.amount, 'usd', xmrPrice, intl.locale)}`
                           : ''}
@@ -482,7 +498,7 @@ export function SendMoneroDialog({ isOpen, onClose, initialUri, onSuccess }: Sen
                       <dt className="text-muted-foreground">
                         <FormattedMessage id="monero.send.confirm.fee" defaultMessage="Network fee" />
                       </dt>
-                      <dd className="text-right">{formatMoneroAmount(prepared.fee, 'xmr', xmrPrice, intl.locale)}</dd>
+                      <dd className="text-right">{exactXmrLabel(prepared.fee)}</dd>
                     </div>
                     <div className="flex justify-between gap-3">
                       <dt className="text-muted-foreground">
@@ -1296,8 +1312,8 @@ function SendSuccess({ txHash, amount, unit, xmrPrice, onClose }: SendSuccessPro
         <h2 className="text-lg font-semibold tracking-tight">
           <FormattedMessage id="monero.send.success.heading" defaultMessage="Monero sent" />
         </h2>
-        <div className="text-4xl font-bold tabular-nums bg-gradient-to-br from-orange-500 to-orange-600 bg-clip-text text-transparent">
-          {formatMoneroAmount(amount, 'xmr', xmrPrice, intl.locale)}
+        <div className="text-4xl font-bold tabular-nums break-all bg-gradient-to-br from-orange-500 to-orange-600 bg-clip-text text-transparent">
+          {exactXmrLabel(amount)}
         </div>
         {unit === 'usd' && xmrPrice && (
           <div className="text-sm text-muted-foreground">
