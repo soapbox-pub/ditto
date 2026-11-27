@@ -1790,17 +1790,34 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   }, [textRepliesLoading, rawReplies, commentsData?.allComments, textReplyRoots, interactions, interactionsUpdatedAt]);
   const { data: stats } = useLiveEventStats(event, liveCounts);
 
-  // Split off the flood-flagged top-level replies so they render as one
-  // collapsed, expandable row beneath the clean thread instead of filling it.
+  // Split off the flood-flagged replies so they render as one collapsed,
+  // expandable row beneath the clean thread instead of filling it. Flagged
+  // replies are cut out at any depth, with whatever hangs under them: spam
+  // that answers each real reply in a thread, rather than the post, would
+  // otherwise sit nested under every one of them.
   const { visibleRoots, floodedRoots } = useMemo(() => {
     if (floodedIds.size === 0) {
       return { visibleRoots: replyTree, floodedRoots: [] as ReplyNode[] };
     }
-    const visible: ReplyNode[] = [];
     const flooded: ReplyNode[] = [];
-    for (const node of replyTree) {
-      (floodedIds.has(node.event.id) ? flooded : visible).push(node);
-    }
+    const keep = (nodes: ReplyNode[]): ReplyNode[] => {
+      const out: ReplyNode[] = [];
+      for (const node of nodes) {
+        if (floodedIds.has(node.event.id)) flooded.push(node);
+        else out.push(prune(node));
+      }
+      return out;
+    };
+    const prune = (node: ReplyNode): ReplyNode => {
+      const children = keep(node.children);
+      const hidden = node.hiddenChildren ? keep(node.hiddenChildren) : [];
+      // The inline chain shows one child; if spam was it, the next real one takes its place.
+      const next = children.length === 0 ? hidden.shift() : undefined;
+      if (next) children.push(next);
+      return hidden.length > 0 ? { event: node.event, children, hiddenChildren: hidden } : { event: node.event, children };
+    };
+    const visible = keep(replyTree);
+    flooded.sort((a, b) => a.event.created_at - b.event.created_at);
     return { visibleRoots: visible, floodedRoots: flooded };
   }, [replyTree, floodedIds]);
 
