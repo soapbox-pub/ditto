@@ -2,18 +2,23 @@ import type { NostrSigner } from '@nostrify/types';
 
 /**
  * The NIP-07 provider at `window.nostr`, with the optional multi-account
- * additions some providers (Din) offer:
+ * additions some providers (Din, Tenna) offer:
  *
- * - `requestPublicKey()` asks the user to give the site an account and
- *   resolves with its key. It always asks, so the provider shows the account.
+ * - `connect()` asks the user to give the site an account and resolves with
+ *   a signer for it. It always asks, so the provider shows the account.
  * - `getSigner(pubkey)` resolves, without asking, with a NIP-07 signer pinned
  *   to an account the site holds, whatever account the provider itself is
  *   acting as. It rejects with a `NotFoundError` DOMException if the site
  *   doesn't hold it.
+ * - `disconnect(pubkey)` lets the site's account go, without asking.
+ *
+ * A signer from either keeps its account, and its `getPublicKey()` answers
+ * without asking, even once the site no longer holds the account.
  */
 export interface Nip07Provider extends NostrSigner {
-  requestPublicKey?(): Promise<string>;
+  connect?(): Promise<NostrSigner>;
   getSigner?(pubkey: string): Promise<NostrSigner>;
+  disconnect?(pubkey: string): Promise<void>;
   signPsbt?(psbtHex: string): Promise<string>;
 }
 
@@ -34,10 +39,17 @@ export function hasGetSigner(
 }
 
 /** Whether the provider can ask the user for an account to give the site. */
-export function hasRequestPublicKey(
+export function hasConnect(
   provider: Nip07Provider | undefined,
-): provider is Nip07Provider & Required<Pick<Nip07Provider, 'requestPublicKey'>> {
-  return typeof provider?.requestPublicKey === 'function';
+): provider is Nip07Provider & Required<Pick<Nip07Provider, 'connect'>> {
+  return typeof provider?.connect === 'function';
+}
+
+/** Whether the provider lets the site give an account back. */
+export function hasDisconnect(
+  provider: Nip07Provider | undefined,
+): provider is Nip07Provider & Required<Pick<Nip07Provider, 'disconnect'>> {
+  return typeof provider?.disconnect === 'function';
 }
 
 /** Wait for `window.nostr`, polling every 100 ms up to `timeout`. */

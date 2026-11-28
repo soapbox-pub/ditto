@@ -10,7 +10,7 @@ import { generateSecretKey, nip19 } from 'nostr-tools';
 import { useAppContext } from '@/hooks/useAppContext';
 import { APP_RELAYS } from '@/lib/appRelays';
 import { AndroidNativeSigner } from '@/lib/androidNativeSigner';
-import { getNip07Provider, hasRequestPublicKey } from '@/lib/nip07';
+import { getNip07Provider, hasConnect } from '@/lib/nip07';
 import { Nip46Signer } from '@/lib/nip46Signer';
 import { isNostrId } from '@/lib/nostrId';
 import { Nip46Transport } from '@/lib/nip46Transport';
@@ -113,12 +113,13 @@ export function useLoginActions() {
       }
     },
     // Login with a NIP-07 browser extension. One that can give the site an
-    // account of the user's choosing (requestPublicKey) is asked for one; the
+    // account of the user's choosing (connect) is asked for one; the
     // extension shows the account itself.
     async extension(): Promise<void> {
       const provider = getNip07Provider();
-      if (hasRequestPublicKey(provider)) {
-        const answer: unknown = await provider.requestPublicKey();
+      if (hasConnect(provider)) {
+        const signer = await provider.connect();
+        const answer: unknown = await signer.getPublicKey();
         const pubkey = typeof answer === 'string' ? answer.toLowerCase() : '';
         if (!isNostrId(pubkey)) throw new Error('The extension returned an invalid public key');
         addAndActivate(new NLogin('extension', pubkey, null));

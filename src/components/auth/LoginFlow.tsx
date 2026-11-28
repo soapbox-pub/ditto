@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLoginActions } from '@/hooks/useLoginActions';
-import { getNip07Provider, hasRequestPublicKey } from '@/lib/nip07';
+import { getNip07Provider, hasConnect } from '@/lib/nip07';
 import LoginDialog from './LoginDialog';
 import { QuickLoginDialog } from './QuickLoginDialog';
 
@@ -15,7 +15,7 @@ type View = 'probing' | 'quick' | 'full';
 
 /**
  * Orchestrates the login flow: when opened, probes for a NIP-07 extension.
- * One that can give the site an account (`requestPublicKey`) is asked for one
+ * One that can give the site an account (`connect`) is asked for one
  * and logged in with straight away, since the extension shows the account
  * itself. Otherwise, if one exposes a pubkey, shows the one-tap
  * QuickLoginDialog ("Welcome back") first. Either way a refusal falls through
@@ -50,7 +50,7 @@ export function LoginFlow({ isOpen, onClose, onLogin, onSignupClick }: LoginFlow
 
     const probe = async () => {
       const provider = getNip07Provider();
-      if (hasRequestPublicKey(provider)) {
+      if (hasConnect(provider)) {
         requestRef.current ??= loginRef.current.extension().finally(() => {
           requestRef.current = null;
         });
